@@ -239,7 +239,7 @@ function SongsView() {
 }
 
 function ProjectionView() {
-  const singleScreen = 
+  const singleScreen =
     import.meta.env.VITE_SINGLE_SCREEN === '1' ||
     import.meta.env.VITE_SINGLE_SCREEN === 'true'
   const { currentItem, blank, index, goNext, goPrev } = useSongNavigation()
@@ -247,6 +247,89 @@ function ProjectionView() {
   const translation =
     currentItem && !isSection(currentItem) ? (currentItem as LyricLine).tr : ''
   const showContent = index >= 0 && !blank && !isSectionMarker
+
+  const [displayedText, setDisplayedText] = useState('')
+  const [isVisible, setIsVisible] = useState(false)
+  const fadeOutTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const swapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoHiddenKeyRef = useRef<string | null>(null)
+
+  const activeKey = showContent ? `${index}:${translation}` : ''
+
+  const clearAllTimers = () => {
+    if (fadeOutTimer.current) {
+      clearTimeout(fadeOutTimer.current)
+      fadeOutTimer.current = null
+    }
+    if (swapTimer.current) {
+      clearTimeout(swapTimer.current)
+      swapTimer.current = null
+    }
+    if (autoFadeTimer.current) {
+      clearTimeout(autoFadeTimer.current)
+      autoFadeTimer.current = null
+    }
+  }
+
+  const FADE_MS = 500
+  const AUTO_FADE_MS = 4000
+
+  useEffect(() => {
+    clearAllTimers()
+
+    if (!showContent) {
+      autoHiddenKeyRef.current = null
+      setIsVisible(false)
+      swapTimer.current = setTimeout(() => setDisplayedText(''), FADE_MS)
+      return () => clearAllTimers()
+    }
+
+    if (autoHiddenKeyRef.current === activeKey) {
+      return () => clearAllTimers()
+    }
+
+    autoHiddenKeyRef.current = null
+
+    const nextText = translation ?? ''
+
+    if (displayedText === '') {
+      setDisplayedText(nextText)
+      setIsVisible(true)
+      autoFadeTimer.current = setTimeout(() => {
+        setIsVisible(false)
+        fadeOutTimer.current = setTimeout(() => {
+          autoHiddenKeyRef.current = activeKey
+          setDisplayedText('')
+        }, FADE_MS)
+      }, AUTO_FADE_MS)
+    } else if (nextText !== displayedText) {
+      setIsVisible(false)
+      swapTimer.current = setTimeout(() => {
+        setDisplayedText(nextText)
+        setIsVisible(true)
+        autoFadeTimer.current = setTimeout(() => {
+          setIsVisible(false)
+          fadeOutTimer.current = setTimeout(() => {
+            autoHiddenKeyRef.current = activeKey
+            setDisplayedText('')
+          }, FADE_MS)
+        }, AUTO_FADE_MS)
+      }, FADE_MS)
+    } else {
+      autoFadeTimer.current = setTimeout(() => {
+        setIsVisible(false)
+        fadeOutTimer.current = setTimeout(() => {
+          autoHiddenKeyRef.current = activeKey
+          setDisplayedText('')
+        }, FADE_MS)
+      }, AUTO_FADE_MS)
+    }
+
+    return () => clearAllTimers()
+  }, [showContent, translation, displayedText, activeKey])
+
+  useEffect(() => () => clearAllTimers(), [])
 
   const navRef = useRef({ goNext, goPrev })
   navRef.current = { goNext, goPrev }
@@ -279,19 +362,19 @@ function ProjectionView() {
         margin: 0,
       }}
     >
-      {showContent && (
-        <span
-          style={{
-            color: '#fff',
-            fontSize: 'clamp(3rem, 12vw, 8rem)',
-            fontWeight: 700,
-            textAlign: 'center',
-            padding: '1rem',
-          }}
-        >
-          {translation}
-        </span>
-      )}
+      <span
+        style={{
+          color: '#fff',
+          fontSize: 'clamp(3rem, 12vw, 8rem)',
+          fontWeight: 700,
+          textAlign: 'center',
+          padding: '1rem',
+          opacity: isVisible ? 1 : 0,
+          transition: 'opacity 500ms ease',
+        }}
+      >
+        {displayedText}
+      </span>
     </div>
   )
 }
