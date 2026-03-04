@@ -1,7 +1,7 @@
 import { useSongNavigation } from './useSongNavigation'
 import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId } from './songState'
 import { useWebSocket } from './useWebSocket'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
 import type { LyricLine } from './songState'
 import './control.css'
@@ -90,29 +90,45 @@ function ControlView() {
     window.location.hash = '#/songs'
   }
 
+  const handlersRef = useRef({
+    handleNext,
+    handlePrev,
+    handleRestart,
+    handleBlankToggle,
+    goToSongs,
+  })
+  handlersRef.current = {
+    handleNext,
+    handlePrev,
+    handleRestart,
+    handleBlankToggle,
+    goToSongs,
+  }
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const { handleNext: next, handlePrev: prev, handleRestart: restart, handleBlankToggle: blankToggle, goToSongs: toSongs } = handlersRef.current
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
-        handleNext()
+        next()
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
-        handlePrev()
+        prev()
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault()
-        handleRestart()
+        restart()
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
-        goToSongs()
+        toSongs()
       } else if (e.key === 'b' || e.key === 'B') {
         e.preventDefault()
-        handleBlankToggle()
+        blankToggle()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [lines.length, index, blank])
+  }, [])
 
   const currentEs =
     currentItem && !isSection(currentItem) ? (currentItem as LyricLine).es : ''
