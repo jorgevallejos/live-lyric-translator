@@ -1,38 +1,93 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, type LyricLine } from './songState'
+import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId } from './songState'
+import { useWebSocket } from './useWebSocket'
 import { useEffect, useState } from 'react'
+import { SONGS } from './songs'
+import type { LyricLine } from './songState'
+import './control.css'
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      openProjection: () => void
+      closeProjection: () => void
+      onProjectionClosed: (cb: () => void) => void
+    }
+  }
+}
+
+function ProjectionButton() {
+  const [isOpen, setIsOpen] = useState(false)
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api?.onProjectionClosed) return
+    const cb = () => setIsOpen(false)
+    api.onProjectionClosed(cb)
+    return () => { /* unregister if API supports it */ }
+  }, [])
+  const api = window.electronAPI
+  if (!api) return null
+  const handleClick = () => {
+    if (isOpen) {
+      api.closeProjection()
+      setIsOpen(false)
+    } else {
+      api.openProjection()
+      setIsOpen(true)
+    }
+  }
+  return (
+    <button type="button" className="ctrl-btn ctrl-projection" onClick={handleClick}>
+      {isOpen ? 'Close Projection' : 'Open Projection'}
+    </button>
+  )
+}
 
 function ControlView() {
   const {
     lines,
     index,
+    blank,
     currentItem,
-    nextLyricLine,
+    currentSongTitle,
     goNext,
     goPrev,
+    goRestart,
+    setBlankState,
     loadLines,
+    loadError,
+    applyRemoteState,
+    applyCommand,
   } = useSongNavigation()
+  const { sendCommandWithState } = useWebSocket({
+    index,
+    blank,
+    applyRemoteState,
+    applyCommand,
+  })
 
-  const openProjection = () => {
-    const url = `${window.location.origin}${window.location.pathname || '/'}#/projection`
-    window.open(url)
+  const handleNext = () => {
+    goNext()
+    sendCommandWithState('next', undefined, {
+      currentIndex: getSongIndex(),
+      blank,
+    })
+  }
+  const handlePrev = () => {
+    goPrev()
+    sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank })
+  }
+  const handleRestart = () => {
+    goRestart()
+    sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+  }
+  const handleBlankToggle = () => {
+    setBlankState(!blank)
+    sendCommandWithState('blankToggle', undefined, { currentIndex: index, blank: !blank })
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const text = reader.result as string
-        const items = parseSongJson(text)
-        loadLines(items)
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Invalid JSON')
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
+  const goToSongs = () => {
+    window.location.hash = '#/songs'
   }
 
   useEffect(() => {
@@ -40,80 +95,139 @@ function ControlView() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
-        goNext()
+        handleNext()
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
-        goPrev()
+        handlePrev()
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault()
+        handleRestart()
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault()
+        goToSongs()
+      } else if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault()
+        handleBlankToggle()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [goNext, goPrev])
+  }, [lines.length, index, blank])
+
+  const currentEs =
+    currentItem && !isSection(currentItem) ? (currentItem as LyricLine).es : ''
+  const notStarted = index === -1
+  const displayText = notStarted
+    ? ''
+    : currentEs || (loadError ? loadError : '—')
+  const lineCount = lines.length
+  const positionText = notStarted
+    ? ''
+    : lineCount > 0
+      ? `${index + 1} of ${lineCount}`
+      : ''
 
   return (
-    <>
-      <h1>Live Lyric Translator</h1>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <label>
-          Load JSON: <input type="file" accept=".json,application/json" onChange={handleFileChange} />
-        </label>
-      </div>
-
-      {lines.length > 0 && (
-        <p style={{ fontFamily: 'monospace', color: '#666' }}>
-          {index + 1} / {lines.length}
-        </p>
-      )}
-
-      <div style={{ marginBottom: '1rem' }}>
-        <button type="button" onClick={goPrev} disabled={lines.length === 0 || index <= 0}>
-          Previous
+    <div className="control-screen">
+      <header className="control-top-bar">
+        <button type="button" className="top-btn top-btn-songs" onClick={goToSongs}>
+          Songs
         </button>
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={lines.length === 0 || index >= lines.length - 1}
-          style={{ marginLeft: '0.5rem' }}
-        >
-          Next
+        <div className="top-current">
+          <span className="top-label">Current song</span>
+          <span className="top-title">{currentSongTitle}</span>
+        </div>
+      </header>
+
+      <main className="control-center">
+        <p className="control-lyric">{displayText}</p>
+        {notStarted && (
+          <p className="control-ready" aria-hidden>Ready</p>
+        )}
+        {positionText && <p className="control-position">{positionText}</p>}
+      </main>
+
+      <footer className="control-bottom-bar">
+        <div className="bottom-buttons">
+          <button
+            type="button"
+            className="ctrl-btn ctrl-prev"
+            onClick={handlePrev}
+            disabled={lines.length === 0 || index <= -1}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            className="ctrl-btn ctrl-next"
+            onClick={handleNext}
+            disabled={lines.length === 0 || index >= lines.length - 1}
+          >
+            Next
+          </button>
+          <button type="button" className="ctrl-btn ctrl-restart" onClick={handleRestart}>
+            Restart
+          </button>
+          {window.electronAPI && (
+            <ProjectionButton />
+          )}
+        </div>
+      </footer>
+    </div>
+  )
+}
+
+function SongsView() {
+  const goBack = () => {
+    window.location.hash = '#/'
+  }
+
+  const selectSong = async (id: string, path: string, title: string) => {
+    try {
+      const res = await fetch(path)
+      if (!res.ok) throw new Error('Failed to load')
+      const text = await res.text()
+      const items = parseSongJson(text)
+      setSongLines(items)
+      setSongIndex(-1)
+      setBlank(true)
+      setCurrentSongId(id)
+      window.location.hash = '#/'
+    } catch {
+      alert(`Could not load ${title}.`)
+    }
+  }
+
+  return (
+    <div className="songs-screen">
+      <header className="songs-top-bar">
+        <button type="button" className="songs-back" onClick={goBack}>
+          Back
         </button>
-      </div>
-
-      {currentItem ? (
-        isSection(currentItem) ? (
-          <div style={{ marginTop: '2rem' }}>
-            <p style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>{currentItem.label}</p>
-          </div>
-        ) : (
-          <div style={{ marginTop: '1rem' }}>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{currentItem.es}</p>
-            <p style={{ marginTop: '0.5rem', color: '#444' }}>{currentItem.tr}</p>
-            {nextLyricLine && (
-              <p style={{ marginTop: '1.5rem', fontSize: '0.95rem', color: '#666' }}>
-                Next: {nextLyricLine.es}
-              </p>
-            )}
-          </div>
-        )
-      ) : (
-        <p style={{ color: '#666', marginTop: '1rem' }}>
-          {lines.length === 0 ? 'Load a JSON file to start.' : '—'}
-        </p>
-      )}
-
-      <button type="button" onClick={openProjection} style={{ marginTop: '1rem' }}>
-        Open Projection
-      </button>
-    </>
+        <h1 className="songs-title">Songs</h1>
+      </header>
+      <main className="songs-body">
+        {SONGS.map((song) => (
+          <button
+            key={song.id}
+            type="button"
+            className="songs-song-btn"
+            onClick={() => selectSong(song.id, song.path, song.title)}
+          >
+            {song.title}
+          </button>
+        ))}
+      </main>
+    </div>
   )
 }
 
 function ProjectionView() {
-  const { currentItem } = useSongNavigation()
+  const { currentItem, blank, index } = useSongNavigation()
   const isSectionMarker = currentItem && isSection(currentItem)
   const translation =
     currentItem && !isSection(currentItem) ? (currentItem as LyricLine).tr : ''
+  const showContent = index >= 0 && !blank && !isSectionMarker
 
   return (
     <div
@@ -127,7 +241,7 @@ function ProjectionView() {
         margin: 0,
       }}
     >
-      {!isSectionMarker && (
+      {showContent && (
         <span
           style={{
             color: '#fff',
@@ -145,18 +259,25 @@ function ProjectionView() {
 }
 
 function App() {
-  const [isProjection, setIsProjection] = useState(
-    () => window.location.hash === '#/projection'
-  )
+  // On app launch (main window only), force a clean session so we start with "No song selected" and Ready state.
   useEffect(() => {
-    const onHashChange = () => setIsProjection(window.location.hash === '#/projection')
+    if (window.location.hash === '#/projection') return
+    if (sessionStorage.getItem('liveLyricLaunched')) return
+    sessionStorage.setItem('liveLyricLaunched', '1')
+    setCurrentSongId('')
+    setSongLines([])
+    setSongIndex(-1)
+    setBlank(true)
+  }, [])
+
+  const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
-
-  if (isProjection) {
-    return <ProjectionView />
-  }
+  if (hash === '#/projection') return <ProjectionView />
+  if (hash === '#/songs') return <SongsView />
   return <ControlView />
 }
 
