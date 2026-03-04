@@ -239,11 +239,33 @@ function SongsView() {
 }
 
 function ProjectionView() {
-  const { currentItem, blank, index } = useSongNavigation()
+  const singleScreen = 
+    import.meta.env.VITE_SINGLE_SCREEN === '1' ||
+    import.meta.env.VITE_SINGLE_SCREEN === 'true'
+  const { currentItem, blank, index, goNext, goPrev } = useSongNavigation()
   const isSectionMarker = currentItem && isSection(currentItem)
   const translation =
     currentItem && !isSection(currentItem) ? (currentItem as LyricLine).tr : ''
   const showContent = index >= 0 && !blank && !isSectionMarker
+
+  const navRef = useRef({ goNext, goPrev })
+  navRef.current = { goNext, goPrev }
+  useEffect(() => {
+    if (!singleScreen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const { goNext: next, goPrev: prev } = navRef.current
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        next()
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        prev()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [singleScreen])
 
   return (
     <div
