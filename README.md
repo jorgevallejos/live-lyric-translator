@@ -5,10 +5,15 @@
 <img src="docs/images/chango-pepper-banner.png">
 </p>
 
-A minimal live subtitle system for concerts.
+Live Lyric Translator is a small performance tool I created to project translated lyrics during live concerts.
 
-This application allows a musician to project translated lyrics in real time during a live performance.  
-The performer advances each phrase manually while singing, allowing subtitles to stay aligned with the music without requiring precise timing.
+The songs are part of Chango Pepper, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
+
+Most subtitle systems rely on precise time synchronization, which is fragile in a live performance. Tempos change, pauses appear, and songs evolve slightly from one concert to another.
+
+Instead, this tool takes a simpler approach: I manually advance each translated line during the performance using a pedal or keyboard. This keeps the translation aligned with the music without requiring exact timing.
+
+The result is a minimal and reliable subtitle system designed specifically for live concerts.
 
 ⸻
 
@@ -248,12 +253,14 @@ The goal of this project is both practical and experimental: exploring how AI-as
 
 ⸻
 
-## 🎵 About the artist
+## 🎭 Artistic context
 
-This project is part of the preparation for the live performances of **Chango Pepper**, the musical project of Chilean artist **Jorge Vallejos**.
+Live Lyric Translator is a small performance tool I created to project translated lyrics during live concerts.
 
-Chango Pepper blends Latin American roots, storytelling, and contemporary arrangements. The songs are written primarily in Spanish and are performed for international audiences. The Live Lyric Translator was created as a practical tool to make these performances more accessible by projecting translations of the lyrics during concerts while preserving the natural flow of the music.
+The songs are part of Chango Pepper, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
 
-More about the project and the music:
+Most subtitle systems rely on precise time synchronization, which is fragile in a live performance. Tempos change, pauses appear, and songs evolve slightly from one concert to another.
 
-https://sites.google.com/view/changopepper/home
+Instead, this tool takes a simpler approach: I manually advance each translated line during the performance using a pedal or keyboard. This keeps the translation aligned with the music without requiring exact timing.
+
+The result is a minimal and reliable subtitle system designed specifically for live concerts.
