@@ -15,8 +15,6 @@ Instead, this tool takes a simpler approach: I manually advance each translated 
 
 The result is a minimal and reliable subtitle system designed specifically for live concerts.
 
----
-
 ## ✨ Why this project exists
 
 When performing songs in Spanish for international audiences, listeners often cannot follow the meaning of the lyrics.
@@ -28,8 +26,6 @@ This project takes a different approach:
 ➡ The performer manually advances the translation using a pedal or keyboard.
 
 This makes the system simple, reliable, and performance-friendly.
-
----
 
 ## ⚙️ How it works
 
@@ -55,8 +51,6 @@ Each phrase:
 1. fades in  
 2. remains visible briefly  
 3. fades out automatically unless the performer advances  
-
----
 
 ## 🎭 Live performance setups
 
@@ -84,8 +78,6 @@ The performer advances phrases using either:
 
 This configuration is lightweight and ideal for rehearsals or smaller venues.
 
----
-
 ### Mac mini concert setup (current configuration)
 
 For performances where a dedicated stage setup is preferred, the system can run on a Mac mini with a separate control display.
@@ -111,8 +103,6 @@ Sidecar works over the cable and does not require internet access.
 
 The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 
----
-
 ## 🎬 Concert workflow
 
 Typical usage during a performance:
@@ -123,8 +113,6 @@ Typical usage during a performance:
 4. The system shows “Ready”  
 5. Press Next to reveal the first translation  
 6. Advance phrases during the performance  
-
----
 
 ## 🎛 Controls
 
@@ -145,8 +133,6 @@ R → Restart song
 B → Toggle blank projection  
 S → Open song selection  
 
----
-
 ## 🧪 Single-screen rehearsal mode
 
 Normally the projection window ignores keyboard arrows for safety.
@@ -156,8 +142,6 @@ For rehearsal with a single screen run:
 npm run dev:single
 
 In this mode the projection window also responds to arrow keys.
-
----
 
 ## 🎼 Song format
 
@@ -176,8 +160,6 @@ Song files are stored in the folder:
 
 public
 
----
-
 ## 🧱 Technology stack
 
 This project is built with:
@@ -191,8 +173,6 @@ Electron is used to open two synchronized windows:
 
 • Control interface  
 • Projection display  
-
----
 
 ## 🏗 Architecture
 
@@ -218,8 +198,6 @@ Pedal[Bluetooth Pedal] --> Control
 ```
 
 This architecture keeps the system simple and reliable for live performances.
-
----
 
 ## 📁 Project structure
 
@@ -254,8 +232,6 @@ Navigation logic.
 src/useWebSocket.ts  
 Window synchronization.
 
----
-
 ## 🛠 Development
 
 **Install dependencies**
@@ -270,8 +246,6 @@ Optional rehearsal mode
 
 npm run dev:single
 
----
-
 ## 🤖 Credits
 
 This project was developed iteratively using:
@@ -280,8 +254,6 @@ This project was developed iteratively using:
 • ChatGPT for architecture design, debugging, and feature planning  
 
 The goal of this project is both practical and experimental: exploring how AI-assisted development can accelerate the creation of small creative tools.
-
----
 
 ## 🎼 Artistic context
 
