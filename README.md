@@ -58,24 +58,54 @@ Each phrase:
 
 ⸻
 
-## 🎭 Live performance setup (current configuration)
+## 🎭 Live performance setups
 
-### Hardware
+The system can be used with different hardware configurations depending on the context of the performance.
 
-• Mac mini — runs the application  
-• Projector — displays translated lyrics  
-• iPad — used as a touchscreen control screen via Sidecar  
-• Bluetooth pedal — used for Next / Previous  
+### Laptop setup (simplest)
 
-### Connections
+The application can run directly on a Mac laptop, which is the simplest configuration.
 
-Mac mini → HDMI → Projector  
+Hardware
+
+• Mac laptop running the application
+• Projector connected via HDMI or USB-C
+• Optional Bluetooth pedal for phrase navigation
+
+In this setup:
+
+• the projector displays the translation to the audience
+• the laptop screen acts as the control interface
+
+The performer advances phrases using either:
+
+• the keyboard
+• a Bluetooth pedal mapped to the arrow keys
+
+This configuration is lightweight and ideal for rehearsals or smaller venues.
+
+⸻
+
+### Mac mini concert setup (current configuration)
+
+For performances where a dedicated stage setup is preferred, the system can run on a Mac mini with a separate control display.
+
+Hardware
+
+• Mac mini — runs the application
+• Projector — displays translated lyrics
+• iPad — used as a touchscreen control screen via Sidecar
+• Bluetooth pedal — used for Next / Previous
+
+Connections
+
+Mac mini → HDMI → Projector
 Mac mini → USB-C → iPad (Sidecar)
 
-### Operating systems tested
+Operating systems tested
 
-• macOS 26.1  
-• iPadOS 26.3  
+• macOS 26.1
+• iPadOS 26.3
 
 Sidecar works over the cable and does not require internet access.
 
