@@ -36,6 +36,7 @@ The application runs on a Mac mini and opens two windows.
 Used by the performer to:
 
 - select songs  
+- select translation language for projection
 - advance or go back one phrase  
 - restart a song  
 - blank the projection if needed  
@@ -110,9 +111,10 @@ Typical usage during a performance:
 1. Start the application  
 2. Open the projection window  
 3. Select a song  
-4. The system shows “Ready”  
-5. Press Next to reveal the first translation  
-6. Advance phrases during the performance  
+4. Select a translation language
+5. The system shows “Ready”  
+6. Press Next to reveal the first translation  
+7. Advance phrases during the performance  
 
 ## 🎛 Controls
 
