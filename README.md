@@ -91,8 +91,8 @@ For performances where a dedicated stage setup is preferred, the system can run 
 
 **Connections**
 
-Mac mini → HDMI → Projector
-Mac mini → USB-C → iPad (Sidecar)
+Mac mini → HDMI → Projector  
+Mac mini → USB-C → iPad (Sidecar)  
 
 **Operating systems tested**
 
@@ -118,11 +118,12 @@ Typical usage during a performance:
 
 ### Control screen buttons
 
-- Previous  
-- Next  
-- Restart  
-- Open / Close Projection  
-- Songs  
+- Previous
+- Next
+- Restart
+- Open / Close Projection
+- Songs
+- Languages 
 
 ### Keyboard shortcuts
 
@@ -132,6 +133,21 @@ Space → Next phrase
 R → Restart song  
 B → Toggle blank projection  
 S → Open song selection  
+
+## 🌍 Language selection
+
+The performer can choose which translation language is projected.
+
+A **Languages** button is available in the top bar of the control interface.
+
+When selecting a language:
+- the choice is stored locally
+- the projection immediately switches to that language
+- the setting persists between sessions
+
+The currently selected language is displayed next to the Current song label on the control screen.
+
+If a translation is missing for the selected language, that lyric line simply remains blank on the projection screen.
 
 ## 🧪 Single-screen rehearsal mode
 
@@ -147,18 +163,37 @@ In this mode the projection window also responds to arrow keys.
 
 Songs are stored as simple JSON files.
 
-Each line contains:
+Each lyric line contains the original Spanish text and a set of translations.
 
+Example structure:
+
+```json
+[
+  {
+    "es": "Viejo pimiento,",
+    "translations": {
+      "en": "Old pepper tree,",
+      "fr": "Vieux pimentier,",
+      "nl": "Oude peperboom,"
+    }
+  }
+]
+```
+
+Fields:
 - **es** — original lyric (Spanish)  
-- **tr** — translated line displayed to the audience  
+- **translations** — translated versions of the line indexed by language code
 
-Example concept:
+Example language codes currently used:
+- en — English
+- fr — French
+- nl — Dutch
 
-Spanish line → translated line
+Only one language is projected at a time, and it can be selected from the Languages screen in the control interface.
 
-Song files are stored in the folder:
+This format makes it easy to add additional languages in the future without changing the application code.
 
-public
+Song files are stored in the `public` folder.
 
 ## 🧱 Technology stack
 
