@@ -2,7 +2,7 @@
 # Live Lyric Translator
 
 <p align="center">
-<img src="docs/images/chango-pepper.png" width="600">
+<img src="docs/images/chango-pepper-banner.png">
 </p>
 
 A minimal live subtitle system for concerts.
