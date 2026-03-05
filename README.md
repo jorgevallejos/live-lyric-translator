@@ -35,10 +35,10 @@ The application runs on a Mac mini and opens two windows.
 
 Used by the performer to:
 
-• select songs  
-• advance or go back one phrase  
-• restart a song  
-• blank the projection if needed  
+- select songs  
+- advance or go back one phrase  
+- restart a song  
+- blank the projection if needed  
 
 ### Projection window
 
@@ -62,19 +62,19 @@ The application can run directly on a Mac laptop, which is the simplest configur
 
 **Hardware**
 
-• Mac laptop running the application
-• Projector connected via HDMI or USB-C
-• Optional Bluetooth pedal for phrase navigation
+- Mac laptop running the application
+- Projector connected via HDMI or USB-C
+- Optional Bluetooth pedal for phrase navigation
 
 In this setup:
 
-• the projector displays the translation to the audience
-• the laptop screen acts as the control interface
+- the projector displays the translation to the audience
+- the laptop screen acts as the control interface
 
 The performer advances phrases using either:
 
-• the keyboard
-• a Bluetooth pedal mapped to the arrow keys
+- the keyboard
+- a Bluetooth pedal mapped to the arrow keys
 
 This configuration is lightweight and ideal for rehearsals or smaller venues.
 
@@ -84,10 +84,10 @@ For performances where a dedicated stage setup is preferred, the system can run 
 
 **Hardware**
 
-• Mac mini — runs the application
-• Projector — displays translated lyrics
-• iPad — used as a touchscreen control screen via Sidecar
-• Bluetooth pedal — used for Next / Previous
+- Mac mini — runs the application
+- Projector — displays translated lyrics
+- iPad — used as a touchscreen control screen via Sidecar
+- Bluetooth pedal — used for Next / Previous
 
 **Connections**
 
@@ -96,8 +96,8 @@ Mac mini → USB-C → iPad (Sidecar)
 
 **Operating systems tested**
 
-• macOS 26.1
-• iPadOS 26.3
+- macOS 26.1
+- iPadOS 26.3
 
 Sidecar works over the cable and does not require internet access.
 
@@ -118,11 +118,11 @@ Typical usage during a performance:
 
 ### Control screen buttons
 
-• Previous  
-• Next  
-• Restart  
-• Open / Close Projection  
-• Songs  
+- Previous  
+- Next  
+- Restart  
+- Open / Close Projection  
+- Songs  
 
 ### Keyboard shortcuts
 
@@ -149,8 +149,8 @@ Songs are stored as simple JSON files.
 
 Each line contains:
 
-• **es** — original lyric (Spanish)  
-• **tr** — translated line displayed to the audience  
+- **es** — original lyric (Spanish)  
+- **tr** — translated line displayed to the audience  
 
 Example concept:
 
@@ -164,22 +164,22 @@ public
 
 This project is built with:
 
-• TypeScript — application logic  
-• React — user interface  
-• Vite — development and build system  
-• Electron — desktop application framework  
+- TypeScript — application logic  
+- React — user interface  
+- Vite — development and build system  
+- Electron — desktop application framework  
 
 Electron is used to open two synchronized windows:
 
-• Control interface  
-• Projection display  
+- Control interface  
+- Projection display  
 
 ## 🏗 Architecture
 
 The application runs as a small desktop system composed of two synchronized windows.
 
-• A control window used by the performer  
-• A projection window displayed to the audience  
+- A control window used by the performer  
+- A projection window displayed to the audience  
 
 Both windows share the same song state so they stay synchronized during the performance.
 
@@ -234,11 +234,11 @@ Window synchronization.
 
 ## 🛠 Development
 
-**Install dependencies**
+### Install dependencies
 
 npm install
 
-**Run the application**
+### Run the application
 
 npm run dev
 
@@ -250,8 +250,8 @@ npm run dev:single
 
 This project was developed iteratively using:
 
-• Cursor (AI-assisted development environment)  
-• ChatGPT for architecture design, debugging, and feature planning  
+- Cursor (AI-assisted development environment)  
+- ChatGPT for architecture design, debugging, and feature planning  
 
 The goal of this project is both practical and experimental: exploring how AI-assisted development can accelerate the creation of small creative tools.
 
