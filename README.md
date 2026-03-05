@@ -7,7 +7,7 @@
 
 Live Lyric Translator is a small performance tool I created to project translated lyrics during live concerts.
 
-The songs are part of Chango Pepper, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
+The songs are part of **Chango Pepper**, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
 
 Most subtitle systems rely on precise time synchronization, which is fragile in a live performance. Tempos change, pauses appear, and songs evolve slightly from one concert to another.
 
@@ -15,7 +15,7 @@ Instead, this tool takes a simpler approach: I manually advance each translated 
 
 The result is a minimal and reliable subtitle system designed specifically for live concerts.
 
-⸻
+---
 
 ## ✨ Why this project exists
 
@@ -29,7 +29,7 @@ This project takes a different approach:
 
 This makes the system simple, reliable, and performance-friendly.
 
-⸻
+---
 
 ## ⚙️ How it works
 
@@ -56,7 +56,7 @@ Each phrase:
 2. remains visible briefly  
 3. fades out automatically unless the performer advances  
 
-⸻
+---
 
 ## 🎭 Live performance setups
 
@@ -66,7 +66,7 @@ The system can be used with different hardware configurations depending on the c
 
 The application can run directly on a Mac laptop, which is the simplest configuration.
 
-Hardware
+**Hardware**
 
 • Mac laptop running the application
 • Projector connected via HDMI or USB-C
@@ -84,25 +84,25 @@ The performer advances phrases using either:
 
 This configuration is lightweight and ideal for rehearsals or smaller venues.
 
-⸻
+---
 
 ### Mac mini concert setup (current configuration)
 
 For performances where a dedicated stage setup is preferred, the system can run on a Mac mini with a separate control display.
 
-Hardware
+**Hardware**
 
 • Mac mini — runs the application
 • Projector — displays translated lyrics
 • iPad — used as a touchscreen control screen via Sidecar
 • Bluetooth pedal — used for Next / Previous
 
-Connections
+**Connections**
 
 Mac mini → HDMI → Projector
 Mac mini → USB-C → iPad (Sidecar)
 
-Operating systems tested
+**Operating systems tested**
 
 • macOS 26.1
 • iPadOS 26.3
@@ -111,7 +111,7 @@ Sidecar works over the cable and does not require internet access.
 
 The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 
-⸻
+---
 
 ## 🎬 Concert workflow
 
@@ -124,7 +124,7 @@ Typical usage during a performance:
 5. Press Next to reveal the first translation  
 6. Advance phrases during the performance  
 
-⸻
+---
 
 ## 🎛 Controls
 
@@ -145,7 +145,7 @@ R → Restart song
 B → Toggle blank projection  
 S → Open song selection  
 
-⸻
+---
 
 ## 🧪 Single-screen rehearsal mode
 
@@ -157,7 +157,7 @@ npm run dev:single
 
 In this mode the projection window also responds to arrow keys.
 
-⸻
+---
 
 ## 🎼 Song format
 
@@ -176,7 +176,7 @@ Song files are stored in the folder:
 
 public
 
-⸻
+---
 
 ## 🧱 Technology stack
 
@@ -192,7 +192,7 @@ Electron is used to open two synchronized windows:
 • Control interface  
 • Projection display  
 
-⸻
+---
 
 ## 🏗 Architecture
 
@@ -219,7 +219,7 @@ Pedal[Bluetooth Pedal] --> Control
 
 This architecture keeps the system simple and reliable for live performances.
 
-⸻
+---
 
 ## 📁 Project structure
 
@@ -254,15 +254,15 @@ Navigation logic.
 src/useWebSocket.ts  
 Window synchronization.
 
-⸻
+---
 
 ## 🛠 Development
 
-Install dependencies
+**Install dependencies**
 
 npm install
 
-Run the application
+**Run the application**
 
 npm run dev
 
@@ -270,7 +270,7 @@ Optional rehearsal mode
 
 npm run dev:single
 
-⸻
+---
 
 ## 🤖 Credits
 
@@ -281,16 +281,15 @@ This project was developed iteratively using:
 
 The goal of this project is both practical and experimental: exploring how AI-assisted development can accelerate the creation of small creative tools.
 
-⸻
+---
 
-## 🎭 Artistic context
+## 🎼 Artistic context
 
-Live Lyric Translator is a small performance tool I created to project translated lyrics during live concerts.
+Chango Pepper is an artistic project centered on storytelling through music, images, and atmosphere.
 
-The songs are part of Chango Pepper, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
+The songs are written primarily in Spanish and draw from Latin American roots, personal memories, and the quiet poetry of everyday life. Performances aim to create an immersive space where melodies, words, and visual elements unfold together and invite the audience into a narrative journey.
 
-Most subtitle systems rely on precise time synchronization, which is fragile in a live performance. Tempos change, pauses appear, and songs evolve slightly from one concert to another.
+Because these performances often take place in front of international audiences, the Live Lyric Translator was created as a simple way to make the lyrics accessible without interrupting the natural flow of the music.
 
-Instead, this tool takes a simpler approach: I manually advance each translated line during the performance using a pedal or keyboard. This keeps the translation aligned with the music without requiring exact timing.
-
-The result is a minimal and reliable subtitle system designed specifically for live concerts.
+More about the project and the music:
+https://sites.google.com/view/changopepper/home
