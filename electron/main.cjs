@@ -78,6 +78,9 @@ function createWindow() {
     if (openUrl.includes('#/projection')) {
       if (projectionWindow && !projectionWindow.isDestroyed()) {
         projectionWindow.focus()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('projection-opened')
+        }
       } else {
         projectionWindow = new BrowserWindow({
           fullscreen: true,
@@ -88,6 +91,9 @@ function createWindow() {
           },
         })
         projectionWindow.loadURL(openUrl)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('projection-opened')
+        }
         projectionWindow.on('closed', () => {
           projectionWindow = null
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -104,6 +110,9 @@ function createWindow() {
 ipcMain.handle('projection:open', () => {
   if (projectionWindow && !projectionWindow.isDestroyed()) {
     projectionWindow.focus()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('projection-opened')
+    }
     return
   }
   projectionWindow = new BrowserWindow({
@@ -115,12 +124,19 @@ ipcMain.handle('projection:open', () => {
     },
   })
   loadProjectionUrl(projectionWindow)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('projection-opened')
+  }
   projectionWindow.on('closed', () => {
     projectionWindow = null
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('projection-closed')
     }
   })
+})
+
+ipcMain.handle('projection:isOpen', () => {
+  return projectionWindow != null && !projectionWindow.isDestroyed()
 })
 
 ipcMain.handle('projection:close', () => {

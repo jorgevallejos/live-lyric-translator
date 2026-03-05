@@ -1,26 +1,50 @@
 [
   {
     "es": "Cielo gris en nuestro hogar,",
-    "tr": "Gray sky in our home,"
+    "translations": {
+      "en": "A grey sky over our home,",
+      "fr": "Un ciel gris sur notre maison,",
+      "nl": "Een grijze hemel boven ons huis,"
+    }
   },
   {
     "es": "Tú ya en el mar.",
-    "tr": "You already in the sea."
+    "translations": {
+      "en": "you already at sea.",
+      "fr": "toi déjà dans la mer.",
+      "nl": "jij al in de zee."
+    }
   },
   {
     "es": "Polvo el cuerpo,",
-    "tr": "Dust the body,"
+    "translations": {
+      "en": "The body to dust,",
+      "fr": "Le corps devient poussière,",
+      "nl": "Het lichaam wordt stof,"
+    }
   },
   {
     "es": "Nunca sabrá.",
-    "tr": "It will never know."
+    "translations": {
+      "en": "it will never know.",
+      "fr": "il ne saura jamais.",
+      "nl": "het zal het nooit weten."
+    }
   },
   {
     "es": "Que tú historias serás.",
-    "tr": "That you will become stories."
+    "translations": {
+      "en": "that you will live on in stories.",
+      "fr": "que tu deviendras des histoires.",
+      "nl": "dat jij verhalen zult worden."
+    }
   },
   {
     "es": "Que tú en cuentos vendrás.",
-    "tr": "That you will return in tales."
+    "translations": {
+      "en": "that you will return in tales.",
+      "fr": "que tu reviendras dans les contes.",
+      "nl": "dat je terugkomt in verhalen."
+    }
   }
 ]

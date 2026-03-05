@@ -1,31 +1,43 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId } from './songState'
+import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines } from './songState'
 import { useWebSocket } from './useWebSocket'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
-import type { LyricLine } from './songState'
+import type { LyricLine, SongItem } from './songState'
 import './control.css'
 
 declare global {
   interface Window {
     electronAPI?: {
-      openProjection: () => void
-      closeProjection: () => void
-      onProjectionClosed: (cb: () => void) => void
+      openProjection: () => Promise<void>
+      closeProjection: () => Promise<void>
+      isProjectionOpen: () => Promise<boolean>
+      onProjectionOpened: (cb: () => void) => () => void
+      onProjectionClosed: (cb: () => void) => () => void
     }
   }
 }
 
 function ProjectionButton() {
   const [isOpen, setIsOpen] = useState(false)
-  useEffect(() => {
-    const api = window.electronAPI
-    if (!api?.onProjectionClosed) return
-    const cb = () => setIsOpen(false)
-    api.onProjectionClosed(cb)
-    return () => { /* unregister if API supports it */ }
-  }, [])
   const api = window.electronAPI
+
+  useEffect(() => {
+    const electronAPI = window.electronAPI
+    if (!electronAPI?.isProjectionOpen || !electronAPI?.onProjectionOpened || !electronAPI?.onProjectionClosed) return
+    let cancelled = false
+    electronAPI.isProjectionOpen().then((open) => {
+      if (!cancelled) setIsOpen(open)
+    })
+    const unsubOpened = electronAPI.onProjectionOpened(() => setIsOpen(true))
+    const unsubClosed = electronAPI.onProjectionClosed(() => setIsOpen(false))
+    return () => {
+      cancelled = true
+      unsubOpened()
+      unsubClosed()
+    }
+  }, [])
+
   if (!api) return null
   const handleClick = () => {
     if (isOpen) {
@@ -54,7 +66,6 @@ function ControlView() {
     goPrev,
     goRestart,
     setBlankState,
-    loadLines,
     loadError,
     applyRemoteState,
     applyCommand,
@@ -90,12 +101,17 @@ function ControlView() {
     window.location.hash = '#/songs'
   }
 
+  const goToLanguages = () => {
+    window.location.hash = '#/languages'
+  }
+
   const handlersRef = useRef({
     handleNext,
     handlePrev,
     handleRestart,
     handleBlankToggle,
     goToSongs,
+    goToLanguages,
   })
   handlersRef.current = {
     handleNext,
@@ -103,12 +119,13 @@ function ControlView() {
     handleRestart,
     handleBlankToggle,
     goToSongs,
+    goToLanguages,
   }
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      const { handleNext: next, handlePrev: prev, handleRestart: restart, handleBlankToggle: blankToggle, goToSongs: toSongs } = handlersRef.current
+      const { handleNext: next, handlePrev: prev, handleRestart: restart, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs } = handlersRef.current
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
         next()
@@ -121,6 +138,9 @@ function ControlView() {
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
         toSongs()
+      } else if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault()
+        toLangs()
       } else if (e.key === 'b' || e.key === 'B') {
         e.preventDefault()
         blankToggle()
@@ -132,6 +152,7 @@ function ControlView() {
 
   const currentEs =
     currentItem && !isSection(currentItem) ? (currentItem as LyricLine).es : ''
+  const effectiveLang = getEffectiveProjectionLanguage(lines)
   const notStarted = index === -1
   const displayText = notStarted
     ? ''
@@ -146,12 +167,23 @@ function ControlView() {
   return (
     <div className="control-screen">
       <header className="control-top-bar">
-        <button type="button" className="top-btn top-btn-songs" onClick={goToSongs}>
-          Songs
-        </button>
+        <div className="top-bar-left">
+          <button type="button" className="top-btn top-btn-songs" onClick={goToSongs}>
+            Songs
+          </button>
+          <button type="button" className="top-btn top-btn-languages" onClick={goToLanguages}>
+            Languages
+          </button>
+        </div>
         <div className="top-current">
-          <span className="top-label">Current song</span>
-          <span className="top-title">{currentSongTitle}</span>
+          <div className="top-current-block">
+            <span className="top-label">Current song</span>
+            <span className="top-title">{currentSongTitle}</span>
+          </div>
+          <div className="top-current-block">
+            <span className="top-label">Current language</span>
+            <span className="top-title">{effectiveLang ? effectiveLang.toUpperCase() : '—'}</span>
+          </div>
         </div>
       </header>
 
@@ -238,14 +270,67 @@ function SongsView() {
   )
 }
 
+function LanguagesView() {
+  const [lines, setLines] = useState<SongItem[]>(getSongLines)
+  useEffect(() => {
+    setLines(getSongLines())
+  }, [])
+  useEffect(() => {
+    const onStorage = () => setLines(getSongLines())
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  const goBack = () => {
+    window.location.hash = '#/'
+  }
+
+  const available = getAvailableLanguages(lines)
+
+  const selectLanguage = (lang: string) => {
+    setProjectionLanguage(lang)
+    window.location.hash = '#/'
+  }
+
+  return (
+    <div className="songs-screen languages-screen">
+      <header className="songs-top-bar">
+        <button type="button" className="songs-back" onClick={goBack}>
+          Back
+        </button>
+        <h1 className="songs-title">Languages</h1>
+      </header>
+      <main className="songs-body">
+        {available.length === 0 ? (
+          <p className="languages-empty">No song loaded. Select a song first to choose a projection language.</p>
+        ) : (
+          available.map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              className="songs-song-btn languages-lang-btn"
+              onClick={() => selectLanguage(lang)}
+            >
+              {lang.toUpperCase()}
+            </button>
+          ))
+        )}
+      </main>
+    </div>
+  )
+}
+
 function ProjectionView() {
   const singleScreen =
     import.meta.env.VITE_SINGLE_SCREEN === '1' ||
     import.meta.env.VITE_SINGLE_SCREEN === 'true'
-  const { currentItem, blank, index, goNext, goPrev } = useSongNavigation()
+  const { lines, currentItem, blank, index, goNext, goPrev } = useSongNavigation()
+  const effectiveLang = getEffectiveProjectionLanguage(lines)
   const isSectionMarker = currentItem && isSection(currentItem)
   const translation =
-    currentItem && !isSection(currentItem) ? (currentItem as LyricLine).tr : ''
+    currentItem && !isSection(currentItem) && effectiveLang
+      ? ((currentItem as LyricLine).translations[effectiveLang] ?? '').trim() || ''
+      : ''
   const showContent = index >= 0 && !blank && !isSectionMarker
 
   const [displayedText, setDisplayedText] = useState('')
@@ -399,6 +484,7 @@ function App() {
   }, [])
   if (hash === '#/projection') return <ProjectionView />
   if (hash === '#/songs') return <SongsView />
+  if (hash === '#/languages') return <LanguagesView />
   return <ControlView />
 }
 

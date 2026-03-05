@@ -1,102 +1,170 @@
 [
   {
     "es": "Como cualquier atardecer,",
-    "tr": "Like any sunset,"
+    "translations": {
+      "en": "Like any fading sunset,",
+      "fr": "Comme un soir qui s’efface,",
+      "nl": "Zoals elke avond valt,"
+    }
   },
   {
     "es": "Salió a caminar.",
-    "tr": "He went out for a walk."
+    "translations": {
+      "en": "He stepped out to walk.",
+      "fr": "Il est sorti marcher.",
+      "nl": "Hij ging naar buiten."
+    }
   },
   {
     "es": "Tranquilo el pueblo,",
-    "tr": "The town was calm,"
+    "translations": {
+      "en": "The town lay quiet,",
+      "fr": "Le village paisible,",
+      "nl": "Het dorp was stil,"
+    }
   },
   {
-    "es": "Sin sopeschar.",
-    "tr": "Without suspecting anything."
+    "es": "Sin sospechar.",
+    "translations": {
+      "en": "Unaware of anything.",
+      "fr": "Sans se douter.",
+      "nl": "Zonder vermoeden."
+    }
   },
   {
     "es": "Perdido en sombras,",
-    "tr": "Lost in shadows,"
+    "translations": {
+      "en": "Lost among shadows,",
+      "fr": "Perdu dans l’ombre,",
+      "nl": "Verdwaald in schaduw,"
+    }
   },
   {
     "es": "Un cuerpo ajeno,",
-    "tr": "An unknown body,"
+    "translations": {
+      "en": "A stranger’s body,",
+      "fr": "Un corps étranger,",
+      "nl": "Een vreemd lichaam,"
+    }
   },
   {
-    "es": "Sintio cruzar.",
-    "tr": "Felt crossing by."
+    "es": "Sintió cruzar.",
+    "translations": {
+      "en": "Passed him by.",
+      "fr": "A traversé son chemin.",
+      "nl": "Kruiste zijn pad."
+    }
   },
   {
     "es": "El aire se hizo espeso",
-    "tr": "The air grew heavy,"
+    "translations": {
+      "en": "The air turned heavy",
+      "fr": "L’air s’est épaissi",
+      "nl": "De lucht werd zwaar"
+    }
   },
   {
     "es": "Susurros de hierro",
-    "tr": "Whispers of iron,"
+    "translations": {
+      "en": "Whispers of iron",
+      "fr": "Des murmures de fer",
+      "nl": "Fluister van ijzer"
+    }
   },
   {
     "es": "Rabia y miedo adentro",
-    "tr": "Rage and fear inside,"
+    "translations": {
+      "en": "Rage and fear within",
+      "fr": "Rage et peur dedans",
+      "nl": "Woede en angst vanbinnen"
+    }
   },
   {
     "es": "Confusión de viento",
-    "tr": "Confusion of wind,"
+    "translations": {
+      "en": "A storm of confusion",
+      "fr": "Un vent de confusion",
+      "nl": "Wind van verwarring"
+    }
   },
   {
     "es": "Noche de tormento",
-    "tr": "Night of torment,"
+    "translations": {
+      "en": "A night of torment",
+      "fr": "Une nuit de tourment",
+      "nl": "Een nacht van pijn"
+    }
   },
   {
     "es": "Gritos rompen el silencio",
-    "tr": "Cries break the silence."
+    "translations": {
+      "en": "Cries shatter the silence",
+      "fr": "Les cris brisent le silence",
+      "nl": "Kreten breken de stilte"
+    }
   },
   {
     "es": "Pregunta",
-    "tr": "A question,"
+    "translations": {
+      "en": "A question",
+      "fr": "Une question",
+      "nl": "Een vraag"
+    }
   },
   {
     "es": "sin voz ni cielo",
-    "tr": "Without voice nor sky,"
+    "translations": {
+      "en": "Without voice or sky",
+      "fr": "Sans voix ni ciel",
+      "nl": "Zonder stem of hemel"
+    }
   },
   {
     "es": "Herido el tiempo",
-    "tr": "Time wounded,"
+    "translations": {
+      "en": "Time left wounded",
+      "fr": "Le temps blessé",
+      "nl": "De tijd gewond"
+    }
   },
   {
     "es": "Sigue su duelo",
-    "tr": "Continues its mourning."
+    "translations": {
+      "en": "And mourning goes on",
+      "fr": "Le deuil continue",
+      "nl": "De rouw gaat door"
+    }
   },
   {
-    "es": "Sale el sol",
-    "tr": "The sun rises,"
+    "es": "Sale el sol aunque más lento",
+    "translations": {
+      "en": "The sun rises though slower now",
+      "fr": "Le soleil se lève mais plus lentement",
+      "nl": "De zon komt op aar langzamer"
+    }
   },
   {
-    "es": "Aunque más lento",
-    "tr": "Though slower,"
+    "es": "Duele pero queda aliento.",
+    "translations": {
+      "en": "It hurts, yet breath remains.",
+      "fr": "Ça fait mal mais le souffle reste.",
+      "nl": "Het doet pijn maar er blijft adem."
+    }
   },
   {
-    "es": "Duele pero",
-    "tr": "It hurts, but"
+    "es": "La vida no busca entender,",
+    "translations": {
+      "en": "Life does not seek to understand,",
+      "fr": "La vie ne cherche pas à comprendre,",
+      "nl": "Het leven zoekt niet naar begrip,"
+    }
   },
   {
-    "es": "Queda aliento.",
-    "tr": "Breath remains."
-  },
-  {
-    "es": "La vida no",
-    "tr": "Life doesn’t"
-  },
-  {
-    "es": "Busca entender,",
-    "tr": "Seek to understand,"
-  },
-  {
-    "es": "Bajo la herida",
-    "tr": "Under the wound,"
-  },
-  {
-    "es": "Renace la piel.",
-    "tr": "The skin is reborn."
+    "es": "Bajo la herida renace la piel.",
+    "translations": {
+      "en": "Beneath the wound skin is born again.",
+      "fr": "Sous la blessure la peau renaît.",
+      "nl": "Onder de wond de huid herleeft."
+    }
   }
 ]

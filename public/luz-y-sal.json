@@ -1,74 +1,146 @@
 [
   {
     "es": "Amanece en el mar",
-    "tr": "Dawn breaks over the sea,"
+    "translations": {
+      "en": "Dawn rises over the sea",
+      "fr": "L’aube se lève sur la mer",
+      "nl": "De dageraad stijgt boven zee"
+    }
   },
   {
     "es": "Brisas de vida y sal",
-    "tr": "Breezes of life and salt,"
+    "translations": {
+      "en": "Breezes of life and salt",
+      "fr": "Brises de vie et de sel",
+      "nl": "Bries van leven en zout"
+    }
   },
   {
     "es": "Su vaivén recuerda al pasar",
-    "tr": "Its sway reminds as it passes,"
+    "translations": {
+      "en": "Its rhythm whispers while passing",
+      "fr": "Son va-et-vient murmure en passant",
+      "nl": "Haar golven fluisteren voorbij"
+    }
   },
   {
     "es": "Que todo vuelve a cambiar",
-    "tr": "That everything changes again."
+    "translations": {
+      "en": "That everything shifts again",
+      "fr": "Que tout change encore",
+      "nl": "Dat alles weer verandert"
+    }
   },
   {
     "es": "La historia viene y va,",
-    "tr": "The story comes and goes,"
+    "translations": {
+      "en": "Stories come and go,",
+      "fr": "L’histoire vient et s’en va,",
+      "nl": "Verhalen komen en gaan,"
+    }
   },
   {
     "es": "Con risas y pesar.",
-    "tr": "With laughter and sorrow."
+    "translations": {
+      "en": "With laughter and sorrow.",
+      "fr": "Avec rires et chagrins.",
+      "nl": "Met lachen en verdriet."
+    }
   },
   {
     "es": "Luz y sal.",
-    "tr": "Light and salt."
+    "translations": {
+      "en": "Light and salt.",
+      "fr": "Lumière et sel.",
+      "nl": "Licht en zout."
+    }
   },
   {
     "es": "Lo nuestro fue Luz y sal",
-    "tr": "Ours was light and salt,"
+    "translations": {
+      "en": "Ours was light and salt",
+      "fr": "Nous étions lumière et sel",
+      "nl": "Wij waren licht en zout"
+    }
   },
   {
     "es": "Nacer dulce, e intenso al andar",
-    "tr": "Born sweet, and intense as we walked,"
+    "translations": {
+      "en": "Born sweet, fierce as it walked",
+      "fr": "Né doux, intense en marchant",
+      "nl": "Zoet geboren, fel onderweg"
+    }
   },
   {
     "es": "Mareas, lluvias y sol",
-    "tr": "Tides, rains, and sun,"
+    "translations": {
+      "en": "Tides, rain and sun",
+      "fr": "Marées, pluies et soleil",
+      "nl": "Getijden, regen en zon"
+    }
   },
   {
     "es": "Sin rumbo, siguiendo al corazón",
-    "tr": "Without direction, following the heart."
+    "translations": {
+      "en": "No course but the heart",
+      "fr": "Sans route, guidé par le cœur",
+      "nl": "Zonder richting, het hart gevolgd"
+    }
   },
   {
     "es": "El viento quise atar",
-    "tr": "I tried to tie the wind,"
+    "translations": {
+      "en": "I tried to tie the wind",
+      "fr": "J’ai voulu attacher le vent",
+      "nl": "Ik wilde de wind vastbinden"
+    }
   },
   {
     "es": "Guardar tu risa en un cajón",
-    "tr": "Keep your laughter in a drawer,"
+    "translations": {
+      "en": "Hide your laughter in a drawer",
+      "fr": "Garder ton rire dans un tiroir",
+      "nl": "Je lach in een lade bewaren"
+    }
   },
   {
     "es": "Pero el tiempo en su canción",
-    "tr": "But time in its song,"
+    "translations": {
+      "en": "But time, in its song,",
+      "fr": "Mais le temps, dans sa chanson,",
+      "nl": "Maar de tijd, in zijn lied,"
+    }
   },
   {
     "es": "Al mar te devolvió.",
-    "tr": "Returned you to the sea."
+    "translations": {
+      "en": "Returned you to the sea.",
+      "fr": "T’a rendue à la mer.",
+      "nl": "Gaf je terug aan de zee."
+    }
   },
   {
     "es": "En la orilla me dejó",
-    "tr": "On the shore it left me,"
+    "translations": {
+      "en": "Left me on the shore",
+      "fr": "Me laissant sur la rive",
+      "nl": "En mij op de oever achterliet"
+    }
   },
   {
     "es": "Luz y sal.",
-    "tr": "Light and salt."
+    "translations": {
+      "en": "Light and salt.",
+      "fr": "Lumière et sel.",
+      "nl": "Licht en zout."
+    }
   },
   {
     "es": "Amanece en el mar",
-    "tr": "Dawn breaks over the sea."
+    "translations": {
+      "en": "Dawn rises over the sea",
+      "fr": "L’aube se lève sur la mer",
+      "nl": "De dageraad stijgt boven zee"
+    }
   }
 ]

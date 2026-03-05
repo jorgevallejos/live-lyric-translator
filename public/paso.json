@@ -1,66 +1,130 @@
 [
   {
     "es": "Una voz, una oración final.",
-    "tr": "A voice, a final prayer."
+    "translations": {
+      "en": "A voice, a final prayer.",
+      "fr": "Une voix, une dernière prière.",
+      "nl": "Een stem, een laatste gebed."
+    }
   },
   {
     "es": "Un adiós, un “te amo papá”.",
-    "tr": "A farewell, an \"I love you, dad.\""
+    "translations": {
+      "en": "A farewell, an “I love you, father.”",
+      "fr": "Un adieu, un « je t’aime papa ».",
+      "nl": "Een afscheid, een “ik hou van je, papa”."
+    }
   },
   {
     "es": "Tú me miras pensando en lo que vendrá.",
-    "tr": "You look at me thinking about what will come."
+    "translations": {
+      "en": "You look at me, thinking of what may come.",
+      "fr": "Tu me regardes, pensant à ce qui viendra.",
+      "nl": "Je kijkt naar mij, denkend aan wat komt."
+    }
   },
   {
     "es": "¿Qué pasa cuando la vida se va?",
-    "tr": "What happens when life goes away?"
+    "translations": {
+      "en": "What happens when life slips away?",
+      "fr": "Que se passe-t-il quand la vie s’en va ?",
+      "nl": "Wat gebeurt er wanneer het leven vertrekt?"
+    }
   },
   {
     "es": "Tal vez se detiene el tiempo,",
-    "tr": "Perhaps time stops,"
+    "translations": {
+      "en": "Perhaps time stands still,",
+      "fr": "Peut-être que le temps s’arrête,",
+      "nl": "Misschien staat de tijd stil,"
+    }
   },
   {
     "es": "Tal vez vuelve a empezar,",
-    "tr": "Perhaps it starts again,"
+    "translations": {
+      "en": "Perhaps it begins again,",
+      "fr": "Peut-être recommence-t-il,",
+      "nl": "Misschien begint het opnieuw,"
+    }
   },
   {
     "es": "Tal vez esta vida es un sueño,",
-    "tr": "Perhaps this life is a dream,"
+    "translations": {
+      "en": "Perhaps this life is a dream,",
+      "fr": "Peut-être que cette vie est un rêve,",
+      "nl": "Misschien is dit leven een droom,"
+    }
   },
   {
     "es": "Del cual despiertas en paz.",
-    "tr": "From which you awaken in peace."
+    "translations": {
+      "en": "From which you wake in peace.",
+      "fr": "Dont tu t’éveilles en paix.",
+      "nl": "Waaruit je in vrede ontwaakt."
+    }
   },
   {
     "es": "Y cuando despiertes con la nueva luz.",
-    "tr": "And when you wake with the new light,"
+    "translations": {
+      "en": "And when you wake in a new light.",
+      "fr": "Et lorsque tu t’éveilleras dans une nouvelle lumière.",
+      "nl": "En wanneer je ontwaakt in een nieuw licht."
+    }
   },
   {
     "es": "Sin nombre ni el cuerpo que fuiste tú,",
-    "tr": "Without the name or body that you were,"
+    "translations": {
+      "en": "Without the name or body you once were,",
+      "fr": "Sans le nom ni le corps que tu fus,",
+      "nl": "Zonder naam of lichaam dat je was,"
+    }
   },
   {
     "es": "Y en una memoria brote nuestra historia,",
-    "tr": "And in a memory our story blossoms,"
+    "translations": {
+      "en": "And in a memory our story blooms,",
+      "fr": "Et dans une mémoire notre histoire fleurit,",
+      "nl": "En in een herinnering bloeit ons verhaal,"
+    }
   },
   {
     "es": "Mírame, sonríe, sigo en ti.",
-    "tr": "Look at me, smile, I’m still in you."
+    "translations": {
+      "en": "Look at me, smile — I live in you.",
+      "fr": "Regarde-moi, souris — je vis en toi.",
+      "nl": "Kijk naar mij, glimlach — ik leef in jou."
+    }
   },
   {
     "es": "Este último río no se cruza a fuerza,",
-    "tr": "This final river is not crossed by force,"
+    "translations": {
+      "en": "This final river cannot be crossed by force,",
+      "fr": "Ce dernier fleuve ne se traverse pas par force,",
+      "nl": "Deze laatste rivier steek je niet over met kracht,"
+    }
   },
   {
     "es": "Ni razón, ni sentidos nos pueden guiar.",
-    "tr": "Neither reason nor senses can guide us."
+    "translations": {
+      "en": "Neither reason nor senses can guide us.",
+      "fr": "Ni la raison ni les sens ne peuvent nous guider.",
+      "nl": "Noch rede noch zintuigen kunnen ons leiden."
+    }
   },
   {
     "es": "Deja fluir, sin mirar atrás",
-    "tr": "Let it flow, without looking back,"
+    "translations": {
+      "en": "Let it flow, without looking back,",
+      "fr": "Laisse couler, sans regarder en arrière,",
+      "nl": "Laat het stromen, zonder om te kijken,"
+    }
   },
   {
     "es": "El río sabe a dónde va.",
-    "tr": "The river knows where it’s going."
+    "translations": {
+      "en": "The river knows where it goes.",
+      "fr": "Le fleuve sait où il va.",
+      "nl": "De rivier weet waar ze gaat."
+    }
   }
 ]
