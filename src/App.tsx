@@ -102,19 +102,31 @@ function ControlView() {
   useEffect(() => {
     const prevSong = prevSongIdRef.current
     const prevLang = prevLangRef.current
-    if (
+    const configChanged =
       prevSong !== undefined &&
       prevLang !== undefined &&
-      (performanceState === 'armed' || performanceState === 'performing') &&
       (currentSongId !== prevSong || effectiveLang !== prevLang)
-    ) {
+    const projectionClosed = !projectionOpen
+    const shouldResetSession =
+      (performanceState === 'armed' || performanceState === 'performing') &&
+      (configChanged || projectionClosed)
+
+    if (shouldResetSession) {
       unarm()
       goRestart()
       sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
     }
     prevSongIdRef.current = currentSongId
     prevLangRef.current = effectiveLang
-  }, [currentSongId, effectiveLang, performanceState, unarm, goRestart, sendCommandWithState])
+  }, [
+    currentSongId,
+    effectiveLang,
+    projectionOpen,
+    performanceState,
+    unarm,
+    goRestart,
+    sendCommandWithState,
+  ])
 
   const handleNext = () => {
     if (performanceState === 'armed') unarm()
