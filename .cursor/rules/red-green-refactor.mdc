@@ -1,0 +1,42 @@
+---
+description: Strict Red → Green → Refactor development protocol for every feature, bug fix, or improvement
+alwaysApply: true
+---
+
+# Red → Green → Refactor Protocol
+
+This project **always** follows strict TDD. For every feature, bug fix, or improvement:
+
+## Protocol
+
+1. **Restate** the expected behavior in clear, testable form.
+2. **Write failing tests** that describe that behavior. Do not change production code until tests fail for the correct reason.
+3. **Make the smallest possible implementation change** to make the tests pass.
+4. **Only after green**, refactor for clarity or structure. Refactoring must not change behavior.
+5. **Commit only when tests are green.**
+
+## Additional Rules
+
+- Prefer **behavior tests** over implementation-detail tests.
+- Prefer **extracting pure functions** when logic is too coupled.
+- Do **not mix** feature work, bug fixing, and refactoring in the same step unless explicitly requested.
+- If a change is too large for one cycle, **propose smaller iterations** first.
+- When uncertain, ask: *what observable behavior should be protected?*
+
+## Required Structure for Every Development Request
+
+**Expected behavior:**
+- (bullet list of testable outcomes)
+
+**Step 1 — Red**  
+Write failing tests that describe the behavior.
+
+**Step 2 — Green**  
+Make the smallest possible implementation change needed to pass the tests.
+
+**Step 3 — Refactor**  
+Improve structure or clarity only after tests are green.
+
+**Summary:** Briefly state red → green → refactor for the cycle.
+
+If the change cannot reasonably follow this cycle, explain why and propose a smaller Red → Green → Refactor iteration instead.

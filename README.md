@@ -290,9 +290,21 @@ npm install
 
 npm run dev
 
-Optional rehearsal mode
+Optional rehearsal mode (it requires only one monitor display, it allows previous and next commands to be executed from the projection screen)
 
 npm run dev:single
+
+## 🤝 Contributing
+
+This project follows a strict **Red → Green → Refactor** workflow for development.
+
+All new features and bug fixes should:
+1. Define expected behavior.
+2. Add failing tests first.
+3. Implement the minimal change required.
+4. Refactor only after tests are green.
+
+See **CONTRIBUTING.md** for the full development guidelines.
 
 ## 🤖 Credits
 
