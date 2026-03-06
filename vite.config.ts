@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173, strictPort: true, host: '0.0.0.0' },
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts', 'electron/**/*.test.ts'],
+    environment: 'jsdom',
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'electron/**/*.test.ts'],
   },
 })
