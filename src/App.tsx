@@ -1,6 +1,6 @@
 import type { PerformanceState } from './performanceState'
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
+import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -133,12 +133,12 @@ function ControlView() {
     goNext()
     sendCommandWithState('next', undefined, {
       currentIndex: getSongIndex(),
-      blank,
+      blank: getBlank(),
     })
   }
   const handlePrev = () => {
     goPrev()
-    sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank })
+    sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
   }
   const handleRestart = () => {
     unarm()
@@ -154,7 +154,7 @@ function ControlView() {
   }
   const handleBlankToggle = () => {
     setBlankState(!blank)
-    sendCommandWithState('blankToggle', undefined, { currentIndex: index, blank: !blank })
+    sendCommandWithState('blankToggle', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
   }
 
   const goToSongs = () => {
