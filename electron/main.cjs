@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { WebSocketServer } = require('ws')
+const { closeProjectionWindow } = require('./closeProjectionWindow.cjs')
 
 const WS_PORT = 8765
 let lastState = null // { currentIndex: number, blank: boolean } | null
@@ -141,15 +142,7 @@ ipcMain.handle('projection:isOpen', () => {
 
 ipcMain.handle('projection:close', () => {
   if (!projectionWindow || projectionWindow.isDestroyed()) return
-  const win = projectionWindow
-  if (win.isFullScreen()) {
-    win.once('leave-full-screen', () => {
-      if (!win.isDestroyed()) win.close()
-    })
-    win.setFullScreen(false)
-  } else {
-    win.close()
-  }
+  closeProjectionWindow(projectionWindow)
 })
 
 app.whenReady().then(createWindow)

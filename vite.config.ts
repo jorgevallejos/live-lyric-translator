@@ -7,6 +7,6 @@ export default defineConfig({
   server: { port: 5173, strictPort: true, host: '0.0.0.0' },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'electron/**/*.test.ts'],
   },
 })
