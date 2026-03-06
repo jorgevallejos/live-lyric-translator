@@ -1,10 +1,19 @@
+import type { PerformanceState } from './performanceState'
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines } from './songState'
+import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
+import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
+
+const PERFORMANCE_STATE_LABELS: Record<PerformanceState, string> = {
+  setup: 'Setup',
+  ready: 'Ready to Arm',
+  armed: 'Ready to Perform',
+  performing: 'Performing',
+}
 
 declare global {
   interface Window {
@@ -18,19 +27,84 @@ declare global {
   }
 }
 
-function ProjectionButton() {
-  const [isOpen, setIsOpen] = useState(false)
-  const api = window.electronAPI
+const HOLD_CONFIRM_MS = 1000
 
+function useHoldToConfirm(onConfirm: () => void) {
+  const [isHolding, setIsHolding] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onConfirmRef = useRef(onConfirm)
+  onConfirmRef.current = onConfirm
+
+  useEffect(() => {
+    if (!isHolding) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+      return
+    }
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null
+      setIsHolding(false)
+      onConfirmRef.current()
+    }, HOLD_CONFIRM_MS)
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [isHolding])
+
+  return {
+    isHolding,
+    onPointerDown: () => setIsHolding(true),
+    onPointerUp: () => setIsHolding(false),
+    onPointerLeave: () => setIsHolding(false),
+  }
+}
+
+function ProjectionButton({
+  isOpen,
+  onToggle,
+}: {
+  isOpen: boolean
+  onToggle: () => void
+}) {
+  const api = window.electronAPI
+  const hold = useHoldToConfirm(onToggle)
+
+  if (!api) return null
+
+  if (isOpen) {
+    return (
+      <button
+        type="button"
+        className="ctrl-btn ctrl-projection"
+        onPointerDown={hold.onPointerDown}
+        onPointerUp={hold.onPointerUp}
+        onPointerLeave={hold.onPointerLeave}
+      >
+        {hold.isHolding ? 'Hold to confirm…' : 'Close Projection'}
+      </button>
+    )
+  }
+
+  return (
+    <button type="button" className="ctrl-btn ctrl-projection" onClick={onToggle}>
+      Open Projection
+    </button>
+  )
+}
+
+function ControlView() {
+  const [projectionOpen, setProjectionOpen] = useState(false)
   useEffect(() => {
     const electronAPI = window.electronAPI
     if (!electronAPI?.isProjectionOpen || !electronAPI?.onProjectionOpened || !electronAPI?.onProjectionClosed) return
     let cancelled = false
     electronAPI.isProjectionOpen().then((open) => {
-      if (!cancelled) setIsOpen(open)
+      if (!cancelled) setProjectionOpen(open)
     })
-    const unsubOpened = electronAPI.onProjectionOpened(() => setIsOpen(true))
-    const unsubClosed = electronAPI.onProjectionClosed(() => setIsOpen(false))
+    const unsubOpened = electronAPI.onProjectionOpened(() => setProjectionOpen(true))
+    const unsubClosed = electronAPI.onProjectionClosed(() => setProjectionOpen(false))
     return () => {
       cancelled = true
       unsubOpened()
@@ -38,24 +112,6 @@ function ProjectionButton() {
     }
   }, [])
 
-  if (!api) return null
-  const handleClick = () => {
-    if (isOpen) {
-      api.closeProjection()
-      setIsOpen(false)
-    } else {
-      api.openProjection()
-      setIsOpen(true)
-    }
-  }
-  return (
-    <button type="button" className="ctrl-btn ctrl-projection" onClick={handleClick}>
-      {isOpen ? 'Close Projection' : 'Open Projection'}
-    </button>
-  )
-}
-
-function ControlView() {
   const {
     lines,
     index,
@@ -70,6 +126,13 @@ function ControlView() {
     applyRemoteState,
     applyCommand,
   } = useSongNavigation()
+  const effectiveLang = getEffectiveProjectionLanguage(lines)
+  const { state: performanceState, checks, arm, unarm } = usePerformanceState(
+    projectionOpen,
+    lines,
+    effectiveLang,
+    index
+  )
   const { sendCommandWithState } = useWebSocket({
     index,
     blank,
@@ -77,7 +140,29 @@ function ControlView() {
     applyCommand,
   })
 
+  const prevSongIdRef = useRef<string | undefined>(undefined)
+  const prevLangRef = useRef<string | undefined>(undefined)
+  const currentSongId = getCurrentSongId()
+
+  useEffect(() => {
+    const prevSong = prevSongIdRef.current
+    const prevLang = prevLangRef.current
+    if (
+      prevSong !== undefined &&
+      prevLang !== undefined &&
+      (performanceState === 'armed' || performanceState === 'performing') &&
+      (currentSongId !== prevSong || effectiveLang !== prevLang)
+    ) {
+      unarm()
+      goRestart()
+      sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+    }
+    prevSongIdRef.current = currentSongId
+    prevLangRef.current = effectiveLang
+  }, [currentSongId, effectiveLang, performanceState, unarm, goRestart, sendCommandWithState])
+
   const handleNext = () => {
+    if (performanceState === 'armed') unarm()
     goNext()
     sendCommandWithState('next', undefined, {
       currentIndex: getSongIndex(),
@@ -89,8 +174,18 @@ function ControlView() {
     sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank })
   }
   const handleRestart = () => {
+    unarm()
     goRestart()
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+  }
+  const handleToggleProjection = () => {
+    if (projectionOpen) {
+      window.electronAPI?.closeProjection()
+      setProjectionOpen(false)
+    } else {
+      window.electronAPI?.openProjection()
+      setProjectionOpen(true)
+    }
   }
   const handleBlankToggle = () => {
     setBlankState(!blank)
@@ -112,6 +207,9 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
+    arm,
+    unarm,
+    performanceState,
   })
   handlersRef.current = {
     handleNext,
@@ -120,12 +218,15 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
+    arm,
+    unarm,
+    performanceState,
   }
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      const { handleNext: next, handlePrev: prev, handleRestart: restart, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs } = handlersRef.current
+      const { handleNext: next, handlePrev: prev, handleRestart: restart, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, performanceState: pState } = handlersRef.current
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
         next()
@@ -135,6 +236,10 @@ function ControlView() {
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault()
         restart()
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault()
+        if (pState === 'ready') doArm()
+        else if (pState === 'armed') doUnarm()
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
         toSongs()
@@ -152,7 +257,6 @@ function ControlView() {
 
   const currentEs =
     currentItem && !isSection(currentItem) ? (currentItem as LyricLine).es : ''
-  const effectiveLang = getEffectiveProjectionLanguage(lines)
   const notStarted = index === -1
   const displayText = notStarted
     ? ''
@@ -163,6 +267,15 @@ function ControlView() {
     : lineCount > 0
       ? `${index + 1} of ${lineCount}`
       : ''
+
+  const nextDisabled =
+    lines.length === 0 ||
+    (performanceState !== 'armed' && performanceState !== 'performing') ||
+    (performanceState === 'performing' && index >= lines.length - 1)
+  const canArm = performanceState === 'ready'
+  const canUnarm = performanceState === 'armed'
+
+  const restartHold = useHoldToConfirm(handleRestart)
 
   return (
     <div className="control-screen">
@@ -184,13 +297,45 @@ function ControlView() {
             <span className="top-label">Current language</span>
             <span className="top-title">{effectiveLang ? effectiveLang.toUpperCase() : '—'}</span>
           </div>
+          <div className="top-current-block">
+            <span className="top-label">Performance</span>
+            <span className="top-title top-title-state">{PERFORMANCE_STATE_LABELS[performanceState]}</span>
+          </div>
         </div>
       </header>
 
       <main className="control-center">
         <p className="control-lyric">{displayText}</p>
         {notStarted && (
-          <p className="control-ready" aria-hidden>Ready</p>
+          <div className="control-performance-state" aria-live="polite">
+            <p className="control-state-label">{PERFORMANCE_STATE_LABELS[performanceState]}</p>
+            {performanceState === 'armed' && (
+              <p className="control-state-instruction">Press Next to reveal the first line</p>
+            )}
+            {performanceState === 'setup' && (
+              <ul className="control-checks">
+                <li className={checks.projectionOpen ? 'check-ok' : 'check-fail'}>
+                  {checks.projectionOpen ? '✓' : '✗'} Projection window open
+                </li>
+                <li className={checks.translationAvailable ? 'check-ok' : 'check-fail'}>
+                  {checks.translationAvailable ? '✓' : '✗'} Translation available
+                </li>
+                <li className={checks.phraseListLoaded ? 'check-ok' : 'check-fail'}>
+                  {checks.phraseListLoaded ? '✓' : '✗'} Phrase list loaded
+                </li>
+              </ul>
+            )}
+            {canArm && (
+              <button type="button" className="ctrl-btn ctrl-arm" onClick={arm}>
+                Arm
+              </button>
+            )}
+            {canUnarm && (
+              <button type="button" className="ctrl-btn ctrl-unarm" onClick={unarm}>
+                Unarm
+              </button>
+            )}
+          </div>
         )}
         {positionText && <p className="control-position">{positionText}</p>}
       </main>
@@ -209,15 +354,21 @@ function ControlView() {
             type="button"
             className="ctrl-btn ctrl-next"
             onClick={handleNext}
-            disabled={lines.length === 0 || index >= lines.length - 1}
+            disabled={nextDisabled}
           >
             Next
           </button>
-          <button type="button" className="ctrl-btn ctrl-restart" onClick={handleRestart}>
-            Restart
+          <button
+            type="button"
+            className="ctrl-btn ctrl-restart"
+            onPointerDown={restartHold.onPointerDown}
+            onPointerUp={restartHold.onPointerUp}
+            onPointerLeave={restartHold.onPointerLeave}
+          >
+            {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
           </button>
           {window.electronAPI && (
-            <ProjectionButton />
+            <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
           )}
         </div>
       </footer>

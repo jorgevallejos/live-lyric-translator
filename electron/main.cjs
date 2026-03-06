@@ -140,9 +140,15 @@ ipcMain.handle('projection:isOpen', () => {
 })
 
 ipcMain.handle('projection:close', () => {
-  if (projectionWindow && !projectionWindow.isDestroyed()) {
-    projectionWindow.close()
-    projectionWindow = null
+  if (!projectionWindow || projectionWindow.isDestroyed()) return
+  const win = projectionWindow
+  if (win.isFullScreen()) {
+    win.once('leave-full-screen', () => {
+      if (!win.isDestroyed()) win.close()
+    })
+    win.setFullScreen(false)
+  } else {
+    win.close()
   }
 })
 

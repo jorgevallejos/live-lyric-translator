@@ -112,29 +112,40 @@ Typical usage during a performance:
 2. Open the projection window  
 3. Select a song  
 4. Select a translation language
-5. The system shows “Ready”  
-6. Press Next to reveal the first translation  
+5. The system runs checks and shows **Ready** when: projection is open, translation available, phrase list loaded
+6. Press **Arm** (button or **A** key), then **Next** to reveal the first translation  
 7. Advance phrases during the performance  
+
+### Performance state machine
+
+The control screen follows a simple state flow:
+
+- **Setup** — Song and/or language selected; one or more checks are still failing. The UI shows which checks are missing (projection window open, translation available, phrase list loaded).
+- **Ready** — All checks pass. The performer can press **Arm** to continue.
+- **Armed** — Waiting for the first **Next** command. The next **Next** reveals the first line and moves to **Performing**. The performer can press **Unarm** (or **A**) to return to **Ready** without revealing.
+- **Performing** — At least one phrase has been revealed. **Next** / **Previous** / **Restart** behave as usual. **Restart** returns to **Ready** (blank projection); press **Arm** again before the next run.
 
 ## 🎛 Controls
 
 ### Control screen buttons
 
-- Previous
-- Next
-- Restart
-- Open / Close Projection
-- Songs
+- Previous  
+- Next (enabled only when **Armed** or **Performing**; from **Ready** you must **Arm** first)  
+- Restart  
+- Open / Close Projection  
+- Arm / Unarm (shown when **Ready** or **Armed**)  
+- Songs  
 - Languages 
 
 ### Keyboard shortcuts
 
-ArrowRight → Next phrase  
+ArrowRight / Space → Next phrase  
 ArrowLeft → Previous phrase  
-Space → Next phrase  
 R → Restart song  
+A → Arm (when Ready) / Unarm (when Armed)  
 B → Toggle blank projection  
 S → Open song selection  
+L → Open language selection  
 
 ## 🌍 Language selection
 
