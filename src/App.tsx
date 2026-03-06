@@ -4,6 +4,7 @@ import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, set
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
+import { useHoldToConfirm } from './useHoldToConfirm'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
 import type { LyricLine, SongItem } from './songState'
@@ -25,40 +26,6 @@ declare global {
       onProjectionOpened: (cb: () => void) => () => void
       onProjectionClosed: (cb: () => void) => () => void
     }
-  }
-}
-
-const HOLD_CONFIRM_MS = 1000
-
-function useHoldToConfirm(onConfirm: () => void) {
-  const [isHolding, setIsHolding] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const onConfirmRef = useRef(onConfirm)
-  onConfirmRef.current = onConfirm
-
-  useEffect(() => {
-    if (!isHolding) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-        timerRef.current = null
-      }
-      return
-    }
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null
-      setIsHolding(false)
-      onConfirmRef.current()
-    }, HOLD_CONFIRM_MS)
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [isHolding])
-
-  return {
-    isHolding,
-    onPointerDown: () => setIsHolding(true),
-    onPointerUp: () => setIsHolding(false),
-    onPointerLeave: () => setIsHolding(false),
   }
 }
 
