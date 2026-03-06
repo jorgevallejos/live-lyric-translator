@@ -4,7 +4,7 @@ import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSong
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
-import { useHoldToConfirm } from './useHoldToConfirm'
+import { useHoldToConfirm, useRestartKeyHold } from './useHoldToConfirm'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
 import type { LyricLine, SongItem } from './songState'
@@ -165,6 +165,12 @@ function ControlView() {
     window.location.hash = '#/languages'
   }
 
+  const nextDisabled =
+    lines.length === 0 ||
+    (performanceState !== 'armed' && performanceState !== 'performing') ||
+    (performanceState === 'performing' && index >= lines.length - 1)
+  const restartKeyHold = useRestartKeyHold(handleRestart)
+
   const handlersRef = useRef({
     handleNext,
     handlePrev,
@@ -175,6 +181,7 @@ function ControlView() {
     arm,
     unarm,
     performanceState,
+    nextDisabled,
   })
   handlersRef.current = {
     handleNext,
@@ -186,21 +193,25 @@ function ControlView() {
     arm,
     unarm,
     performanceState,
+    nextDisabled,
   }
+  const restartKeyHoldRef = useRef(restartKeyHold)
+  restartKeyHoldRef.current = restartKeyHold
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      const { handleNext: next, handlePrev: prev, handleRestart: restart, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, performanceState: pState } = handlersRef.current
+      const { handleNext: next, handlePrev: prev, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, performanceState: pState, nextDisabled: nextDisabledRef } = handlersRef.current
+      const { onKeyDown: restartKeyDown } = restartKeyHoldRef.current
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
-        next()
+        if (!nextDisabledRef) next()
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         prev()
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault()
-        restart()
+        restartKeyDown()
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault()
         if (pState === 'ready') doArm()
@@ -216,8 +227,18 @@ function ControlView() {
         blankToggle()
       }
     }
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'r' || e.key === 'R') {
+        restartKeyHoldRef.current.onKeyUp()
+      }
+    }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      restartKeyHoldRef.current.onKeyUp()
+    }
   }, [])
 
   const currentEs =
@@ -233,10 +254,6 @@ function ControlView() {
       ? `${index + 1} of ${lineCount}`
       : ''
 
-  const nextDisabled =
-    lines.length === 0 ||
-    (performanceState !== 'armed' && performanceState !== 'performing') ||
-    (performanceState === 'performing' && index >= lines.length - 1)
   const canArm = performanceState === 'ready'
   const canUnarm = performanceState === 'armed'
 
