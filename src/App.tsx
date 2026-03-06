@@ -3,6 +3,7 @@ import { useSongNavigation } from './useSongNavigation'
 import { parseSongJson, isSection, getSongIndex, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
+import { useProjectionOpenState } from './useProjectionOpenState'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
 import type { LyricLine, SongItem } from './songState'
@@ -95,22 +96,9 @@ function ProjectionButton({
 }
 
 function ControlView() {
-  const [projectionOpen, setProjectionOpen] = useState(false)
-  useEffect(() => {
-    const electronAPI = window.electronAPI
-    if (!electronAPI?.isProjectionOpen || !electronAPI?.onProjectionOpened || !electronAPI?.onProjectionClosed) return
-    let cancelled = false
-    electronAPI.isProjectionOpen().then((open) => {
-      if (!cancelled) setProjectionOpen(open)
-    })
-    const unsubOpened = electronAPI.onProjectionOpened(() => setProjectionOpen(true))
-    const unsubClosed = electronAPI.onProjectionClosed(() => setProjectionOpen(false))
-    return () => {
-      cancelled = true
-      unsubOpened()
-      unsubClosed()
-    }
-  }, [])
+  const { projectionOpen, openProjection, closeProjection } = useProjectionOpenState(
+    typeof window !== 'undefined' ? window.electronAPI : undefined
+  )
 
   const {
     lines,
@@ -180,11 +168,9 @@ function ControlView() {
   }
   const handleToggleProjection = () => {
     if (projectionOpen) {
-      window.electronAPI?.closeProjection()
-      setProjectionOpen(false)
+      closeProjection()
     } else {
-      window.electronAPI?.openProjection()
-      setProjectionOpen(true)
+      openProjection()
     }
   }
   const handleBlankToggle = () => {
