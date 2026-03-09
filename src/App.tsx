@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
+import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -27,12 +27,13 @@ function buildPerformanceControlPrerequisites(
   currentSongId: string,
   lines: SongItem[],
   effectiveLang: string,
+  effectiveSingingLang: string,
   projectionOpen: boolean
 ): PerformanceControlPrerequisites {
   return {
     songSelected: currentSongId !== '' && lines.length > 0,
     translationLanguageSelected: effectiveLang.length > 0,
-    singingLanguageSelected: lines.length > 0,
+    singingLanguageSelected: lines.length > 0 && effectiveSingingLang.length > 0,
     projectionOpen,
   }
 }
@@ -41,6 +42,7 @@ type ControlViewStateInput = {
   currentSongId: string
   lines: SongItem[]
   effectiveLang: string
+  effectiveSingingLang: string
   projectionOpen: boolean
   armed: boolean
   arm: () => void
@@ -54,6 +56,7 @@ function usePerformanceControlViewState({
   currentSongId,
   lines,
   effectiveLang,
+  effectiveSingingLang,
   projectionOpen,
   armed,
   arm,
@@ -65,6 +68,7 @@ function usePerformanceControlViewState({
     currentSongId,
     lines,
     effectiveLang,
+    effectiveSingingLang,
     projectionOpen
   )
   const controlState = getPerformanceControlState(prereqs, armed)
@@ -158,6 +162,7 @@ function ControlView() {
     applyCommand,
   } = useSongNavigation()
   const effectiveLang = getEffectiveProjectionLanguage(lines)
+  const effectiveSingingLang = getEffectiveSingingLanguage(lines)
   const { state: performanceState, arm, unarm } = usePerformanceState(
     projectionOpen,
     lines,
@@ -178,6 +183,7 @@ function ControlView() {
     currentSongId,
     lines,
     effectiveLang,
+    effectiveSingingLang,
     projectionOpen,
     armed,
     arm,
@@ -344,10 +350,9 @@ function ControlView() {
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
-  const singingLangDisplay = lines.length > 0 ? 'ES' : ''
   const languagesDisplay =
-    singingLangDisplay && effectiveLang
-      ? `${singingLangDisplay} → ${effectiveLang.toUpperCase()}`
+    effectiveSingingLang && effectiveLang
+      ? `${effectiveSingingLang.toUpperCase()} → ${effectiveLang.toUpperCase()}`
       : effectiveLang
         ? effectiveLang.toUpperCase()
         : ''
@@ -565,9 +570,15 @@ function LanguagesView() {
     window.location.hash = '#/'
   }
 
-  const available = getAvailableLanguages(lines)
+  const availableSinging = getAvailableSingingLanguages(lines)
+  const availableTranslation = getAvailableLanguages(lines)
+  const hasSong = lines.length > 0
 
-  const selectLanguage = (lang: string) => {
+  const selectSingingLanguage = (lang: string) => {
+    setSingingLanguage(lang)
+  }
+
+  const selectTranslationLanguage = (lang: string) => {
     setProjectionLanguage(lang)
     window.location.hash = '#/'
   }
@@ -581,19 +592,41 @@ function LanguagesView() {
         <h1 className="songs-title">Languages</h1>
       </header>
       <main className="songs-body">
-        {available.length === 0 ? (
-          <p className="languages-empty">No song loaded. Select a song first to choose a projection language.</p>
+        {!hasSong ? (
+          <p className="languages-empty">No song loaded. Select a song first to choose singing and translation languages.</p>
         ) : (
-          available.map((lang) => (
-            <button
-              key={lang}
-              type="button"
-              className="songs-song-btn languages-lang-btn"
-              onClick={() => selectLanguage(lang)}
-            >
-              {lang.toUpperCase()}
-            </button>
-          ))
+          <>
+            <section className="languages-section" aria-label="Singing language">
+              <h2 className="languages-section-title">Singing language</h2>
+              <div className="languages-buttons">
+                {availableSinging.map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    className="songs-song-btn languages-lang-btn"
+                    onClick={() => selectSingingLanguage(lang)}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="languages-section" aria-label="Translation language">
+              <h2 className="languages-section-title">Translation language</h2>
+              <div className="languages-buttons">
+                {availableTranslation.map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    className="songs-song-btn languages-lang-btn"
+                    onClick={() => selectTranslationLanguage(lang)}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
         )}
       </main>
     </div>
