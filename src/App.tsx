@@ -1,20 +1,93 @@
-import type { PerformanceState } from './performanceState'
 import { useSongNavigation } from './useSongNavigation'
 import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
 import { useHoldToConfirm, useRestartKeyHold } from './useHoldToConfirm'
+import {
+  getPerformanceControlState,
+  tryArm,
+  isNavigationEnabled,
+  type PerformanceControlPrerequisites,
+} from './performanceControlStateMachine'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
 
-const PERFORMANCE_STATE_LABELS: Record<PerformanceState, string> = {
-  setup: 'Setup',
-  ready: 'Ready to Arm',
-  armed: 'Ready to Perform',
-  performing: 'Performing',
+/** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
+const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> = {
+  SETUP: 'Performance: Setup',
+  READY_TO_ARM: 'Ready to Arm',
+  ARMED: 'Armed',
+}
+
+/** Build state-machine prerequisites from current app state (no new data model). */
+function buildPerformanceControlPrerequisites(
+  currentSongId: string,
+  lines: SongItem[],
+  effectiveLang: string,
+  projectionOpen: boolean
+): PerformanceControlPrerequisites {
+  return {
+    songSelected: currentSongId !== '' && lines.length > 0,
+    translationLanguageSelected: effectiveLang.length > 0,
+    singingLanguageSelected: lines.length > 0,
+    projectionOpen,
+  }
+}
+
+type ControlViewStateInput = {
+  currentSongId: string
+  lines: SongItem[]
+  effectiveLang: string
+  projectionOpen: boolean
+  armed: boolean
+  arm: () => void
+  lineCount: number
+  currentIndex: number
+}
+
+/** Encapsulates performance control state machine and readiness; keeps UI from duplicating logic. */
+function usePerformanceControlViewState({
+  currentSongId,
+  lines,
+  effectiveLang,
+  projectionOpen,
+  armed,
+  arm,
+  lineCount,
+  currentIndex,
+}: ControlViewStateInput) {
+  const prereqs = buildPerformanceControlPrerequisites(
+    currentSongId,
+    lines,
+    effectiveLang,
+    projectionOpen
+  )
+  const controlState = getPerformanceControlState(prereqs, armed)
+  const controlStateLabel = CONTROL_STATE_LABELS[controlState]
+  const canArm = controlState === 'READY_TO_ARM'
+  const canUnarm = controlState === 'ARMED'
+  const navEnabled = isNavigationEnabled(controlState)
+  const nextDisabled =
+    lineCount === 0 ||
+    !navEnabled ||
+    (controlState === 'ARMED' && currentIndex >= lineCount - 1)
+
+  const handleArmClick = () => {
+    if (tryArm(prereqs, armed)) arm()
+  }
+
+  return {
+    controlState,
+    controlStateLabel,
+    canArm,
+    canUnarm,
+    navEnabled,
+    nextDisabled,
+    handleArmClick,
+  }
 }
 
 declare global {
@@ -82,12 +155,31 @@ function ControlView() {
     applyCommand,
   } = useSongNavigation()
   const effectiveLang = getEffectiveProjectionLanguage(lines)
-  const { state: performanceState, checks, arm, unarm } = usePerformanceState(
+  const { state: performanceState, arm, unarm } = usePerformanceState(
     projectionOpen,
     lines,
     effectiveLang,
     index
   )
+  const currentSongId = getCurrentSongId()
+  const armed = performanceState === 'armed' || performanceState === 'performing'
+  const {
+    controlState,
+    controlStateLabel,
+    canArm,
+    navEnabled,
+    nextDisabled,
+    handleArmClick,
+  } = usePerformanceControlViewState({
+    currentSongId,
+    lines,
+    effectiveLang,
+    projectionOpen,
+    armed,
+    arm,
+    lineCount: lines.length,
+    currentIndex: index,
+  })
   const { sendCommandWithState } = useWebSocket({
     index,
     blank,
@@ -97,7 +189,6 @@ function ControlView() {
 
   const prevSongIdRef = useRef<string | undefined>(undefined)
   const prevLangRef = useRef<string | undefined>(undefined)
-  const currentSongId = getCurrentSongId()
 
   useEffect(() => {
     const prevSong = prevSongIdRef.current
@@ -108,7 +199,7 @@ function ControlView() {
       (currentSongId !== prevSong || effectiveLang !== prevLang)
     const projectionClosed = !projectionOpen
     const shouldResetSession =
-      (performanceState === 'armed' || performanceState === 'performing') &&
+      controlState === 'ARMED' &&
       (configChanged || projectionClosed)
 
     if (shouldResetSession) {
@@ -122,14 +213,13 @@ function ControlView() {
     currentSongId,
     effectiveLang,
     projectionOpen,
-    performanceState,
+    controlState,
     unarm,
     goRestart,
     sendCommandWithState,
   ])
 
   const handleNext = () => {
-    if (performanceState === 'armed') unarm()
     goNext()
     sendCommandWithState('next', undefined, {
       currentIndex: getSongIndex(),
@@ -165,10 +255,6 @@ function ControlView() {
     window.location.hash = '#/languages'
   }
 
-  const nextDisabled =
-    lines.length === 0 ||
-    (performanceState !== 'armed' && performanceState !== 'performing') ||
-    (performanceState === 'performing' && index >= lines.length - 1)
   const restartKeyHold = useRestartKeyHold(handleRestart)
 
   const handlersRef = useRef({
@@ -180,7 +266,7 @@ function ControlView() {
     goToLanguages,
     arm,
     unarm,
-    performanceState,
+    controlState,
     nextDisabled,
   })
   handlersRef.current = {
@@ -192,7 +278,7 @@ function ControlView() {
     goToLanguages,
     arm,
     unarm,
-    performanceState,
+    controlState,
     nextDisabled,
   }
   const restartKeyHoldRef = useRef(restartKeyHold)
@@ -201,7 +287,7 @@ function ControlView() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      const { handleNext: next, handlePrev: prev, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, performanceState: pState, nextDisabled: nextDisabledRef } = handlersRef.current
+      const { handleNext: next, handlePrev: prev, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, controlState: cState, nextDisabled: nextDisabledRef } = handlersRef.current
       const { onKeyDown: restartKeyDown } = restartKeyHoldRef.current
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
@@ -214,8 +300,8 @@ function ControlView() {
         restartKeyDown()
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault()
-        if (pState === 'ready') doArm()
-        else if (pState === 'armed') doUnarm()
+        if (cState === 'READY_TO_ARM') doArm()
+        else if (cState === 'ARMED') doUnarm()
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
         toSongs()
@@ -254,14 +340,11 @@ function ControlView() {
       ? `${index + 1} of ${lineCount}`
       : ''
 
-  const canArm = performanceState === 'ready'
-  const canUnarm = performanceState === 'armed'
-
   const restartHold = useHoldToConfirm(handleRestart)
 
   return (
     <div className="control-screen">
-      <header className="control-top-bar">
+      <header className="control-top-bar" role="banner">
         <div className="top-bar-left">
           <button type="button" className="top-btn top-btn-songs" onClick={goToSongs}>
             Songs
@@ -281,43 +364,56 @@ function ControlView() {
           </div>
           <div className="top-current-block">
             <span className="top-label">Performance</span>
-            <span className="top-title top-title-state">{PERFORMANCE_STATE_LABELS[performanceState]}</span>
+            <span className="top-title top-title-state" data-testid="performance-state-label">{controlStateLabel}</span>
           </div>
+          {controlState === 'ARMED' && (
+            <div className="top-current-block">
+              <span className="top-label">Projection</span>
+              <span className="top-title">{projectionOpen ? 'Open' : 'Closed'}</span>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="control-center">
         <p className="control-lyric">{displayText}</p>
-        {notStarted && (
-          <div className="control-performance-state" aria-live="polite">
-            <p className="control-state-label">{PERFORMANCE_STATE_LABELS[performanceState]}</p>
-            {performanceState === 'armed' && (
-              <p className="control-state-instruction">Press Next to reveal the first line</p>
+        {controlState === 'SETUP' && (
+          <div className="control-performance-state control-setup-sections" aria-live="polite">
+            {window.electronAPI && (
+              <div className="control-setup-section">
+                <span className="control-setup-label">Projection</span>
+                <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
+              </div>
             )}
-            {performanceState === 'setup' && (
-              <ul className="control-checks">
-                <li className={checks.projectionOpen ? 'check-ok' : 'check-fail'}>
-                  {checks.projectionOpen ? '✓' : '✗'} Projection window open
-                </li>
-                <li className={checks.translationAvailable ? 'check-ok' : 'check-fail'}>
-                  {checks.translationAvailable ? '✓' : '✗'} Translation available
-                </li>
-                <li className={checks.phraseListLoaded ? 'check-ok' : 'check-fail'}>
-                  {checks.phraseListLoaded ? '✓' : '✗'} Phrase list loaded
-                </li>
-              </ul>
-            )}
-            {canArm && (
-              <button type="button" className="ctrl-btn ctrl-arm" onClick={arm}>
+            <div className="control-setup-section">
+              <span className="control-setup-label">Arm</span>
+              <button
+                type="button"
+                className="ctrl-btn ctrl-arm"
+                onClick={handleArmClick}
+                disabled={!canArm}
+              >
                 Arm
               </button>
-            )}
-            {canUnarm && (
-              <button type="button" className="ctrl-btn ctrl-unarm" onClick={unarm}>
-                Unarm
-              </button>
-            )}
+            </div>
           </div>
+        )}
+        {controlState === 'READY_TO_ARM' && (
+          <div className="control-performance-state" aria-live="polite">
+            <p className="control-state-label">{controlStateLabel}</p>
+            <button type="button" className="ctrl-btn ctrl-arm" onClick={handleArmClick}>
+              Arm
+            </button>
+          </div>
+        )}
+        {controlState === 'ARMED' && notStarted && (
+          <div className="control-performance-state" aria-live="polite">
+            <p className="control-state-label">{controlStateLabel}</p>
+            <p className="control-state-instruction">Press Next to reveal the first line</p>
+          </div>
+        )}
+        {controlState === 'ARMED' && index >= 0 && (
+          <p className="control-state-label">Performing</p>
         )}
         {positionText && <p className="control-position">{positionText}</p>}
       </main>
@@ -328,7 +424,7 @@ function ControlView() {
             type="button"
             className="ctrl-btn ctrl-prev"
             onClick={handlePrev}
-            disabled={lines.length === 0 || index <= -1}
+            disabled={!navEnabled || lines.length === 0 || index <= -1}
           >
             Previous
           </button>
@@ -349,7 +445,12 @@ function ControlView() {
           >
             {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
           </button>
-          {window.electronAPI && (
+          {controlState === 'ARMED' && (
+            <button type="button" className="ctrl-btn ctrl-unarm" onClick={unarm}>
+              Unarm
+            </button>
+          )}
+          {window.electronAPI && controlState !== 'SETUP' && (
             <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
           )}
         </div>
@@ -597,7 +698,7 @@ function ProjectionView() {
   )
 }
 
-function App() {
+function App({ initialHash }: { initialHash?: string } = {}) {
   // On app launch (main window only), force a clean session so we start with "No song selected" and Ready state.
   useEffect(() => {
     if (window.location.hash === '#/projection') return
@@ -609,12 +710,15 @@ function App() {
     setBlank(true)
   }, [])
 
-  const [hash, setHash] = useState(() => window.location.hash)
+  const [hash, setHash] = useState(() =>
+    typeof initialHash === 'string' ? initialHash : window.location.hash
+  )
   useEffect(() => {
+    if (typeof initialHash === 'string') return
     const onHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+  }, [initialHash])
   if (hash === '#/projection') return <ProjectionView />
   if (hash === '#/songs') return <SongsView />
   if (hash === '#/languages') return <LanguagesView />
