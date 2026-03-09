@@ -18,8 +18,8 @@ import './control.css'
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
 const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> = {
   SETUP: 'Performance: Setup',
-  READY_TO_ARM: 'Ready to Arm',
-  ARMED: 'Armed',
+  READY_TO_ARM: 'Performance: Ready to Arm',
+  ARMED: 'Performance: Armed',
 }
 
 /** Build state-machine prerequisites from current app state (no new data model). */
@@ -44,6 +44,7 @@ type ControlViewStateInput = {
   projectionOpen: boolean
   armed: boolean
   arm: () => void
+  unarm: () => void
   lineCount: number
   currentIndex: number
 }
@@ -56,6 +57,7 @@ function usePerformanceControlViewState({
   projectionOpen,
   armed,
   arm,
+  unarm,
   lineCount,
   currentIndex,
 }: ControlViewStateInput) {
@@ -79,6 +81,10 @@ function usePerformanceControlViewState({
     if (tryArm(prereqs, armed)) arm()
   }
 
+  const handleUnarmClick = () => {
+    if (canUnarm) unarm()
+  }
+
   return {
     controlState,
     controlStateLabel,
@@ -87,6 +93,7 @@ function usePerformanceControlViewState({
     navEnabled,
     nextDisabled,
     handleArmClick,
+    handleUnarmClick,
   }
 }
 
@@ -110,8 +117,6 @@ function ProjectionButton({
   onToggle: () => void
 }) {
   const api = window.electronAPI
-  const hold = useHoldToConfirm(onToggle)
-
   if (!api) return null
 
   if (isOpen) {
@@ -119,18 +124,16 @@ function ProjectionButton({
       <button
         type="button"
         className="ctrl-btn ctrl-projection"
-        onPointerDown={hold.onPointerDown}
-        onPointerUp={hold.onPointerUp}
-        onPointerLeave={hold.onPointerLeave}
+        onClick={onToggle}
       >
-        {hold.isHolding ? 'Hold to confirm…' : 'Close Projection'}
+        Close
       </button>
     )
   }
 
   return (
     <button type="button" className="ctrl-btn ctrl-projection" onClick={onToggle}>
-      Open Projection
+      Open
     </button>
   )
 }
@@ -167,9 +170,10 @@ function ControlView() {
     controlState,
     controlStateLabel,
     canArm,
-    navEnabled,
+    canUnarm,
     nextDisabled,
     handleArmClick,
+    handleUnarmClick,
   } = usePerformanceControlViewState({
     currentSongId,
     lines,
@@ -177,6 +181,7 @@ function ControlView() {
     projectionOpen,
     armed,
     arm,
+    unarm,
     lineCount: lines.length,
     currentIndex: index,
   })
@@ -231,7 +236,6 @@ function ControlView() {
     sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
   }
   const handleRestart = () => {
-    unarm()
     goRestart()
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
@@ -333,128 +337,170 @@ function ControlView() {
   const displayText = notStarted
     ? ''
     : currentEs || (loadError ? loadError : '—')
-  const lineCount = lines.length
-  const positionText = notStarted
-    ? ''
-    : lineCount > 0
-      ? `${index + 1} of ${lineCount}`
-      : ''
 
   const restartHold = useHoldToConfirm(handleRestart)
+  const unarmHold = useHoldToConfirm(handleUnarmClick)
+
+  const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
+  const showArmedShell = controlState === 'ARMED'
+
+  const singingLangDisplay = lines.length > 0 ? 'ES' : ''
+  const languagesDisplay =
+    singingLangDisplay && effectiveLang
+      ? `${singingLangDisplay} → ${effectiveLang.toUpperCase()}`
+      : effectiveLang
+        ? effectiveLang.toUpperCase()
+        : ''
 
   return (
     <div className="control-screen">
-      <header className="control-top-bar" role="banner">
-        <div className="top-bar-left">
-          <button type="button" className="top-btn top-btn-songs" onClick={goToSongs}>
-            Songs
-          </button>
-          <button type="button" className="top-btn top-btn-languages" onClick={goToLanguages}>
-            Languages
-          </button>
-        </div>
-        <div className="top-current">
-          <div className="top-current-block">
-            <span className="top-label">Current song</span>
-            <span className="top-title">{currentSongTitle}</span>
+      {showArmedShell && (
+        <header className="control-top-bar" role="banner">
+          <div className="top-bar-summary">
+            <span className="top-summary-line">
+              Song: {currentSongTitle || '—'}
+            </span>
+            <span className="top-summary-line">
+              Languages: {languagesDisplay || '—'}
+            </span>
+            <span className="top-summary-line">
+              Projection: {projectionOpen ? 'Open' : 'Closed'}
+            </span>
+            <span
+              className="top-title top-title-state"
+              data-testid="performance-state-label"
+            >
+              {controlStateLabel}
+            </span>
           </div>
-          <div className="top-current-block">
-            <span className="top-label">Current language</span>
-            <span className="top-title">{effectiveLang ? effectiveLang.toUpperCase() : '—'}</span>
-          </div>
-          <div className="top-current-block">
-            <span className="top-label">Performance</span>
-            <span className="top-title top-title-state" data-testid="performance-state-label">{controlStateLabel}</span>
-          </div>
-          {controlState === 'ARMED' && (
-            <div className="top-current-block">
-              <span className="top-label">Projection</span>
-              <span className="top-title">{projectionOpen ? 'Open' : 'Closed'}</span>
-            </div>
-          )}
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="control-center">
-        <p className="control-lyric">{displayText}</p>
-        {controlState === 'SETUP' && (
-          <div className="control-performance-state control-setup-sections" aria-live="polite">
-            {window.electronAPI && (
+      <main className={`control-center ${showSetupPanel ? 'control-center-setup' : ''}`}>
+        {showSetupPanel && (
+          <>
+            <p className="control-state-label" data-testid="performance-state-label">
+              {controlStateLabel}
+            </p>
+            <div
+              className={
+                controlState === 'SETUP'
+                  ? 'control-performance-state control-setup-sections'
+                  : 'control-performance-state'
+              }
+              aria-live="polite"
+            >
               <div className="control-setup-section">
-                <span className="control-setup-label">Projection</span>
-                <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
+                <span className="control-setup-label">Song</span>
+                <div className="control-setup-content">
+                  {currentSongId && lines.length > 0 ? (
+                    <span className="control-setup-value">{currentSongTitle}</span>
+                  ) : null}
+                </div>
+                <div className="control-setup-buttons">
+                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
+                    Song
+                  </button>
+                </div>
               </div>
-            )}
-            <div className="control-setup-section">
-              <span className="control-setup-label">Arm</span>
-              <button
-                type="button"
-                className="ctrl-btn ctrl-arm"
-                onClick={handleArmClick}
-                disabled={!canArm}
-              >
-                Arm
-              </button>
+              <div className="control-setup-section">
+                <span className="control-setup-label">Languages</span>
+                <div className="control-setup-content">
+                  {effectiveLang ? (
+                    <span className="control-setup-value">{languagesDisplay}</span>
+                  ) : null}
+                </div>
+                <div className="control-setup-buttons">
+                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
+                    Singing
+                  </button>
+                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
+                    Translation
+                  </button>
+                </div>
+              </div>
+              {window.electronAPI && (
+                <div className="control-setup-section">
+                  <span className="control-setup-label">Projection</span>
+                  <div className="control-setup-content">
+                    <span className="control-setup-value">{projectionOpen ? 'Open' : 'Closed'}</span>
+                  </div>
+                  <div className="control-setup-buttons">
+                    <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
+                  </div>
+                </div>
+              )}
+              <div className="control-setup-section">
+                <span className="control-setup-label">Arm</span>
+                <div className="control-setup-content">
+                  <span className="control-setup-value">Unarmed</span>
+                </div>
+                <div className="control-setup-buttons">
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-arm"
+                    onClick={handleArmClick}
+                    disabled={!canArm}
+                  >
+                    Arm
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          </>
         )}
-        {controlState === 'READY_TO_ARM' && (
-          <div className="control-performance-state" aria-live="polite">
-            <p className="control-state-label">{controlStateLabel}</p>
-            <button type="button" className="ctrl-btn ctrl-arm" onClick={handleArmClick}>
-              Arm
-            </button>
-          </div>
+        {showArmedShell && (
+          <>
+            <p className="control-lyric">{displayText}</p>
+            {notStarted && (
+              <p className="control-state-instruction">Press Next to reveal the first line</p>
+            )}
+          </>
         )}
-        {controlState === 'ARMED' && notStarted && (
-          <div className="control-performance-state" aria-live="polite">
-            <p className="control-state-label">{controlStateLabel}</p>
-            <p className="control-state-instruction">Press Next to reveal the first line</p>
-          </div>
-        )}
-        {controlState === 'ARMED' && index >= 0 && (
-          <p className="control-state-label">Performing</p>
-        )}
-        {positionText && <p className="control-position">{positionText}</p>}
       </main>
 
-      <footer className="control-bottom-bar">
-        <div className="bottom-buttons">
-          <button
-            type="button"
-            className="ctrl-btn ctrl-prev"
-            onClick={handlePrev}
-            disabled={!navEnabled || lines.length === 0 || index <= -1}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className="ctrl-btn ctrl-next"
-            onClick={handleNext}
-            disabled={nextDisabled}
-          >
-            Next
-          </button>
-          <button
-            type="button"
-            className="ctrl-btn ctrl-restart"
-            onPointerDown={restartHold.onPointerDown}
-            onPointerUp={restartHold.onPointerUp}
-            onPointerLeave={restartHold.onPointerLeave}
-          >
-            {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
-          </button>
-          {controlState === 'ARMED' && (
-            <button type="button" className="ctrl-btn ctrl-unarm" onClick={unarm}>
-              Unarm
+      {showArmedShell && (
+        <footer className="control-bottom-bar">
+          <div className="bottom-buttons">
+            <button
+              type="button"
+              className="ctrl-btn ctrl-prev"
+              onClick={handlePrev}
+              disabled={lines.length === 0 || index <= -1}
+            >
+              Previous
             </button>
-          )}
-          {window.electronAPI && controlState !== 'SETUP' && (
-            <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
-          )}
-        </div>
-      </footer>
+            <button
+              type="button"
+              className="ctrl-btn ctrl-next"
+              onClick={handleNext}
+              disabled={nextDisabled}
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              className="ctrl-btn ctrl-restart"
+              onPointerDown={restartHold.onPointerDown}
+              onPointerUp={restartHold.onPointerUp}
+              onPointerLeave={restartHold.onPointerLeave}
+            >
+              {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
+            </button>
+            <button
+              type="button"
+              className="ctrl-btn ctrl-unarm"
+              onPointerDown={canUnarm ? unarmHold.onPointerDown : undefined}
+              onPointerUp={canUnarm ? unarmHold.onPointerUp : undefined}
+              onPointerLeave={canUnarm ? unarmHold.onPointerLeave : undefined}
+              disabled={!canUnarm}
+              aria-label="Unarm (return to setup without clearing song, language, or projection)"
+            >
+              {unarmHold.isHolding ? 'Hold to confirm…' : 'Unarm'}
+            </button>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }
@@ -671,6 +717,7 @@ function ProjectionView() {
 
   return (
     <div
+      className="projection-screen"
       style={{
         background: '#000',
         width: '100vw',
@@ -682,14 +729,12 @@ function ProjectionView() {
       }}
     >
       <span
+        className="projection-lyric"
         style={{
-          color: '#fff',
-          fontSize: 'clamp(3rem, 12vw, 8rem)',
-          fontWeight: 700,
-          textAlign: 'center',
-          padding: '1rem',
           opacity: isVisible ? 1 : 0,
-          transition: 'opacity 500ms ease',
+          fontFamily: 'Georgia, "Times New Roman", Times, serif',
+          fontSize: '72px',
+          lineHeight: 1.25,
         }}
       >
         {displayedText}
