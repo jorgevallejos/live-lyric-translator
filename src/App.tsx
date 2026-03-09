@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText } from './songState'
+import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -425,10 +425,7 @@ function ControlView() {
                 </div>
                 <div className="control-setup-buttons">
                   <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
-                    Singing
-                  </button>
-                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
-                    Translation
+                    Languages
                   </button>
                 </div>
               </div>
@@ -582,13 +579,25 @@ function LanguagesView() {
   const availableSinging = getAvailableSingingLanguages(lines)
   const availableTranslation = getAvailableLanguages(lines)
   const hasSong = lines.length > 0
+  const [selectedSinging, setSelectedSingingState] = useState(getSingingLanguage)
+  const [selectedTranslation, setSelectedTranslationState] = useState(getProjectionLanguage)
+
+  useEffect(() => {
+    setSelectedSingingState(getSingingLanguage())
+    setSelectedTranslationState(getProjectionLanguage())
+  }, [lines])
 
   const selectSingingLanguage = (lang: string) => {
     setSingingLanguage(lang)
+    setSelectedSingingState(lang)
   }
 
   const selectTranslationLanguage = (lang: string) => {
     setProjectionLanguage(lang)
+    setSelectedTranslationState(lang)
+  }
+
+  const handleConfirm = () => {
     window.location.hash = '#/'
   }
 
@@ -605,36 +614,44 @@ function LanguagesView() {
           <p className="languages-empty">No song loaded. Select a song first to choose singing and translation languages.</p>
         ) : (
           <>
-            <section className="languages-section" aria-label="Singing language">
-              <h2 className="languages-section-title">Singing language</h2>
-              <div className="languages-buttons">
-                {availableSinging.map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    className="songs-song-btn languages-lang-btn"
-                    onClick={() => selectSingingLanguage(lang)}
-                  >
-                    {lang.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </section>
-            <section className="languages-section" aria-label="Translation language">
-              <h2 className="languages-section-title">Translation language</h2>
-              <div className="languages-buttons">
-                {availableTranslation.map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    className="songs-song-btn languages-lang-btn"
-                    onClick={() => selectTranslationLanguage(lang)}
-                  >
-                    {lang.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </section>
+            <div className="languages-columns">
+              <section className="languages-column" aria-label="Singing language">
+                <h2 className="languages-section-title">Singing language</h2>
+                <div className="languages-buttons languages-buttons-vertical">
+                  {availableSinging.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      className={`languages-lang-btn ${selectedSinging === lang ? 'languages-lang-btn-selected' : ''}`}
+                      onClick={() => selectSingingLanguage(lang)}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <span className="languages-arrow" aria-hidden="true">→</span>
+              <section className="languages-column" aria-label="Translation language">
+                <h2 className="languages-section-title">Translation language</h2>
+                <div className="languages-buttons languages-buttons-vertical">
+                  {availableTranslation.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      className={`languages-lang-btn ${selectedTranslation === lang ? 'languages-lang-btn-selected' : ''}`}
+                      onClick={() => selectTranslationLanguage(lang)}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+            <div className="languages-confirm-wrap">
+              <button type="button" className="ctrl-btn languages-confirm" onClick={handleConfirm}>
+                Confirm
+              </button>
+            </div>
           </>
         )}
       </main>
