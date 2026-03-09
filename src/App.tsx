@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId } from './songState'
+import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -338,7 +338,15 @@ function ControlView() {
   }, [])
 
   const currentEs =
-    currentItem && !isSection(currentItem) ? (currentItem as LyricLine).es : ''
+    currentItem && !isSection(currentItem)
+      ? (() => {
+          const line = currentItem as LyricLine
+          const lang =
+            effectiveSingingLang ||
+            (Object.keys(line.languages).sort()[0] ?? '')
+          return getLyricText(line, lang)
+        })()
+      : ''
   const notStarted = index === -1
   const displayText = notStarted
     ? ''
@@ -515,19 +523,20 @@ function SongsView() {
     window.location.hash = '#/'
   }
 
-  const selectSong = async (id: string, path: string, title: string) => {
+  const selectSong = async (id: string, path: string, _title: string) => {
     try {
       const res = await fetch(path)
       if (!res.ok) throw new Error('Failed to load')
       const text = await res.text()
-      const items = parseSongJson(text)
+      const { title, items } = parseSongFile(text)
       setSongLines(items)
       setSongIndex(-1)
       setBlank(true)
       setCurrentSongId(id)
+      setCurrentSongTitle(title)
       window.location.hash = '#/'
     } catch {
-      alert(`Could not load ${title}.`)
+      alert(`Could not load ${_title}.`)
     }
   }
 
@@ -642,7 +651,7 @@ function ProjectionView() {
   const isSectionMarker = currentItem && isSection(currentItem)
   const translation =
     currentItem && !isSection(currentItem) && effectiveLang
-      ? ((currentItem as LyricLine).translations[effectiveLang] ?? '').trim() || ''
+      ? getLyricText(currentItem as LyricLine, effectiveLang)
       : ''
   const showContent = index >= 0 && !blank && !isSectionMarker
 
