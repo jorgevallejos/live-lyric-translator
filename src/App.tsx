@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage } from './songState'
+import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -355,6 +355,14 @@ function ControlView() {
   const restartHold = useHoldToConfirm(handleRestart)
   const unarmHold = useHoldToConfirm(handleUnarmClick)
 
+  const isEndOfSong =
+    controlState === 'ARMED' &&
+    lines.length > 0 &&
+    index >= 0 &&
+    index < lines.length &&
+    isLyricLine(lines[index]) &&
+    index === getLastLyricIndex(lines)
+
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
@@ -499,14 +507,15 @@ function ControlView() {
             </button>
             <button
               type="button"
-              className="ctrl-btn ctrl-unarm"
-              onPointerDown={canUnarm ? unarmHold.onPointerDown : undefined}
-              onPointerUp={canUnarm ? unarmHold.onPointerUp : undefined}
-              onPointerLeave={canUnarm ? unarmHold.onPointerLeave : undefined}
+              className={`ctrl-btn ${isEndOfSong ? 'ctrl-arm' : 'ctrl-unarm'}`}
+              onClick={isEndOfSong && canUnarm ? handleUnarmClick : undefined}
+              onPointerDown={!isEndOfSong && canUnarm ? unarmHold.onPointerDown : undefined}
+              onPointerUp={!isEndOfSong && canUnarm ? unarmHold.onPointerUp : undefined}
+              onPointerLeave={!isEndOfSong && canUnarm ? unarmHold.onPointerLeave : undefined}
               disabled={!canUnarm}
               aria-label="Unarm (return to setup without clearing song, language, or projection)"
             >
-              {unarmHold.isHolding ? 'Hold to confirm…' : 'Unarm'}
+              {isEndOfSong ? 'Unarm' : unarmHold.isHolding ? 'Hold to confirm…' : 'Unarm'}
             </button>
           </div>
         </footer>
