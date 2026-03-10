@@ -161,6 +161,7 @@ function ControlView() {
     loadError,
     applyRemoteState,
     applyCommand,
+    nextLyricLine,
   } = useSongNavigation()
   const effectiveLang = getEffectiveProjectionLanguage(lines)
   const effectiveSingingLang = getEffectiveSingingLanguage(lines)
@@ -353,6 +354,16 @@ function ControlView() {
     ? ''
     : currentEs || (loadError ? loadError : '—')
 
+  const nextPreviewText =
+    nextLyricLine
+      ? (() => {
+          const lang =
+            effectiveSingingLang ||
+            (Object.keys(nextLyricLine.languages).sort()[0] ?? '')
+          return getLyricText(nextLyricLine, lang)
+        })()
+      : ''
+
   const restartHold = useHoldToConfirm(handleRestart)
   const unarmHold = useHoldToConfirm(handleUnarmClick)
 
@@ -471,6 +482,14 @@ function ControlView() {
         {showArmedShell && (
           <>
             <p className="control-lyric">{displayText}</p>
+            {!notStarted && (
+              <span
+                data-testid="control-next-preview"
+                className="control-next-preview"
+              >
+                {nextPreviewText}
+              </span>
+            )}
             {notStarted && (
               <p className="control-state-instruction">Press Next to reveal the first line</p>
             )}
@@ -837,17 +856,27 @@ function ProjectionView() {
         margin: 0,
       }}
     >
-      <span
-        className="projection-lyric"
+      <div
         style={{
-          opacity: isVisible ? 1 : 0,
-          fontFamily: 'Georgia, "Times New Roman", Times, serif',
-          fontSize: '72px',
-          lineHeight: 1.25,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5em',
         }}
       >
-        {displayedText}
-      </span>
+        <span
+          className="projection-lyric"
+          style={{
+            opacity: isVisible ? 1 : 0,
+            fontFamily: 'Georgia, "Times New Roman", Times, serif',
+            fontSize: '72px',
+            lineHeight: 1.25,
+          }}
+        >
+          {displayedText}
+        </span>
+      </div>
     </div>
   )
 }
