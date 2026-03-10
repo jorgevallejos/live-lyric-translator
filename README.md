@@ -5,7 +5,7 @@
 <img src="docs/images/chango-pepper-banner.png">
 </p>
 
-Live Lyric Translator is a small performance tool I created to project translated lyrics during live concerts.
+Live Lyric Translator is a small desktop tool designed to project translated song lyrics during live concerts.
 
 The songs are part of **Chango Pepper**, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
 
@@ -27,19 +27,31 @@ This project takes a different approach:
 
 This makes the system simple, reliable, and performance-friendly.
 
+## ⭐ Key features
+
+- Manual lyric progression designed for live performance
+- Dual-window system (performer control + audience projection)
+- Multilingual lyric support
+- Independent singing and projection languages
+- Next-phrase preview for the performer
+- Played-song indicator in the Setlist
+- Keyboard and pedal control
+- Works fully offline during concerts
+
 ## ⚙️ How it works
 
-The application runs on a Mac mini and opens two windows.
+The application runs as a small Electron desktop app and opens two synchronized windows.
 
 ### Control window
 
 Used by the performer to:
 
-- select songs  
-- select translation language for projection
-- advance or go back one phrase  
-- restart a song  
-- blank the projection if needed  
+- select a song from the Setlist
+- choose the singing language
+- choose the projection (translation) language
+- advance to the next lyric phrase or go back to the previous one
+- restart the current song
+- temporarily blank the projection if needed 
 
 ### Projection window
 
@@ -52,6 +64,26 @@ Each phrase:
 1. fades in  
 2. remains visible briefly  
 3. fades out automatically unless the performer advances  
+
+## 📷 Screenshots
+
+### Control screen — Setup
+
+The performer selects the song, singing language, and projection language before starting the performance.
+
+![Control Setup](docs/images/control-setup.png)
+
+### Control screen — Performing
+
+During the performance, the control screen shows the current phrase and the next phrase preview.
+
+![Control Performing](docs/images/control-performing.png)
+
+### Projection screen — Audience view
+
+The audience only sees the translated lyric line currently being performed.
+
+![Projection Screen](docs/images/projection-screen.png)
 
 ## 🎭 Live performance setups
 
@@ -108,13 +140,18 @@ The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 
 Typical usage during a performance:
 
-1. Start the application  
-2. Open the projection window  
-3. Select a song  
-4. Select a translation language
-5. The system runs checks and shows **Ready** when: projection is open, translation available, phrase list loaded
-6. Press **Arm** (button or **A** key), then **Next** to reveal the first translation  
-7. Advance phrases during the performance  
+1.	Start the application
+2.	Open the projection window
+3.	Select a song from the Setlist
+4.	Choose the singing language
+5.	Choose the projection (translation) language
+6. The system runs readiness checks and shows **Ready** when:
+   - a song is selected  
+   - singing and projection languages are selected  
+   - the projection window is open  
+   - the lyric phrase list is loaded
+7. Press **Arm** (button or **A** key), then press **Next** to reveal the first translation
+8. Advance phrases during the performance
 
 ### Performance state machine
 
@@ -129,13 +166,13 @@ The control screen follows a simple state flow:
 
 ### Control screen buttons
 
-- Previous  
-- Next (enabled only when **Armed** or **Performing**; from **Ready** you must **Arm** first)  
-- Restart  
-- Open / Close Projection  
-- Arm / Unarm (shown when **Ready** or **Armed**)  
-- Songs  
-- Languages 
+- Previous
+- Next — enabled only when Armed or Performing (from **Ready**, the performer must first press **Arm**)
+- Restart
+-	Open / Close Projection
+- Arm / Unarm — available when the system is **Ready** or **Armed**
+- Setlist
+- Languages
 
 ### Keyboard shortcuts
 
@@ -149,9 +186,7 @@ L → Open language selection
 
 ## 🌍 Language selection
 
-The performer can choose which translation language is projected.
-
-A **Languages** button is available in the top bar of the control interface.
+The performer first chooses the singing language, then selects the projection language used to display the translated lyrics for the audience.
 
 When selecting a language:
 - the choice is stored locally
@@ -176,15 +211,16 @@ In this mode the projection window also responds to arrow keys.
 
 Songs are stored as simple JSON files.
 
-Each lyric line contains the original Spanish text and a set of translations.
+Each entry represents one lyric line and contains the available language versions of that line.
 
 Example structure:
 
 ```json
 [
   {
-    "es": "Viejo pimiento,",
-    "translations": {
+    "title": "Pimiento",
+    "lines": {
+      "es": "Viejo pimiento,",
       "en": "Old pepper tree,",
       "fr": "Vieux pimentier,",
       "nl": "Oude peperboom,"
@@ -194,15 +230,14 @@ Example structure:
 ```
 
 Fields:
-- **es** — original lyric (Spanish)  
-- **translations** — translated versions of the line indexed by language code
+- **title** — song title  
+- **lines** — lyric text indexed by language code
 
 Example language codes currently used:
+- es — Spanish
 - en — English
 - fr — French
 - nl — Dutch
-
-Only one language is projected at a time, and it can be selected from the Languages screen in the control interface.
 
 This format makes it easy to add additional languages in the future without changing the application code.
 
