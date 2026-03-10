@@ -1,50 +1,41 @@
-[
-  {
-    "es": "Cielo gris en nuestro hogar,",
-    "translations": {
+{
+  "title": "Vidas",
+  "lyrics": [
+    {
+      "es": "Cielo gris en nuestro hogar,",
       "en": "A grey sky over our home,",
       "fr": "Un ciel gris sur notre maison,",
       "nl": "Een grijze hemel boven ons huis,"
-    }
-  },
-  {
-    "es": "Tú ya en el mar.",
-    "translations": {
+    },
+    {
+      "es": "Tú ya en el mar.",
       "en": "you already at sea.",
       "fr": "toi déjà dans la mer.",
       "nl": "jij al in de zee."
-    }
-  },
-  {
-    "es": "Polvo el cuerpo,",
-    "translations": {
+    },
+    {
+      "es": "Polvo el cuerpo,",
       "en": "The body to dust,",
       "fr": "Le corps devient poussière,",
       "nl": "Het lichaam wordt stof,"
-    }
-  },
-  {
-    "es": "Nunca sabrá.",
-    "translations": {
+    },
+    {
+      "es": "Nunca sabrá.",
       "en": "it will never know.",
       "fr": "il ne saura jamais.",
       "nl": "het zal het nooit weten."
-    }
-  },
-  {
-    "es": "Que tú historias serás.",
-    "translations": {
+    },
+    {
+      "es": "Que tú historias serás.",
       "en": "that you will live on in stories.",
       "fr": "que tu deviendras des histoires.",
       "nl": "dat jij verhalen zult worden."
-    }
-  },
-  {
-    "es": "Que tú en cuentos vendrás.",
-    "translations": {
+    },
+    {
+      "es": "Que tú en cuentos vendrás.",
       "en": "that you will return in tales.",
       "fr": "que tu reviendras dans les contes.",
       "nl": "dat je terugkomt in verhalen."
     }
-  }
-]
+  ]
+}

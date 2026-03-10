@@ -1,20 +1,105 @@
-import type { PerformanceState } from './performanceState'
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongJson, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setProjectionLanguage, getEffectiveProjectionLanguage, getAvailableLanguages, getSongLines, getCurrentSongId } from './songState'
+import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
 import { useHoldToConfirm, useRestartKeyHold } from './useHoldToConfirm'
+import {
+  getPerformanceControlState,
+  tryArm,
+  isNavigationEnabled,
+  type PerformanceControlPrerequisites,
+} from './performanceControlStateMachine'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
+import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
 
-const PERFORMANCE_STATE_LABELS: Record<PerformanceState, string> = {
-  setup: 'Setup',
-  ready: 'Ready to Arm',
-  armed: 'Ready to Perform',
-  performing: 'Performing',
+/** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
+const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> = {
+  SETUP: 'Performance: Setup',
+  READY_TO_ARM: 'Performance: Ready to Arm',
+  ARMED: 'Performance: Armed',
+}
+
+/** Build state-machine prerequisites from current app state (no new data model). */
+function buildPerformanceControlPrerequisites(
+  currentSongId: string,
+  lines: SongItem[],
+  effectiveLang: string,
+  effectiveSingingLang: string,
+  projectionOpen: boolean
+): PerformanceControlPrerequisites {
+  return {
+    songSelected: currentSongId !== '' && lines.length > 0,
+    translationLanguageSelected: effectiveLang.length > 0,
+    singingLanguageSelected: lines.length > 0 && effectiveSingingLang.length > 0,
+    projectionOpen,
+  }
+}
+
+type ControlViewStateInput = {
+  currentSongId: string
+  lines: SongItem[]
+  effectiveLang: string
+  effectiveSingingLang: string
+  projectionOpen: boolean
+  armed: boolean
+  arm: () => void
+  unarm: () => void
+  lineCount: number
+  currentIndex: number
+}
+
+/** Encapsulates performance control state machine and readiness; keeps UI from duplicating logic. */
+function usePerformanceControlViewState({
+  currentSongId,
+  lines,
+  effectiveLang,
+  effectiveSingingLang,
+  projectionOpen,
+  armed,
+  arm,
+  unarm,
+  lineCount,
+  currentIndex,
+}: ControlViewStateInput) {
+  const prereqs = buildPerformanceControlPrerequisites(
+    currentSongId,
+    lines,
+    effectiveLang,
+    effectiveSingingLang,
+    projectionOpen
+  )
+  const controlState = getPerformanceControlState(prereqs, armed)
+  const controlStateLabel = CONTROL_STATE_LABELS[controlState]
+  const canArm = controlState === 'READY_TO_ARM'
+  const canUnarm = controlState === 'ARMED'
+  const navEnabled = isNavigationEnabled(controlState)
+  const nextDisabled =
+    lineCount === 0 ||
+    !navEnabled ||
+    (controlState === 'ARMED' && currentIndex >= lineCount - 1)
+
+  const handleArmClick = () => {
+    if (tryArm(prereqs, armed)) arm()
+  }
+
+  const handleUnarmClick = () => {
+    if (canUnarm) unarm()
+  }
+
+  return {
+    controlState,
+    controlStateLabel,
+    canArm,
+    canUnarm,
+    navEnabled,
+    nextDisabled,
+    handleArmClick,
+    handleUnarmClick,
+  }
 }
 
 declare global {
@@ -37,8 +122,6 @@ function ProjectionButton({
   onToggle: () => void
 }) {
   const api = window.electronAPI
-  const hold = useHoldToConfirm(onToggle)
-
   if (!api) return null
 
   if (isOpen) {
@@ -46,18 +129,16 @@ function ProjectionButton({
       <button
         type="button"
         className="ctrl-btn ctrl-projection"
-        onPointerDown={hold.onPointerDown}
-        onPointerUp={hold.onPointerUp}
-        onPointerLeave={hold.onPointerLeave}
+        onClick={onToggle}
       >
-        {hold.isHolding ? 'Hold to confirm…' : 'Close Projection'}
+        Close
       </button>
     )
   }
 
   return (
     <button type="button" className="ctrl-btn ctrl-projection" onClick={onToggle}>
-      Open Projection
+      Open
     </button>
   )
 }
@@ -80,14 +161,38 @@ function ControlView() {
     loadError,
     applyRemoteState,
     applyCommand,
+    nextLyricLine,
   } = useSongNavigation()
   const effectiveLang = getEffectiveProjectionLanguage(lines)
-  const { state: performanceState, checks, arm, unarm } = usePerformanceState(
+  const effectiveSingingLang = getEffectiveSingingLanguage(lines)
+  const { state: performanceState, arm, unarm } = usePerformanceState(
     projectionOpen,
     lines,
     effectiveLang,
     index
   )
+  const currentSongId = getCurrentSongId()
+  const armed = performanceState === 'armed' || performanceState === 'performing'
+  const {
+    controlState,
+    controlStateLabel,
+    canArm,
+    canUnarm,
+    nextDisabled,
+    handleArmClick,
+    handleUnarmClick,
+  } = usePerformanceControlViewState({
+    currentSongId,
+    lines,
+    effectiveLang,
+    effectiveSingingLang,
+    projectionOpen,
+    armed,
+    arm,
+    unarm,
+    lineCount: lines.length,
+    currentIndex: index,
+  })
   const { sendCommandWithState } = useWebSocket({
     index,
     blank,
@@ -97,7 +202,6 @@ function ControlView() {
 
   const prevSongIdRef = useRef<string | undefined>(undefined)
   const prevLangRef = useRef<string | undefined>(undefined)
-  const currentSongId = getCurrentSongId()
 
   useEffect(() => {
     const prevSong = prevSongIdRef.current
@@ -108,7 +212,7 @@ function ControlView() {
       (currentSongId !== prevSong || effectiveLang !== prevLang)
     const projectionClosed = !projectionOpen
     const shouldResetSession =
-      (performanceState === 'armed' || performanceState === 'performing') &&
+      controlState === 'ARMED' &&
       (configChanged || projectionClosed)
 
     if (shouldResetSession) {
@@ -122,14 +226,13 @@ function ControlView() {
     currentSongId,
     effectiveLang,
     projectionOpen,
-    performanceState,
+    controlState,
     unarm,
     goRestart,
     sendCommandWithState,
   ])
 
   const handleNext = () => {
-    if (performanceState === 'armed') unarm()
     goNext()
     sendCommandWithState('next', undefined, {
       currentIndex: getSongIndex(),
@@ -141,7 +244,6 @@ function ControlView() {
     sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
   }
   const handleRestart = () => {
-    unarm()
     goRestart()
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
@@ -165,10 +267,6 @@ function ControlView() {
     window.location.hash = '#/languages'
   }
 
-  const nextDisabled =
-    lines.length === 0 ||
-    (performanceState !== 'armed' && performanceState !== 'performing') ||
-    (performanceState === 'performing' && index >= lines.length - 1)
   const restartKeyHold = useRestartKeyHold(handleRestart)
 
   const handlersRef = useRef({
@@ -180,7 +278,7 @@ function ControlView() {
     goToLanguages,
     arm,
     unarm,
-    performanceState,
+    controlState,
     nextDisabled,
   })
   handlersRef.current = {
@@ -192,7 +290,7 @@ function ControlView() {
     goToLanguages,
     arm,
     unarm,
-    performanceState,
+    controlState,
     nextDisabled,
   }
   const restartKeyHoldRef = useRef(restartKeyHold)
@@ -201,7 +299,7 @@ function ControlView() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      const { handleNext: next, handlePrev: prev, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, performanceState: pState, nextDisabled: nextDisabledRef } = handlersRef.current
+      const { handleNext: next, handlePrev: prev, handleBlankToggle: blankToggle, goToSongs: toSongs, goToLanguages: toLangs, arm: doArm, unarm: doUnarm, controlState: cState, nextDisabled: nextDisabledRef } = handlersRef.current
       const { onKeyDown: restartKeyDown } = restartKeyHoldRef.current
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
@@ -214,8 +312,8 @@ function ControlView() {
         restartKeyDown()
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault()
-        if (pState === 'ready') doArm()
-        else if (pState === 'armed') doUnarm()
+        if (cState === 'READY_TO_ARM') doArm()
+        else if (cState === 'ARMED') doUnarm()
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
         toSongs()
@@ -242,140 +340,250 @@ function ControlView() {
   }, [])
 
   const currentEs =
-    currentItem && !isSection(currentItem) ? (currentItem as LyricLine).es : ''
+    currentItem && !isSection(currentItem)
+      ? (() => {
+          const line = currentItem as LyricLine
+          const lang =
+            effectiveSingingLang ||
+            (Object.keys(line.languages).sort()[0] ?? '')
+          return getLyricText(line, lang)
+        })()
+      : ''
   const notStarted = index === -1
   const displayText = notStarted
     ? ''
     : currentEs || (loadError ? loadError : '—')
-  const lineCount = lines.length
-  const positionText = notStarted
-    ? ''
-    : lineCount > 0
-      ? `${index + 1} of ${lineCount}`
+
+  const nextPreviewText =
+    nextLyricLine
+      ? (() => {
+          const lang =
+            effectiveSingingLang ||
+            (Object.keys(nextLyricLine.languages).sort()[0] ?? '')
+          return getLyricText(nextLyricLine, lang)
+        })()
       : ''
 
-  const canArm = performanceState === 'ready'
-  const canUnarm = performanceState === 'armed'
-
   const restartHold = useHoldToConfirm(handleRestart)
+  const unarmHold = useHoldToConfirm(handleUnarmClick)
+
+  const isEndOfSong =
+    controlState === 'ARMED' &&
+    lines.length > 0 &&
+    index >= 0 &&
+    index < lines.length &&
+    isLyricLine(lines[index]) &&
+    index === getLastLyricIndex(lines)
+
+  const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
+  const showArmedShell = controlState === 'ARMED'
+
+  const languagesDisplay =
+    effectiveSingingLang && effectiveLang
+      ? `${effectiveSingingLang.toUpperCase()} → ${effectiveLang.toUpperCase()}`
+      : effectiveLang
+        ? effectiveLang.toUpperCase()
+        : ''
 
   return (
     <div className="control-screen">
-      <header className="control-top-bar">
-        <div className="top-bar-left">
-          <button type="button" className="top-btn top-btn-songs" onClick={goToSongs}>
-            Songs
-          </button>
-          <button type="button" className="top-btn top-btn-languages" onClick={goToLanguages}>
-            Languages
-          </button>
-        </div>
-        <div className="top-current">
-          <div className="top-current-block">
-            <span className="top-label">Current song</span>
-            <span className="top-title">{currentSongTitle}</span>
+      {showArmedShell && (
+        <header className="control-top-bar" role="banner">
+          <div className="top-bar-summary">
+            <span className="top-summary-line">
+              Song: {currentSongTitle || '—'}
+            </span>
+            <span className="top-summary-line">
+              Languages: {languagesDisplay || '—'}
+            </span>
+            <span className="top-summary-line">
+              Projection: {projectionOpen ? 'Open' : 'Closed'}
+            </span>
+            <span
+              className="top-title top-title-state"
+              data-testid="performance-state-label"
+            >
+              {controlStateLabel}
+            </span>
           </div>
-          <div className="top-current-block">
-            <span className="top-label">Current language</span>
-            <span className="top-title">{effectiveLang ? effectiveLang.toUpperCase() : '—'}</span>
-          </div>
-          <div className="top-current-block">
-            <span className="top-label">Performance</span>
-            <span className="top-title top-title-state">{PERFORMANCE_STATE_LABELS[performanceState]}</span>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="control-center">
-        <p className="control-lyric">{displayText}</p>
-        {notStarted && (
-          <div className="control-performance-state" aria-live="polite">
-            <p className="control-state-label">{PERFORMANCE_STATE_LABELS[performanceState]}</p>
-            {performanceState === 'armed' && (
+      <main className={`control-center ${showSetupPanel ? 'control-center-setup' : ''}`}>
+        {showSetupPanel && (
+          <>
+            <p className="control-state-label" data-testid="performance-state-label">
+              {controlStateLabel}
+            </p>
+            <div
+              className={
+                controlState === 'SETUP'
+                  ? 'control-performance-state control-setup-sections'
+                  : 'control-performance-state'
+              }
+              aria-live="polite"
+            >
+              <div className="control-setup-section">
+                <span className="control-setup-label">Song</span>
+                <div className="control-setup-content">
+                  {currentSongId && lines.length > 0 ? (
+                    <span className="control-setup-value">{currentSongTitle}</span>
+                  ) : null}
+                </div>
+                <div className="control-setup-buttons">
+                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
+                    Setlist
+                  </button>
+                </div>
+              </div>
+              <div className="control-setup-section">
+                <span className="control-setup-label">LANGUAGE DISPLAY</span>
+                <div className="control-setup-content">
+                  {effectiveLang ? (
+                    <span className="control-setup-value">{languagesDisplay}</span>
+                  ) : null}
+                </div>
+                <div className="control-setup-buttons">
+                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
+                    Languages
+                  </button>
+                </div>
+              </div>
+              {window.electronAPI && (
+                <div className="control-setup-section">
+                  <span className="control-setup-label">Projection</span>
+                  <div className="control-setup-content">
+                    <span className="control-setup-value">{projectionOpen ? 'Open' : 'Closed'}</span>
+                  </div>
+                  <div className="control-setup-buttons">
+                    <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
+                  </div>
+                </div>
+              )}
+              <div className="control-setup-section">
+                <span className="control-setup-label">Arm</span>
+                <div className="control-setup-content">
+                  <span className="control-setup-value">Unarmed</span>
+                </div>
+                <div className="control-setup-buttons">
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-arm"
+                    onClick={handleArmClick}
+                    disabled={!canArm}
+                  >
+                    Arm
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {showArmedShell && (
+          <>
+            <p className="control-lyric">{displayText}</p>
+            {!notStarted && (
+              <span
+                data-testid="control-next-preview"
+                className="control-next-preview"
+              >
+                {nextPreviewText}
+              </span>
+            )}
+            {notStarted && (
               <p className="control-state-instruction">Press Next to reveal the first line</p>
             )}
-            {performanceState === 'setup' && (
-              <ul className="control-checks">
-                <li className={checks.projectionOpen ? 'check-ok' : 'check-fail'}>
-                  {checks.projectionOpen ? '✓' : '✗'} Projection window open
-                </li>
-                <li className={checks.translationAvailable ? 'check-ok' : 'check-fail'}>
-                  {checks.translationAvailable ? '✓' : '✗'} Translation available
-                </li>
-                <li className={checks.phraseListLoaded ? 'check-ok' : 'check-fail'}>
-                  {checks.phraseListLoaded ? '✓' : '✗'} Phrase list loaded
-                </li>
-              </ul>
-            )}
-            {canArm && (
-              <button type="button" className="ctrl-btn ctrl-arm" onClick={arm}>
-                Arm
-              </button>
-            )}
-            {canUnarm && (
-              <button type="button" className="ctrl-btn ctrl-unarm" onClick={unarm}>
-                Unarm
-              </button>
-            )}
-          </div>
+          </>
         )}
-        {positionText && <p className="control-position">{positionText}</p>}
       </main>
 
-      <footer className="control-bottom-bar">
-        <div className="bottom-buttons">
-          <button
-            type="button"
-            className="ctrl-btn ctrl-prev"
-            onClick={handlePrev}
-            disabled={lines.length === 0 || index <= -1}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className="ctrl-btn ctrl-next"
-            onClick={handleNext}
-            disabled={nextDisabled}
-          >
-            Next
-          </button>
-          <button
-            type="button"
-            className="ctrl-btn ctrl-restart"
-            onPointerDown={restartHold.onPointerDown}
-            onPointerUp={restartHold.onPointerUp}
-            onPointerLeave={restartHold.onPointerLeave}
-          >
-            {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
-          </button>
-          {window.electronAPI && (
-            <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
-          )}
-        </div>
-      </footer>
+      {showArmedShell && (
+        <footer className="control-bottom-bar">
+          <div className="bottom-buttons">
+            <button
+              type="button"
+              className="ctrl-btn ctrl-prev"
+              onClick={handlePrev}
+              disabled={lines.length === 0 || index <= -1}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              className="ctrl-btn ctrl-next"
+              onClick={handleNext}
+              disabled={nextDisabled}
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              className="ctrl-btn ctrl-restart"
+              onPointerDown={restartHold.onPointerDown}
+              onPointerUp={restartHold.onPointerUp}
+              onPointerLeave={restartHold.onPointerLeave}
+            >
+              {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
+            </button>
+            <button
+              type="button"
+              className={`ctrl-btn ${isEndOfSong ? 'ctrl-arm' : 'ctrl-unarm'}`}
+              onClick={
+                isEndOfSong && canUnarm
+                  ? () => {
+                      if (currentSongId) addPlayedSong(currentSongId)
+                      handleUnarmClick()
+                    }
+                  : undefined
+              }
+              onPointerDown={!isEndOfSong && canUnarm ? unarmHold.onPointerDown : undefined}
+              onPointerUp={!isEndOfSong && canUnarm ? unarmHold.onPointerUp : undefined}
+              onPointerLeave={!isEndOfSong && canUnarm ? unarmHold.onPointerLeave : undefined}
+              disabled={!canUnarm}
+              aria-label="Unarm (return to setup without clearing song, language, or projection)"
+            >
+              {isEndOfSong ? 'Unarm' : unarmHold.isHolding ? 'Hold to confirm…' : 'Unarm'}
+            </button>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }
 
 function SongsView() {
+  const playedIds = getPlayedSongIds()
+  // When entering Setlist after finishing a song, do not pre-select the played song.
+  const [selectedSong, setSelectedSong] = useState<{ id: string; path: string; title: string } | null>(() => {
+    const id = getCurrentSongId()
+    if (!id) return null
+    if (playedIds.includes(id)) return null
+    return SONGS.find((s) => s.id === id) ?? null
+  })
+
   const goBack = () => {
     window.location.hash = '#/'
   }
 
-  const selectSong = async (id: string, path: string, title: string) => {
+  const selectSong = (song: { id: string; path: string; title: string }) => {
+    setSelectedSong(song)
+  }
+
+  const confirmSelection = async () => {
+    if (!selectedSong) return
     try {
-      const res = await fetch(path)
+      const res = await fetch(selectedSong.path)
       if (!res.ok) throw new Error('Failed to load')
       const text = await res.text()
-      const items = parseSongJson(text)
+      const { title, items } = parseSongFile(text)
       setSongLines(items)
       setSongIndex(-1)
       setBlank(true)
-      setCurrentSongId(id)
+      setCurrentSongId(selectedSong.id)
+      setCurrentSongTitle(title)
       window.location.hash = '#/'
     } catch {
-      alert(`Could not load ${title}.`)
+      alert(`Could not load ${selectedSong.title}.`)
     }
   }
 
@@ -385,19 +593,38 @@ function SongsView() {
         <button type="button" className="songs-back" onClick={goBack}>
           Back
         </button>
-        <h1 className="songs-title">Songs</h1>
+        <h1 className="songs-title">Setlist</h1>
       </header>
       <main className="songs-body">
         {SONGS.map((song) => (
           <button
             key={song.id}
             type="button"
-            className="songs-song-btn"
-            onClick={() => selectSong(song.id, song.path, song.title)}
+            className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedIds.includes(song.id) ? 'songs-song-btn-played' : ''}`}
+            aria-pressed={selectedSong?.id === song.id}
+            onClick={() => selectSong(song)}
           >
-            {song.title}
+            {playedIds.includes(song.id) ? (
+              <>
+                <span className="song-played-icon" aria-hidden />
+                {song.title}
+              </>
+            ) : (
+              song.title
+            )}
           </button>
         ))}
+        <div className="songs-confirm-wrap">
+          <button
+            type="button"
+            className="ctrl-btn languages-confirm"
+            disabled={!selectedSong}
+            aria-label="Confirm"
+            onClick={confirmSelection}
+          >
+            Confirm
+          </button>
+        </div>
       </main>
     </div>
   )
@@ -418,10 +645,28 @@ function LanguagesView() {
     window.location.hash = '#/'
   }
 
-  const available = getAvailableLanguages(lines)
+  const availableSinging = getAvailableSingingLanguages(lines)
+  const availableTranslation = getAvailableLanguages(lines)
+  const hasSong = lines.length > 0
+  const [selectedSinging, setSelectedSingingState] = useState(getSingingLanguage)
+  const [selectedTranslation, setSelectedTranslationState] = useState(getProjectionLanguage)
 
-  const selectLanguage = (lang: string) => {
+  useEffect(() => {
+    setSelectedSingingState(getSingingLanguage())
+    setSelectedTranslationState(getProjectionLanguage())
+  }, [lines])
+
+  const selectSingingLanguage = (lang: string) => {
+    setSingingLanguage(lang)
+    setSelectedSingingState(lang)
+  }
+
+  const selectTranslationLanguage = (lang: string) => {
     setProjectionLanguage(lang)
+    setSelectedTranslationState(lang)
+  }
+
+  const handleConfirm = () => {
     window.location.hash = '#/'
   }
 
@@ -434,19 +679,49 @@ function LanguagesView() {
         <h1 className="songs-title">Languages</h1>
       </header>
       <main className="songs-body">
-        {available.length === 0 ? (
-          <p className="languages-empty">No song loaded. Select a song first to choose a projection language.</p>
+        {!hasSong ? (
+          <p className="languages-empty">No song loaded. Select a song first to choose singing and translation languages.</p>
         ) : (
-          available.map((lang) => (
-            <button
-              key={lang}
-              type="button"
-              className="songs-song-btn languages-lang-btn"
-              onClick={() => selectLanguage(lang)}
-            >
-              {lang.toUpperCase()}
-            </button>
-          ))
+          <>
+            <div className="languages-columns">
+              <section className="languages-column" aria-label="Singing">
+                <h2 className="languages-section-title">Singing</h2>
+                <div className="languages-buttons languages-buttons-vertical">
+                  {availableSinging.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      className={`languages-lang-btn ${selectedSinging === lang ? 'languages-lang-btn-selected' : ''}`}
+                      onClick={() => selectSingingLanguage(lang)}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <span className="languages-arrow" aria-hidden="true">→</span>
+              <section className="languages-column" aria-label="Projection">
+                <h2 className="languages-section-title">Projection</h2>
+                <div className="languages-buttons languages-buttons-vertical">
+                  {availableTranslation.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      className={`languages-lang-btn ${selectedTranslation === lang ? 'languages-lang-btn-selected' : ''}`}
+                      onClick={() => selectTranslationLanguage(lang)}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+            <div className="languages-confirm-wrap">
+              <button type="button" className="ctrl-btn languages-confirm" onClick={handleConfirm}>
+                Confirm
+              </button>
+            </div>
+          </>
         )}
       </main>
     </div>
@@ -462,7 +737,7 @@ function ProjectionView() {
   const isSectionMarker = currentItem && isSection(currentItem)
   const translation =
     currentItem && !isSection(currentItem) && effectiveLang
-      ? ((currentItem as LyricLine).translations[effectiveLang] ?? '').trim() || ''
+      ? getLyricText(currentItem as LyricLine, effectiveLang)
       : ''
   const showContent = index >= 0 && !blank && !isSectionMarker
 
@@ -570,6 +845,7 @@ function ProjectionView() {
 
   return (
     <div
+      className="projection-screen"
       style={{
         background: '#000',
         width: '100vw',
@@ -580,24 +856,32 @@ function ProjectionView() {
         margin: 0,
       }}
     >
-      <span
+      <div
         style={{
-          color: '#fff',
-          fontSize: 'clamp(3rem, 12vw, 8rem)',
-          fontWeight: 700,
-          textAlign: 'center',
-          padding: '1rem',
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 500ms ease',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5em',
         }}
       >
-        {displayedText}
-      </span>
+        <span
+          className="projection-lyric"
+          style={{
+            opacity: isVisible ? 1 : 0,
+            fontFamily: 'Georgia, "Times New Roman", Times, serif',
+            fontSize: '72px',
+            lineHeight: 1.25,
+          }}
+        >
+          {displayedText}
+        </span>
+      </div>
     </div>
   )
 }
 
-function App() {
+function App({ initialHash }: { initialHash?: string } = {}) {
   // On app launch (main window only), force a clean session so we start with "No song selected" and Ready state.
   useEffect(() => {
     if (window.location.hash === '#/projection') return
@@ -609,12 +893,15 @@ function App() {
     setBlank(true)
   }, [])
 
-  const [hash, setHash] = useState(() => window.location.hash)
+  const [hash, setHash] = useState(() =>
+    typeof initialHash === 'string' ? initialHash : window.location.hash
+  )
   useEffect(() => {
+    if (typeof initialHash === 'string') return
     const onHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+  }, [initialHash])
   if (hash === '#/projection') return <ProjectionView />
   if (hash === '#/songs') return <SongsView />
   if (hash === '#/languages') return <LanguagesView />

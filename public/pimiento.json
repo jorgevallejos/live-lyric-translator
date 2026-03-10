@@ -1,194 +1,149 @@
-[
-  {
-    "es": "Viejo pimiento,",
-    "translations": {
+{
+  "title": "Pimiento",
+  "lyrics": [
+    {
+      "es": "Viejo pimiento,",
       "en": "Old pepper tree,",
       "fr": "Vieux pimentier,",
       "nl": "Oude peperboom,"
-    }
-  },
-  {
-    "es": "Hoy vuelvo a visitarte",
-    "translations": {
+    },
+    {
+      "es": "Hoy vuelvo a visitarte",
       "en": "Today I come back to see you,",
       "fr": "Aujourd’hui je reviens te voir,",
       "nl": "Vandaag kom ik je weer bezoeken,"
-    }
-  },
-  {
-    "es": "Dicen que sabes",
-    "translations": {
+    },
+    {
+      "es": "Dicen que sabes",
       "en": "They say you know",
       "fr": "On dit que tu sais",
       "nl": "Men zegt dat jij weet"
-    }
-  },
-  {
-    "es": "tratar males de poetas.",
-    "translations": {
+    },
+    {
+      "es": "tratar males de poetas.",
       "en": "how to heal a poet’s wounds.",
       "fr": "soigner les peines des poètes.",
       "nl": "hoe je dichterswonden heelt."
-    }
-  },
-  {
-    "es": "Con el corazón afuera nací,",
-    "translations": {
+    },
+    {
+      "es": "Con el corazón afuera nací,",
       "en": "I was born with my heart outside,",
       "fr": "Je suis né le cœur à l’air,",
       "nl": "Ik werd geboren met mijn hart naar buiten,"
-    }
-  },
-  {
-    "es": "desde niño quiere más que latir.",
-    "translations": {
+    },
+    {
+      "es": "desde niño quiere más que latir.",
       "en": "since childhood it wanted more than to beat.",
       "fr": "depuis l’enfance il veut plus que battre.",
       "nl": "al van jongs af wil het meer dan kloppen."
-    }
-  },
-  {
-    "es": "No quiere que yo le cuente del mundo,",
-    "translations": {
+    },
+    {
+      "es": "No quiere que yo le cuente del mundo,",
       "en": "It won’t hear my stories of the world,",
       "fr": "Il ne veut pas que je lui raconte le monde,",
       "nl": "Het wil niet dat ik het de wereld vertel,"
-    }
-  },
-  {
-    "es": "por sí mismo él lo quiere sentir.",
-    "translations": {
+    },
+    {
+      "es": "por sí mismo él lo quiere sentir.",
       "en": "it wants to feel it by itself.",
       "fr": "il veut le sentir lui-même.",
       "nl": "het wil het zelf voelen."
-    }
-  },
-  {
-    "es": "Viejo pimiento,",
-    "translations": {
+    },
+    {
+      "es": "Viejo pimiento,",
       "en": "Old pepper tree,",
       "fr": "Vieux pimentier,",
       "nl": "Oude peperboom,"
-    }
-  },
-  {
-    "es": "mi refugio y mi lugar.",
-    "translations": {
+    },
+    {
+      "es": "mi refugio y mi lugar.",
       "en": "my refuge, my place.",
       "fr": "mon refuge, mon lieu.",
       "nl": "mijn toevlucht, mijn plek."
-    }
-  },
-  {
-    "es": "Desnudo el corazón,",
-    "translations": {
+    },
+    {
+      "es": "Desnudo el corazón,",
       "en": "The heart laid bare,",
       "fr": "Le cœur à nu,",
       "nl": "Het hart ontbloot,"
-    }
-  },
-  {
-    "es": "todo lo atraviesa:",
-    "translations": {
+    },
+    {
+      "es": "todo lo atraviesa:",
       "en": "everything passes through it:",
       "fr": "tout le traverse :",
       "nl": "alles gaat erdoorheen:"
-    }
-  },
-  {
-    "es": "Farol en tormentas,",
-    "translations": {
+    },
+    {
+      "es": "Farol en tormentas,",
       "en": "a lantern in storms,",
       "fr": "lanterne dans la tempête,",
       "nl": "een lantaarn in stormen,"
-    }
-  },
-  {
-    "es": "Pero se quiebra con un mirar.",
-    "translations": {
+    },
+    {
+      "es": "Pero se quiebra con un mirar.",
       "en": "yet a single glance can break it.",
       "fr": "mais un regard suffit à le briser.",
       "nl": "maar één blik kan het breken."
-    }
-  },
-  {
-    "es": "Ama rápido, sin medida va.",
-    "translations": {
+    },
+    {
+      "es": "Ama rápido, sin medida va.",
       "en": "It loves quickly, without measure.",
       "fr": "Il aime vite, sans mesure.",
       "nl": "Het houdt snel lief, zonder maat."
-    }
-  },
-  {
-    "es": "Encuentra belleza en lo sencillo.",
-    "translations": {
+    },
+    {
+      "es": "Encuentra belleza en lo sencillo.",
       "en": "It finds beauty in simple things.",
       "fr": "Il trouve la beauté dans le simple.",
       "nl": "Het vindt schoonheid in het eenvoudige."
-    }
-  },
-  {
-    "es": "Pero en su sangre carga con penas ajenas,",
-    "translations": {
+    },
+    {
+      "es": "Pero en su sangre carga con penas ajenas,",
       "en": "Yet in its blood it carries others’ sorrows,",
       "fr": "Mais dans son sang il porte les peines des autres,",
       "nl": "Maar in zijn bloed draagt het andermans verdriet,"
-    }
-  },
-  {
-    "es": "y se funde.",
-    "translations": {
+    },
+    {
+      "es": "y se funde.",
       "en": "and dissolves in them.",
       "fr": "et s’y dissout.",
       "nl": "en lost daarin op."
-    }
-  },
-  {
-    "es": "Si a quedarse afuera insiste,",
-    "translations": {
+    },
+    {
+      "es": "Si a quedarse afuera insiste,",
       "en": "If it insists on staying outside,",
       "fr": "S’il insiste pour rester dehors,",
       "nl": "Als het buiten wil blijven,"
-    }
-  },
-  {
-    "es": "En tu sombra déjalo latir.",
-    "translations": {
+    },
+    {
+      "es": "En tu sombra déjalo latir.",
       "en": "let it beat in your shade.",
       "fr": "laisse-le battre dans ton ombre.",
       "nl": "laat het kloppen in jouw schaduw."
-    }
-  },
-  {
-    "es": "Viejo pimiento,",
-    "translations": {
+    },
+    {
+      "es": "Viejo pimiento,",
       "en": "Old pepper tree,",
       "fr": "Vieux pimentier,",
       "nl": "Oude peperboom,"
-    }
-  },
-  {
-    "es": "Fuiste el juego en mi infancia.",
-    "translations": {
+    },
+    {
+      "es": "Fuiste el juego en mi infancia.",
       "en": "you were the playground of my childhood.",
       "fr": "tu fus le jeu de mon enfance.",
       "nl": "je was het spel van mijn jeugd."
-    }
-  },
-  {
-    "es": "Me cubro con tus hojas",
-    "translations": {
+    },
+    {
+      "es": "Me cubro con tus hojas",
       "en": "I cover myself with your leaves",
       "fr": "Je me couvre de tes feuilles",
       "nl": "Ik bedek me met je bladeren"
-    }
-  },
-  {
-    "es": "pa volver a nacer.",
-    "translations": {
+    },
+    {
+      "es": "pa volver a nacer.",
       "en": "to be born again.",
       "fr": "pour renaître.",
       "nl": "om opnieuw geboren te worden."
     }
-  }
-]
+  ]
+}
