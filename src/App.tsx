@@ -12,6 +12,7 @@ import {
 } from './performanceControlStateMachine'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
+import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
 
@@ -508,7 +509,14 @@ function ControlView() {
             <button
               type="button"
               className={`ctrl-btn ${isEndOfSong ? 'ctrl-arm' : 'ctrl-unarm'}`}
-              onClick={isEndOfSong && canUnarm ? handleUnarmClick : undefined}
+              onClick={
+                isEndOfSong && canUnarm
+                  ? () => {
+                      if (currentSongId) addPlayedSong(currentSongId)
+                      handleUnarmClick()
+                    }
+                  : undefined
+              }
               onPointerDown={!isEndOfSong && canUnarm ? unarmHold.onPointerDown : undefined}
               onPointerUp={!isEndOfSong && canUnarm ? unarmHold.onPointerUp : undefined}
               onPointerLeave={!isEndOfSong && canUnarm ? unarmHold.onPointerLeave : undefined}
@@ -525,9 +533,13 @@ function ControlView() {
 }
 
 function SongsView() {
+  const playedIds = getPlayedSongIds()
+  // When entering Setlist after finishing a song, do not pre-select the played song.
   const [selectedSong, setSelectedSong] = useState<{ id: string; path: string; title: string } | null>(() => {
     const id = getCurrentSongId()
-    return id ? SONGS.find((s) => s.id === id) ?? null : null
+    if (!id) return null
+    if (playedIds.includes(id)) return null
+    return SONGS.find((s) => s.id === id) ?? null
   })
 
   const goBack = () => {
@@ -569,11 +581,18 @@ function SongsView() {
           <button
             key={song.id}
             type="button"
-            className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''}`}
+            className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedIds.includes(song.id) ? 'songs-song-btn-played' : ''}`}
             aria-pressed={selectedSong?.id === song.id}
             onClick={() => selectSong(song)}
           >
-            {song.title}
+            {playedIds.includes(song.id) ? (
+              <>
+                <span className="song-played-icon" aria-hidden />
+                {song.title}
+              </>
+            ) : (
+              song.title
+            )}
           </button>
         ))}
         <div className="songs-confirm-wrap">
