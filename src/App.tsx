@@ -412,12 +412,12 @@ function ControlView() {
                 </div>
                 <div className="control-setup-buttons">
                   <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
-                    Song
+                    Setlist
                   </button>
                 </div>
               </div>
               <div className="control-setup-section">
-                <span className="control-setup-label">Languages</span>
+                <span className="control-setup-label">LANGUAGE DISPLAY</span>
                 <div className="control-setup-content">
                   {effectiveLang ? (
                     <span className="control-setup-value">{languagesDisplay}</span>
@@ -553,7 +553,7 @@ function SongsView() {
         <button type="button" className="songs-back" onClick={goBack}>
           Back
         </button>
-        <h1 className="songs-title">Songs</h1>
+        <h1 className="songs-title">Setlist</h1>
       </header>
       <main className="songs-body">
         {SONGS.map((song) => (
@@ -637,8 +637,8 @@ function LanguagesView() {
         ) : (
           <>
             <div className="languages-columns">
-              <section className="languages-column" aria-label="Singing language">
-                <h2 className="languages-section-title">Singing language</h2>
+              <section className="languages-column" aria-label="Singing">
+                <h2 className="languages-section-title">Singing</h2>
                 <div className="languages-buttons languages-buttons-vertical">
                   {availableSinging.map((lang) => (
                     <button
@@ -653,8 +653,8 @@ function LanguagesView() {
                 </div>
               </section>
               <span className="languages-arrow" aria-hidden="true">→</span>
-              <section className="languages-column" aria-label="Translation language">
-                <h2 className="languages-section-title">Translation language</h2>
+              <section className="languages-column" aria-label="Projection">
+                <h2 className="languages-section-title">Projection</h2>
                 <div className="languages-buttons languages-buttons-vertical">
                   {availableTranslation.map((lang) => (
                     <button
