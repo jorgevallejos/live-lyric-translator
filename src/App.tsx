@@ -516,24 +516,34 @@ function ControlView() {
 }
 
 function SongsView() {
+  const [selectedSong, setSelectedSong] = useState<{ id: string; path: string; title: string } | null>(() => {
+    const id = getCurrentSongId()
+    return id ? SONGS.find((s) => s.id === id) ?? null : null
+  })
+
   const goBack = () => {
     window.location.hash = '#/'
   }
 
-  const selectSong = async (id: string, path: string, _title: string) => {
+  const selectSong = (song: { id: string; path: string; title: string }) => {
+    setSelectedSong(song)
+  }
+
+  const confirmSelection = async () => {
+    if (!selectedSong) return
     try {
-      const res = await fetch(path)
+      const res = await fetch(selectedSong.path)
       if (!res.ok) throw new Error('Failed to load')
       const text = await res.text()
       const { title, items } = parseSongFile(text)
       setSongLines(items)
       setSongIndex(-1)
       setBlank(true)
-      setCurrentSongId(id)
+      setCurrentSongId(selectedSong.id)
       setCurrentSongTitle(title)
       window.location.hash = '#/'
     } catch {
-      alert(`Could not load ${_title}.`)
+      alert(`Could not load ${selectedSong.title}.`)
     }
   }
 
@@ -550,12 +560,24 @@ function SongsView() {
           <button
             key={song.id}
             type="button"
-            className="songs-song-btn"
-            onClick={() => selectSong(song.id, song.path, song.title)}
+            className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''}`}
+            aria-pressed={selectedSong?.id === song.id}
+            onClick={() => selectSong(song)}
           >
             {song.title}
           </button>
         ))}
+        <div className="songs-confirm-wrap">
+          <button
+            type="button"
+            className="ctrl-btn languages-confirm"
+            disabled={!selectedSong}
+            aria-label="Confirm"
+            onClick={confirmSelection}
+          >
+            Confirm
+          </button>
+        </div>
       </main>
     </div>
   )
