@@ -45,12 +45,16 @@ function getProjectionUrl() {
   return null
 }
 
+function getDistIndexPath() {
+  return path.join(app.getAppPath(), 'dist', 'index.html')
+}
+
 function loadProjectionUrl(win) {
   const devUrl = getProjectionUrl()
   if (devUrl) {
     win.loadURL(devUrl)
   } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '#/projection' })
+    win.loadFile(getDistIndexPath(), { hash: '#/projection' })
   }
 }
 
@@ -67,9 +71,11 @@ function createWindow() {
 
   mainWindow = win
 
-  const url = process.env.VITE_DEV_SERVER_URL ||
-    `file://${path.join(__dirname, '../dist/index.html')}`
-  win.loadURL(url)
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL)
+  } else {
+    win.loadFile(getDistIndexPath())
+  }
 
   win.on('closed', () => {
     mainWindow = null
