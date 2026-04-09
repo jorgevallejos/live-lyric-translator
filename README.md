@@ -2,7 +2,7 @@
 # Live Lyric Translator
 
 <p align="center">
-<img src="docs/images/chango-pepper-banner.png">
+<img src="docs/images/chango-pepper-banner-logo.png">
 </p>
 
 Live Lyric Translator is a small desktop tool designed to project translated song lyrics during live concerts.
