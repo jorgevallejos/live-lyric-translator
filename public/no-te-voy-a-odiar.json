@@ -38,16 +38,10 @@
         "nl": "en hun woede is niet mijn lied."
       },
       {
-        "es": "Hoy la historia",
-        "en": "Today I rewrite",
-        "fr": "Aujourd’hui je réécris",
-        "nl": "Vandaag herschrijf ik"
-      },
-      {
-        "es": "re-escribo junto a ti.",
-        "en": "the story by your side.",
-        "fr": "l’histoire à tes côtés.",
-        "nl": "de geschiedenis samen met jou."
+        "es": "Hoy la historia re-escribo junto a ti.",
+        "en": "Today I rewrite the story by your side.",
+        "fr": "Aujourd’hui je réécris l’histoire à tes côtés.",
+        "nl": "Vandaag herschrijf ik de geschiedenis samen met jou."
       },
       {
         "es": "Yo no te voy a odiar",
@@ -98,16 +92,10 @@
         "nl": "zelfs hun pijn bepaalt mij niet."
       },
       {
-        "es": "Hoy la historia",
-        "en": "Today I rewrite",
-        "fr": "Aujourd’hui je réécris",
-        "nl": "Vandaag herschrijf ik"
-      },
-      {
-        "es": "re-escribo junto a ti.",
-        "en": "the story by your side.",
-        "fr": "l’histoire à tes côtés.",
-        "nl": "de geschiedenis samen met jou."
+        "es": "Hoy la historia re-escribo junto a ti.",
+        "en": "Today I rewrite the story by your side.",
+        "fr": "Aujourd’hui je réécris l’histoire à tes côtés.",
+        "nl": "Vandaag herschrijf ik de geschiedenis samen met jou."
       },
       {
         "es": "Yo no te voy a odiar",
@@ -122,10 +110,10 @@
         "nl": "Dat is mijn lot, dat is mijn waarheid."
       },
       {
-        "es": "Hoy en medio del clamor,",
-        "en": "Today, amid the uproar,",
-        "fr": "Aujourd’hui, au milieu du tumulte,",
-        "nl": "Vandaag, midden in het rumoer,"
+        "es": "En medio del clamor,",
+        "en": "Amid the uproar,",
+        "fr": "Au milieu du tumulte,",
+        "nl": "Midden in het rumoer,"
       },
       {
         "es": "De discursos sin razón,",
@@ -164,28 +152,28 @@
         "nl": "maar dit is niet jouw haat, niet jouw kwaad."
       },
       {
+        "es": "No es tu mal.",
+        "en": "Not your evil.",
+        "fr": "Ni ton mal.",
+        "nl": "Niet jouw kwaad."
+      },
+      {
         "es": "No eres tú,",
         "en": "This is not you,",
         "fr": "Ce n’est pas toi,",
         "nl": "Jij bent dit niet,"
       },
       {
-        "es": "No eres tú, tú,",
-        "en": "this is not you, you—",
-        "fr": "ce n’est pas toi, toi—",
-        "nl": "jij bent dit niet, jij—"
-      },
-      {
-        "es": "No eres tú, tú,",
-        "en": "this is not you, you—",
-        "fr": "ce n’est pas toi, toi—",
-        "nl": "jij bent dit niet, jij—"
+        "es": "No eres tú,",
+        "en": "This is not you,",
+        "fr": "Ce n’est pas toi,",
+        "nl": "Jij bent dit niet,"
       },
       {
         "es": "No eres tú,",
-        "en": "this is not you,",
-        "fr": "ce n’est pas toi,",
-        "nl": "jij bent dit niet,"
+        "en": "This is not you,",
+        "fr": "Ce n’est pas toi,",
+        "nl": "Jij bent dit niet,"
       },
       {
         "es": "No.",
