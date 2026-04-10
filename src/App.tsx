@@ -200,37 +200,38 @@ function ControlView() {
     applyCommand,
   })
 
-  const prevSongIdRef = useRef<string | undefined>(undefined)
-  const prevLangRef = useRef<string | undefined>(undefined)
+  /** Tracked user-facing config (storage); avoids false positives when only derived effectiveLang changes. */
+  const prevUserConfigRef = useRef<{
+    songId: string
+    proj: string
+    sing: string
+  } | null>(null)
 
   useEffect(() => {
-    const prevSong = prevSongIdRef.current
-    const prevLang = prevLangRef.current
-    const configChanged =
-      prevSong !== undefined &&
-      prevLang !== undefined &&
-      (currentSongId !== prevSong || effectiveLang !== prevLang)
-    const projectionClosed = !projectionOpen
-    const shouldResetSession =
-      controlState === 'ARMED' &&
-      (configChanged || projectionClosed)
+    const next = {
+      songId: getCurrentSongId(),
+      proj: getProjectionLanguage(),
+      sing: getSingingLanguage(),
+    }
+    const prev = prevUserConfigRef.current
+    if (prev === null) {
+      prevUserConfigRef.current = next
+      return
+    }
 
-    if (shouldResetSession) {
-      unarm()
+    const userConfigChanged =
+      prev.songId !== next.songId || prev.proj !== next.proj || prev.sing !== next.sing
+
+    if (userConfigChanged) {
+      if (controlState === 'ARMED') {
+        unarm()
+      }
       goRestart()
       sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
     }
-    prevSongIdRef.current = currentSongId
-    prevLangRef.current = effectiveLang
-  }, [
-    currentSongId,
-    effectiveLang,
-    projectionOpen,
-    controlState,
-    unarm,
-    goRestart,
-    sendCommandWithState,
-  ])
+
+    prevUserConfigRef.current = next
+  }, [controlState, unarm, goRestart, sendCommandWithState])
 
   const handleNext = () => {
     goNext()
@@ -657,13 +658,19 @@ function LanguagesView() {
   }, [lines])
 
   const selectSingingLanguage = (lang: string) => {
+    if (lang === getSingingLanguage()) return
     setSingingLanguage(lang)
     setSelectedSingingState(lang)
+    setSongIndex(-1)
+    setBlank(true)
   }
 
   const selectTranslationLanguage = (lang: string) => {
+    if (lang === getProjectionLanguage()) return
     setProjectionLanguage(lang)
     setSelectedTranslationState(lang)
+    setSongIndex(-1)
+    setBlank(true)
   }
 
   const handleConfirm = () => {

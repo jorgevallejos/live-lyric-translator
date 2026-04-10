@@ -2,16 +2,16 @@
   "title": "Pimiento",
   "lyrics": [
     {
-      "es": "Viejo pimiento, hoy vuelvo a visitarte",
-      "en": "Old pepper tree, today I come back to see you,",
-      "fr": "Vieux pimentier, aujourd’hui je reviens te voir,",
-      "nl": "Oude peperboom, vandaag kom ik je weer bezoeken,"
+      "es": "Viejo pimiento,\nhoy vuelvo a visitarte",
+      "en": "Old pepper tree,\ntoday I come back to see you,",
+      "fr": "Vieux pimentier,\naujourd’hui je reviens te voir,",
+      "nl": "Oude peperboom,\nvandaag kom ik je weer bezoeken,"
     },
     {
-      "es": "Dicen que sabes tratar males de poetas.",
-      "en": "They say you know how to heal a poet’s wounds.",
-      "fr": "On dit que tu sais soigner les peines des poètes.",
-      "nl": "Men zegt dat jij weet hoe je dichterswonden heelt."
+      "es": "Dicen que sabes tratar\nmales de poetas.",
+      "en": "They say you know how to heal\na poet’s wounds.",
+      "fr": "On dit que tu sais soigner\nles peines des poètes.",
+      "nl": "Men zegt dat jij weet hoe je\ndichterswonden heelt."
     },
     {
       "es": "Con el corazón afuera nací,",
@@ -56,10 +56,10 @@
       "nl": "alles gaat erdoorheen:"
     },
     {
-      "es": "Farol en tormentas, pero se quiebra con un mirar.",
-      "en": "A lantern in storms, yet a single glance can break it.",
-      "fr": "Lanterne dans la tempête, mais un regard suffit à la briser.",
-      "nl": "Een lantaarn in stormen, maar één blik kan het breken."
+      "es": "Farol en tormentas,\npero se quiebra con un mirar.",
+      "en": "A lantern in storms,\nyet a single glance can break it.",
+      "fr": "Lanterne dans la tempête,\nmais un regard suffit à la briser.",
+      "nl": "Een lantaarn in stormen,\nmaar één blik kan het breken."
     },
     {
       "es": "Ama rápido,",
@@ -104,10 +104,10 @@
       "nl": "laat het kloppen in jouw schaduw."
     },
     {
-      "es": "Viejo pimiento, fuiste el juego en mi infancia.",
-      "en": "Old pepper tree, you were the playground of my childhood.",
-      "fr": "Vieux pimentier, tu fus le jeu de mon enfance.",
-      "nl": "Oude peperboom, je was het spel van mijn jeugd."
+      "es": "Viejo pimiento,\nfuiste el juego en mi infancia.",
+      "en": "Old pepper tree,\nyou were the playground of my childhood.",
+      "fr": "Vieux pimentier,\ntu fus le jeu de mon enfance.",
+      "nl": "Oude peperboom,\nje was het spel van mijn jeugd."
     },
     {
       "es": "Me cubro con tus hojas pa volver a nacer.",
