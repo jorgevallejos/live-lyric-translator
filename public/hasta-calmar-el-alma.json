@@ -2,10 +2,16 @@
     "title": "Hasta calmar el alma",
     "lyrics": [
       {
-        "es": "Tienes preguntas que no tienen fin",
-        "en": "You carry questions with no end in sight",
-        "fr": "Tu portes des questions sans fin",
-        "nl": "Je draagt vragen zonder einde"
+        "es": "Tienes preguntas",
+        "en": "You carry questions",
+        "fr": "Tu portes des questions",
+        "nl": "Je draagt vragen"
+      },
+      {
+        "es": "que no tienen fin",
+        "en": "with no end in sight",
+        "fr": "sans fin",
+        "nl": "zonder einde"
       },
       {
         "es": "Y un mar de sueños por descubrir",
@@ -14,13 +20,19 @@
         "nl": "en een zee van dromen die nog wachten."
       },
       {
-        "es": "Has sido sombra, has sido luz",
-        "en": "You have been shadow, you have been light,",
-        "fr": "Tu as été ombre, tu as été lumière,",
-        "nl": "Je bent schaduw geweest, je bent licht geweest,"
+        "es": "Has sido sombra,",
+        "en": "You have been shadow,",
+        "fr": "Tu as été ombre,",
+        "nl": "Je bent schaduw geweest,"
       },
       {
-        "es": "En resistir no hay nadie como tu",
+        "es": "has sido luz",
+        "en": "you have been light",
+        "fr": "tu as été lumière",
+        "nl": "je bent licht geweest"
+      },
+      {
+        "es": "En resistir no hay nadie como tú.",
         "en": "and no one knows endurance quite like you.",
         "fr": "et nul ne sait résister comme toi.",
         "nl": "en niemand weet vol te houden zoals jij."

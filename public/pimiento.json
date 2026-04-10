@@ -2,28 +2,16 @@
   "title": "Pimiento",
   "lyrics": [
     {
-      "es": "Viejo pimiento,",
-      "en": "Old pepper tree,",
-      "fr": "Vieux pimentier,",
-      "nl": "Oude peperboom,"
+      "es": "Viejo pimiento, hoy vuelvo a visitarte",
+      "en": "Old pepper tree, today I come back to see you,",
+      "fr": "Vieux pimentier, aujourd’hui je reviens te voir,",
+      "nl": "Oude peperboom, vandaag kom ik je weer bezoeken,"
     },
     {
-      "es": "Hoy vuelvo a visitarte",
-      "en": "Today I come back to see you,",
-      "fr": "Aujourd’hui je reviens te voir,",
-      "nl": "Vandaag kom ik je weer bezoeken,"
-    },
-    {
-      "es": "Dicen que sabes",
-      "en": "They say you know",
-      "fr": "On dit que tu sais",
-      "nl": "Men zegt dat jij weet"
-    },
-    {
-      "es": "tratar males de poetas.",
-      "en": "how to heal a poet’s wounds.",
-      "fr": "soigner les peines des poètes.",
-      "nl": "hoe je dichterswonden heelt."
+      "es": "Dicen que sabes tratar males de poetas.",
+      "en": "They say you know how to heal a poet’s wounds.",
+      "fr": "On dit que tu sais soigner les peines des poètes.",
+      "nl": "Men zegt dat jij weet hoe je dichterswonden heelt."
     },
     {
       "es": "Con el corazón afuera nací,",
@@ -50,16 +38,10 @@
       "nl": "het wil het zelf voelen."
     },
     {
-      "es": "Viejo pimiento,",
-      "en": "Old pepper tree,",
-      "fr": "Vieux pimentier,",
-      "nl": "Oude peperboom,"
-    },
-    {
-      "es": "mi refugio y mi lugar.",
-      "en": "my refuge, my place.",
-      "fr": "mon refuge, mon lieu.",
-      "nl": "mijn toevlucht, mijn plek."
+      "es": "Viejo pimiento, mi refugio y mi lugar.",
+      "en": "Old pepper tree, my refuge, my place.",
+      "fr": "Vieux pimentier, mon refuge, mon lieu.",
+      "nl": "Oude peperboom, mijn toevlucht, mijn plek."
     },
     {
       "es": "Desnudo el corazón,",
@@ -74,22 +56,22 @@
       "nl": "alles gaat erdoorheen:"
     },
     {
-      "es": "Farol en tormentas,",
-      "en": "a lantern in storms,",
-      "fr": "lanterne dans la tempête,",
-      "nl": "een lantaarn in stormen,"
+      "es": "Farol en tormentas, pero se quiebra con un mirar.",
+      "en": "A lantern in storms, yet a single glance can break it.",
+      "fr": "Lanterne dans la tempête, mais un regard suffit à la briser.",
+      "nl": "Een lantaarn in stormen, maar één blik kan het breken."
     },
     {
-      "es": "Pero se quiebra con un mirar.",
-      "en": "yet a single glance can break it.",
-      "fr": "mais un regard suffit à le briser.",
-      "nl": "maar één blik kan het breken."
+      "es": "Ama rápido,",
+      "en": "It loves quickly,",
+      "fr": "Il aime vite,",
+      "nl": "Het houdt snel lief,"
     },
     {
-      "es": "Ama rápido, sin medida va.",
-      "en": "It loves quickly, without measure.",
-      "fr": "Il aime vite, sans mesure.",
-      "nl": "Het houdt snel lief, zonder maat."
+      "es": "sin medida va.",
+      "en": "without measure it goes.",
+      "fr": "sans mesure il va.",
+      "nl": "zonder maat gaat het."
     },
     {
       "es": "Encuentra belleza en lo sencillo.",
@@ -122,28 +104,16 @@
       "nl": "laat het kloppen in jouw schaduw."
     },
     {
-      "es": "Viejo pimiento,",
-      "en": "Old pepper tree,",
-      "fr": "Vieux pimentier,",
-      "nl": "Oude peperboom,"
+      "es": "Viejo pimiento, fuiste el juego en mi infancia.",
+      "en": "Old pepper tree, you were the playground of my childhood.",
+      "fr": "Vieux pimentier, tu fus le jeu de mon enfance.",
+      "nl": "Oude peperboom, je was het spel van mijn jeugd."
     },
     {
-      "es": "Fuiste el juego en mi infancia.",
-      "en": "you were the playground of my childhood.",
-      "fr": "tu fus le jeu de mon enfance.",
-      "nl": "je was het spel van mijn jeugd."
-    },
-    {
-      "es": "Me cubro con tus hojas",
-      "en": "I cover myself with your leaves",
-      "fr": "Je me couvre de tes feuilles",
-      "nl": "Ik bedek me met je bladeren"
-    },
-    {
-      "es": "pa volver a nacer.",
-      "en": "to be born again.",
-      "fr": "pour renaître.",
-      "nl": "om opnieuw geboren te worden."
+      "es": "Me cubro con tus hojas pa volver a nacer.",
+      "en": "I wrap myself in your leaves to be born again.",
+      "fr": "Je me couvre de tes feuilles pour renaître.",
+      "nl": "Ik hul me in je bladeren om opnieuw geboren te worden."
     }
   ]
 }

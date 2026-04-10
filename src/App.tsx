@@ -766,7 +766,7 @@ function ProjectionView() {
   }
 
   const FADE_MS = 500
-  const AUTO_FADE_MS = 4000
+  const AUTO_FADE_MS = 6000
 
   useEffect(() => {
     clearAllTimers()

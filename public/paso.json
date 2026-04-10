@@ -68,10 +68,22 @@
       "nl": "En in een herinnering bloeit ons verhaal,"
     },
     {
-      "es": "Mírame, sonríe, sigo en ti.",
-      "en": "Look at me, smile — I live in you.",
-      "fr": "Regarde-moi, souris — je vis en toi.",
-      "nl": "Kijk naar mij, glimlach — ik leef in jou."
+      "es": "Mírame,",
+      "en": "Look at me,",
+      "fr": "Regarde-moi,",
+      "nl": "Kijk naar mij,"
+    },
+    {
+      "es": "sonríe,",
+      "en": "smile,",
+      "fr": "souris,",
+      "nl": "glimlach,"
+    },
+    {
+      "es": "sigo en ti.",
+      "en": "I live in you.",
+      "fr": "je vis en toi.",
+      "nl": "ik leef in jou."
     },
     {
       "es": "Este último río no se cruza a fuerza,",
@@ -86,10 +98,16 @@
       "nl": "Noch rede noch zintuigen kunnen ons leiden."
     },
     {
-      "es": "Deja fluir, sin mirar atrás",
-      "en": "Let it flow, without looking back,",
-      "fr": "Laisse couler, sans regarder en arrière,",
-      "nl": "Laat het stromen, zonder om te kijken,"
+      "es": "Deja fluir,",
+      "en": "Let it flow,",
+      "fr": "Laisse couler,",
+      "nl": "Laat het stromen,"
+    },
+    {
+      "es": "sin mirar atrás",
+      "en": "without looking back,",
+      "fr": "sans regarder en arrière,",
+      "nl": "zonder om te kijken,"
     },
     {
       "es": "El río sabe a dónde va.",

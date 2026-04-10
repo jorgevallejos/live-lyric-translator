@@ -1,18 +1,30 @@
 {
     "title": "Tragedia de cerdo asado",
     "lyrics": [
-      {
-        "es": "Me acuestan en la cama de plata brillante.",
-        "en": "They lay me down on a shining silver bed.",
-        "fr": "On m’étend sur un lit d’argent éclatant.",
-        "nl": "Ze leggen mij neer op een blinkend zilveren bed."
-      },
-      {
-        "es": "Me ungen con hierbas, manteca, ajo y sal.",
-        "en": "They anoint me with herbs, with fat, with garlic and salt.",
-        "fr": "On m’enduit d’herbes, de graisse, d’ail et de sel.",
-        "nl": "Ze zalven mij met kruiden, vet, knoflook en zout."
-      },
+    {
+        "es": "Me acuestan en la cama",
+        "en": "They lay me down on the bed",
+        "fr": "On m’étend sur le lit",
+        "nl": "Ze leggen mij neer op het bed"
+    },
+    {
+        "es": "de plata brillante.",
+        "en": "of shining silver.",
+        "fr": "d’argent éclatant.",
+        "nl": "van blinkend zilver."
+    },
+    {
+        "es": "Me ungen con hierbas,",
+        "en": "They anoint me with herbs,",
+        "fr": "On m’enduit d’herbes,",
+        "nl": "Ze zalven mij met kruiden,"
+    },
+    {
+        "es": "manteca, ajo y sal.",
+        "en": "with fat, garlic and salt.",
+        "fr": "de graisse, d’ail et de sel.",
+        "nl": "met vet, knoflook en zout."
+    },
       {
         "es": "Mi piel como cristal,",
         "en": "My skin shines like crystal,",
@@ -26,16 +38,10 @@
         "nl": "de chef bewondert mij alsof ik kunst ben."
       },
       {
-        "es": "“Una delicia serás”, suspira,",
-        "en": "“You will be exquisite,” he sighs,",
-        "fr": "« Quel délice tu seras », soupire-t-il,",
-        "nl": "“Wat een lekkernij zul jij zijn,” zucht hij,"
-      },
-      {
-        "es": "Mientras yo pienso en mi charco natal.",
-        "en": "while I dream of my muddy childhood pond.",
-        "fr": "tandis que je pense à ma flaque natale.",
-        "nl": "terwijl ik denk aan mijn vertrouwde modderplas."
+        "es": "“Una delicia serás”, suspira,\nmientras yo pienso en mi charco natal.",
+        "en": "\"You will be exquisite,\" he sighs,\nwhile I dream of my muddy childhood pond.",
+        "fr": "« Quel délice tu seras », soupire-t-il,\ntandis que je pense à ma flaque natale.",
+        "nl": "“Wat een lekkernij zul jij zijn,” zucht hij,\nterwijl ik denk aan mijn vertrouwde modderplas."
       },
       {
         "es": "Soy la estrella de un festín infernal.",
@@ -44,16 +50,28 @@
         "nl": "Ik ben de ster van een helse maaltijd."
       },
       {
-        "es": "Me alzan en brazos como al rey de Roma.",
-        "en": "They lift me in their arms like a king of Rome.",
-        "fr": "On me porte dans les bras comme un roi de Rome.",
-        "nl": "Ze tillen mij op als een koning van Rome."
+        "es": "Me alzan en brazos",
+        "en": "They lift me in their arms",
+        "fr": "On me porte dans les bras",
+        "nl": "Ze tillen mij op in hun armen"
       },
       {
-        "es": "Una manzana en mi boca, para que luzca feliz.",
-        "en": "An apple in my mouth, so I may seem delighted.",
-        "fr": "Une pomme dans ma bouche, pour me donner l’air joyeux.",
-        "nl": "Een appel in mijn mond, zodat ik er gelukkig uitzie."
+        "es": "como al rey de Roma.",
+        "en": "like a king of Rome.",
+        "fr": "comme un roi de Rome.",
+        "nl": "als een koning van Rome."
+      },
+      {
+        "es": "Una manzana en mi boca,",
+        "en": "An apple in my mouth,",
+        "fr": "Une pomme dans ma bouche,",
+        "nl": "Een appel in mijn mond,"
+      },
+      {
+        "es": "para que luzca feliz.",
+        "en": "so I may seem delighted.",
+        "fr": "pour me donner l’air joyeux.",
+        "nl": "zodat ik er gelukkig uitzie."
       },
       {
         "es": "Deslizan mi cuerpo,",
@@ -68,16 +86,10 @@
         "nl": "naar het vurige vuur."
       },
       {
-        "es": "El aire me envuelve de humo y calor,",
-        "en": "The air wraps me in smoke and heat,",
-        "fr": "L’air m’enveloppe de fumée et de chaleur,",
-        "nl": "De lucht omhult mij met rook en hitte,"
-      },
-      {
-        "es": "Y yo canto con horror.",
-        "en": "and I sing out in horror.",
-        "fr": "et moi, je chante d’horreur.",
-        "nl": "en ik zing van pure horror."
+        "es": "El aire me envuelve de humo y calor,\ny yo canto con horror.",
+        "en": "The air wraps me in smoke and heat,\nand I sing out in horror.",
+        "fr": "L’air m’enveloppe de fumée et de chaleur,\net je chante d’horreur.",
+        "nl": "De lucht omhult mij met rook en hitte,\nen ik zing van pure horror."
       },
       {
         "es": "Soy la estrella de un festín mortal.",
@@ -110,22 +122,10 @@
         "nl": "gezegende verrassing!"
       },
       {
-        "es": "La cocina revuelta.",
-        "en": "The kitchen falls into chaos.",
-        "fr": "La cuisine est sens dessus dessous.",
-        "nl": "De keuken raakt helemaal in de war."
-      },
-      {
-        "es": "Y la puerta del horno,",
-        "en": "And the oven door,",
-        "fr": "Et la porte du four,",
-        "nl": "En de deur van de oven,"
-      },
-      {
-        "es": "que quedó medio abierta.",
-        "en": "left hanging half open.",
-        "fr": "restée entrouverte.",
-        "nl": "is halfopen blijven staan."
+        "es": "La cocina revuelta y la puerta del horno,\nque quedó medio abierta.",
+        "en": "The kitchen in chaos and the oven door,\nleft hanging half open.",
+        "fr": "La cuisine sens dessus dessous et la porte du four,\nrestée entrouverte.",
+        "nl": "De keuken in de war en de deur van de oven,\ndie halfopen bleef staan."
       },
       {
         "es": "¡Qué suerte divina! ¡Me voy a escapar!",
@@ -146,28 +146,16 @@
         "nl": "Het bos in ga ik, knapperig en triomfantelijk."
       },
       {
-        "es": "Respiro libre, siento la brisa.",
-        "en": "I breathe out free, I feel the breeze.",
-        "fr": "Je respire libre, je sens la brise.",
-        "nl": "Ik adem vrij, ik voel de bries."
+        "es": "Respiro libre, siento la brisa,\nme fui del infierno, dejé las cenizas.",
+        "en": "I breathe out free, I feel the breeze,\nI fled from hell, I left the ashes behind.",
+        "fr": "Je respire libre, je sens la brise,\nj’ai fui l’enfer, j’ai laissé les cendres derrière moi.",
+        "nl": "Ik adem vrij, ik voel de bries,\nik ben de hel ontvlucht, ik liet de as achter."
       },
       {
-        "es": "Me fui del infierno, dejé las cenizas.",
-        "en": "I fled from hell, I left the ashes behind.",
-        "fr": "J’ai fui l’enfer, j’ai laissé les cendres derrière moi.",
-        "nl": "Ik ben de hel ontvlucht, ik liet de as achter."
-      },
-      {
-        "es": "Pero en la sombra… colmillos de plata.",
-        "en": "But in the shadows... silver fangs await.",
-        "fr": "Mais dans l’ombre... des crocs d’argent.",
-        "nl": "Maar in de schaduw... zilveren tanden."
-      },
-      {
-        "es": "Un lobo espera, la suerte me mata.",
-        "en": "A wolf lies waiting, and luck betrays me.",
-        "fr": "Un loup m’attend, et la chance m’abandonne.",
-        "nl": "Een wolf wacht op mij, en het geluk keert zich om."
+        "es": "Pero en la sombra colmillos de plata,\nun lobo espera, la suerte me mata.",
+        "en": "But in the shadows silver fangs,\na wolf waits, and fate strikes me down.",
+        "fr": "Mais dans l’ombre des crocs d’argent,\nun loup attend, et la chance m’abandonne.",
+        "nl": "Maar in de schaduw zilveren tanden,\neen wolf wacht, en het lot slaat toe."
       },
       {
         "es": "Soy la estrella de un festín mortal.",
@@ -186,30 +174,6 @@
         "en": "From the belly of it all, I smile at destiny.",
         "fr": "Du fond des entrailles, je souris au destin.",
         "nl": "Vanuit de ingewanden glimlach ik naar het lot."
-      },
-      {
-        "es": "La, la, la… (con melodía de Respiro libre…)",
-        "en": "La, la, la... (to the tune of \"I breathe out free\"...)",
-        "fr": "La, la, la... (sur l’air de « Je respire libre »...)",
-        "nl": "La, la, la... (op de melodie van \"Ik adem vrij\"...)"
-      },
-      {
-        "es": "Soy la estrella de un festín mortal.",
-        "en": "I am the star of a deadly feast.",
-        "fr": "Je suis la star d’un festin mortel.",
-        "nl": "Ik ben de ster van een dodelijk festijn."
-      },
-      {
-        "es": "¡Qué honor divino! Menú infernal!",
-        "en": "What divine honor! What a devil’s menu!",
-        "fr": "Quel honneur divin ! Quel menu infernal !",
-        "nl": "Wat een goddelijke eer! Wat een hels menu!"
-      },
-      {
-        "es": "Desde las entrañas digo adiós al destino.",
-        "en": "From the belly of it all, I bid farewell to destiny.",
-        "fr": "Du fond des entrailles, je dis adieu au destin.",
-        "nl": "Vanuit de ingewanden neem ik afscheid van het lot."
       }
     ]
   }
