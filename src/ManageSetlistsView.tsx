@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import {
   DndContext,
   type DragEndEvent,
@@ -19,10 +19,12 @@ import {
   addSongToSetlist,
   createEmptySetlist,
   deleteSetlist,
+  deleteSongFromLibrary,
   getActiveSetlistId,
   getLibrarySongs,
   getOrderedSongsForSetlist,
   getSetlists,
+  importSongFromJsonText,
   removeSongFromSetlist,
   reorderSongsInSetlist,
   renameSetlist,
@@ -31,6 +33,31 @@ import {
   type Setlist,
 } from './setlistStore'
 import { getCurrentSongId, resetLoadedSongState } from './songState'
+
+const DELETE_SONG_FROM_APP_CONFIRM =
+  'Delete this song from the app? This cannot be undone.'
+
+function TrashCanIcon() {
+  return (
+    <svg
+      className="manage-setlists-icon-svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  )
+}
 
 type SortableSongRowProps = {
   song: LibrarySong
@@ -76,11 +103,11 @@ function SortableSongRow({ song, setlistName, onRemove }: SortableSongRowProps) 
       <div className="manage-setlists-song-actions">
         <button
           type="button"
-          className="manage-setlists-action-btn manage-setlists-delete-btn"
+          className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
           aria-label={`Remove ${song.title} from setlist ${setlistName}`}
           onClick={onRemove}
         >
-          Remove
+          <span aria-hidden="true">-</span>
         </button>
       </div>
     </li>
@@ -142,6 +169,7 @@ export function ManageSetlistsView() {
   const [renameDraft, setRenameDraft] = useState('')
   const [editingSetlistId, setEditingSetlistId] = useState<string | null>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const setlists = getSetlists()
   const activeId = getActiveSetlistId()
@@ -197,6 +225,13 @@ export function ManageSetlistsView() {
     refresh()
   }
 
+  const handleDeleteSongFromLibrary = (songId: string) => {
+    if (!window.confirm(DELETE_SONG_FROM_APP_CONFIRM)) return
+    if (!deleteSongFromLibrary(songId)) return
+    if (songId === getCurrentSongId()) resetLoadedSongState()
+    refresh()
+  }
+
   const cancelRename = () => {
     setRenamingId(null)
     setRenameDraft('')
@@ -214,6 +249,33 @@ export function ManageSetlistsView() {
     }
     cancelRename()
     refresh()
+  }
+
+  const triggerImportSongPicker = () => {
+    importInputRef.current?.click()
+  }
+
+  const handleImportSongFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
+    const file = input.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : ''
+      const result = importSongFromJsonText(text)
+      if (!result.ok) {
+        window.alert(result.error)
+      } else {
+        window.alert(`Imported "${result.song.title}".`)
+      }
+      input.value = ''
+      refresh()
+    }
+    reader.onerror = () => {
+      window.alert('Could not read the selected file.')
+      input.value = ''
+    }
+    reader.readAsText(file, 'UTF-8')
   }
 
   const handleDelete = (sl: Setlist) => {
@@ -237,13 +299,31 @@ export function ManageSetlistsView() {
           Back
         </button>
         <h1 className="songs-title">Manage setlists</h1>
-        <button
-          type="button"
-          className="songs-manage-setlists"
-          onClick={handleCreateEmpty}
-        >
-          New setlist
-        </button>
+        <div className="manage-setlists-top-actions">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="manage-setlists-import-input-hidden"
+            data-testid="import-song-input"
+            aria-label="Choose a song JSON file to import"
+            onChange={handleImportSongFile}
+          />
+          <button
+            type="button"
+            className="songs-manage-setlists"
+            onClick={triggerImportSongPicker}
+          >
+            Import song
+          </button>
+          <button
+            type="button"
+            className="songs-manage-setlists"
+            onClick={handleCreateEmpty}
+          >
+            New setlist
+          </button>
+        </div>
       </header>
       <main className="songs-body manage-setlists-body">
         <ul className="manage-setlists-list" aria-label="Setlists">
@@ -379,14 +459,24 @@ export function ManageSetlistsView() {
                         availableFromLibrary.map((song) => (
                           <li key={song.id} className="manage-setlists-song-row">
                             <span className="manage-setlists-song-title">{song.title}</span>
-                            <button
-                              type="button"
-                              className="manage-setlists-action-btn"
-                              aria-label={`Add ${song.title} to setlist ${sl.name}`}
-                              onClick={() => handleAddSong(sl.id, song.id)}
-                            >
-                              Add
-                            </button>
+                            <div className="manage-setlists-song-actions">
+                              <button
+                                type="button"
+                                className="manage-setlists-action-btn manage-setlists-icon-btn"
+                                aria-label={`Add ${song.title} to setlist ${sl.name}`}
+                                onClick={() => handleAddSong(sl.id, song.id)}
+                              >
+                                <span aria-hidden="true">+</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
+                                aria-label={`Delete ${song.title} from library`}
+                                onClick={() => handleDeleteSongFromLibrary(song.id)}
+                              >
+                                <TrashCanIcon />
+                              </button>
+                            </div>
                           </li>
                         ))
                       )}
