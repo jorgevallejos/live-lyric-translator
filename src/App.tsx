@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
+import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -11,15 +11,16 @@ import {
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
 import { useEffect, useState, useRef } from 'react'
-import { SONGS } from './songs'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
-  bootstrapSetlistStore,
+  ensureSongLibraryHydrated,
   getActiveSetlistId,
   getLibrarySongById,
   getOrderedSongsForActiveSetlist,
   getSetlists,
   hasValidActiveSetlist,
+  loadSetlistStore,
+  type LibrarySong,
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
@@ -573,7 +574,7 @@ function SongsView() {
       : ''
 
   // When entering Setlist after finishing a song, do not pre-select the played song.
-  const [selectedSong, setSelectedSong] = useState<{ id: string; path: string; title: string } | null>(() => {
+  const [selectedSong, setSelectedSong] = useState<LibrarySong | null>(() => {
     const id = getCurrentSongId()
     if (!id) return null
     if (getPlayedSongIds().includes(id)) return null
@@ -589,26 +590,23 @@ function SongsView() {
     window.location.hash = '#/'
   }
 
-  const selectSong = (song: { id: string; path: string; title: string }) => {
+  const selectSong = (song: LibrarySong) => {
     setSelectedSong(song)
   }
 
-  const confirmSelection = async () => {
+  const confirmSelection = () => {
     if (!selectedSong) return
-    try {
-      const res = await fetch(selectedSong.path)
-      if (!res.ok) throw new Error('Failed to load')
-      const text = await res.text()
-      const { title, items } = parseSongFile(text)
-      setSongLines(items)
-      setSongIndex(-1)
-      setBlank(true)
-      setCurrentSongId(selectedSong.id)
-      setCurrentSongTitle(title)
-      window.location.hash = '#/'
-    } catch {
+    const lib = getLibrarySongById(selectedSong.id)
+    if (!lib) {
       alert(`Could not load ${selectedSong.title}.`)
+      return
     }
+    setSongLines(lib.items)
+    setSongIndex(-1)
+    setBlank(true)
+    setCurrentSongId(lib.id)
+    setCurrentSongTitle(lib.title)
+    window.location.hash = '#/'
   }
 
   return (
@@ -940,9 +938,50 @@ function ProjectionView() {
 }
 
 function App({ initialHash }: { initialHash?: string } = {}) {
+  const [hash, setHash] = useState(() =>
+    typeof initialHash === 'string' ? initialHash : window.location.hash
+  )
+  const isProjectionRoute = hash === '#/projection'
+  const [songLibRetryKey, setSongLibRetryKey] = useState(0)
+  const [songLibState, setSongLibState] = useState<'loading' | 'ready' | 'error'>(() => {
+    const h = typeof initialHash === 'string' ? initialHash : window.location.hash
+    if (h === '#/projection') return 'ready'
+    if (typeof localStorage !== 'undefined' && loadSetlistStore()) return 'ready'
+    return 'loading'
+  })
+  const [songLibError, setSongLibError] = useState<string | null>(null)
+
   useEffect(() => {
-    bootstrapSetlistStore(SONGS)
-  }, [])
+    if (isProjectionRoute) {
+      setSongLibState('ready')
+      setSongLibError(null)
+      return
+    }
+    if (loadSetlistStore()) {
+      setSongLibState('ready')
+      setSongLibError(null)
+      return
+    }
+    setSongLibState('loading')
+    setSongLibError(null)
+    let cancelled = false
+    ensureSongLibraryHydrated()
+      .then(() => {
+        if (!cancelled) {
+          setSongLibState('ready')
+          setSongLibError(null)
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setSongLibState('error')
+          setSongLibError(e instanceof Error ? e.message : 'Failed to load song library')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isProjectionRoute, songLibRetryKey])
 
   // On app launch (main window only), force a clean session so we start with "No song selected" and Ready state.
   useEffect(() => {
@@ -955,15 +994,31 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     setBlank(true)
   }, [])
 
-  const [hash, setHash] = useState(() =>
-    typeof initialHash === 'string' ? initialHash : window.location.hash
-  )
   useEffect(() => {
     if (typeof initialHash === 'string') return
     const onHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [initialHash])
+
+  if (!isProjectionRoute && songLibState === 'loading') {
+    return (
+      <div className="app-loading" data-testid="song-library-loading" aria-busy="true">
+        Loading…
+      </div>
+    )
+  }
+  if (!isProjectionRoute && songLibState === 'error') {
+    return (
+      <div className="app-hydrate-error" role="alert" data-testid="song-library-error">
+        <p>{songLibError}</p>
+        <button type="button" onClick={() => setSongLibRetryKey((k) => k + 1)}>
+          Retry
+        </button>
+      </div>
+    )
+  }
+
   if (hash === '#/projection') return <ProjectionView />
   if (hash === '#/songs/manage-setlists') return <ManageSetlistsView />
   if (hash === '#/songs') return <SongsView />
