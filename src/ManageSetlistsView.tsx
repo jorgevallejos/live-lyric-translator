@@ -28,7 +28,7 @@ import {
   reorderSongsInSetlistInSnapshot,
   saveSetlistStore,
   syncLoadedSongSessionWithSnapshot,
-  tryAppendImportedSongFromJsonText,
+  applySequentialSongImportsFromJsonTexts,
   type LibrarySong,
   type Setlist,
   type SetlistStoreSnapshot,
@@ -37,6 +37,45 @@ import { resetLoadedSongState } from './songState'
 
 const DELETE_SONG_FROM_APP_CONFIRM =
   'Delete this song from the app? This cannot be undone.'
+
+function readFileAsUtf8(file: File): Promise<{ ok: true; text: string } | { ok: false }> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : ''
+      resolve({ ok: true, text })
+    }
+    reader.onerror = () => resolve({ ok: false })
+    reader.readAsText(file, 'UTF-8')
+  })
+}
+
+function formatSongImportBatchAlert(opts: {
+  importedCount: number
+  duplicatesSkipped: number
+  invalidSkipped: number
+  readFailures: number
+}): string {
+  const { importedCount, duplicatesSkipped, invalidSkipped, readFailures } = opts
+  const lines: string[] = []
+  lines.push(importedCount === 1 ? '1 song imported.' : `${importedCount} songs imported.`)
+  if (duplicatesSkipped > 0) {
+    lines.push(
+      duplicatesSkipped === 1 ? '1 duplicate skipped.' : `${duplicatesSkipped} duplicates skipped.`
+    )
+  }
+  if (invalidSkipped > 0) {
+    lines.push(
+      invalidSkipped === 1 ? '1 invalid file skipped.' : `${invalidSkipped} invalid files skipped.`
+    )
+  }
+  if (readFailures > 0) {
+    lines.push(
+      readFailures === 1 ? 'Could not read 1 file.' : `Could not read ${readFailures} files.`
+    )
+  }
+  return lines.join('\n')
+}
 
 function TrashCanIcon() {
   return (
@@ -367,30 +406,34 @@ export function ManageSetlistsView() {
     importInputRef.current?.click()
   }
 
-  const handleImportSongFile = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleImportSongFiles = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target
-    const file = input.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const text = typeof reader.result === 'string' ? reader.result : ''
+    const list = input.files
+    if (!list?.length) return
+    const files = Array.from(list)
+    void (async () => {
+      const texts: string[] = []
+      let readFailures = 0
+      for (const file of files) {
+        const r = await readFileAsUtf8(file)
+        if (r.ok) texts.push(r.text)
+        else readFailures++
+      }
       setDraft((d) => {
-        const result = tryAppendImportedSongFromJsonText(d, text)
-        if (!result.ok) {
-          window.alert(result.error)
-          return d
-        }
-        window.alert(`Imported "${result.song.title}".`)
-        return result.snapshot
+        const batch = applySequentialSongImportsFromJsonTexts(d, texts)
+        window.alert(
+          formatSongImportBatchAlert({
+            importedCount: batch.importedCount,
+            duplicatesSkipped: batch.duplicatesSkipped,
+            invalidSkipped: batch.invalidSkipped,
+            readFailures,
+          })
+        )
+        return batch.snapshot
       })
       input.value = ''
       refresh()
-    }
-    reader.onerror = () => {
-      window.alert('Could not read the selected file.')
-      input.value = ''
-    }
-    reader.readAsText(file, 'UTF-8')
+    })()
   }
 
   const handleDelete = (sl: Setlist) => {
@@ -420,11 +463,12 @@ export function ManageSetlistsView() {
           <input
             ref={importInputRef}
             type="file"
+            multiple
             accept=".json,application/json"
             className="manage-setlists-import-input-hidden"
             data-testid="import-song-input"
-            aria-label="Choose a song JSON file to import"
-            onChange={handleImportSongFile}
+            aria-label="Choose one or more song JSON files to import"
+            onChange={handleImportSongFiles}
           />
           <button
             type="button"
