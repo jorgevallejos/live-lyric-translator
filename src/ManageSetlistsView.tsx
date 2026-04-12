@@ -1,20 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  addSongToSetlist,
   createEmptySetlist,
   deleteSetlist,
   getActiveSetlistId,
+  getLibrarySongs,
+  getOrderedSongsForSetlist,
   getSetlists,
+  removeSongFromSetlist,
   renameSetlist,
   setActiveSetlistId,
   type Setlist,
 } from './setlistStore'
-import { resetLoadedSongState } from './songState'
+import { getCurrentSongId, resetLoadedSongState } from './songState'
 
 export function ManageSetlistsView() {
   const [, setTick] = useState(0)
   const refresh = () => setTick((n) => n + 1)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
+  const [editingSetlistId, setEditingSetlistId] = useState<string | null>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
   const setlists = getSetlists()
@@ -49,8 +54,26 @@ export function ManageSetlistsView() {
   }
 
   const startRename = (sl: Setlist) => {
+    setEditingSetlistId(null)
     setRenamingId(sl.id)
     setRenameDraft(sl.name)
+  }
+
+  const toggleEditSongs = (sl: Setlist) => {
+    setEditingSetlistId((cur) => (cur === sl.id ? null : sl.id))
+  }
+
+  const handleAddSong = (setlistId: string, songId: string) => {
+    addSongToSetlist(setlistId, songId)
+    refresh()
+  }
+
+  const handleRemoveSong = (setlistId: string, songId: string) => {
+    const shouldClearLoadedSession =
+      setlistId === getActiveSetlistId() && songId === getCurrentSongId()
+    if (!removeSongFromSetlist(setlistId, songId)) return
+    if (shouldClearLoadedSession) resetLoadedSongState()
+    refresh()
   }
 
   const cancelRename = () => {
@@ -98,6 +121,14 @@ export function ManageSetlistsView() {
         <ul className="manage-setlists-list" aria-label="Setlists">
           {setlists.map((sl) => {
             const isActive = sl.id === activeId
+            const isEditingSongs = editingSetlistId === sl.id && renamingId !== sl.id
+            const orderedInSetlist = isEditingSongs ? getOrderedSongsForSetlist(sl.id) : []
+            const idsInSetlist = isEditingSongs
+              ? new Set(getSetlists().find((s) => s.id === sl.id)?.songIds ?? [])
+              : new Set<string>()
+            const availableFromLibrary = isEditingSongs
+              ? getLibrarySongs().filter((s) => !idsInSetlist.has(s.id))
+              : []
             return (
               <li key={sl.id} className="manage-setlists-item">
                 <div className="manage-setlists-item-inner">
@@ -154,6 +185,22 @@ export function ManageSetlistsView() {
                         <button
                           type="button"
                           className="manage-setlists-action-btn"
+                          aria-expanded={editingSetlistId === sl.id}
+                          aria-label={
+                            editingSetlistId === sl.id
+                              ? `Done editing songs for ${sl.name}`
+                              : `Edit songs in setlist ${sl.name}`
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleEditSongs(sl)
+                          }}
+                        >
+                          {editingSetlistId === sl.id ? 'Done' : 'Edit songs'}
+                        </button>
+                        <button
+                          type="button"
+                          className="manage-setlists-action-btn"
                           aria-label={`Rename setlist ${sl.name}`}
                           onClick={(e) => {
                             e.stopPropagation()
@@ -177,6 +224,55 @@ export function ManageSetlistsView() {
                     </>
                   )}
                 </div>
+                {isEditingSongs ? (
+                  <div className="manage-setlists-song-editor">
+                    <h2 className="manage-setlists-song-editor-title">Songs in this setlist</h2>
+                    <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
+                      {orderedInSetlist.length === 0 ? (
+                        <li className="manage-setlists-song-empty">No songs yet.</li>
+                      ) : (
+                        orderedInSetlist.map((song) => (
+                          <li key={song.id} className="manage-setlists-song-row">
+                            <span className="manage-setlists-song-title">{song.title}</span>
+                            <button
+                              type="button"
+                              className="manage-setlists-action-btn manage-setlists-delete-btn"
+                              aria-label={`Remove ${song.title} from setlist ${sl.name}`}
+                              onClick={() => handleRemoveSong(sl.id, song.id)}
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                    <h2 className="manage-setlists-song-editor-title">Add from library</h2>
+                    <ul
+                      className="manage-setlists-song-sublist"
+                      aria-label="Library songs not in this setlist"
+                    >
+                      {availableFromLibrary.length === 0 ? (
+                        <li className="manage-setlists-song-empty">
+                          All library songs are in this setlist.
+                        </li>
+                      ) : (
+                        availableFromLibrary.map((song) => (
+                          <li key={song.id} className="manage-setlists-song-row">
+                            <span className="manage-setlists-song-title">{song.title}</span>
+                            <button
+                              type="button"
+                              className="manage-setlists-action-btn"
+                              aria-label={`Add ${song.title} to setlist ${sl.name}`}
+                              onClick={() => handleAddSong(sl.id, song.id)}
+                            >
+                              Add
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                ) : null}
               </li>
             )
           })}
