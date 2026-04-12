@@ -116,6 +116,13 @@ export function ManageSetlistsView() {
           Back
         </button>
         <h1 className="songs-title">Manage setlists</h1>
+        <button
+          type="button"
+          className="songs-manage-setlists"
+          onClick={handleCreateEmpty}
+        >
+          New setlist
+        </button>
       </header>
       <main className="songs-body manage-setlists-body">
         <ul className="manage-setlists-list" aria-label="Setlists">
@@ -278,8 +285,8 @@ export function ManageSetlistsView() {
           })}
         </ul>
         <div className="manage-setlists-footer">
-          <button type="button" className="ctrl-btn languages-confirm" onClick={handleCreateEmpty}>
-            New setlist
+          <button type="button" className="ctrl-btn languages-confirm" onClick={goToSetlistScreen}>
+            Confirm
           </button>
         </div>
       </main>

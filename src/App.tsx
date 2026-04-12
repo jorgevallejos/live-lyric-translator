@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine, resetLoadedSongState } from './songState'
+import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -20,7 +20,6 @@ import {
   getOrderedSongsForActiveSetlist,
   getSetlists,
   hasValidActiveSetlist,
-  setActiveSetlistId,
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
@@ -564,13 +563,14 @@ function ControlView() {
 
 function SongsView() {
   const playedIds = getPlayedSongIds()
-  const [, setSetlistStoreTick] = useState(0)
-  const bumpSetlistStore = () => setSetlistStoreTick((n) => n + 1)
 
   const activeOk = hasValidActiveSetlist()
-  const setlists = getSetlists()
   const orderedSongs = getOrderedSongsForActiveSetlist()
   const activeSetlistId = getActiveSetlistId()
+  const activeSetlistName =
+    activeOk && activeSetlistId !== ''
+      ? (getSetlists().find((s) => s.id === activeSetlistId)?.name ?? '')
+      : ''
 
   // When entering Setlist after finishing a song, do not pre-select the played song.
   const [selectedSong, setSelectedSong] = useState<{ id: string; path: string; title: string } | null>(() => {
@@ -587,14 +587,6 @@ function SongsView() {
 
   const goBack = () => {
     window.location.hash = '#/'
-  }
-
-  const choosePerformanceSetlist = (id: string) => {
-    if (id === activeSetlistId) return
-    resetLoadedSongState()
-    setSelectedSong(null)
-    setActiveSetlistId(id)
-    bumpSetlistStore()
   }
 
   const selectSong = (song: { id: string; path: string; title: string }) => {
@@ -625,7 +617,18 @@ function SongsView() {
         <button type="button" className="songs-back" onClick={goBack}>
           Back
         </button>
-        <h1 className="songs-title">Setlist</h1>
+        <h1 className="songs-title">
+          {activeSetlistName ? (
+            <>
+              Setlist:{' '}
+              <span className="songs-active-setlist-name" data-testid="active-setlist-name">
+                {activeSetlistName}
+              </span>
+            </>
+          ) : (
+            'Setlist'
+          )}
+        </h1>
         <button
           type="button"
           className="songs-manage-setlists"
@@ -637,19 +640,6 @@ function SongsView() {
         </button>
       </header>
       <main className="songs-body">
-        <div className="setlist-picker-bar" role="group" aria-label="Performance setlist">
-          {setlists.map((sl) => (
-            <button
-              key={sl.id}
-              type="button"
-              className={`setlist-name-btn ${activeSetlistId === sl.id ? 'setlist-name-btn-active' : ''}`}
-              aria-pressed={activeSetlistId === sl.id}
-              onClick={() => choosePerformanceSetlist(sl.id)}
-            >
-              {sl.name}
-            </button>
-          ))}
-        </div>
         {!activeOk ? (
           <p className="setlist-prompt" data-testid="setlist-selection-prompt">
             Choose a setlist to continue.
