@@ -12,6 +12,7 @@ import {
 } from './performanceControlStateMachine'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
+import { bootstrapSetlistStore, getLibrarySongById, getOrderedSongsForActiveSetlist } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
@@ -559,7 +560,7 @@ function SongsView() {
     const id = getCurrentSongId()
     if (!id) return null
     if (playedIds.includes(id)) return null
-    return SONGS.find((s) => s.id === id) ?? null
+    return getLibrarySongById(id) ?? null
   })
 
   const goBack = () => {
@@ -597,7 +598,7 @@ function SongsView() {
         <h1 className="songs-title">Setlist</h1>
       </header>
       <main className="songs-body">
-        {SONGS.map((song) => (
+        {getOrderedSongsForActiveSetlist().map((song) => (
           <button
             key={song.id}
             type="button"
@@ -889,6 +890,10 @@ function ProjectionView() {
 }
 
 function App({ initialHash }: { initialHash?: string } = {}) {
+  useEffect(() => {
+    bootstrapSetlistStore(SONGS)
+  }, [])
+
   // On app launch (main window only), force a clean session so we start with "No song selected" and Ready state.
   useEffect(() => {
     if (window.location.hash === '#/projection') return
