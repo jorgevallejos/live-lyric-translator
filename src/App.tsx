@@ -1,5 +1,5 @@
 import { useSongNavigation } from './useSongNavigation'
-import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
+import { parseSongFile, isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine, resetLoadedSongState } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -12,7 +12,16 @@ import {
 } from './performanceControlStateMachine'
 import { useEffect, useState, useRef } from 'react'
 import { SONGS } from './songs'
-import { bootstrapSetlistStore, getLibrarySongById, getOrderedSongsForActiveSetlist } from './setlistStore'
+import { ManageSetlistsView } from './ManageSetlistsView'
+import {
+  bootstrapSetlistStore,
+  getActiveSetlistId,
+  getLibrarySongById,
+  getOrderedSongsForActiveSetlist,
+  getSetlists,
+  hasValidActiveSetlist,
+  setActiveSetlistId,
+} from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
@@ -555,16 +564,37 @@ function ControlView() {
 
 function SongsView() {
   const playedIds = getPlayedSongIds()
+  const [, setSetlistStoreTick] = useState(0)
+  const bumpSetlistStore = () => setSetlistStoreTick((n) => n + 1)
+
+  const activeOk = hasValidActiveSetlist()
+  const setlists = getSetlists()
+  const orderedSongs = getOrderedSongsForActiveSetlist()
+  const activeSetlistId = getActiveSetlistId()
+
   // When entering Setlist after finishing a song, do not pre-select the played song.
   const [selectedSong, setSelectedSong] = useState<{ id: string; path: string; title: string } | null>(() => {
     const id = getCurrentSongId()
     if (!id) return null
-    if (playedIds.includes(id)) return null
-    return getLibrarySongById(id) ?? null
+    if (getPlayedSongIds().includes(id)) return null
+    const lib = getLibrarySongById(id)
+    if (!lib) return null
+    if (!hasValidActiveSetlist()) return null
+    const ordered = getOrderedSongsForActiveSetlist()
+    if (!ordered.some((s) => s.id === id)) return null
+    return lib
   })
 
   const goBack = () => {
     window.location.hash = '#/'
+  }
+
+  const choosePerformanceSetlist = (id: string) => {
+    if (id === activeSetlistId) return
+    resetLoadedSongState()
+    setSelectedSong(null)
+    setActiveSetlistId(id)
+    bumpSetlistStore()
   }
 
   const selectSong = (song: { id: string; path: string; title: string }) => {
@@ -596,37 +626,67 @@ function SongsView() {
           Back
         </button>
         <h1 className="songs-title">Setlist</h1>
+        <button
+          type="button"
+          className="songs-manage-setlists"
+          onClick={() => {
+            window.location.hash = '#/songs/manage-setlists'
+          }}
+        >
+          Manage setlists
+        </button>
       </header>
       <main className="songs-body">
-        {getOrderedSongsForActiveSetlist().map((song) => (
-          <button
-            key={song.id}
-            type="button"
-            className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedIds.includes(song.id) ? 'songs-song-btn-played' : ''}`}
-            aria-pressed={selectedSong?.id === song.id}
-            onClick={() => selectSong(song)}
-          >
-            {playedIds.includes(song.id) ? (
-              <>
-                <span className="song-played-icon" aria-hidden />
-                {song.title}
-              </>
-            ) : (
-              song.title
-            )}
-          </button>
-        ))}
-        <div className="songs-confirm-wrap">
-          <button
-            type="button"
-            className="ctrl-btn languages-confirm"
-            disabled={!selectedSong}
-            aria-label="Confirm"
-            onClick={confirmSelection}
-          >
-            Confirm
-          </button>
+        <div className="setlist-picker-bar" role="group" aria-label="Performance setlist">
+          {setlists.map((sl) => (
+            <button
+              key={sl.id}
+              type="button"
+              className={`setlist-name-btn ${activeSetlistId === sl.id ? 'setlist-name-btn-active' : ''}`}
+              aria-pressed={activeSetlistId === sl.id}
+              onClick={() => choosePerformanceSetlist(sl.id)}
+            >
+              {sl.name}
+            </button>
+          ))}
         </div>
+        {!activeOk ? (
+          <p className="setlist-prompt" data-testid="setlist-selection-prompt">
+            Choose a setlist to continue.
+          </p>
+        ) : (
+          <>
+            {orderedSongs.map((song) => (
+              <button
+                key={song.id}
+                type="button"
+                className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedIds.includes(song.id) ? 'songs-song-btn-played' : ''}`}
+                aria-pressed={selectedSong?.id === song.id}
+                onClick={() => selectSong(song)}
+              >
+                {playedIds.includes(song.id) ? (
+                  <>
+                    <span className="song-played-icon" aria-hidden />
+                    {song.title}
+                  </>
+                ) : (
+                  song.title
+                )}
+              </button>
+            ))}
+            <div className="songs-confirm-wrap">
+              <button
+                type="button"
+                className="ctrl-btn languages-confirm"
+                disabled={!selectedSong}
+                aria-label="Confirm"
+                onClick={confirmSelection}
+              >
+                Confirm
+              </button>
+            </div>
+          </>
+        )}
       </main>
     </div>
   )
@@ -915,6 +975,7 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [initialHash])
   if (hash === '#/projection') return <ProjectionView />
+  if (hash === '#/songs/manage-setlists') return <ManageSetlistsView />
   if (hash === '#/songs') return <SongsView />
   if (hash === '#/languages') return <LanguagesView />
   return <ControlView />
