@@ -18,10 +18,12 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   addSongToSetlistInSnapshot,
   appendEmptySetlistInSnapshot,
+  areSetlistStoreSnapshotsEqual,
   cloneSetlistStoreSnapshot,
   deleteSetlistInSnapshot,
   deleteSongFromLibraryInSnapshot,
   getOrderedSongsForSetlistFromSnapshot,
+  getSetlistNamesContainingSongInSnapshot,
   loadSetlistStore,
   removeSongFromSetlistInSnapshot,
   renameSetlistInSnapshot,
@@ -35,8 +37,17 @@ import {
 } from './setlistStore'
 import { resetLoadedSongState } from './songState'
 
-const DELETE_SONG_FROM_APP_CONFIRM =
-  'Delete this song from the app? This cannot be undone.'
+const BACK_DISCARD_DRAFT_CONFIRM =
+  'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
+
+function formatBlockedLibraryDeleteMessage(setlistNames: string[]): string {
+  const lines = setlistNames.map((n) => `• ${n}`)
+  return [
+    'This song is still used in one or more setlists. Remove it from those setlists before deleting it from the app.',
+    '',
+    ...lines,
+  ].join('\n')
+}
 
 function readFileAsUtf8(file: File): Promise<{ ok: true; text: string } | { ok: false }> {
   return new Promise((resolve) => {
@@ -237,7 +248,11 @@ declare global {
 export function ManageSetlistsView() {
   const [, setTick] = useState(0)
   const refresh = () => setTick((n) => n + 1)
-  const [draft, setDraft] = useState<SetlistStoreSnapshot>(initialDraftFromStore)
+  const [draft, setDraft] = useState<SetlistStoreSnapshot>(() => initialDraftFromStore())
+  const entrySnapshotRef = useRef<SetlistStoreSnapshot | null>(null)
+  if (entrySnapshotRef.current === null) {
+    entrySnapshotRef.current = cloneSetlistStoreSnapshot(draft)
+  }
   const draftRef = useRef(draft)
   draftRef.current = draft
 
@@ -323,6 +338,14 @@ export function ManageSetlistsView() {
   }
 
   const discardAndGoBack = () => {
+    const entry = entrySnapshotRef.current
+    if (
+      entry &&
+      !areSetlistStoreSnapshotsEqual(draftRef.current, entry) &&
+      !window.confirm(BACK_DISCARD_DRAFT_CONFIRM)
+    ) {
+      return
+    }
     goToSetlistScreen()
   }
 
@@ -356,7 +379,11 @@ export function ManageSetlistsView() {
   }
 
   const handleDeleteSongFromLibrary = (songId: string) => {
-    if (!window.confirm(DELETE_SONG_FROM_APP_CONFIRM)) return
+    const names = getSetlistNamesContainingSongInSnapshot(draftRef.current, songId)
+    if (names.length > 0) {
+      window.alert(formatBlockedLibraryDeleteMessage(names))
+      return
+    }
     setDraft((d) => deleteSongFromLibraryInSnapshot(d, songId) ?? d)
     refresh()
   }
@@ -435,7 +462,6 @@ export function ManageSetlistsView() {
   }
 
   const handleDelete = (sl: Setlist) => {
-    if (!window.confirm(`Delete setlist "${sl.name}"? This cannot be undone.`)) return
     if (renamingId === sl.id) cancelRename()
     if (editingSetlistId === sl.id) setEditingSetlistId(null)
     setDraft((d) => deleteSetlistInSnapshot(d, sl.id) ?? d)
