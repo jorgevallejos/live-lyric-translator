@@ -7,9 +7,11 @@ import {
   getLibrarySongs,
   getOrderedSongsForSetlist,
   getSetlists,
+  moveSongInSetlist,
   removeSongFromSetlist,
   renameSetlist,
   setActiveSetlistId,
+  type MoveSongDirection,
   type Setlist,
 } from './setlistStore'
 import { getCurrentSongId, resetLoadedSongState } from './songState'
@@ -73,6 +75,11 @@ export function ManageSetlistsView() {
       setlistId === getActiveSetlistId() && songId === getCurrentSongId()
     if (!removeSongFromSetlist(setlistId, songId)) return
     if (shouldClearLoadedSession) resetLoadedSongState()
+    refresh()
+  }
+
+  const handleMoveSong = (setlistId: string, songId: string, direction: MoveSongDirection) => {
+    if (!moveSongInSetlist(setlistId, songId, direction)) return
     refresh()
   }
 
@@ -238,17 +245,37 @@ export function ManageSetlistsView() {
                       {orderedInSetlist.length === 0 ? (
                         <li className="manage-setlists-song-empty">No songs yet.</li>
                       ) : (
-                        orderedInSetlist.map((song) => (
+                        orderedInSetlist.map((song, index) => (
                           <li key={song.id} className="manage-setlists-song-row">
                             <span className="manage-setlists-song-title">{song.title}</span>
-                            <button
-                              type="button"
-                              className="manage-setlists-action-btn manage-setlists-delete-btn"
-                              aria-label={`Remove ${song.title} from setlist ${sl.name}`}
-                              onClick={() => handleRemoveSong(sl.id, song.id)}
-                            >
-                              Remove
-                            </button>
+                            <div className="manage-setlists-song-actions">
+                              <button
+                                type="button"
+                                className="manage-setlists-action-btn"
+                                aria-label={`Move ${song.title} up in setlist ${sl.name}`}
+                                disabled={index === 0}
+                                onClick={() => handleMoveSong(sl.id, song.id, 'up')}
+                              >
+                                Up
+                              </button>
+                              <button
+                                type="button"
+                                className="manage-setlists-action-btn"
+                                aria-label={`Move ${song.title} down in setlist ${sl.name}`}
+                                disabled={index === orderedInSetlist.length - 1}
+                                onClick={() => handleMoveSong(sl.id, song.id, 'down')}
+                              >
+                                Down
+                              </button>
+                              <button
+                                type="button"
+                                className="manage-setlists-action-btn manage-setlists-delete-btn"
+                                aria-label={`Remove ${song.title} from setlist ${sl.name}`}
+                                onClick={() => handleRemoveSong(sl.id, song.id)}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </li>
                         ))
                       )}
