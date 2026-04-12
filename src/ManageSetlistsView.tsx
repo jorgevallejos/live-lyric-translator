@@ -419,18 +419,16 @@ export function ManageSetlistsView() {
         if (r.ok) texts.push(r.text)
         else readFailures++
       }
-      setDraft((d) => {
-        const batch = applySequentialSongImportsFromJsonTexts(d, texts)
-        window.alert(
-          formatSongImportBatchAlert({
-            importedCount: batch.importedCount,
-            duplicatesSkipped: batch.duplicatesSkipped,
-            invalidSkipped: batch.invalidSkipped,
-            readFailures,
-          })
-        )
-        return batch.snapshot
-      })
+      const batch = applySequentialSongImportsFromJsonTexts(draftRef.current, texts)
+      window.alert(
+        formatSongImportBatchAlert({
+          importedCount: batch.importedCount,
+          duplicatesSkipped: batch.duplicatesSkipped,
+          invalidSkipped: batch.invalidSkipped,
+          readFailures,
+        })
+      )
+      setDraft(batch.snapshot)
       input.value = ''
       refresh()
     })()
