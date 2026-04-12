@@ -2,10 +2,16 @@
   "title": "Vidas",
   "lyrics": [
     {
-      "es": "Cielo gris en nuestro hogar,",
-      "en": "A grey sky over our home,",
-      "fr": "Un ciel gris sur notre maison,",
-      "nl": "Een grijze hemel boven ons huis,"
+      "es": "Cielo gris",
+      "en": "A grey sky",
+      "fr": "Un ciel gris",
+      "nl": "Een grijze hemel"
+    },
+    {
+      "es": "en nuestro hogar,",
+      "en": "over our home,",
+      "fr": "sur notre maison,",
+      "nl": "boven ons huis,"
     },
     {
       "es": "Tú ya en el mar.",
