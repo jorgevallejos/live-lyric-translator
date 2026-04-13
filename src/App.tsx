@@ -655,10 +655,10 @@ function SongsView() {
                 {playedIds.includes(song.id) ? (
                   <>
                     <span className="song-played-icon" aria-hidden />
-                    {song.title}
+                    <span className="songs-song-title">{song.title}</span>
                   </>
                 ) : (
-                  song.title
+                  <span className="songs-song-title">{song.title}</span>
                 )}
               </button>
             ))}
