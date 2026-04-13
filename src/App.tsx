@@ -182,6 +182,7 @@ function ControlView() {
     index
   )
   const currentSongId = getCurrentSongId()
+  const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -362,7 +363,7 @@ function ControlView() {
       : ''
   const notStarted = index === -1
   const displayText = notStarted
-    ? ''
+    ? songNotes
     : currentEs || (loadError ? loadError : '—')
 
   const nextPreviewText =
@@ -795,6 +796,7 @@ function ProjectionView() {
     currentItem && !isSection(currentItem) && effectiveLang
       ? getLyricText(currentItem as LyricLine, effectiveLang)
       : ''
+  const renderedText = translation
   const showContent = index >= 0 && !blank && !isSectionMarker
 
   const [displayedText, setDisplayedText] = useState('')
@@ -804,7 +806,7 @@ function ProjectionView() {
   const autoFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoHiddenKeyRef = useRef<string | null>(null)
 
-  const activeKey = showContent ? `${index}:${translation}` : ''
+  const activeKey = showContent ? `${index}:${renderedText}` : ''
 
   const clearAllTimers = () => {
     if (fadeOutTimer.current) {
@@ -840,7 +842,7 @@ function ProjectionView() {
 
     autoHiddenKeyRef.current = null
 
-    const nextText = translation ?? ''
+    const nextText = renderedText ?? ''
 
     if (displayedText === '') {
       setDisplayedText(nextText)
@@ -876,7 +878,7 @@ function ProjectionView() {
     }
 
     return () => clearAllTimers()
-  }, [showContent, translation, displayedText, activeKey])
+  }, [showContent, renderedText, displayedText, activeKey])
 
   useEffect(() => () => clearAllTimers(), [])
 
