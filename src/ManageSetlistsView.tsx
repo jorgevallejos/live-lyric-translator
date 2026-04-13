@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import {
   DndContext,
-  type DragEndEvent,
-  closestCenter,
   KeyboardSensor,
   PointerSensor,
+  type DragEndEvent,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -81,9 +80,7 @@ function formatSongImportBatchAlert(opts: {
     )
   }
   if (readFailures > 0) {
-    lines.push(
-      readFailures === 1 ? 'Could not read 1 file.' : `Could not read ${readFailures} files.`
-    )
+    lines.push(readFailures === 1 ? 'Could not read 1 file.' : `Could not read ${readFailures} files.`)
   }
   return lines.join('\n')
 }
@@ -144,7 +141,7 @@ function SortableSongRow({ song, setlistName, onRemove }: SortableSongRowProps) 
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: song.id })
+  } = useSortable({ id: song.id, data: { source: 'setlist' as const } })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -188,45 +185,55 @@ type SortableSongsInSetlistProps = {
   setlistName: string
   songs: LibrarySong[]
   onRemoveSong: (songId: string) => void
-  onReorder: (oldIndex: number, newIndex: number) => void
 }
 
-function SortableSongsInSetlist({
-  setlistName,
-  songs,
-  onRemoveSong,
-  onReorder,
-}: SortableSongsInSetlistProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
-  const ids = songs.map((s) => s.id)
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = ids.indexOf(String(active.id))
-    const newIndex = ids.indexOf(String(over.id))
-    if (oldIndex < 0 || newIndex < 0) return
-    onReorder(oldIndex, newIndex)
-  }
-
+function SortableSongsInSetlist({ setlistName, songs, onRemoveSong }: SortableSongsInSetlistProps) {
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
-          {songs.map((song) => (
-            <SortableSongRow
-              key={song.id}
-              song={song}
-              setlistName={setlistName}
-              onRemove={() => onRemoveSong(song.id)}
-            />
-          ))}
-        </ul>
-      </SortableContext>
-    </DndContext>
+    <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
+      {songs.map((song) => (
+        <SortableSongRow
+          key={song.id}
+          song={song}
+          setlistName={setlistName}
+          onRemove={() => onRemoveSong(song.id)}
+        />
+      ))}
+    </ul>
+  )
+}
+
+type LibrarySongRowProps = {
+  song: LibrarySong
+  onAdd: () => void
+  addDisabled: boolean
+  addLabel: string
+  onDelete: () => void
+}
+
+function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete }: LibrarySongRowProps) {
+  return (
+    <li className="manage-setlists-song-row">
+      <span className="manage-setlists-song-title">{song.title}</span>
+      <div className="manage-setlists-song-actions">
+        <button
+          type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn"
+          aria-label={addLabel}
+          onClick={onAdd}
+          disabled={addDisabled}
+        >
+          <span aria-hidden="true">+</span>
+        </button>
+        <button
+          type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
+          aria-label={`Delete ${song.title} from library`}
+          onClick={onDelete}
+        >
+          <TrashCanIcon />
+        </button>
+      </div>
+    </li>
   )
 }
 
@@ -266,12 +273,12 @@ export function ManageSetlistsView() {
       delete window.__patchManageSetlistsDraft
     }
   }, [])
+
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
-  const [editingSetlistId, setEditingSetlistId] = useState<string | null>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
-  const editingSetlistItemRef = useRef<HTMLLIElement | null>(null)
+  const renamingSetlistItemRef = useRef<HTMLLIElement | null>(null)
   const renamingIdRef = useRef<string | null>(null)
   renamingIdRef.current = renamingId
   const renameDraftRef = useRef(renameDraft)
@@ -279,6 +286,15 @@ export function ManageSetlistsView() {
 
   const setlists = draft.setlists
   const activeId = draft.activeSetlistId
+  const selectedSetlist = setlists.find((s) => s.id === activeId) ?? null
+  const selectedSetlistSongs = selectedSetlist
+    ? getOrderedSongsForSetlistFromSnapshot(draft, selectedSetlist.id)
+    : []
+  const selectedSetlistSongIds = new Set(selectedSetlist?.songIds ?? [])
+  const visibleLibrarySongs = selectedSetlist
+    ? draft.songLibrary.songs.filter((song) => !selectedSetlistSongIds.has(song.id))
+    : draft.songLibrary.songs
+  const selectedSongIds = selectedSetlistSongs.map((s) => s.id)
 
   useEffect(() => {
     if (!renamingId) return
@@ -289,20 +305,19 @@ export function ManageSetlistsView() {
   }, [renamingId])
 
   useEffect(() => {
-    if (!editingSetlistId) return
+    if (!renamingId) return
     const onPointerDownCapture = (e: PointerEvent) => {
-      const root = editingSetlistItemRef.current
+      const root = renamingSetlistItemRef.current
       if (!root) return
       const target = e.target
       if (!(target instanceof Node)) return
       if (root.contains(target)) return
       setRenamingId(null)
       setRenameDraft('')
-      setEditingSetlistId(null)
     }
     document.addEventListener('pointerdown', onPointerDownCapture, true)
     return () => document.removeEventListener('pointerdown', onPointerDownCapture, true)
-  }, [editingSetlistId])
+  }, [renamingId])
 
   const goToSetlistScreen = () => {
     window.location.hash = '#/songs'
@@ -350,7 +365,6 @@ export function ManageSetlistsView() {
   }
 
   const selectDraftActiveSetlist = (id: string) => {
-    setEditingSetlistId(null)
     setRenamingId(null)
     setRenameDraft('')
     setDraft((d) => ({ ...d, activeSetlistId: id }))
@@ -363,7 +377,6 @@ export function ManageSetlistsView() {
   }
 
   const startRename = (sl: Setlist) => {
-    setEditingSetlistId(sl.id)
     setRenamingId(sl.id)
     setRenameDraft(sl.name)
   }
@@ -394,9 +407,8 @@ export function ManageSetlistsView() {
   }
 
   const handlePencilClick = (sl: Setlist) => {
-    if (editingSetlistId === sl.id) {
+    if (renamingId === sl.id) {
       cancelRename()
-      setEditingSetlistId(null)
       return
     }
     startRename(sl)
@@ -463,7 +475,6 @@ export function ManageSetlistsView() {
 
   const handleDelete = (sl: Setlist) => {
     if (renamingId === sl.id) cancelRename()
-    if (editingSetlistId === sl.id) setEditingSetlistId(null)
     setDraft((d) => deleteSetlistInSnapshot(d, sl.id) ?? d)
     refresh()
   }
@@ -471,6 +482,21 @@ export function ManageSetlistsView() {
   const handleReorderInSetlist = (setlistId: string, oldIndex: number, newIndex: number) => {
     setDraft((d) => reorderSongsInSetlistInSnapshot(d, setlistId, oldIndex, newIndex) ?? d)
     refresh()
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || !selectedSetlist) return
+    const source = active.data.current?.source
+    if (source !== 'setlist' || active.id === over.id) return
+    const oldIndex = selectedSongIds.indexOf(String(active.id))
+    const newIndex = selectedSongIds.indexOf(String(over.id))
+    if (oldIndex < 0 || newIndex < 0) return
+    handleReorderInSetlist(selectedSetlist.id, oldIndex, newIndex)
   }
 
   return (
@@ -494,157 +520,152 @@ export function ManageSetlistsView() {
             aria-label="Choose one or more song JSON files to import"
             onChange={handleImportSongFiles}
           />
-          <button
-            type="button"
-            className="songs-manage-setlists"
-            onClick={triggerImportSongPicker}
-          >
-            New song
-          </button>
-          <button
-            type="button"
-            className="songs-manage-setlists"
-            onClick={handleCreateEmpty}
-          >
-            New setlist
-          </button>
         </div>
       </header>
       <main className="songs-body manage-setlists-body">
-        <ul className="manage-setlists-list" aria-label="Setlists">
-          {setlists.map((sl) => {
-            const isActive = sl.id === activeId
-            const isEditingSongs = editingSetlistId === sl.id
-            const orderedInSetlist = isEditingSongs
-              ? getOrderedSongsForSetlistFromSnapshot(draft, sl.id)
-              : []
-            const idsInSetlist = isEditingSongs
-              ? new Set(draft.setlists.find((s) => s.id === sl.id)?.songIds ?? [])
-              : new Set<string>()
-            const availableFromLibrary = isEditingSongs
-              ? draft.songLibrary.songs.filter((s) => !idsInSetlist.has(s.id))
-              : []
-            return (
-              <li
-                key={sl.id}
-                className="manage-setlists-item"
-                ref={editingSetlistId === sl.id ? editingSetlistItemRef : undefined}
-              >
-                <div
-                  className="manage-setlists-item-inner"
-                  data-testid={`manage-setlists-setlist-row-${sl.id}`}
+        <section className="manage-setlists-column manage-setlists-column-setlists" aria-label="Setlists">
+          <div className="manage-setlists-column-header">
+            <h2 className="manage-setlists-song-editor-title">SETLISTS</h2>
+            <button type="button" className="songs-manage-setlists" onClick={handleCreateEmpty}>
+              New setlist
+            </button>
+          </div>
+          <ul className="manage-setlists-list" aria-label="Setlists">
+            {setlists.map((sl) => {
+              const isActive = sl.id === activeId
+              return (
+                <li
+                  key={sl.id}
+                  className="manage-setlists-item"
+                  ref={renamingId === sl.id ? renamingSetlistItemRef : undefined}
                 >
-                  {renamingId === sl.id ? (
-                    <input
-                      ref={renameInputRef}
-                      type="text"
-                      className={`manage-setlists-rename-input manage-setlists-rename-input-inline ${isActive ? 'ctrl-arm' : ''}`}
-                      value={renameDraft}
-                      onChange={(e) => setRenameDraft(e.target.value)}
-                      aria-label="Setlist name"
-                      onKeyDown={(e) => handleRenameKeyDown(e, sl.id)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className={`manage-setlists-row manage-setlists-row-name ${isActive ? 'ctrl-arm' : ''}`}
-                      aria-current={isActive ? 'true' : undefined}
-                      aria-label={
-                        isActive ? `Active setlist ${sl.name}` : `Select setlist ${sl.name}`
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (!isActive) {
-                          selectDraftActiveSetlist(sl.id)
-                        }
-                      }}
-                    >
-                      {sl.name}
-                    </button>
-                  )}
-                  <div className="manage-setlists-actions">
-                    <button
-                      type="button"
-                      className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-edit-songs-btn"
-                      aria-expanded={editingSetlistId === sl.id}
-                      aria-label={`Edit songs in setlist ${sl.name}`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePencilClick(sl)
-                      }}
-                    >
-                      <PencilIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
-                      aria-label={`Delete setlist ${sl.name}`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(sl)
-                      }}
-                    >
-                      <TrashCanIcon />
-                    </button>
-                  </div>
-                </div>
-                {isEditingSongs ? (
                   <div
-                    className="manage-setlists-song-editor"
-                    data-testid="manage-setlists-song-editor"
+                    className="manage-setlists-item-inner"
+                    data-testid={`manage-setlists-setlist-row-${sl.id}`}
                   >
-                    <h2 className="manage-setlists-song-editor-title">Songs in this setlist</h2>
-                    {orderedInSetlist.length === 0 ? (
-                      <p className="manage-setlists-song-empty">No songs yet.</p>
-                    ) : (
-                      <SortableSongsInSetlist
-                        setlistName={sl.name}
-                        songs={orderedInSetlist}
-                        onRemoveSong={(songId) => handleRemoveSong(sl.id, songId)}
-                        onReorder={(oldI, newI) => handleReorderInSetlist(sl.id, oldI, newI)}
+                    {renamingId === sl.id ? (
+                      <input
+                        ref={renameInputRef}
+                        type="text"
+                        className={`manage-setlists-rename-input manage-setlists-rename-input-inline ${isActive ? 'ctrl-arm' : ''}`}
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        aria-label="Setlist name"
+                        onKeyDown={(e) => handleRenameKeyDown(e, sl.id)}
                       />
+                    ) : (
+                      <button
+                        type="button"
+                        className={`manage-setlists-row manage-setlists-row-name ${isActive ? 'ctrl-arm' : ''}`}
+                        aria-current={isActive ? 'true' : undefined}
+                        aria-label={isActive ? `Active setlist ${sl.name}` : `Select setlist ${sl.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (!isActive) {
+                            selectDraftActiveSetlist(sl.id)
+                          }
+                        }}
+                      >
+                        {sl.name}
+                      </button>
                     )}
-                    <h2 className="manage-setlists-song-editor-title">Songs in app</h2>
-                    <ul
-                      className="manage-setlists-song-sublist"
-                      aria-label="Library songs not in this setlist"
-                    >
-                      {availableFromLibrary.length === 0 ? (
-                        <li className="manage-setlists-song-empty">
-                          All library songs are in this setlist.
-                        </li>
-                      ) : (
-                        availableFromLibrary.map((song) => (
-                          <li key={song.id} className="manage-setlists-song-row">
-                            <span className="manage-setlists-song-title">{song.title}</span>
-                            <div className="manage-setlists-song-actions">
-                              <button
-                                type="button"
-                                className="manage-setlists-action-btn manage-setlists-icon-btn"
-                                aria-label={`Add ${song.title} to setlist ${sl.name}`}
-                                onClick={() => handleAddSong(sl.id, song.id)}
-                              >
-                                <span aria-hidden="true">+</span>
-                              </button>
-                              <button
-                                type="button"
-                                className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
-                                aria-label={`Delete ${song.title} from library`}
-                                onClick={() => handleDeleteSongFromLibrary(song.id)}
-                              >
-                                <TrashCanIcon />
-                              </button>
-                            </div>
-                          </li>
-                        ))
-                      )}
-                    </ul>
+                    <div className="manage-setlists-actions">
+                      <button
+                        type="button"
+                        className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-edit-songs-btn"
+                        aria-label={`Edit songs in setlist ${sl.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handlePencilClick(sl)
+                        }}
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
+                        aria-label={`Delete setlist ${sl.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(sl)
+                        }}
+                      >
+                        <TrashCanIcon />
+                      </button>
+                    </div>
                   </div>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <section className="manage-setlists-column" aria-label="Setlist songs">
+            <div className="manage-setlists-column-header">
+              <h2 className="manage-setlists-song-editor-title">SETLIST SONGS</h2>
+              <div className="manage-setlists-column-header-spacer" aria-hidden="true" />
+            </div>
+            <div
+              className={`manage-setlists-song-editor manage-setlists-panel ${selectedSetlist ? 'manage-setlists-song-editor-active' : 'manage-setlists-song-editor-inactive'}`}
+              data-testid="manage-setlists-song-editor"
+            >
+              {!selectedSetlist ? (
+                <p className="manage-setlists-song-empty">Select a setlist to edit songs.</p>
+              ) : selectedSetlistSongs.length === 0 ? (
+                <p className="manage-setlists-song-empty">No songs yet.</p>
+              ) : (
+                <SortableContext items={selectedSongIds} strategy={verticalListSortingStrategy}>
+                  <SortableSongsInSetlist
+                    setlistName={selectedSetlist.name}
+                    songs={selectedSetlistSongs}
+                    onRemoveSong={(songId) => handleRemoveSong(selectedSetlist.id, songId)}
+                  />
+                </SortableContext>
+              )}
+            </div>
+          </section>
+          <section className="manage-setlists-column" aria-label="Song library">
+            <div className="manage-setlists-column-header">
+              <h2 className="manage-setlists-song-editor-title">SONG LIBRARY</h2>
+              <button
+                type="button"
+                className="songs-manage-setlists"
+                onClick={triggerImportSongPicker}
+              >
+                New song
+              </button>
+            </div>
+            <div className="manage-setlists-panel" data-testid="manage-setlists-library-panel">
+              <ul className="manage-setlists-song-sublist" aria-label="Library songs not in this setlist">
+                {visibleLibrarySongs.length === 0 ? (
+                  <li className="manage-setlists-song-empty">
+                    {selectedSetlist
+                      ? 'All library songs are in this setlist.'
+                      : 'No songs in library.'}
+                  </li>
+                ) : (
+                  visibleLibrarySongs.map((song) => (
+                    <LibrarySongRow
+                      key={song.id}
+                      song={song}
+                      onAdd={() => {
+                        if (!selectedSetlist) return
+                        handleAddSong(selectedSetlist.id, song.id)
+                      }}
+                      addDisabled={!selectedSetlist}
+                      addLabel={
+                        selectedSetlist
+                          ? `Add ${song.title} to setlist ${selectedSetlist.name}`
+                          : `Add ${song.title} to selected setlist`
+                      }
+                      onDelete={() => handleDeleteSongFromLibrary(song.id)}
+                    />
+                  ))
+                )}
+              </ul>
+            </div>
+          </section>
+        </DndContext>
         <div className="manage-setlists-footer">
           <button type="button" className="ctrl-btn languages-confirm" onClick={confirmDraft}>
             Confirm
