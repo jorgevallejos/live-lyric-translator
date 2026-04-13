@@ -153,6 +153,14 @@ function ProjectionButton({
   )
 }
 
+function applySelectedSongToSetup(song: LibrarySong) {
+  setSongLines(song.items)
+  setSongIndex(-1)
+  setBlank(true)
+  setCurrentSongId(song.id)
+  setCurrentSongTitle(song.title)
+}
+
 function ControlView() {
   const { projectionOpen, openProjection, closeProjection } = useProjectionOpenState(
     typeof window !== 'undefined' ? window.electronAPI : undefined
@@ -168,6 +176,7 @@ function ControlView() {
     goPrev,
     goRestart,
     setBlankState,
+    loadLines,
     loadError,
     applyRemoteState,
     applyCommand,
@@ -277,6 +286,24 @@ function ControlView() {
 
   const goToLanguages = () => {
     window.location.hash = '#/languages'
+  }
+
+  const orderedSongs = getOrderedSongsForActiveSetlist()
+  const hasActiveSetlist = hasValidActiveSetlist()
+  const currentSongPosition = currentSongId
+    ? orderedSongs.findIndex((song) => song.id === currentSongId)
+    : -1
+  const hasNextSongInActiveSetlist =
+    orderedSongs.length > 0 &&
+    (currentSongPosition === -1 || currentSongPosition < orderedSongs.length - 1)
+  const handleSelectNextSongInSetlist = () => {
+    if (!hasNextSongInActiveSetlist) return
+    const nextSongIndex = currentSongPosition === -1 ? 0 : currentSongPosition + 1
+    const nextSong = orderedSongs[nextSongIndex]
+    if (!nextSong) return
+    loadLines(nextSong.items)
+    setCurrentSongId(nextSong.id)
+    setCurrentSongTitle(nextSong.title)
   }
 
   const restartKeyHold = useRestartKeyHold(handleRestart)
@@ -443,9 +470,21 @@ function ControlView() {
                   ) : null}
                 </div>
                 <div className="control-setup-buttons">
-                  <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
-                    Setlist
-                  </button>
+                  <div className="control-setup-button-row">
+                    {hasActiveSetlist ? (
+                      <button
+                        type="button"
+                        className="ctrl-btn ctrl-unarm"
+                        onClick={handleSelectNextSongInSetlist}
+                        disabled={!hasNextSongInActiveSetlist}
+                      >
+                        Next
+                      </button>
+                    ) : null}
+                    <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
+                      Setlist
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="control-setup-section">
@@ -602,11 +641,7 @@ function SongsView() {
       alert(`Could not load ${selectedSong.title}.`)
       return
     }
-    setSongLines(lib.items)
-    setSongIndex(-1)
-    setBlank(true)
-    setCurrentSongId(lib.id)
-    setCurrentSongTitle(lib.title)
+    applySelectedSongToSetup(lib)
     window.location.hash = '#/'
   }
 
