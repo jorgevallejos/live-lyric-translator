@@ -33,6 +33,8 @@ const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> =
   ARMED: 'Performance: Armed',
 }
 
+const PERFORMANCE_TIMER_TICK_MS = 60_000
+
 /** Build state-machine prerequisites from current app state (no new data model). */
 function buildPerformanceControlPrerequisites(
   currentSongId: string,
@@ -191,6 +193,8 @@ function ControlView() {
     index
   )
   const currentSongId = getCurrentSongId()
+  const [elapsedMinutes, setElapsedMinutes] = useState(0)
+  const [timerPaused, setTimerPaused] = useState(false)
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
@@ -423,6 +427,13 @@ function ControlView() {
       : effectiveLang
         ? effectiveLang.toUpperCase()
         : ''
+  useEffect(() => {
+    if (timerPaused) return
+    const intervalId = window.setInterval(() => {
+      setElapsedMinutes((currentMinutes) => currentMinutes + 1)
+    }, PERFORMANCE_TIMER_TICK_MS)
+    return () => window.clearInterval(intervalId)
+  }, [timerPaused])
 
   return (
     <div className="control-screen">
@@ -444,6 +455,22 @@ function ControlView() {
             >
               {controlStateLabel}
             </span>
+          </div>
+          <div className="top-bar-actions">
+            <button
+              type="button"
+              className={`ctrl-btn ctrl-timer-status ctrl-timer-status-circle ${timerPaused ? 'ctrl-timer-status-paused' : ''}`}
+              data-testid="performance-status-button"
+              aria-label={timerPaused ? 'Resume performance timer' : 'Pause performance timer'}
+              onClick={() => setTimerPaused((paused) => !paused)}
+            >
+              <span
+                className="ctrl-timer-status-minutes ctrl-timer-status-minutes-prominent"
+                data-testid="performance-status-minutes"
+              >
+                {elapsedMinutes}'
+              </span>
+            </button>
           </div>
         </header>
       )}
