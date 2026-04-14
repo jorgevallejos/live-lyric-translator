@@ -195,6 +195,7 @@ function ControlView() {
   const currentSongId = getCurrentSongId()
   const [elapsedMinutes, setElapsedMinutes] = useState(0)
   const [timerPaused, setTimerPaused] = useState(false)
+  const [timerActionsVisible, setTimerActionsVisible] = useState(false)
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
@@ -435,6 +436,11 @@ function ControlView() {
     return () => window.clearInterval(intervalId)
   }, [timerPaused])
 
+  useEffect(() => {
+    if (showArmedShell) return
+    setTimerActionsVisible(false)
+  }, [showArmedShell])
+
   return (
     <div className="control-screen">
       {showArmedShell && (
@@ -455,22 +461,6 @@ function ControlView() {
             >
               {controlStateLabel}
             </span>
-          </div>
-          <div className="top-bar-actions">
-            <button
-              type="button"
-              className={`ctrl-btn ctrl-timer-status ctrl-timer-status-circle ${timerPaused ? 'ctrl-timer-status-paused' : ''}`}
-              data-testid="performance-status-button"
-              aria-label={timerPaused ? 'Resume performance timer' : 'Pause performance timer'}
-              onClick={() => setTimerPaused((paused) => !paused)}
-            >
-              <span
-                className="ctrl-timer-status-minutes ctrl-timer-status-minutes-prominent"
-                data-testid="performance-status-minutes"
-              >
-                {elapsedMinutes}'
-              </span>
-            </button>
           </div>
         </header>
       )}
@@ -574,6 +564,46 @@ function ControlView() {
           </>
         )}
       </main>
+
+      {showArmedShell && (
+        <div className="ctrl-timer-floating" data-testid="performance-status-floating">
+          <button
+            type="button"
+            className={`ctrl-btn ctrl-timer-status ctrl-timer-status-circle ${timerPaused ? 'ctrl-timer-status-paused' : ''}`}
+            data-testid="performance-status-button"
+            aria-label="Toggle performance timer actions"
+            onClick={() => setTimerActionsVisible((visible) => !visible)}
+          >
+            <span
+              className="ctrl-timer-status-minutes ctrl-timer-status-minutes-prominent"
+              data-testid="performance-status-minutes"
+            >
+              {elapsedMinutes}'
+            </span>
+          </button>
+          {timerActionsVisible && (
+            <div className="ctrl-timer-actions" data-testid="performance-status-actions">
+              <button
+                type="button"
+                className="ctrl-btn ctrl-timer-action"
+                onClick={() => setTimerPaused((paused) => !paused)}
+              >
+                {timerPaused ? 'Resume' : 'Pause'}
+              </button>
+              <button
+                type="button"
+                className="ctrl-btn ctrl-timer-action"
+                onClick={() => {
+                  setElapsedMinutes(0)
+                  setTimerPaused(false)
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {showArmedShell && (
         <footer className="control-bottom-bar">
