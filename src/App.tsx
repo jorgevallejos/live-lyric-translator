@@ -196,6 +196,8 @@ function ControlView() {
   const [elapsedMinutes, setElapsedMinutes] = useState(0)
   const [timerPaused, setTimerPaused] = useState(false)
   const [timerActionsVisible, setTimerActionsVisible] = useState(false)
+  const timerCircleContainerRef = useRef<HTMLButtonElement | null>(null)
+  const timerActionsContainerRef = useRef<HTMLDivElement | null>(null)
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
@@ -441,6 +443,26 @@ function ControlView() {
     setTimerActionsVisible(false)
   }, [showArmedShell])
 
+  useEffect(() => {
+    if (!timerActionsVisible) return
+
+    const onDocumentPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return
+
+      const clickedInsideCircle =
+        timerCircleContainerRef.current?.contains(event.target) ?? false
+      const clickedInsideActions =
+        timerActionsContainerRef.current?.contains(event.target) ?? false
+
+      if (!clickedInsideCircle && !clickedInsideActions) {
+        setTimerActionsVisible(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', onDocumentPointerDown)
+    return () => document.removeEventListener('pointerdown', onDocumentPointerDown)
+  }, [timerActionsVisible])
+
   return (
     <div className="control-screen">
       {showArmedShell && (
@@ -569,6 +591,7 @@ function ControlView() {
         <div className="ctrl-timer-floating" data-testid="performance-status-floating">
           <button
             type="button"
+            ref={timerCircleContainerRef}
             className={`ctrl-btn ctrl-timer-status ctrl-timer-status-circle ${timerPaused ? 'ctrl-timer-status-paused' : ''}`}
             data-testid="performance-status-button"
             aria-label="Toggle performance timer actions"
@@ -582,7 +605,11 @@ function ControlView() {
             </span>
           </button>
           {timerActionsVisible && (
-            <div className="ctrl-timer-actions" data-testid="performance-status-actions">
+            <div
+              ref={timerActionsContainerRef}
+              className="ctrl-timer-actions"
+              data-testid="performance-status-actions"
+            >
               <button
                 type="button"
                 className="ctrl-btn ctrl-timer-action"
