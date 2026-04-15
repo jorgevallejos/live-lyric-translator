@@ -2,15 +2,13 @@
 # Live Lyric Translator
 
 <p align="center">
-<img src="docs/images/chango-pepper.png" width="600">
+<img src="docs/images/chango-pepper-banner-logo.png" width="600">
 </p>
 
 A minimal live subtitle system for concerts.
 
 This application allows a musician to project translated lyrics in real time during a live performance.  
 The performer advances each phrase manually while singing, allowing subtitles to stay aligned with the music without requiring precise timing.
-
----
 
 ## 📷 Screenshots
 
@@ -23,8 +21,6 @@ The performer advances each phrase manually while singing, allowing subtitles to
 ### Projection — Audience view
 ![Projection Screen](docs/images/projection-screen.png)
 
----
-
 ## ✨ Features
 
 - Manual lyric progression (live-performance friendly)
@@ -35,8 +31,6 @@ The performer advances each phrase manually while singing, allowing subtitles to
 - Keyboard & pedal control
 - Timer for concert
 - Works fully offline
-
----
 
 ## ⚙️ How it works
 
@@ -66,14 +60,11 @@ Displayed on a projector and visible to the audience.
 
 It shows only the current translated lyric line, without controls or additional information.
 
----
-
 ## 🚀 Quick Start
 
 npm install
 npm run dev
 
----
 
 ### Performance state machine
 
@@ -83,8 +74,6 @@ The control screen follows a simple state flow:
 - **Ready** — All checks pass. The performer can press **Arm** to continue.
 - **Armed** — Waiting for the first **Next** command. The next **Next** reveals the first line and moves to **Performing**. The performer can press **Unarm** (or **A**) to return to **Ready** without revealing.
 - **Performing** — At least one phrase has been revealed. **Next** / **Previous** / **Restart** behave as usual. **Restart** returns to **Ready** (blank projection); press **Arm** again before the next run.
-
----
 
 ## 🎭 Live performance setup (current configuration)
 
@@ -111,8 +100,6 @@ Sidecar works over the cable and does not require internet access.
 
 The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 
----
-
 ## 🎛 Controls
 
 ### Control screen buttons
@@ -128,8 +115,6 @@ The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 ArrowRight → Next phrase  
 ArrowLeft → Previous phrase  
 
----
-
 ## 🌍 Language selection
 
 The performer first chooses the singing language, then selects the projection language used to display the translated lyrics for the audience.
@@ -143,8 +128,6 @@ The currently selected language is displayed next to the Current song label on t
 
 If a translation is missing for the selected language, that lyric line simply remains blank on the projection screen.
 
----
-
 ## 🧪 Single-screen rehearsal mode
 
 Normally the projection window ignores keyboard arrows for safety.
@@ -154,8 +137,6 @@ For rehearsal with a single screen run:
 npm run dev:single
 
 In this mode the projection window also responds to arrow keys.
-
----
 
 ## 🎼 Song format
 
@@ -191,8 +172,6 @@ Each lyric line contains translations indexed by language code, for example:
 
 Missing translations are allowed. In that case, the line remains blank in projection.
 
----
-
 ## 🧱 Technology stack
 
 This project is built with:
@@ -206,8 +185,6 @@ Electron is used to open two synchronized windows:
 
 • Control interface  
 • Projection display  
-
----
 
 ## 🏗 Architecture
 
@@ -232,8 +209,6 @@ Projection --> Audience[Projector / Audience Screen]
 Pedal[Bluetooth Pedal] --> Control
 ```
 
----
-
 ## 🛠 Development
 
 Install dependencies
@@ -247,8 +222,6 @@ npm run dev
 Optional rehearsal mode
 
 npm run dev:single
-
----
 
 ## 🎵 About the artist
 
