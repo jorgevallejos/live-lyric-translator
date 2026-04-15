@@ -1,128 +1,112 @@
 /**
- * Unit tests for closeProjectionWindow. Uses mocked window (no real Electron).
+ * Unit tests for safeCloseProjectionWindow. Uses mocked window (no real Electron).
  * @vitest-environment node
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
-const { closeProjectionWindow } = require('./closeProjectionWindow.cjs')
+const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
 
 function createMockWindow(overrides: {
   isDestroyed?: boolean
   isFullScreen?: boolean
 } = {}) {
   const { isDestroyed = false, isFullScreen = false } = overrides
-  const close = vi.fn()
-  const setFullScreen = vi.fn()
-  const listeners: Array<() => void> = []
-  const once = vi.fn((_event: string, cb: () => void) => {
-    listeners.push(cb)
-  })
+  let fullscreenState = isFullScreen
+  const listeners = new Map<string, Array<() => void>>()
+  const onceListeners = new Map<string, Array<() => void>>()
+
+  const addListener = (store: Map<string, Array<() => void>>, event: string, cb: () => void) => {
+    const next = store.get(event) ?? []
+    next.push(cb)
+    store.set(event, next)
+  }
+
+  const emit = (event: string) => {
+    ;(listeners.get(event) ?? []).forEach((cb) => cb())
+    ;(onceListeners.get(event) ?? []).forEach((cb) => cb())
+    onceListeners.delete(event)
+  }
+
   return {
     isDestroyed: vi.fn(() => isDestroyed),
-    isFullScreen: vi.fn(() => isFullScreen),
-    setFullScreen,
-    once,
-    close,
-    _emitLeaveFullScreen() {
-      listeners.forEach((cb) => cb())
-      listeners.length = 0
-    },
+    isFullScreen: vi.fn(() => fullscreenState),
+    setFullScreen: vi.fn((next) => {
+      if (next === false) {
+        fullscreenState = false
+      }
+    }),
+    close: vi.fn(),
+    on: vi.fn((event: string, cb: () => void) => addListener(listeners, event, cb)),
+    once: vi.fn((event: string, cb: () => void) => addListener(onceListeners, event, cb)),
+    _emit: emit,
   }
 }
 
-describe('closeProjectionWindow', () => {
+describe('safeCloseProjectionWindow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  describe('1. Closing projection closes the window entirely', () => {
-    it('when not fullscreen, calls close() once', () => {
-      const win = createMockWindow({ isFullScreen: false })
-      closeProjectionWindow(win as any)
-      expect(win.close).toHaveBeenCalledTimes(1)
-      expect(win.setFullScreen).not.toHaveBeenCalled()
-    })
-
-    it('when fullscreen, exits fullscreen then closes (on leave-full-screen)', () => {
-      const win = createMockWindow({ isFullScreen: true })
-      closeProjectionWindow(win as any)
-      expect(win.setFullScreen).toHaveBeenCalledWith(false)
-      expect(win.close).not.toHaveBeenCalled()
-      win._emitLeaveFullScreen()
-      expect(win.close).toHaveBeenCalledTimes(1)
-    })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  describe('2. If projection window is fullscreen, it exits fullscreen before closing', () => {
-    it('calls setFullScreen(false) before close when fullscreen', () => {
-      const win = createMockWindow({ isFullScreen: true })
-      closeProjectionWindow(win as any)
-      expect(win.setFullScreen).toHaveBeenCalledWith(false)
-      win._emitLeaveFullScreen()
-      expect(win.close).toHaveBeenCalledTimes(1)
-    })
+  it('is a no-op when win is null or destroyed', () => {
+    safeCloseProjectionWindow(null)
+    const win = createMockWindow({ isDestroyed: true })
+    safeCloseProjectionWindow(win as any)
+    expect(win.setFullScreen).not.toHaveBeenCalled()
+    expect(win.close).not.toHaveBeenCalled()
   })
 
-  describe('3. No-op when window is null or destroyed', () => {
-    it('does nothing when win is null', () => {
-      closeProjectionWindow(null)
-      // No throw, no calls (we can't assert on a null mock, so we just ensure no throw)
-    })
-
-    it('does nothing when win is destroyed', () => {
-      const win = createMockWindow({ isDestroyed: true })
-      closeProjectionWindow(win as any)
-      expect(win.close).not.toHaveBeenCalled()
-      expect(win.setFullScreen).not.toHaveBeenCalled()
-      expect(win.once).not.toHaveBeenCalled()
-    })
+  it('closes immediately when not fullscreen', () => {
+    const win = createMockWindow({ isFullScreen: false })
+    safeCloseProjectionWindow(win as any)
+    expect(win.close).toHaveBeenCalledTimes(1)
+    expect(win.setFullScreen).not.toHaveBeenCalled()
   })
 
-  describe('4. Fullscreen: does not close if already destroyed when leave-full-screen fires', () => {
-    it('does not call close() in leave-full-screen callback if window was destroyed', () => {
-      const win = createMockWindow({ isFullScreen: true })
-      closeProjectionWindow(win as any)
-      win.isDestroyed.mockReturnValue(true)
-      win._emitLeaveFullScreen()
-      expect(win.close).not.toHaveBeenCalled()
-    })
+  it('exits fullscreen first, then closes after leave-full-screen + delay', async () => {
+    vi.useFakeTimers()
+    const win = createMockWindow({ isFullScreen: true })
+    safeCloseProjectionWindow(win as any)
+    expect(win.setFullScreen).toHaveBeenCalledWith(false)
+    expect(win.close).not.toHaveBeenCalled()
+
+    win._emit('leave-full-screen')
+    await vi.advanceTimersByTimeAsync(399)
+    expect(win.close).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(win.close).toHaveBeenCalledTimes(1)
   })
 
-  describe('5. Fullscreen fallback: closes window if leave-full-screen never fires', () => {
-    it('calls close() after fallback timeout when leave-full-screen is never emitted', async () => {
-      const win = createMockWindow({ isFullScreen: true })
-      vi.useFakeTimers()
-      closeProjectionWindow(win as any)
-      expect(win.close).not.toHaveBeenCalled()
-      await vi.advanceTimersByTimeAsync(500)
-      expect(win.close).toHaveBeenCalledTimes(1)
-      vi.useRealTimers()
-    })
+  it('ignores close requests while exiting fullscreen', async () => {
+    vi.useFakeTimers()
+    const win = createMockWindow({ isFullScreen: true })
+    safeCloseProjectionWindow(win as any)
+    safeCloseProjectionWindow(win as any)
+    expect(win.setFullScreen).toHaveBeenCalledTimes(1)
+
+    win._emit('leave-full-screen')
+    await vi.advanceTimersByTimeAsync(400)
+    expect(win.close).toHaveBeenCalledTimes(1)
   })
 
-  describe('6. Fullscreen: close is attempted only once', () => {
-    it('does not call close() again after leave-full-screen already closed it', async () => {
-      const win = createMockWindow({ isFullScreen: true })
-      vi.useFakeTimers()
-      closeProjectionWindow(win as any)
-      win._emitLeaveFullScreen()
-      expect(win.close).toHaveBeenCalledTimes(1)
-      await vi.advanceTimersByTimeAsync(500)
-      expect(win.close).toHaveBeenCalledTimes(1)
-      vi.useRealTimers()
-    })
+  it('ignores close requests while already closing', () => {
+    const win = createMockWindow({ isFullScreen: false })
+    safeCloseProjectionWindow(win as any)
+    safeCloseProjectionWindow(win as any)
+    expect(win.close).toHaveBeenCalledTimes(1)
   })
 
-  describe('7. Repeated close attempts are ignored while close is in progress', () => {
-    it('ignores a second close request for the same fullscreen window', () => {
-      const win = createMockWindow({ isFullScreen: true })
-      closeProjectionWindow(win as any)
-      closeProjectionWindow(win as any)
-      expect(win.setFullScreen).toHaveBeenCalledTimes(1)
-      win._emitLeaveFullScreen()
-      expect(win.close).toHaveBeenCalledTimes(1)
-    })
+  it('ignores close requests after window is closed', () => {
+    const win = createMockWindow({ isFullScreen: false })
+    safeCloseProjectionWindow(win as any)
+    win._emit('closed')
+    safeCloseProjectionWindow(win as any)
+    expect(win.close).toHaveBeenCalledTimes(1)
   })
 })

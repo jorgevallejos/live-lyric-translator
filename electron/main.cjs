@@ -1,12 +1,14 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { WebSocketServer } = require('ws')
-const { closeProjectionWindow } = require('./closeProjectionWindow.cjs')
+const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
 
 const WS_PORT = 8765
 let lastState = null // { currentIndex: number, blank: boolean } | null
 let mainWindow = null
 let projectionWindow = null
+let waitingForProjectionCloseBeforeQuit = false
+const projectionWindowsAllowingNativeClose = new WeakSet()
 
 const wss = new WebSocketServer({ port: WS_PORT, host: '0.0.0.0' }, () => {
   console.log(`WebSocket server listening on port ${WS_PORT}`)
@@ -58,6 +60,80 @@ function loadProjectionUrl(win) {
   }
 }
 
+function notifyProjectionOpened() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('projection-opened')
+  }
+}
+
+function notifyProjectionClosed() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('projection-closed')
+  }
+}
+
+function getOpenProjectionWindow() {
+  return projectionWindow && !projectionWindow.isDestroyed() ? projectionWindow : null
+}
+
+function closeProjectionWindowIfOpen() {
+  const win = getOpenProjectionWindow()
+  if (!win) return
+  requestProjectionWindowClose(win)
+}
+
+function requestProjectionWindowClose(win) {
+  safeCloseProjectionWindow(win, {
+    beforeNativeClose: (windowToClose) => {
+      projectionWindowsAllowingNativeClose.add(windowToClose)
+    },
+  })
+}
+
+function createProjectionWindow(loadWindow) {
+  const existing = getOpenProjectionWindow()
+  if (existing) {
+    existing.focus()
+    notifyProjectionOpened()
+    return existing
+  }
+
+  const win = new BrowserWindow({
+    fullscreen: true,
+    title: 'Projection',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  })
+
+  projectionWindow = win
+  loadWindow(win)
+  notifyProjectionOpened()
+
+  win.on('close', (event) => {
+    if (projectionWindowsAllowingNativeClose.has(win)) {
+      projectionWindowsAllowingNativeClose.delete(win)
+      return
+    }
+    event.preventDefault()
+    requestProjectionWindowClose(win)
+  })
+
+  win.on('closed', () => {
+    if (projectionWindow === win) {
+      projectionWindow = null
+    }
+    notifyProjectionClosed()
+    if (waitingForProjectionCloseBeforeQuit) {
+      waitingForProjectionCloseBeforeQuit = false
+      app.quit()
+    }
+  })
+
+  return win
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 800,
@@ -83,31 +159,9 @@ function createWindow() {
 
   win.webContents.setWindowOpenHandler(({ url: openUrl }) => {
     if (openUrl.includes('#/projection')) {
-      if (projectionWindow && !projectionWindow.isDestroyed()) {
-        projectionWindow.focus()
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('projection-opened')
-        }
-      } else {
-        projectionWindow = new BrowserWindow({
-          fullscreen: true,
-          title: 'Projection',
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        })
-        projectionWindow.loadURL(openUrl)
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('projection-opened')
-        }
-        projectionWindow.on('closed', () => {
-          projectionWindow = null
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('projection-closed')
-          }
-        })
-      }
+      createProjectionWindow((projectionWin) => {
+        projectionWin.loadURL(openUrl)
+      })
       return { action: 'deny' }
     }
     return { action: 'deny' }
@@ -115,30 +169,8 @@ function createWindow() {
 }
 
 ipcMain.handle('projection:open', () => {
-  if (projectionWindow && !projectionWindow.isDestroyed()) {
-    projectionWindow.focus()
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('projection-opened')
-    }
-    return
-  }
-  projectionWindow = new BrowserWindow({
-    fullscreen: true,
-    title: 'Projection',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  })
-  loadProjectionUrl(projectionWindow)
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('projection-opened')
-  }
-  projectionWindow.on('closed', () => {
-    projectionWindow = null
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('projection-closed')
-    }
+  createProjectionWindow((projectionWin) => {
+    loadProjectionUrl(projectionWin)
   })
 })
 
@@ -147,9 +179,17 @@ ipcMain.handle('projection:isOpen', () => {
 })
 
 ipcMain.handle('projection:close', () => {
-  if (!projectionWindow || projectionWindow.isDestroyed()) return
-  closeProjectionWindow(projectionWindow)
+  closeProjectionWindowIfOpen()
 })
 
 app.whenReady().then(createWindow)
+app.on('before-quit', (event) => {
+  const openProjectionWindow = getOpenProjectionWindow()
+  if (!openProjectionWindow) return
+  if (waitingForProjectionCloseBeforeQuit) return
+
+  waitingForProjectionCloseBeforeQuit = true
+  event.preventDefault()
+  requestProjectionWindowClose(openProjectionWindow)
+})
 app.on('window-all-closed', () => app.quit())
