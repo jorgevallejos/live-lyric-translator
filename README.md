@@ -86,7 +86,7 @@ Press Arm to begin.
 The system is primed and waiting.
 Arming the first song starts the concert timer.
 The next **Next** reveals the first line and begins the performance.
-###Performing
+### Performing
 The performance is in progress (at least one phrase shown).
 The concert timer is running.
 •	**Next** / **Previous** navigate between phrases
