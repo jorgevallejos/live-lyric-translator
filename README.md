@@ -38,6 +38,11 @@ The performer advances each phrase manually while singing, allowing subtitles to
 - Timer for concert
 - Works fully offline
 
+## 🚀 Quick Start
+
+- npm install
+- npm run dev
+
 ## ⚙️ How it works
 
 The app is a desktop application with two synchronized windows:
@@ -65,11 +70,6 @@ The Control window adapts to two phases of the performance:
 Displayed on a projector and visible to the audience.
 
 It shows only the current translated lyric line, without controls or additional information.
-
-## 🚀 Quick Start
-
-- npm install
-- npm run dev
 
 ## 🎬 Concert workflow
 
@@ -165,14 +165,14 @@ They can then be managed and organized into a Setlist for live performance.
 
 ```json
 {
-  "title": "Duelo",
-  "notes": "Capo 3, Acordes de Mim",
+  "title": "Pimiento",
+  "notes": "Capo 3, Acordes de DO",
   "lyrics": [
     {
-      "es": "Como cualquier atardecer,",
-      "en": "Like any fading sunset,",
-      "fr": "Comme un soir qui s’efface,",
-      "nl": "Zoals elke avond valt,"
+      "es": "Viejo pimiento,\nhoy vuelvo a visitarte",
+      "en": "Old pepper tree,\ntoday I come back to see you,",
+      "fr": "Vieux pimentier,\naujourd’hui je reviens te voir,",
+      "nl": "Oude peperboom,\nvandaag kom ik je weer bezoeken,"
     },
     ...
   ]
