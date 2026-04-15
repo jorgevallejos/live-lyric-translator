@@ -94,6 +94,12 @@ The concert timer is running.
 
 Think of it as: **prepare** → **arm** → **reveal** → **perform** → **reset**
 
+## ⏱️ Concert timer
+
+- Starts when the **first song is armed**
+- Runs continuously during the performance
+- Can be **paused** or **reset** at any time
+
 ## 🎭 Live performance setup (current configuration)
 
 ### Hardware
