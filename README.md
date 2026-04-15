@@ -95,7 +95,8 @@ The performance is in progress (at least one phrase shown).
 The concert timer is running.
 
 - **Next / Previous** navigate between phrases  
-- **Restart** clears the projection and returns to **Ready**
+- **Restart** restarts the current song while staying in **Performing**  
+- **Unarm** exits the current run and returns to **Ready**
 
 At the end of a song, the performer typically **unarms**, selects the next song, and repeats the cycle.
 
@@ -107,11 +108,10 @@ flowchart LR
 Setup["Setup\nNot ready"] --> Ready["Ready\nAll checks pass"]
 Ready -->|Arm| Armed["Armed\nTimer starts"]
 Armed -->|First Next| Performing["Performing\nTimer running"]
+Armed -->|Unarm| Ready
 
 Performing -->|Next / Previous| Performing
-Performing -->|Restart| Ready
-
-Armed -->|Unarm| Ready
+Performing -->|Restart| Performing
 Performing -->|Unarm| Ready
 ```
 
