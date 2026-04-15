@@ -68,8 +68,8 @@ It shows only the current translated lyric line, without controls or additional 
 
 ## 🚀 Quick Start
 
-npm install
-npm run dev
+- npm install
+- npm run dev
 
 ### Performance state machine
 
