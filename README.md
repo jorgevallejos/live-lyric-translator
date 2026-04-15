@@ -13,13 +13,19 @@ The performer advances each phrase manually while singing, allowing subtitles to
 ## 📷 Screenshots
 
 ### Control — Setup
-![Control Setup](docs/images/control-setup.png)
+<p align="center">
+<img src="docs/images/control-setup.png" width="600">
+</p>
 
 ### Control — Performing
-![Control Performing](docs/images/control-performing.png)
+<p align="center">
+<img src="docs/images/control-performing.png" width="600">
+</p>
 
 ### Projection — Audience view
-![Projection Screen](docs/images/projection-screen.png)
+<p align="center">
+<img src="docs/images/projection-screen.png" width="600">
+</p>
 
 ## ✨ Features
 
@@ -34,7 +40,7 @@ The performer advances each phrase manually while singing, allowing subtitles to
 
 ## ⚙️ How it works
 
-The app runs as an Electron desktop application with two synchronized windows:
+The app is a desktop application with two synchronized windows:
 
 - a **Control window** (performer)
 - a **Projection window** (audience)
@@ -64,7 +70,6 @@ It shows only the current translated lyric line, without controls or additional 
 
 npm install
 npm run dev
-
 
 ### Performance state machine
 
