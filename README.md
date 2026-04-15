@@ -92,7 +92,7 @@ The concert timer is running.
 •	**Next** / **Previous** navigate between phrases
 •	**Restart** clears the projection and returns to **Ready**
 
-Think of it as: prepare → arm → reveal → perform → reset
+Think of it as: **prepare** → **arm** → **reveal** → **perform** → **reset**
 
 ## 🎭 Live performance setup (current configuration)
 
@@ -129,7 +129,7 @@ The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 • Open / Close Projection  
 • Songs  
 
-### Keyboard shortcuts (so that pedal can be used)
+### Keyboard shortcuts (so that the pedal can be used)
 
 ArrowRight → Next phrase  
 ArrowLeft → Previous phrase  
@@ -153,7 +153,7 @@ Normally the projection window ignores keyboard arrows for safety.
 
 For rehearsal with a single screen run:
 
-npm run dev:single
+- npm run dev:single
 
 In this mode the projection window also responds to arrow keys.
 
@@ -227,20 +227,6 @@ Projection --> Audience[Projector / Audience Screen]
 
 Pedal[Bluetooth Pedal] --> Control
 ```
-
-## 🛠 Development
-
-Install dependencies
-
-npm install
-
-Run the application
-
-npm run dev
-
-Optional rehearsal mode
-
-npm run dev:single
 
 ## 🎵 About the artist
 
