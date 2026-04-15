@@ -89,30 +89,19 @@ The next **Next** reveals the first line and begins the performance.
 ### Performing
 The performance is in progress (at least one phrase shown).
 The concert timer is running.
-•	**Next** / **Previous** navigate between phrases
-•	**Restart** clears the projection and returns to **Ready**
+-	**Next** / **Previous** navigate between phrases
+-	**Restart** clears the projection and returns to **Ready**
 
-Think of it as: **prepare** → **arm** → **reveal** → **perform** → **reset**
-
+Think of it as follows:
 ```mermaid
 
 flowchart LR
 
-Setup["Setup
-❌ Not ready
-(missing projection / translation / phrases)"] --> Ready["Ready
-✅ All checks pass"]
-
-Ready -->|Arm| Armed["Armed
-⏱ Timer starts (first song)
-Waiting for first Next"]
-
-Armed -->|Next| Performing["Performing
-🎤 Live performance
-⏱ Timer running"]
+Setup --> Ready
+Ready -->|Arm| Armed
+Armed -->|First Next (reveal)| Performing
 
 Performing -->|Next / Previous| Performing
-
 Performing -->|Restart| Ready
 ```
 
