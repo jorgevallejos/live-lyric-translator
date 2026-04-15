@@ -94,6 +94,28 @@ The concert timer is running.
 
 Think of it as: **prepare** → **arm** → **reveal** → **perform** → **reset**
 
+```mermaid
+
+flowchart LR
+
+Setup["Setup
+❌ Not ready
+(missing projection / translation / phrases)"] --> Ready["Ready
+✅ All checks pass"]
+
+Ready -->|Arm| Armed["Armed
+⏱ Timer starts (first song)
+Waiting for first Next"]
+
+Armed -->|Next| Performing["Performing
+🎤 Live performance
+⏱ Timer running"]
+
+Performing -->|Next / Previous| Performing
+
+Performing -->|Restart| Ready
+```
+
 ## ⏱️ Concert timer
 
 - Starts when the **first song is armed**
