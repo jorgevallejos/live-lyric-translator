@@ -33,6 +33,7 @@ The performer advances each phrase manually while singing, allowing subtitles to
 - Setlists and songs library management
 - Next-line preview for performer
 - Keyboard & pedal control
+- Timer for concert
 - Works fully offline
 
 ⸻
