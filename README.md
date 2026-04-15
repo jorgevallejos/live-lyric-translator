@@ -110,6 +110,9 @@ Armed -->|First Next| Performing["Performing\nTimer running"]
 
 Performing -->|Next / Previous| Performing
 Performing -->|Restart| Ready
+
+Armed -->|Unarm| Ready
+Performing -->|Unarm| Ready
 ```
 
 ## ⏱️ Concert timer
