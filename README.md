@@ -2,156 +2,77 @@
 # Live Lyric Translator
 
 <p align="center">
-<img src="docs/images/chango-pepper-banner-logo.png">
+<img src="docs/images/chango-pepper.png" width="600">
 </p>
 
-Live Lyric Translator is a small desktop tool designed to project translated song lyrics during live concerts.
+A minimal live subtitle system for concerts.
 
-The songs are part of **Chango Pepper**, an artistic project where I write and perform music primarily in Spanish, often in front of international audiences. During performances, I wanted listeners to be able to follow the meaning of the lyrics without interrupting the natural rhythm of the music.
+This application allows a musician to project translated lyrics in real time during a live performance.  
+The performer advances each phrase manually while singing, allowing subtitles to stay aligned with the music without requiring precise timing.
 
-Most subtitle systems rely on precise time synchronization, which is fragile in a live performance. Tempos change, pauses appear, and songs evolve slightly from one concert to another.
+⸻
 
-Instead, this tool takes a simpler approach: I manually advance each translated line during the performance using a pedal or keyboard. This keeps the translation aligned with the music without requiring exact timing.
+## 📷 Screenshots
 
-The result is a minimal and reliable subtitle system designed specifically for live concerts.
+### Control — Setup
+![Control Setup](docs/images/control-setup.png)
 
-## ✨ Why this project exists
+### Control — Performing
+![Control Performing](docs/images/control-performing.png)
 
-When performing songs in Spanish for international audiences, listeners often cannot follow the meaning of the lyrics.
+### Projection — Audience view
+![Projection Screen](docs/images/projection-screen.png)
 
-Most subtitle systems require precise timing synchronization, which is fragile in live music situations.
+⸻
 
-This project takes a different approach:
+## ✨ Features
 
-➡ The performer manually advances the translation using a pedal or keyboard.
+- Manual lyric progression (live-performance friendly)
+- Dual-window setup (control + projection)
+- Multilingual lyrics
+- Setlists and songs library management
+- Next-line preview for performer
+- Keyboard & pedal control
+- Works fully offline
 
-This makes the system simple, reliable, and performance-friendly.
-
-## ⭐ Key features
-
-- Manual lyric progression designed for live performance
-- Dual-window system (performer control + audience projection)
-- Multilingual lyric support
-- Independent singing and projection languages
-- Next-phrase preview for the performer
-- Played-song indicator in the Setlist
-- Keyboard and pedal control
-- Works fully offline during concerts
+⸻
 
 ## ⚙️ How it works
 
-The application runs as a small Electron desktop app and opens two synchronized windows.
+The app runs as an Electron desktop application with two synchronized windows:
+
+- a **Control window** (performer)
+- a **Projection window** (audience)
 
 ### Control window
 
-Used by the performer to:
+The Control window adapts to two phases of the performance:
 
-- select a song from the Setlist
-- choose the singing language
-- choose the projection (translation) language
-- advance to the next lyric phrase or go back to the previous one
-- restart the current song
-- temporarily blank the projection if needed 
+**Setup**
+- select a song from the Setlist  
+- choose the singing language  
+- choose the projection (translation) language  
+- open / close the Projection window  
+
+**Performing**
+- advance to the next lyric line or go back  
+- restart the current song  
+- temporarily blank the projection  
 
 ### Projection window
 
 Displayed on a projector and visible to the audience.
 
-It shows only the translated lyric line.
+It shows only the current translated lyric line, without controls or additional information.
 
-Each phrase:
+⸻
 
-1. fades in  
-2. remains visible briefly  
-3. fades out automatically unless the performer advances  
+## 🚀 Quick Start
 
-## 📷 Screenshots
+npm install
+npm run dev
 
-### Control screen — Setup
-
-The performer selects the song, singing language, and projection language before starting the performance.
-
-![Control Setup](docs/images/control-setup.png)
-
-### Control screen — Performing
-
-During the performance, the control screen shows the current phrase and the next phrase preview.
-
-![Control Performing](docs/images/control-performing.png)
-
-### Projection screen — Audience view
-
-The audience only sees the translated lyric line currently being performed.
-
-![Projection Screen](docs/images/projection-screen.png)
-
-## 🎭 Live performance setups
-
-The system can be used with different hardware configurations depending on the context of the performance.
-
-### Laptop setup (simplest)
-
-The application can run directly on a Mac laptop, which is the simplest configuration.
-
-**Hardware**
-
-- Mac laptop running the application
-- Projector connected via HDMI or USB-C
-- Optional Bluetooth pedal for phrase navigation
-
-In this setup:
-
-- the projector displays the translation to the audience
-- the laptop screen acts as the control interface
-
-The performer advances phrases using either:
-
-- the keyboard
-- a Bluetooth pedal mapped to the arrow keys
-
-This configuration is lightweight and ideal for rehearsals or smaller venues.
-
-### Mac mini concert setup (current configuration)
-
-For performances where a dedicated stage setup is preferred, the system can run on a Mac mini with a separate control display.
-
-**Hardware**
-
-- Mac mini — runs the application
-- Projector — displays translated lyrics
-- iPad — used as a touchscreen control screen via Sidecar
-- Bluetooth pedal — used for Next / Previous
-
-**Connections**
-
-Mac mini → HDMI → Projector  
-Mac mini → USB-C → iPad (Sidecar)  
-
-**Operating systems tested**
-
-- macOS 26.1
-- iPadOS 26.3
-
-Sidecar works over the cable and does not require internet access.
-
-The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
-
-## 🎬 Concert workflow
-
-Typical usage during a performance:
-
-1.	Start the application
-2.	Open the projection window
-3.	Select a song from the Setlist
-4.	Choose the singing language
-5.	Choose the projection (translation) language
-6. The system runs readiness checks and shows **Ready** when:
-   - a song is selected  
-   - singing and projection languages are selected  
-   - the projection window is open  
-   - the lyric phrase list is loaded
-7. Press **Arm** (button or **A** key), then press **Next** to reveal the first translation
-8. Advance phrases during the performance
+⸻
 
 ### Performance state machine
 
@@ -162,27 +83,51 @@ The control screen follows a simple state flow:
 - **Armed** — Waiting for the first **Next** command. The next **Next** reveals the first line and moves to **Performing**. The performer can press **Unarm** (or **A**) to return to **Ready** without revealing.
 - **Performing** — At least one phrase has been revealed. **Next** / **Previous** / **Restart** behave as usual. **Restart** returns to **Ready** (blank projection); press **Arm** again before the next run.
 
+⸻
+
+## 🎭 Live performance setup (current configuration)
+
+### Hardware
+
+• Mac mini — runs the application  
+• Projector — displays translated lyrics  
+• iPad — used as a touchscreen control screen via Sidecar  
+• Bluetooth pedal — used for Next / Previous  
+
+**Note:** A Mac laptop can replace both the Mac mini and the iPad.
+
+### Connections
+
+Mac mini → HDMI → Projector  
+Mac mini → USB-C → iPad (Sidecar)
+
+### Operating systems tested
+
+• macOS 26.1  
+• iPadOS 26.3  
+
+Sidecar works over the cable and does not require internet access.
+
+The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
+
+⸻
+
 ## 🎛 Controls
 
 ### Control screen buttons
 
-- Previous
-- Next — enabled only when Armed or Performing (from **Ready**, the performer must first press **Arm**)
-- Restart
--	Open / Close Projection
-- Arm / Unarm — available when the system is **Ready** or **Armed**
-- Setlist
-- Languages
+• Previous  
+• Next  
+• Restart  
+• Open / Close Projection  
+• Songs  
 
-### Keyboard shortcuts
+### Keyboard shortcuts (so that pedal can be used)
 
-ArrowRight / Space → Next phrase  
+ArrowRight → Next phrase  
 ArrowLeft → Previous phrase  
-R → Restart song  
-A → Arm (when Ready) / Unarm (when Armed)  
-B → Toggle blank projection  
-S → Open song selection  
-L → Open language selection  
+
+⸻
 
 ## 🌍 Language selection
 
@@ -197,6 +142,8 @@ The currently selected language is displayed next to the Current song label on t
 
 If a translation is missing for the selected language, that lyric line simply remains blank on the projection screen.
 
+⸻
+
 ## 🧪 Single-screen rehearsal mode
 
 Normally the projection window ignores keyboard arrows for safety.
@@ -207,62 +154,66 @@ npm run dev:single
 
 In this mode the projection window also responds to arrow keys.
 
+⸻
+
 ## 🎼 Song format
 
-Songs are stored as simple JSON files.
+Songs are imported as JSON files and then stored in the app’s persistence layer. 
 
-Each entry represents one lyric line and contains the available language versions of that line.
-
-Example structure:
+They can then be managed and organized into a Setlist for live performance.
 
 ```json
-[
-  {
-    "title": "Pimiento",
-    "lines": {
-      "es": "Viejo pimiento,",
-      "en": "Old pepper tree,",
-      "fr": "Vieux pimentier,",
-      "nl": "Oude peperboom,"
-    }
-  }
-]
+{
+  "title": "Duelo",
+  "notes": "Capo 3, Acordes de Mim",
+  "lyrics": [
+    {
+      "es": "Como cualquier atardecer,",
+      "en": "Like any fading sunset,",
+      "fr": "Comme un soir qui s’efface,",
+      "nl": "Zoals elke avond valt,"
+    },
+    ...
+  ]
+}
 ```
 
-Fields:
-- **title** — song title  
-- **lines** — lyric text indexed by language code
+**Fields**
+- `title` — song name
+- `notes` *(optional)* — performer notes such as capo, key, or reminders
+- `lyrics` — ordered list of lyric lines
 
-Example language codes currently used:
-- es — Spanish
-- en — English
-- fr — French
-- nl — Dutch
+Each lyric line contains translations indexed by language code, for example:
+- `es` — Spanish
+- `en` — English
+- ...
 
-This format makes it easy to add additional languages in the future without changing the application code.
+Missing translations are allowed. In that case, the line remains blank in projection.
 
-Song files are stored in the `public` folder.
+⸻
 
 ## 🧱 Technology stack
 
 This project is built with:
 
-- TypeScript — application logic  
-- React — user interface  
-- Vite — development and build system  
-- Electron — desktop application framework  
+• TypeScript — application logic  
+• React — user interface  
+• Vite — development and build system  
+• Electron — desktop application framework  
 
 Electron is used to open two synchronized windows:
 
-- Control interface  
-- Projection display  
+• Control interface  
+• Projection display  
+
+⸻
 
 ## 🏗 Architecture
 
 The application runs as a small desktop system composed of two synchronized windows.
 
-- A control window used by the performer  
-- A projection window displayed to the audience  
+• A control window used by the performer  
+• A projection window displayed to the audience  
 
 Both windows share the same song state so they stay synchronized during the performance.
 
@@ -280,83 +231,30 @@ Projection --> Audience[Projector / Audience Screen]
 Pedal[Bluetooth Pedal] --> Control
 ```
 
-This architecture keeps the system simple and reliable for live performances.
-
-## 📁 Project structure
-
-Main folders:
-
-electron  
-Contains the Electron main process and preload bridge.
-
-src  
-Contains the React application.
-
-public  
-Contains song JSON files.
-
-Important files:
-
-electron/main.cjs  
-Electron main process.
-
-electron/preload.cjs  
-Secure bridge between Electron and the renderer.
-
-src/App.tsx  
-Main React application.
-
-src/songState.ts  
-Song state management.
-
-src/useSongNavigation.ts  
-Navigation logic.
-
-src/useWebSocket.ts  
-Window synchronization.
+⸻
 
 ## 🛠 Development
 
-### Install dependencies
+Install dependencies
 
 npm install
 
-### Run the application
+Run the application
 
 npm run dev
 
-Optional rehearsal mode (it requires only one monitor display, it allows previous and next commands to be executed from the projection screen)
+Optional rehearsal mode
 
 npm run dev:single
 
-## 🤝 Contributing
+⸻
 
-This project follows a strict **Red → Green → Refactor** workflow for development.
+## 🎵 About the artist
 
-All new features and bug fixes should:
-1. Define expected behavior.
-2. Add failing tests first.
-3. Implement the minimal change required.
-4. Refactor only after tests are green.
+This project is part of the preparation for the live performances of **Chango Pepper**.
 
-See **CONTRIBUTING.md** for the full development guidelines.
-
-## 🤖 Credits
-
-This project was developed iteratively using:
-
-- Cursor (AI-assisted development environment)  
-- ChatGPT for architecture design, debugging, and feature planning  
-
-The goal of this project is both practical and experimental: exploring how AI-assisted development can accelerate the creation of small creative tools.
-
-## 🎼 Artistic context
-
-Chango Pepper is an artistic project centered on storytelling through music, images, and atmosphere.
-
-The songs are written primarily in Spanish and draw from Latin American roots, personal memories, and the quiet poetry of everyday life. Performances aim to create an immersive space where melodies, words, and visual elements unfold together and invite the audience into a narrative journey.
-
-Because these performances often take place in front of international audiences, the Live Lyric Translator was created as a simple way to make the lyrics accessible without interrupting the natural flow of the music.
+Chango Pepper blends Latin American roots, storytelling, and contemporary arrangements. The songs are primarily written in Spanish and performed for international audiences, hence the need for the Live Lyric Translator.
 
 More about the project and the music:
+
 https://sites.google.com/view/changopepper/home
