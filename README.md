@@ -71,30 +71,37 @@ Displayed on a projector and visible to the audience.
 
 It shows only the current translated lyric line, without controls or additional information.
 
-## 🎬 Concert workflow
+## 🎬 Song performance workflow
 
-During a performance, the app follows a simple state flow:
+During a performance, each song follows the same simple state flow.  
+After a song ends, the performer returns to setup, selects the next song from the setlist, and arms the system again.
 
 ### Setup
-A song or language is selected, but the system is not ready yet.
-Some required elements are missing (e.g. projection window not open, no translation loaded, or no phrases available).
-The UI shows exactly what needs to be fixed.
+A song or language is selected, but the system is not ready yet.  
+Some required elements are missing (e.g. projection window not open, no translation loaded, or no phrases available).  
+The UI highlights what needs to be completed.
+
 ### Ready
-All checks pass. The system is prepared for performance.
-Press Arm to begin.
+All checks pass. The system is ready for performance.  
+Press **Arm** to begin.
+
 ### Armed
-The system is primed and waiting.
-Arming the first song starts the concert timer.
-The next **Next** reveals the first line and begins the performance.
+The system is primed and waiting.  
+Arming the first song starts the concert timer.  
+The next **Next** reveals the first line and starts the performance.
+
 ### Performing
-The performance is in progress (at least one phrase shown).
+The performance is in progress (at least one phrase shown).  
 The concert timer is running.
--	**Next** / **Previous** navigate between phrases
--	**Restart** clears the projection and returns to **Ready**
 
-Think of it as follows:
+- **Next / Previous** navigate between phrases  
+- **Restart** clears the projection and returns to **Ready**
+
+At the end of a song, the performer typically **unarms**, selects the next song, and repeats the cycle.
+
+### State flow
+
 ```mermaid
-
 flowchart LR
 
 Setup["Setup\nNot ready"] --> Ready["Ready\nAll checks pass"]
