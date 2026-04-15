@@ -71,14 +71,28 @@ It shows only the current translated lyric line, without controls or additional 
 - npm install
 - npm run dev
 
-### Performance state machine
+## 🎬 Concert workflow
 
-The control screen follows a simple state flow:
+During a performance, the app follows a simple state flow:
 
-- **Setup** — Song and/or language selected; one or more checks are still failing. The UI shows which checks are missing (projection window open, translation available, phrase list loaded).
-- **Ready** — All checks pass. The performer can press **Arm** to continue.
-- **Armed** — Waiting for the first **Next** command. The next **Next** reveals the first line and moves to **Performing**. The performer can press **Unarm** (or **A**) to return to **Ready** without revealing.
-- **Performing** — At least one phrase has been revealed. **Next** / **Previous** / **Restart** behave as usual. **Restart** returns to **Ready** (blank projection); press **Arm** again before the next run.
+### Setup
+A song or language is selected, but the system is not ready yet.
+Some required elements are missing (e.g. projection window not open, no translation loaded, or no phrases available).
+The UI shows exactly what needs to be fixed.
+### Ready
+All checks pass. The system is prepared for performance.
+Press Arm to begin.
+### Armed
+The system is primed and waiting.
+Arming the first song starts the concert timer.
+The next **Next** reveals the first line and begins the performance.
+###Performing
+The performance is in progress (at least one phrase shown).
+The concert timer is running.
+•	**Next** / **Previous** navigate between phrases
+•	**Restart** clears the projection and returns to **Ready**
+
+Think of it as: prepare → arm → reveal → perform → reset
 
 ## 🎭 Live performance setup (current configuration)
 
