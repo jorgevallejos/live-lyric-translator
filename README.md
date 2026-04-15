@@ -45,25 +45,21 @@ The performer advances each phrase manually while singing, allowing subtitles to
 
 ## ⚙️ How it works
 
-The app is a desktop application with two synchronized windows:
+Live Lyric Translator is a desktop application with two synchronized windows:
 
 - a **Control window** (performer)
 - a **Projection window** (audience)
 
+The performer uses the Control window to prepare and run each song,  
+while the Projection window displays the translated lyrics in real time.
+
 ### Control window
 
-The Control window adapts to two phases of the performance:
+Used by the performer to:
 
-**Setup**
-- select a song from the Setlist  
-- choose the singing language  
-- choose the projection (translation) language  
-- open / close the Projection window  
-
-**Performing**
-- advance to the next lyric line or go back  
-- restart the current song  
-- temporarily blank the projection  
+- select songs and languages  
+- control the flow of the performance  
+- navigate through lyric lines  
 
 ### Projection window
 
@@ -71,15 +67,23 @@ Displayed on a projector and visible to the audience.
 
 It shows only the current translated lyric line, without controls or additional information.
 
-## 🎬 Song performance workflow
+## 🎬 Performance workflow
 
 During a performance, each song follows the same simple state flow.  
 After a song ends, the performer returns to setup, selects the next song from the setlist, and arms the system again.
 
 ### Setup
-A song or language is selected, but the system is not ready yet.  
-Some required elements are missing (e.g. projection window not open, no translation loaded, or no phrases available).  
-The UI highlights what needs to be completed.
+The performer configures the upcoming song.
+
+- select a song from the setlist  
+- choose the singing language  
+- choose the projection (translation) language  
+- open / close the projection window  
+
+The system is not ready yet until all required elements are in place  
+(e.g. projection open, translation available, phrases loaded).
+
+The control screen groups these actions into: Song, Languages, Projection, and Arm. The UI highlights what is missing to reach **Ready**.
 
 ### Ready
 All checks pass. The system is ready for performance.  
@@ -105,14 +109,13 @@ At the end of a song, the performer typically **unarms**, selects the next song,
 ```mermaid
 flowchart LR
 
-Setup["Setup\nNot ready"] --> Ready["Ready\nAll checks pass"]
-Ready -->|Arm| Armed["Armed\nTimer starts"]
-Armed -->|First Next| Performing["Performing\nTimer running"]
-Armed -->|Unarm| Ready
+Setup["Setup\nConfigure song, languages, projection"] --> Ready["Ready"]
+Ready -->|Arm| Armed["Armed"]
+Armed -->|First Next| Performing["Performing"]
 
-Performing -->|Next / Previous| Performing
-Performing -->|Restart| Performing
+Performing -->|Next / Previous / Restart| Performing
 Performing -->|Unarm| Ready
+Armed -->|Unarm| Ready
 ```
 
 ## ⏱️ Concert timer
