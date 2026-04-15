@@ -101,4 +101,28 @@ describe('closeProjectionWindow', () => {
       vi.useRealTimers()
     })
   })
+
+  describe('6. Fullscreen: close is attempted only once', () => {
+    it('does not call close() again after leave-full-screen already closed it', async () => {
+      const win = createMockWindow({ isFullScreen: true })
+      vi.useFakeTimers()
+      closeProjectionWindow(win as any)
+      win._emitLeaveFullScreen()
+      expect(win.close).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(500)
+      expect(win.close).toHaveBeenCalledTimes(1)
+      vi.useRealTimers()
+    })
+  })
+
+  describe('7. Repeated close attempts are ignored while close is in progress', () => {
+    it('ignores a second close request for the same fullscreen window', () => {
+      const win = createMockWindow({ isFullScreen: true })
+      closeProjectionWindow(win as any)
+      closeProjectionWindow(win as any)
+      expect(win.setFullScreen).toHaveBeenCalledTimes(1)
+      win._emitLeaveFullScreen()
+      expect(win.close).toHaveBeenCalledTimes(1)
+    })
+  })
 })

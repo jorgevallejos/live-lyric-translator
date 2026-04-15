@@ -5,17 +5,42 @@
  *
  * @param {import('electron').BrowserWindow | null} win
  */
+const closingProjectionWindows = new WeakSet()
+
 function closeProjectionWindow(win) {
   if (win == null || win.isDestroyed()) return
+  if (closingProjectionWindows.has(win)) return
+
+  closingProjectionWindows.add(win)
+  win.once('closed', () => {
+    closingProjectionWindows.delete(win)
+  })
+
   if (win.isFullScreen()) {
-    win.once('leave-full-screen', () => {
+    let closeCalled = false
+    let fallbackId = null
+
+    const closeOnce = () => {
+      if (closeCalled) return
+      closeCalled = true
+      if (fallbackId != null) {
+        clearTimeout(fallbackId)
+        fallbackId = null
+      }
       if (!win.isDestroyed()) win.close()
+    }
+
+    if (win.isDestroyed()) {
+      closingProjectionWindows.delete(win)
+      return
+    }
+
+    win.once('leave-full-screen', () => {
+      closeOnce()
     })
     win.setFullScreen(false)
     const fallbackMs = 500
-    setTimeout(() => {
-      if (!win.isDestroyed()) win.close()
-    }, fallbackMs)
+    fallbackId = setTimeout(closeOnce, fallbackMs)
   } else {
     win.close()
   }
