@@ -97,9 +97,9 @@ Think of it as follows:
 
 flowchart LR
 
-Setup --> Ready
-Ready -->|Arm| Armed
-Armed -->|First Next (reveal)| Performing
+Setup["Setup\nNot ready"] --> Ready["Ready\nAll checks pass"]
+Ready -->|Arm| Armed["Armed\nTimer starts"]
+Armed -->|First Next| Performing["Performing\nTimer running"]
 
 Performing -->|Next / Previous| Performing
 Performing -->|Restart| Ready
