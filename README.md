@@ -52,14 +52,17 @@ Live Lyric Translator is a desktop application with two synchronized windows:
 - a **Control window** (performer)
 - a **Projection window** (audience)
 
-The performer uses the Control window to prepare and run each song,  
+The performer uses the Control window to prepare and run the performance,  
 while the Projection window displays the translated lyrics in real time.
+
+Performances are organized using setlists, which define the sequence of songs.
 
 ### Control window
 
 Used by the performer to:
 
-- select songs and languages  
+- select a setlist and songs  
+- choose languages  
 - control the flow of the performance  
 - navigate through lyric lines  
 
@@ -69,15 +72,32 @@ Displayed on a projector and visible to the audience.
 
 It shows only the current translated lyric line, without controls or additional information.
 
+## 🎼 Setlists
+
+Songs are organized into setlists.
+
+- Setlists can be created and managed from the Setlist management screen  
+- Songs can be added, removed, and reordered within a setlist  
+- A performance always starts by selecting a setlist  
+
+Once a setlist is active:
+- the **first song is automatically selected** in Setup  
+- the performer can select another song manually if needed  
+- songs can be played sequentially during performance
+
 ## 🎬 Performance workflow
 
-During a performance, each song follows the same simple state flow.  
-After a song ends, the performer returns to setup, selects the next song from the setlist, and arms the system again.
+During a performance, the app follows a continuous setlist-based flow.  
+The performer arms the concert once, then progresses through songs without returning to setup between each one.
+
+After a song ends, the next song can be started directly from the Performing view, or the performer can return to Setup to make adjustments (song selection, languages, projection).
+
+The first song of a setlist is automatically prepared when the setlist is selected.
 
 ### Setup
 The performer configures the upcoming song.
 
-- select a song from the setlist  
+- the first song is preselected from the active setlist (can be changed manually)  
 - choose the singing language  
 - choose the projection (translation) language  
 - open / close the projection window  
@@ -92,30 +112,38 @@ All checks pass. The system is ready for performance.
 Press **Arm** to begin.
 
 ### Armed
-The system is primed and waiting.  
-Arming the first song starts the concert timer.  
+Arming the first song starts the concert timer and begins the concert session.  
 The next **Next** reveals the first line and starts the performance.
 
 ### Performing
 The performance is in progress (at least one phrase shown).  
-The concert timer is running.
+The concert timer is running continuously across songs.
 
 - **Next / Previous** navigate between phrases  
 - **Restart** restarts the current song while staying in **Performing**  
 - **Unarm** exits the current run and returns to **Ready**
 
-At the end of a song, the performer typically **unarms**, selects the next song, and repeats the cycle.
+When the last phrase of a song is reached, it is displayed normally.
+
+Pressing **Next** once more reveals a centered tile for the **next song in the setlist**.  
+Tapping this tile immediately starts the next song without returning to Setup.
+
+The performer can still return to Setup at any time to:
+- select a specific song  
+- change languages  
+- adjust projection settings
 
 ### State flow
 
 ```mermaid
 flowchart LR
 
-Setup["Setup\nConfigure song, languages, projection"] --> Ready["Ready"]
-Ready -->|Arm| Armed["Armed"]
+Setup["Setup\nSelect song, languages, projection"] --> Ready["Ready"]
+Ready -->|Arm| Armed["Armed\nStart concert timer"]
 Armed -->|First Next| Performing["Performing"]
 
 Performing -->|Next / Previous / Restart| Performing
+Performing -->|Next song (tile)| Performing
 Performing -->|Unarm| Ready
 Armed -->|Unarm| Ready
 ```
@@ -123,7 +151,7 @@ Armed -->|Unarm| Ready
 ## ⏱️ Concert timer
 
 - Starts when the **first song is armed**
-- Runs continuously during the performance
+- Runs continuously across all songs in the setlist
 - Can be **paused** or **reset** at any time
 
 ## 🎭 Live performance setup (current configuration)

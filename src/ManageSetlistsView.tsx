@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   addSongToSetlistInSnapshot,
+  autoSelectFirstSongForActiveSetlist,
   appendEmptySetlistInSnapshot,
   areSetlistStoreSnapshotsEqual,
   cloneSetlistStoreSnapshot,
@@ -34,7 +35,6 @@ import {
   type Setlist,
   type SetlistStoreSnapshot,
 } from './setlistStore'
-import { resetLoadedSongState } from './songState'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
@@ -345,7 +345,7 @@ export function ManageSetlistsView() {
     const priorActive = loadSetlistStore()?.activeSetlistId ?? ''
     saveSetlistStore(snapshot)
     if (priorActive !== snapshot.activeSetlistId) {
-      resetLoadedSongState()
+      autoSelectFirstSongForActiveSetlist(snapshot)
     } else {
       syncLoadedSongSessionWithSnapshot(snapshot)
     }

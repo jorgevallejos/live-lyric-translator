@@ -3,6 +3,7 @@ import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
+import { useConcertSessionTimer } from './concertSessionState'
 import { useHoldToConfirm, useRestartKeyHold } from './useHoldToConfirm'
 import {
   getPerformanceControlState,
@@ -13,6 +14,7 @@ import {
 import { useEffect, useState, useRef } from 'react'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
+  autoSelectFirstSongForActiveSetlist,
   ensureSongLibraryHydrated,
   getActiveSetlistId,
   getLibrarySongById,
@@ -33,7 +35,12 @@ const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> =
   ARMED: 'Performance: Armed',
 }
 
-const PERFORMANCE_TIMER_TICK_MS = 60_000
+function ConcertSessionTimerRunner() {
+  // Keep the concert/session timer hook alive across route transitions.
+  // This prevents "time stops updating while ControlView is unmounted" issues (including under fake timers).
+  useConcertSessionTimer()
+  return null
+}
 
 /** Build state-machine prerequisites from current app state (no new data model). */
 function buildPerformanceControlPrerequisites(
@@ -193,8 +200,14 @@ function ControlView() {
     index
   )
   const currentSongId = getCurrentSongId()
-  const [elapsedMinutes, setElapsedMinutes] = useState(0)
-  const [timerPaused, setTimerPaused] = useState(false)
+
+  const concertTimer = useConcertSessionTimer()
+  const elapsedMinutes = concertTimer.elapsedMinutes
+  const timerPaused = concertTimer.paused
+  const armWithConcertSessionStart = () => {
+    concertTimer.startIfNeeded()
+    arm()
+  }
   const [timerActionsVisible, setTimerActionsVisible] = useState(false)
   const timerCircleContainerRef = useRef<HTMLButtonElement | null>(null)
   const timerActionsContainerRef = useRef<HTMLDivElement | null>(null)
@@ -205,7 +218,7 @@ function ControlView() {
     controlStateLabel,
     canArm,
     canUnarm,
-    nextDisabled,
+    nextDisabled: nextDisabledFromControlState,
     handleArmClick,
     handleUnarmClick,
   } = usePerformanceControlViewState({
@@ -215,7 +228,7 @@ function ControlView() {
     effectiveSingingLang,
     projectionOpen,
     armed,
-    arm,
+    arm: armWithConcertSessionStart,
     unarm,
     lineCount: lines.length,
     currentIndex: index,
@@ -234,6 +247,10 @@ function ControlView() {
     sing: string
   } | null>(null)
 
+  // Internal concert flow sets song id while already armed; in that case we should not unarm
+  // just to restart the UI.
+  const skipAutoUnarmOnNextSongTransitionRef = useRef(false)
+
   useEffect(() => {
     const next = {
       songId: getCurrentSongId(),
@@ -250,9 +267,11 @@ function ControlView() {
       prev.songId !== next.songId || prev.proj !== next.proj || prev.sing !== next.sing
 
     if (userConfigChanged) {
-      if (controlState === 'ARMED') {
+      const skipUnarm = skipAutoUnarmOnNextSongTransitionRef.current
+      if (controlState === 'ARMED' && !skipUnarm) {
         unarm()
       }
+      skipAutoUnarmOnNextSongTransitionRef.current = false
       goRestart()
       sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
     }
@@ -261,6 +280,10 @@ function ControlView() {
   }, [controlState, unarm, goRestart, sendCommandWithState])
 
   const handleNext = () => {
+    if (allowNextToRevealNextSongTile) {
+      setShowNextSongTile(true)
+      return
+    }
     goNext()
     sendCommandWithState('next', undefined, {
       currentIndex: getSongIndex(),
@@ -296,21 +319,38 @@ function ControlView() {
   }
 
   const orderedSongs = getOrderedSongsForActiveSetlist()
-  const hasActiveSetlist = hasValidActiveSetlist()
   const currentSongPosition = currentSongId
     ? orderedSongs.findIndex((song) => song.id === currentSongId)
     : -1
-  const hasNextSongInActiveSetlist =
-    orderedSongs.length > 0 &&
-    (currentSongPosition === -1 || currentSongPosition < orderedSongs.length - 1)
-  const handleSelectNextSongInSetlist = () => {
-    if (!hasNextSongInActiveSetlist) return
-    const nextSongIndex = currentSongPosition === -1 ? 0 : currentSongPosition + 1
-    const nextSong = orderedSongs[nextSongIndex]
-    if (!nextSong) return
-    loadLines(nextSong.items)
-    setCurrentSongId(nextSong.id)
-    setCurrentSongTitle(nextSong.title)
+  const nextSongForTile =
+    currentSongPosition >= 0 && currentSongPosition < orderedSongs.length - 1
+      ? orderedSongs[currentSongPosition + 1]
+      : null
+  const [showNextSongTile, setShowNextSongTile] = useState(false)
+
+  const isEndOfSong =
+    controlState === 'ARMED' &&
+    lines.length > 0 &&
+    index >= 0 &&
+    index < lines.length &&
+    isLyricLine(lines[index]) &&
+    index === getLastLyricIndex(lines)
+  const allowNextToRevealNextSongTile =
+    isEndOfSong && nextSongForTile !== null && !showNextSongTile
+  const nextDisabled = allowNextToRevealNextSongTile ? false : nextDisabledFromControlState
+
+  const handleStartNextSongInConcertSession = () => {
+    if (!nextSongForTile) return
+    if (currentSongId) addPlayedSong(currentSongId)
+
+    // This is an internal concert-flow transition (already armed), so we must not auto-unarm
+    // just because the user-facing song id changes.
+    skipAutoUnarmOnNextSongTransitionRef.current = true
+
+    loadLines(nextSongForTile.items)
+    setCurrentSongId(nextSongForTile.id)
+    setCurrentSongTitle(nextSongForTile.title)
+    setShowNextSongTile(false)
   }
 
   const restartKeyHold = useRestartKeyHold(handleRestart)
@@ -322,7 +362,7 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
-    arm,
+    arm: armWithConcertSessionStart,
     unarm,
     controlState,
     nextDisabled,
@@ -334,7 +374,7 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
-    arm,
+    arm: armWithConcertSessionStart,
     unarm,
     controlState,
     nextDisabled,
@@ -413,14 +453,6 @@ function ControlView() {
   const restartHold = useHoldToConfirm(handleRestart)
   const unarmHold = useHoldToConfirm(handleUnarmClick)
 
-  const isEndOfSong =
-    controlState === 'ARMED' &&
-    lines.length > 0 &&
-    index >= 0 &&
-    index < lines.length &&
-    isLyricLine(lines[index]) &&
-    index === getLastLyricIndex(lines)
-
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
@@ -431,17 +463,14 @@ function ControlView() {
         ? effectiveLang.toUpperCase()
         : ''
   useEffect(() => {
-    if (timerPaused) return
-    const intervalId = window.setInterval(() => {
-      setElapsedMinutes((currentMinutes) => currentMinutes + 1)
-    }, PERFORMANCE_TIMER_TICK_MS)
-    return () => window.clearInterval(intervalId)
-  }, [timerPaused])
-
-  useEffect(() => {
     if (showArmedShell) return
     setTimerActionsVisible(false)
   }, [showArmedShell])
+
+  useEffect(() => {
+    if (isEndOfSong) return
+    setShowNextSongTile(false)
+  }, [isEndOfSong])
 
   useEffect(() => {
     if (!timerActionsVisible) return
@@ -510,16 +539,6 @@ function ControlView() {
                 </div>
                 <div className="control-setup-buttons">
                   <div className="control-setup-button-row">
-                    {hasActiveSetlist ? (
-                      <button
-                        type="button"
-                        className="ctrl-btn ctrl-unarm"
-                        onClick={handleSelectNextSongInSetlist}
-                        disabled={!hasNextSongInActiveSetlist}
-                      >
-                        Next
-                      </button>
-                    ) : null}
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
                       Setlist
                     </button>
@@ -571,17 +590,33 @@ function ControlView() {
         )}
         {showArmedShell && (
           <>
-            <p className="control-lyric">{displayText}</p>
-            {!notStarted && (
-              <span
-                data-testid="control-next-preview"
-                className="control-next-preview"
-              >
-                {nextPreviewText}
-              </span>
-            )}
-            {notStarted && (
-              <p className="control-state-instruction">Press Next to reveal the first line</p>
+            {isEndOfSong && nextSongForTile && showNextSongTile ? (
+              <div className="performing-next-song-tile-wrap">
+                <span className="performing-next-song-helper-label">Tap to continue</span>
+                <button
+                  type="button"
+                  className="songs-song-btn"
+                  data-testid="next-song-tile"
+                  onClick={handleStartNextSongInConcertSession}
+                >
+                  <span className="songs-song-title">{nextSongForTile.title}</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="control-lyric">{displayText}</p>
+                {!notStarted && (
+                  <span
+                    data-testid="control-next-preview"
+                    className="control-next-preview"
+                  >
+                    {nextPreviewText}
+                  </span>
+                )}
+                {notStarted && (
+                  <p className="control-state-instruction">Press Next to reveal the first line</p>
+                )}
+              </>
             )}
           </>
         )}
@@ -613,7 +648,7 @@ function ControlView() {
               <button
                 type="button"
                 className="ctrl-btn ctrl-timer-action"
-                onClick={() => setTimerPaused((paused) => !paused)}
+                onClick={() => concertTimer.togglePause()}
               >
                 {timerPaused ? 'Resume' : 'Pause'}
               </button>
@@ -621,8 +656,7 @@ function ControlView() {
                 type="button"
                 className="ctrl-btn ctrl-timer-action"
                 onClick={() => {
-                  setElapsedMinutes(0)
-                  setTimerPaused(false)
+                  concertTimer.reset()
                 }}
               >
                 Reset
@@ -1104,16 +1138,25 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     }
   }, [isProjectionRoute, songLibRetryKey])
 
-  // On app launch (main window only), force a clean session so we start with "No song selected" and Ready state.
+  // When Setup renders with an active setlist, auto-load its first song when no valid song is selected.
   useEffect(() => {
     if (window.location.hash === '#/projection') return
-    if (sessionStorage.getItem('liveLyricLaunched')) return
-    sessionStorage.setItem('liveLyricLaunched', '1')
-    setCurrentSongId('')
-    setSongLines([])
-    setSongIndex(-1)
-    setBlank(true)
-  }, [])
+    if (hash !== '#/' || songLibState !== 'ready') return
+    if (!sessionStorage.getItem('liveLyricLaunched')) {
+      sessionStorage.setItem('liveLyricLaunched', '1')
+    }
+    const snapshot = loadSetlistStore()
+    if (!snapshot || !snapshot.activeSetlistId) return
+    const activeSongs = getOrderedSongsForActiveSetlist()
+    const currentSongId = getCurrentSongId()
+    const hasValidLoadedSong =
+      currentSongId !== '' &&
+      activeSongs.some((song) => song.id === currentSongId) &&
+      getSongLines().length > 0
+    if (!hasValidLoadedSong) {
+      autoSelectFirstSongForActiveSetlist(snapshot)
+    }
+  }, [hash, songLibState])
 
   useEffect(() => {
     if (typeof initialHash === 'string') return
@@ -1124,27 +1167,62 @@ function App({ initialHash }: { initialHash?: string } = {}) {
 
   if (!isProjectionRoute && songLibState === 'loading') {
     return (
-      <div className="app-loading" data-testid="song-library-loading" aria-busy="true">
-        Loading…
-      </div>
+      <>
+        <ConcertSessionTimerRunner />
+        <div className="app-loading" data-testid="song-library-loading" aria-busy="true">
+          Loading…
+        </div>
+      </>
     )
   }
   if (!isProjectionRoute && songLibState === 'error') {
     return (
-      <div className="app-hydrate-error" role="alert" data-testid="song-library-error">
-        <p>{songLibError}</p>
-        <button type="button" onClick={() => setSongLibRetryKey((k) => k + 1)}>
-          Retry
-        </button>
-      </div>
+      <>
+        <ConcertSessionTimerRunner />
+        <div className="app-hydrate-error" role="alert" data-testid="song-library-error">
+          <p>{songLibError}</p>
+          <button type="button" onClick={() => setSongLibRetryKey((k) => k + 1)}>
+            Retry
+          </button>
+        </div>
+      </>
     )
   }
 
-  if (hash === '#/projection') return <ProjectionView />
-  if (hash === '#/songs/manage-setlists') return <ManageSetlistsView />
-  if (hash === '#/songs') return <SongsView />
-  if (hash === '#/languages') return <LanguagesView />
-  return <ControlView />
+  if (hash === '#/projection')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <ProjectionView />
+      </>
+    )
+  if (hash === '#/songs/manage-setlists')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <ManageSetlistsView />
+      </>
+    )
+  if (hash === '#/songs')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <SongsView />
+      </>
+    )
+  if (hash === '#/languages')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <LanguagesView />
+      </>
+    )
+  return (
+    <>
+      <ConcertSessionTimerRunner />
+      <ControlView />
+    </>
+  )
 }
 
 export default App
