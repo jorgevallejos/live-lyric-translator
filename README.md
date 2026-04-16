@@ -10,6 +10,8 @@ A minimal live subtitle system for concerts.
 This application allows a musician to project translated lyrics in real time during a live performance.  
 The performer advances each phrase manually while singing, allowing subtitles to stay aligned with the music without requiring precise timing.
 
+**Note:** Currently available on **macOS only**.
+
 ## ✨ Features
 
 - Manual lyric progression (live-performance friendly)
