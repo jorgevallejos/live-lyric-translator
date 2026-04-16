@@ -40,8 +40,8 @@ The performer advances each phrase manually while singing, allowing subtitles to
 
 ## 🚀 Quick Start
 
-- npm install
-- npm run dev
+- `npm install`
+- `npm run dev`
 
 ## ⚙️ How it works
 
@@ -183,7 +183,7 @@ Normally the projection window ignores keyboard arrows for safety.
 
 For rehearsal with a single screen run:
 
-- npm run dev:single
+- `npm run dev:single`
 
 In this mode the projection window also responds to arrow keys.
 
