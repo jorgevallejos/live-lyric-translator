@@ -143,9 +143,7 @@ Ready -->|Arm| Armed["Armed\nStart concert timer"]
 Armed -->|First Next| Performing["Performing"]
 
 Performing -->|Next / Previous / Restart| Performing
-Performing -->|Next song (tile)| Performing
-Performing -->|Unarm| Ready
-Armed -->|Unarm| Ready
+Performing
 ```
 
 ## ⏱️ Concert timer
