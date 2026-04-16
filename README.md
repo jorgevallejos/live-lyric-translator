@@ -8,7 +8,7 @@
 A minimal live subtitle system for concerts.
 
 This application allows a musician to project translated lyrics in real time during a live performance.  
-The performer advances each phrase manually while singing, allowing subtitles to stay aligned with the music without requiring precise timing.
+The performer advances each phrase manually (via keyboard or foot pedal), keeping subtitles aligned with the music without needing precise timing.
 
 **Note:** Currently available on **macOS only**.
 
@@ -19,7 +19,7 @@ The performer advances each phrase manually while singing, allowing subtitles to
 - Multilingual lyrics
 - Setlists and songs library management
 - Next-line preview for performer
-- Keyboard & pedal control
+- Keyboard & foot pedal control
 - Timer for concert
 - Works fully offline
 
@@ -161,7 +161,7 @@ The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 - Open / Close Projection  
 - Songs  
 
-### Keyboard shortcuts (so that the pedal can be used)
+### Keyboard shortcuts (compatible with foot pedals)
 
 ArrowRight → Next phrase  
 ArrowLeft → Previous phrase  
