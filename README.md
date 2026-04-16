@@ -23,12 +23,12 @@ The performer advances each phrase manually while singing, allowing subtitles to
 
 ## 📷 Screenshots
 
-### Control — Setup
+### Control — Setup View
 <p align="center">
 <img src="docs/images/control-setup.png" width="600">
 </p>
 
-### Control — Performing
+### Control — Performing View
 <p align="center">
 <img src="docs/images/control-performing.png" width="600">
 </p>
@@ -128,10 +128,10 @@ Armed -->|Unarm| Ready
 
 ### Hardware
 
-• Mac mini — runs the application  
-• Projector — displays translated lyrics  
-• iPad — used as a touchscreen control screen via Sidecar  
-• Bluetooth pedal — used for Next / Previous  
+- Mac mini — runs the application  
+- Projector — displays translated lyrics  
+- iPad — used as a touchscreen control screen via Sidecar  
+- Bluetooth pedal — used for Next / Previous  
 
 **Note:** A Mac laptop can replace both the Mac mini and the iPad.
 
@@ -142,8 +142,8 @@ Mac mini → USB-C → iPad (Sidecar)
 
 ### Operating systems tested
 
-• macOS 26.1  
-• iPadOS 26.3  
+- macOS 26.1  
+- iPadOS 26.3  
 
 Sidecar works over the cable and does not require internet access.
 
@@ -153,11 +153,11 @@ The pedal is paired with the Mac mini and mapped to keyboard arrow keys.
 
 ### Control screen buttons
 
-• Previous  
-• Next  
-• Restart  
-• Open / Close Projection  
-• Songs  
+- Previous  
+- Next  
+- Restart  
+- Open / Close Projection  
+- Songs  
 
 ### Keyboard shortcuts (so that the pedal can be used)
 
@@ -225,22 +225,22 @@ Missing translations are allowed. In that case, the line remains blank in projec
 
 This project is built with:
 
-• TypeScript — application logic  
-• React — user interface  
-• Vite — development and build system  
-• Electron — desktop application framework  
+- TypeScript — application logic  
+- React — user interface  
+- Vite — development and build system  
+- Electron — desktop application framework  
 
 Electron is used to open two synchronized windows:
 
-• Control interface  
-• Projection display  
+- Control interface  
+- Projection display  
 
 ## 🏗 Architecture
 
 The application runs as a small desktop system composed of two synchronized windows.
 
-• A control window used by the performer  
-• A projection window displayed to the audience  
+- A control window used by the performer  
+- A projection window displayed to the audience  
 
 Both windows share the same song state so they stay synchronized during the performance.
 
