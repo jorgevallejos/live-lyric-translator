@@ -34,6 +34,7 @@ const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> =
   READY_TO_ARM: 'Performance: Ready to Arm',
   ARMED: 'Performance: Armed',
 }
+const NEXT_SONG_TILE_DELAY_MS = 6_000
 
 function ConcertSessionTimerRunner() {
   // Keep the concert/session timer hook alive across route transitions.
@@ -280,10 +281,6 @@ function ControlView() {
   }, [controlState, unarm, goRestart, sendCommandWithState])
 
   const handleNext = () => {
-    if (allowNextToRevealNextSongTile) {
-      setShowNextSongTile(true)
-      return
-    }
     goNext()
     sendCommandWithState('next', undefined, {
       currentIndex: getSongIndex(),
@@ -335,9 +332,7 @@ function ControlView() {
     index < lines.length &&
     isLyricLine(lines[index]) &&
     index === getLastLyricIndex(lines)
-  const allowNextToRevealNextSongTile =
-    isEndOfSong && nextSongForTile !== null && !showNextSongTile
-  const nextDisabled = allowNextToRevealNextSongTile ? false : nextDisabledFromControlState
+  const nextDisabled = nextDisabledFromControlState
 
   const handleStartNextSongInConcertSession = () => {
     if (!nextSongForTile) return
@@ -468,9 +463,13 @@ function ControlView() {
   }, [showArmedShell])
 
   useEffect(() => {
-    if (isEndOfSong) return
     setShowNextSongTile(false)
-  }, [isEndOfSong])
+    if (!isEndOfSong || !nextSongForTile) return
+    const timer = setTimeout(() => {
+      setShowNextSongTile(true)
+    }, NEXT_SONG_TILE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [isEndOfSong, nextSongForTile?.id, currentSongId])
 
   useEffect(() => {
     if (!timerActionsVisible) return
@@ -590,34 +589,37 @@ function ControlView() {
         )}
         {showArmedShell && (
           <>
-            {isEndOfSong && nextSongForTile && showNextSongTile ? (
-              <div className="performing-next-song-tile-wrap">
-                <span className="performing-next-song-helper-label">Tap to continue</span>
-                <button
-                  type="button"
-                  className="songs-song-btn"
-                  data-testid="next-song-tile"
-                  onClick={handleStartNextSongInConcertSession}
-                >
-                  <span className="songs-song-title">{nextSongForTile.title}</span>
-                </button>
+            <div className="control-performing-stage" data-testid="performing-content">
+              <div className="control-performing-stage-stack">
+                <div className="control-performing-lyric-block">
+                  <p className="control-lyric">{displayText}</p>
+                  {!notStarted && (
+                    <span
+                      data-testid="control-next-preview"
+                      className="control-next-preview"
+                    >
+                      {nextPreviewText}
+                    </span>
+                  )}
+                  {notStarted && (
+                    <p className="control-state-instruction">Press Next to reveal the first line</p>
+                  )}
+                </div>
+                {isEndOfSong && nextSongForTile && showNextSongTile && (
+                  <div className="performing-next-song-tile-wrap">
+                    <span className="performing-next-song-helper-label">Tap to continue</span>
+                    <button
+                      type="button"
+                      className="songs-song-btn"
+                      data-testid="next-song-tile"
+                      onClick={handleStartNextSongInConcertSession}
+                    >
+                      <span className="songs-song-title">{nextSongForTile.title}</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <>
-                <p className="control-lyric">{displayText}</p>
-                {!notStarted && (
-                  <span
-                    data-testid="control-next-preview"
-                    className="control-next-preview"
-                  >
-                    {nextPreviewText}
-                  </span>
-                )}
-                {notStarted && (
-                  <p className="control-state-instruction">Press Next to reveal the first line</p>
-                )}
-              </>
-            )}
+            </div>
           </>
         )}
       </main>
