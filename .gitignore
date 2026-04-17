@@ -5,3 +5,7 @@ release/
 .DS_Store
 public/*.json
 !public/config.json
+
+# Claude Code — local-only config (commands/ is intentionally tracked)
+.claude/settings.local.json
+.claude/sessions/
