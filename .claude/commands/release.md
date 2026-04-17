@@ -23,6 +23,22 @@ $ARGUMENTS
 
 Take the currently staged/unstaged changes (or the current branch if changes are already committed) and ship them to GitHub as a pull request, following the steps below. Stop and ask the user before proceeding if anything unexpected comes up (unrelated changes, failing tests, merge conflicts, etc.).
 
+## What counts as a releasable change
+
+Treat all of the following as legitimate, releasable project artifacts — do NOT dismiss them as "configuration that shouldn't be committed":
+
+- Source code anywhere under `src/`, `electron/`, `scripts/`, `public/`, `docs/`
+- Project metadata: `package.json`, `package-lock.json`, `tsconfig.json`, `vite.config.ts`, `eslint.config.js`, `.github/`, `.gitignore`, `README.md`, `CONTRIBUTING.md`, `LICENSE`
+- Repo-level `CLAUDE.md`
+- **`.claude/commands/*.md`** — shared Claude Code slash commands
+- **`.claude/agents/*.md`** — shared Claude Code subagents
+- **`.claude/settings.json`** — shared Claude Code project settings
+- Any other file currently tracked by git
+
+The only `.claude/` paths that are intentionally local-only (and gitignored) are `.claude/settings.local.json` and `.claude/sessions/`. If you see those in the diff, exclude them from staging and continue.
+
+If the only changes in the working tree are `.claude/commands/`, `.claude/agents/`, or `.claude/settings.json`, that IS a valid release — proceed normally.
+
 ## Release checklist
 
 Execute these steps in order. Report results as you go. Do NOT skip steps.
@@ -34,9 +50,15 @@ Execute these steps in order. Report results as you go. Do NOT skip steps.
      - The current branch name.
      - Whether it tracks a remote, and whether it's ahead/behind.
      - A suggested feature branch name derived from the change description (kebab-case, max 40 chars, no special chars), in case the user wants to create one.
-   - Ask the user: *"Commit and push to `<current-branch>`, or create a new branch `<suggested-name>` (or something else)?"*
-   - If the current branch is `main` or `master`, default the recommendation to creating a new feature branch rather than committing directly to main.
-   - Only proceed once the user has explicitly confirmed the target branch. If they asked to create a new branch, run `git checkout -b <name>` before any commit.
+   - Ask the branch question in **two steps** for simplicity. Do NOT combine them into a single multi-part question.
+
+     **Step 1 — simple Yes/No confirmation.** Ask: *"Commit to `<recommended-branch>`? (Yes / No)"*
+       - If the user is currently on `main` or `master`, `<recommended-branch>` is the **suggested new feature branch** (kebab-case, type-prefixed like `chore/…` or `feat/…`, max 40 chars, derived from the inferred intent). Never recommend committing directly to `main` or `master`.
+       - If the user is already on a feature branch, `<recommended-branch>` is the **current branch**.
+
+     **Step 2 — only if the user answered No.** Ask: *"Which branch should I use instead? You can give a new branch name (I'll create it) or name an existing branch."*
+
+   - Only proceed once the user has explicitly confirmed a target branch. If the target doesn't exist locally, create it with `git checkout -b <name>` before any commit.
 
 2. **Run the full test suite**
    - Run `npm run test`.
