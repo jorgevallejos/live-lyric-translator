@@ -39,6 +39,7 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - Local-AI feature for auto-advancing lyrics without the pedal → **Opus** for architecture and trade-off design; **Sonnet** for implementation in Claude Code.
 - AI-generated UX/UI + design-system exploration → **Sonnet** by default; **Opus** only when deriving a coherent design system from the existing app.
 - Generative animation app reacting to live-performance events (audio, place, weather, unexpected pauses) → **Opus** for conceptual and architectural kickoff; **Sonnet** for build-out. (Likely becomes its own project under `~/Chango Pepper/projects/` when it starts.)
+- Add chords to lyrics and a possibility to turn them of/on
 
 ## Project-specific workflow notes
 
