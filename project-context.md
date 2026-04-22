@@ -40,6 +40,8 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - AI-generated UX/UI + design-system exploration → **Sonnet** by default; **Opus** only when deriving a coherent design system from the existing app.
 - Generative animation app reacting to live-performance events (audio, place, weather, unexpected pauses) → **Opus** for conceptual and architectural kickoff; **Sonnet** for build-out. (Likely becomes its own project under `~/Chango Pepper/projects/` when it starts.)
 - Add chords to lyrics and a possibility to turn them of/on
+- Explore packaging the app as a downloadable, installable app that runs natively on both macOS and Windows (currently only accessible as a local dev project).
+- Explore making the app available on iPad as a native experience — not just using the iPad as a second screen via Sidecar.
 
 ## Project-specific workflow notes
 
@@ -49,8 +51,31 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 
 ## Open follow-ups / parked items
 
+- When working on the product modelling/management discipline, revisit the ideas list in "Project-specific model picks" and properly categorize them: app extensions vs. standalone projects vs. cross-project concerns.
+
+
 - Consider promoting `/release` to a full Claude Code sub-agent when the command gets complex enough to warrant its own memory and tool boundaries.
 - Update `CLAUDE.md` as engineering conventions crystallize from actual work (naming rules, folder conventions, "do/don't" patterns).
 - When a good real case comes up, walk me through updating `CLAUDE.md` by example.
 - Revisit GitHub MCP installation in Claude Code once the basics feel routine.
 - Explore Cowork's `schedule` skill if any recurring PM task emerges (e.g. "weekly backlog review from recent commits").
+
+## Performing workstream (added April 2026)
+
+A new performing discipline was opened alongside the app. Key structures created:
+
+- `songs/` — private song library (JSON files, not in git). 11 songs as of April 2026. **Song intros live here as the single source of truth** — the `spoken-intro.md` in each concert folder is a generated performance copy, not independently maintained.
+- `concerts/` — one folder per gig, with `_template/` for reuse. Each gig has `gig-info.md`, `checklist.md`, `setlist.md`, `spoken-intro.md`.
+- `disciplines/performing.md` — growing knowledge base on performing and singing.
+- `disciplines/communication.md` — new discipline for artist visibility and self-communication.
+
+**Next performing session:** go through the BOM festival checklist (`concerts/2026-05-16-bom-festival/checklist.md`).
+
+## First concert — BOMfestival 2026
+
+- **Date:** Saturday 16 May 2026
+- **Venue:** Kapsalon Rozie, Ghent (hair salon, intimate neighborhood festival)
+- **Format:** 4 sets at 17:15 / 18:30 / 19:45 / 21:00 — fresh audience each time
+- **Setlist:** 9 songs, ~25 min music / ~33 min with intros. Libertad → Soy una puerta → Duelo → Hasta calmar el alma → Luz y sal → No te voy a odiar → Paso → Pimiento → Tragedia de cerdo asado
+- **Venue rehearsal:** Friday 9 May 2026
+- **Open topic:** use this gig as a visibility/communication moment → see `disciplines/communication.md`
