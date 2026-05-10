@@ -1082,7 +1082,7 @@ function ProjectionView() {
           className="projection-lyric"
           style={{
             opacity: isVisible ? 1 : 0,
-            fontFamily: 'Georgia, "Times New Roman", Times, serif',
+            fontFamily: "'EB Garamond', Georgia, serif",
             fontSize: '72px',
             lineHeight: 1.25,
           }}
