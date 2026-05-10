@@ -5,7 +5,7 @@ export default defineConfig(({ command }) => ({
   root: '.',
   base: command === 'build' ? './' : '/',
   plugins: [react()],
-  server: { port: 5173, strictPort: true, host: '0.0.0.0' },
+  server: { port: 5174, strictPort: true, host: '0.0.0.0' },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'electron/**/*.test.ts'],
