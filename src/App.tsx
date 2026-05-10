@@ -958,6 +958,10 @@ function ProjectionView() {
   const renderedText = translation
   const showContent = index >= 0 && !blank && !isSectionMarker
 
+  const hasEverStartedRef = useRef<boolean>(false)
+  if (index >= 0) hasEverStartedRef.current = true
+  const showLogo = !hasEverStartedRef.current
+
   const [displayedText, setDisplayedText] = useState('')
   const [isVisible, setIsVisible] = useState(false)
   const fadeOutTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1073,6 +1077,19 @@ function ProjectionView() {
         margin: 0,
       }}
     >
+      <img
+        src="/chango-pepper-logo.png"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          height: '100vh',
+          width: 'auto',
+          opacity: showLogo ? 1 : 0,
+          transition: `opacity ${FADE_MS}ms ease`,
+          pointerEvents: 'none',
+        }}
+      />
       <div
         style={{
           display: 'flex',
