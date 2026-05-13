@@ -213,7 +213,8 @@ function ControlView() {
   const timerCircleContainerRef = useRef<HTMLButtonElement | null>(null)
   const timerActionsContainerRef = useRef<HTMLDivElement | null>(null)
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
-  const songIntroCues = currentSongId ? getLibrarySongById(currentSongId)?.intro_cues ?? '' : ''
+  const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
+  const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -602,8 +603,8 @@ function ControlView() {
                       {nextPreviewText}
                     </span>
                   )}
-                  {notStarted && songIntroCues && (
-                    <p className="control-intro-cues">{songIntroCues}</p>
+                  {notStarted && songIntro && (
+                    <p className="control-song-intro">{songIntro}</p>
                   )}
                   {notStarted && (
                     <p className="control-state-instruction">Press Next to reveal the first line</p>
