@@ -959,9 +959,12 @@ function ProjectionView() {
   const renderedText = translation
   const showContent = index >= 0 && !blank && !isSectionMarker
 
-  const hasEverStartedRef = useRef<boolean>(false)
-  if (index >= 0) hasEverStartedRef.current = true
-  const showLogo = !hasEverStartedRef.current
+  const currentSongId = getCurrentSongId()
+  const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
+  const singingLang = getSingingLanguage()
+
+  const showIntroScreen = index === -1 && lines.length > 0
+  const showLogo = index === -1 && lines.length === 0
 
   const [displayedText, setDisplayedText] = useState('')
   const [isVisible, setIsVisible] = useState(false)
@@ -1091,6 +1094,36 @@ function ProjectionView() {
           pointerEvents: 'none',
         }}
       />
+      {showIntroScreen && currentLibrarySong && (
+        <div
+          data-testid="song-intro-screen"
+          className="projection-intro-screen"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.25em',
+            textAlign: 'center',
+            padding: '0 2em',
+          }}
+        >
+          <span className="projection-intro-title">
+            {currentLibrarySong.title}
+          </span>
+          {effectiveLang !== singingLang &&
+            currentLibrarySong.title_translations?.[effectiveLang] && (
+              <span className="projection-intro-translated-title">
+                ({currentLibrarySong.title_translations[effectiveLang]})
+              </span>
+            )}
+          {currentLibrarySong.intro?.[effectiveLang] && (
+            <span className="projection-intro-tagline">
+              {currentLibrarySong.intro[effectiveLang]}
+            </span>
+          )}
+        </div>
+      )}
       <div
         style={{
           display: 'flex',
