@@ -11,6 +11,7 @@ import {
   isNavigationEnabled,
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
+import { KEY_ARMED_BROADCAST } from './performanceState'
 import { useEffect, useState, useRef } from 'react'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
@@ -957,14 +958,30 @@ function ProjectionView() {
       ? getLyricText(currentItem as LyricLine, effectiveLang)
       : ''
   const renderedText = translation
-  const showContent = index >= 0 && !blank && !isSectionMarker
 
   const currentSongId = getCurrentSongId()
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const singingLang = getSingingLanguage()
 
-  const showIntroScreen = index === -1 && lines.length > 0
-  const showLogo = index === -1 && lines.length === 0
+  // Show logo on every mount; reveal intro only after the control fires an arm transition.
+  // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
+  // storage event that the projection can receive. This prevents leftover lyrics appearing
+  // when the projection window is reopened mid-song.
+  const isArmed = index === -1 && lines.length > 0
+  const [hasSeenArmedSinceMount, setHasSeenArmedSinceMount] = useState(false)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY_ARMED_BROADCAST && e.newValue === '1') {
+        setHasSeenArmedSinceMount(true)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  const showLogo = !hasSeenArmedSinceMount
+  const showIntroScreen = hasSeenArmedSinceMount && isArmed && !!currentLibrarySong
+  const showContent = hasSeenArmedSinceMount && index >= 0 && !blank && !isSectionMarker
 
   const [displayedText, setDisplayedText] = useState('')
   const [isVisible, setIsVisible] = useState(false)
@@ -1135,12 +1152,7 @@ function ProjectionView() {
       >
         <span
           className="projection-lyric"
-          style={{
-            opacity: isVisible ? 1 : 0,
-            fontFamily: "'EB Garamond', Georgia, serif",
-            fontSize: '72px',
-            lineHeight: 1.25,
-          }}
+          style={{ opacity: isVisible ? 1 : 0 }}
         >
           {displayedText}
         </span>
