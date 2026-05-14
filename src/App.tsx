@@ -351,6 +351,15 @@ function ControlView() {
     setShowNextSongTile(false)
   }
 
+  // When re-arming mid-song, restart so the performer sees the intro screen first.
+  const handleArmAndRestart = () => {
+    if (index >= 0) {
+      goRestart()
+      sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+    }
+    handleArmClick()
+  }
+
   const restartKeyHold = useRestartKeyHold(handleRestart)
 
   const handlersRef = useRef({
@@ -360,7 +369,7 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
-    arm: armWithConcertSessionStart,
+    arm: handleArmAndRestart,
     unarm,
     controlState,
     nextDisabled,
@@ -372,7 +381,7 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
-    arm: armWithConcertSessionStart,
+    arm: handleArmAndRestart,
     unarm,
     controlState,
     nextDisabled,
@@ -580,7 +589,7 @@ function ControlView() {
                   <button
                     type="button"
                     className="ctrl-btn ctrl-arm"
-                    onClick={handleArmClick}
+                    onClick={handleArmAndRestart}
                     disabled={!canArm}
                   >
                     Arm
