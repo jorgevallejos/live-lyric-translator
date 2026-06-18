@@ -4,6 +4,7 @@ Streaming ASR (Automatic Speech Recognition) module.
 Uses whisper-timestamped for word-level timing in Spanish.
 """
 
+import json
 import whisper_timestamped as whisper
 from typing import List, Dict, Optional, Tuple
 import numpy as np
@@ -215,5 +216,46 @@ class StreamingASR:
                         "word_count": len(line_words),
                     }
                 )
+
+        return ground_truth
+
+    @staticmethod
+    def load_ground_truth_from_json(
+        json_path: str, lyrics: List[str]
+    ) -> List[Dict]:
+        """
+        Load hand-marked ground truth from JSON file.
+
+        Expected JSON format:
+        [
+            {"line_idx": 0, "start_time": 0.5},
+            {"line_idx": 1, "start_time": 1.3},
+            ...
+        ]
+
+        Args:
+            json_path: Path to ground truth JSON file
+            lyrics: List of lyric lines (for context)
+
+        Returns:
+            List of ground truth entries with line_idx and start_time
+        """
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        ground_truth = []
+        for entry in data:
+            line_idx = entry.get("line_idx")
+            start_time = entry.get("start_time")
+
+            if line_idx is not None and start_time is not None:
+                if 0 <= line_idx < len(lyrics):
+                    ground_truth.append(
+                        {
+                            "line_idx": line_idx,
+                            "line_text": lyrics[line_idx],
+                            "start_time": start_time,
+                        }
+                    )
 
         return ground_truth

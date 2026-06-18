@@ -41,11 +41,17 @@ def extract_spanish_lyrics(song_data: Dict) -> List[str]:
     return lyrics
 
 
-def run_spike(audio_path: str, song_path: str, model_size: str = "base"):
+def run_spike(
+    audio_path: str,
+    song_path: str,
+    model_size: str = "base",
+    ground_truth_path: str = None,
+    test_label: str = "Test",
+):
     """Run the ASR lyric-following spike."""
 
     print(f"\n{'='*80}")
-    print("LIVE ASR LYRIC-FOLLOWING SPIKE")
+    print(f"LIVE ASR LYRIC-FOLLOWING SPIKE: {test_label}")
     print(f"{'='*80}")
 
     # Load song
@@ -60,14 +66,27 @@ def run_spike(audio_path: str, song_path: str, model_size: str = "base"):
     print(f"\n2. Initializing ASR (Whisper-{model_size}, Spanish)...")
     asr = StreamingASR(model_size=model_size, language="es")
 
-    # Get ground truth (word-level timings)
-    print(f"\n3. Transcribing audio to get ground truth...")
-    result = asr.transcribe_full(audio_path)
-    print(f"   Full transcription: {result['text'][:100]}...")
-    print(f"   Found {len(result['word_sequence'])} words with timing")
-
-    ground_truth = asr.get_ground_truth_by_line(result["word_sequence"], lyrics)
-    print(f"   Mapped to {len(ground_truth)} ground truth line timings")
+    # Get ground truth
+    if ground_truth_path and Path(ground_truth_path).exists():
+        print(f"\n3. Loading hand-marked ground truth from {ground_truth_path}...")
+        try:
+            ground_truth = asr.load_ground_truth_from_json(ground_truth_path, lyrics)
+            print(f"   Loaded {len(ground_truth)} hand-marked line timings")
+        except Exception as e:
+            print(f"   ⚠️  Failed to load ground truth: {e}")
+            print(f"   Falling back to auto-derived ground truth...")
+            result = asr.transcribe_full(audio_path)
+            print(f"   Full transcription: {result['text'][:100]}...")
+            print(f"   Found {len(result['word_sequence'])} words with timing")
+            ground_truth = asr.get_ground_truth_by_line(result["word_sequence"], lyrics)
+            print(f"   Mapped to {len(ground_truth)} auto-derived line timings")
+    else:
+        print(f"\n3. Transcribing audio to get auto-derived ground truth...")
+        result = asr.transcribe_full(audio_path)
+        print(f"   Full transcription: {result['text'][:100]}...")
+        print(f"   Found {len(result['word_sequence'])} words with timing")
+        ground_truth = asr.get_ground_truth_by_line(result["word_sequence"], lyrics)
+        print(f"   Mapped to {len(ground_truth)} auto-derived line timings")
 
     # Simulate real-time streaming
     print(f"\n4. Simulating real-time streaming (chunk duration: 2.0s)...")
@@ -104,10 +123,10 @@ def run_spike(audio_path: str, song_path: str, model_size: str = "base"):
     comparison = reporter.compare_advances(ground_truth, detected_advances)
 
     # Print report
-    reporter.print_report(comparison, title="ASR Lyric-Following Results (Vocal Only)")
+    reporter.print_report(comparison, title=f"ASR Lyric-Following Results: {test_label}")
 
     # Export CSV
-    output_csv = Path(audio_path).stem + "_results.csv"
+    output_csv = Path(audio_path).stem + f"_{test_label.replace(' ', '_')}_results.csv"
     reporter.export_csv(comparison, output_csv)
 
     print(f"\n{'='*80}")
@@ -174,7 +193,23 @@ if __name__ == "__main__":
         choices=["tiny", "base", "small", "medium", "large"],
         help="Whisper model size (default: base)",
     )
+    parser.add_argument(
+        "--ground-truth",
+        default=None,
+        help="Path to hand-marked ground truth JSON file (optional)",
+    )
+    parser.add_argument(
+        "--label",
+        default="Test",
+        help="Label for this test run (for output files)",
+    )
 
     args = parser.parse_args()
 
-    run_spike(args.audio, args.song, args.model)
+    run_spike(
+        args.audio,
+        args.song,
+        args.model,
+        ground_truth_path=args.ground_truth,
+        test_label=args.label,
+    )

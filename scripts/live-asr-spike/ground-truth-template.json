@@ -1,0 +1,56 @@
+[
+  {
+    "comment": "Hand-marked ground truth: when does each lyric line START being sung?",
+    "instructions": "Fill in line_idx (0-based) and start_time (seconds from beginning of audio) for each line you want to mark. Remove this comment before using."
+  },
+  {
+    "line_idx": 0,
+    "start_time": 0.0,
+    "comment": "Me acuestan en la cama"
+  },
+  {
+    "line_idx": 1,
+    "start_time": 0.0,
+    "comment": "de plata brillante."
+  },
+  {
+    "line_idx": 2,
+    "start_time": 0.0,
+    "comment": "Me ungen con hierbas,"
+  },
+  {
+    "line_idx": 3,
+    "start_time": 0.0,
+    "comment": "manteca, ajo y sal."
+  },
+  {
+    "line_idx": 4,
+    "start_time": 0.0,
+    "comment": "Mi piel como cristal,"
+  },
+  {
+    "line_idx": 5,
+    "start_time": 0.0,
+    "comment": "El chef me admira como arte."
+  },
+  {
+    "line_idx": 6,
+    "start_time": 0.0,
+    "comment": "A la parrilla, lento, a fuego lento,"
+  },
+  {
+    "line_idx": 7,
+    "start_time": 0.0,
+    "comment": "cada segundo que pasa, cada minuto,"
+  },
+  {
+    "line_idx": 8,
+    "start_time": 0.0,
+    "comment": "cada gota de jugo, cada aroma,"
+  },
+  {
+    "line_idx": 9,
+    "start_time": 0.0,
+    "comment": "me acerca a mi destino."
+  }
+]
