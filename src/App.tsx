@@ -11,8 +11,9 @@ import {
   setCustomProfile,
 } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
-import { getMediaPath, absolutePathToFileUrl, validateVideoForImport } from './mediaPathStore'
-import { VideoProjectionRegion, setVideoSeekTarget } from './VideoProjectionRegion'
+import { getMediaPath } from './mediaPathStore'
+import { VideoProjectionRegion } from './VideoProjectionRegion'
+import { VideoControlPanel } from './VideoControlPanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -244,6 +245,8 @@ function ControlView() {
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
+  const isVideoMode = currentLibrarySong?.media?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -265,7 +268,7 @@ function ControlView() {
     lineCount: lines.length,
     currentIndex: index,
   })
-  const { sendCommandWithState } = useWebSocket({
+  const { sendCommandWithState, sendSeek } = useWebSocket({
     index,
     blank,
     applyRemoteState,
@@ -694,7 +697,18 @@ function ControlView() {
             </div>
           </div>
         )}
-        {showArmedShell && (
+        {showArmedShell && isVideoMode && (
+          <VideoControlPanel
+            absolutePath={resolvedVideoPath}
+            mediaSrc={currentLibrarySong!.media!.src}
+            media={currentLibrarySong!.media!}
+            timeline={currentLibrarySong!.timeline ?? []}
+            lines={lines}
+            singingLang={effectiveSingingLang}
+            onSeek={sendSeek}
+          />
+        )}
+        {showArmedShell && !isVideoMode && (
           <>
             <div className="control-performing-stage" data-testid="performing-content">
               <div className="control-performing-stage-stack">
