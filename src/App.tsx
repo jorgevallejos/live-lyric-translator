@@ -26,7 +26,7 @@ import {
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
 import { KEY_ARMED_BROADCAST } from './performanceState'
-import { useEndCardState } from './endCardState'
+import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
 import { useEffect, useState, useRef } from 'react'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
@@ -1229,6 +1229,28 @@ function ProjectionView() {
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
+  // End-card: cross-window state via localStorage (same origin as control window).
+  const [endCardVisible, setEndCardVisibleState] = useState(getEndCardVisible)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY_END_CARD_VISIBLE || e.key === null) {
+        setEndCardVisibleState(getEndCardVisible())
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  const [endCardLines, setEndCardLines] = useState<string[]>([])
+  useEffect(() => {
+    fetch('/end-card.md')
+      .then((r) => r.text())
+      .then((text) => {
+        setEndCardLines(text.split('\n').filter((l) => l.trim() !== ''))
+      })
+      .catch(() => { /* content stays empty */ })
+  }, [])
+
   const showLogo = !hasSeenArmedSinceMount
   const showIntroScreen = hasSeenArmedSinceMount && isArmed && !!currentLibrarySong
   const showContent = hasSeenArmedSinceMount && index >= 0 && !blank && !isSectionMarker
@@ -1369,6 +1391,35 @@ function ProjectionView() {
           effectiveLang={effectiveLang}
           layout={layout}
         />
+      </div>
+    )
+  }
+
+  if (endCardVisible) {
+    return (
+      <div
+        className="projection-screen projection-end-card-screen"
+        data-testid="end-card-screen"
+        style={{
+          background: '#000',
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: 0,
+          gap: '0.5em',
+          textAlign: 'center',
+          padding: '2em',
+          boxSizing: 'border-box',
+        }}
+      >
+        {endCardLines.map((line, i) => (
+          <p key={i} className="projection-end-card-line">
+            {line.replace(/^#+\s*/, '')}
+          </p>
+        ))}
       </div>
     )
   }
