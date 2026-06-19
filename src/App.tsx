@@ -11,6 +11,8 @@ import {
   setCustomProfile,
 } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
+import { getMediaPath, absolutePathToFileUrl, validateVideoForImport } from './mediaPathStore'
+import { VideoProjectionRegion, setVideoSeekTarget } from './VideoProjectionRegion'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -1314,6 +1316,35 @@ function ProjectionView() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [singleScreen])
+
+  // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
+  const isVideoMode = currentLibrarySong?.media?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
+
+  if (isVideoMode && resolvedVideoPath) {
+    return (
+      <div
+        className="projection-screen"
+        style={{
+          background: '#000',
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          margin: 0,
+        }}
+      >
+        <VideoProjectionRegion
+          absolutePath={resolvedVideoPath}
+          media={currentLibrarySong!.media!}
+          timeline={currentLibrarySong!.timeline ?? []}
+          lines={lines}
+          effectiveLang={effectiveLang}
+          layout={layout}
+        />
+      </div>
+    )
+  }
 
   return (
     <div
