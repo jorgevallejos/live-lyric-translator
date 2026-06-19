@@ -5,20 +5,8 @@ import {
   setEndCardVisible,
 } from './endCardState'
 
-function makeStorage(): Storage {
-  const store = new Map<string, string>()
-  return {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => { store.set(k, v) },
-    removeItem: (k: string) => { store.delete(k) },
-    clear: () => { store.clear() },
-    key: (i: number) => [...store.keys()][i] ?? null,
-    get length() { return store.size },
-  }
-}
-
 describe('endCardState — pure functions', () => {
-  let store: ReturnType<typeof makeStorage> & { _map?: Map<string, string> }
+  let store: Storage & { _map?: Map<string, string> }
 
   beforeEach(() => {
     const map = new Map<string, string>()
