@@ -10,7 +10,6 @@
       "Bash(npm run dev:single)",
       "Bash(npm run pack)",
       "Bash(npx vitest run:*)",
-
       "Bash(git status)",
       "Bash(git status:*)",
       "Bash(git diff)",
@@ -19,7 +18,6 @@
       "Bash(git branch:*)",
       "Bash(git show:*)",
       "Bash(git rev-parse:*)",
-
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
       "Bash(git checkout:*)",
@@ -28,14 +26,15 @@
       "Bash(git commit:*)",
       "Bash(git push -u origin:*)",
       "Bash(git push origin:*)",
-
       "Bash(gh pr create:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr list:*)",
       "Bash(gh pr checks:*)",
       "Bash(gh pr status)",
       "Bash(gh repo view:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git merge *)",
+      "Bash(git restore *)"
     ],
     "deny": [
       "Bash(git push --force*)",

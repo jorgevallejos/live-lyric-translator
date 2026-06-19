@@ -23,9 +23,15 @@ A first Code pass cleared the truly-dead branches and surfaced a **major correct
 
 **Keep, do not touch:** `main`, `spike/auto-advance-phase0`, `spike/live-asr-lyric-following`.
 
-### Finish-Step-0 Code prompt
+### Outstanding housekeeping (as of Prompt A run)
 
-> On the live-lyric-translator repo: (1) delete `feat/serif-and-intro-cues` locally and on origin. (2) Drop `stash@{0}`. (3) Do NOT touch `fix/intro-cues-and-startup-reset` (we're merging it next), `main`, or the two `spike/*` branches. Print the final `git branch -vv`, then stop.
+Three now-merged/dead local branches still linger, and `main` has an unpushed commit. Clear these next time you're in Code (none block Prompt A):
+
+- Delete: `feat/serif-and-intro-cues` (dead), `feat/v3-intro-schema` (merged PR #11), `fix/intro-cues-and-startup-reset` (merged PR #10) — local + origin.
+- Drop `stash@{0}` if not already.
+- `git push` main — it's ahead of origin by 1 (the plan-file commit `0c610ba`).
+
+> **Cleanup prompt:** On live-lyric-translator, delete these merged/dead branches locally and on origin: `feat/serif-and-intro-cues`, `feat/v3-intro-schema`, `fix/intro-cues-and-startup-reset` (all use `git branch -d`; if any refuses, tell me before forcing). Drop `stash@{0}` if it still exists. Push `main` to origin. Do NOT touch the two `spike/*` branches. Print `git branch -vv` and stop.
 
 ---
 
@@ -65,12 +71,13 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step
 | # | Prompt | Delivers | Depends on | Status |
 |---|--------|----------|------------|--------|
 | 0 | **Housekeeping** | Delete dead branches + stash; clean `main`. | — | ◑ Mostly done; finish-prompt above (delete serif branch + drop stash) |
-| 0.5 | **v3 foundation** | Migrate main v2→v3: `title_translations`, `intro`, intro screen. Base for everything. | Step 0 | 🟢 `feat/v3-intro-schema` ready, 399/399 green, conflict-free rebase — in `/release`. After merge: delete `fix/intro-cues-and-startup-reset`. |
-| 1 | **A** — song schema | `timeline` + `media` fields, back-compatible. | 0.5 | ☐ Unblocked once 0.5 merges. Rebuild fresh on the v3 base (prompt below). `c0d6b6a` kept only as reference — too tangled to cherry-pick. |
-| 2 | **C** — record-by-tapping | Capture a `timeline` by performing once. Cue-capture MVP. | A | ☐ Not started |
-| 3 | **F** — display profiles + band | Big-cinema / Small-130×100 / Custom; app composites the black subtitle band. | A | ☐ Not started |
-| 4 | **D** — VIDEO mode | Projection plays clean animation + overlaid translation, bound to `video.currentTime`. Replaces QuickTime + per-language + per-screen exports. | A, C, F | ☐ Not started |
-| 5 | **H** — end-card | Reusable acknowledgements/credits screen. | A | ☐ Not started |
+| 0.5 | **v3 foundation** | Migrate main v2→v3: `title_translations`, `intro`, intro screen. Base for everything. | Step 0 | ✅ Merged to main (PR #11, 399 green). main is now v3. |
+| 1 | **A** — song schema | `timeline` + `media` fields, back-compatible. | 0.5 | 🟢 `feat/timeline-media-fields`, 419 green, 2 clean commits (Red/Green) — in `/release`. |
+| 2 | **C** — record-by-tapping | Capture a `timeline` by performing once. Cue-capture MVP. | A | 🟢 Built (`timelineCapture.ts` 4 pure fns + 20 tests; `updateSongTimeline` in store; Record-Timeline UI w/ Save/Discard) — in `/release`. |
+| 3 | **F** — display profiles + band | Big-cinema / Small-130×100 / Custom; app composites the black subtitle band. | A | 🟢 Built — `computeProjectionLayout` pure fn (17 tests) + store (7 tests), 6 commits, presets calibrated to reference stills. In `/release`. |
+| 4 | **D** — VIDEO mode | Projection plays clean animation + overlaid translation, bound to `video.currentTime`. Replaces QuickTime + per-language + per-screen exports. | A, C, F | ✅ Merged to main. |
+| 4b | **D-wire** — wire Tragedia | `media` block added to Tragedia JSON ✅; capture a rough `timeline` in-app to see VIDEO mode end-to-end. | D, C | ☐ In-app task, do whenever (optional/throwaway calibration) — see below. |
+| 5 | **H** — end-card | Reusable acknowledgements/credits screen. | A | ☐ Next up (prompt below) |
 | 6 | **G** — count-in / metronome | Performer-view visual count-in; auto-rolls on the downbeat. Adds `tempo` field. | A | ☐ Not started |
 | 7 | **E** — TIMED mode + nudge | Wall-clock timeline for fixed-tempo songs, ±0.25s nudge + manual override. | A | ☐ Not started |
 | 8 | **B** — offline alignment | Auto-generate `timeline` from lyrics + vocal stem (WhisperX). **Defer** until late-June produced master exists. | A | ☐ Deferred |
@@ -99,7 +106,9 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step
 
 ### 4. Prompt D — VIDEO mode (Request 2)
 
-> Add a VIDEO playback mode driven by a song's `media` (type `video`) + `timeline`. In the projection (audience) window, render the **clean, full-frame** animation (no baked-in black band) with the translated subtitle (current audience language) overlaid — the app replaces QuickTime, so the projector only ever shows this app. The app composites the projection frame itself: black background, `<video>` with `object-fit: contain` in the upper region, and a black subtitle band below whose height comes from the active **display profile** (see Prompt F). Start playback at `media.trimStart` to skip the clean master's blank lead-in, and bind the subtitle + blank-before/after behaviour to `video.currentTime + media.offset` — not a separate timer. Style the subtitle per `docs/subtitle-format.md`: white serif, centered in the band, dark outline/shadow, sized from the display profile's text scale. In the control/performer view, show the same video smaller with the current Spanish (singing-language) line and the next line greyed below it, plus a position bar. Add a thumbnail-strip fallback view (periodic frames as markers + current/next line) behind a toggle. Manual arrows/pedal must still override and re-seek. Keep the WebSocket sync model. TDD the cue-lookup-by-time as a pure function first.
+> Add a VIDEO playback mode driven by a song's `media` (type `video`) + `timeline`. In the projection (audience) window, render the **clean, full-frame** animation (no baked-in black band) with the translated subtitle (current audience language) overlaid — the app replaces QuickTime, so the projector only ever shows this app. The app composites the projection frame itself: black background, `<video>` with `object-fit: contain` in the upper region, and a black subtitle band below whose height comes from the active **display profile** (`computeProjectionLayout` from F). Start playback at `media.trimStart` to skip any blank lead-in, and bind the subtitle + blank-before/after behaviour to `video.currentTime + media.offset` — not a separate timer. The video is **muted** on the projection (audience hears the live performance). Style the subtitle per `docs/subtitle-format.md`. In the control/performer view, show the same video smaller with the current Spanish (singing-language) line and the next line greyed below it, plus a position bar. Add a thumbnail-strip fallback view (periodic frames as markers + current/next line) behind a toggle. Manual arrows/pedal must still override and re-seek. Keep the WebSocket sync model. TDD the cue-lookup-by-time as a pure function first.
+>
+> **Media path strategy (per `docs/media-assets.md`):** the song JSON's `media.src` is a logical filename only (e.g. `"tragedia-de-cerdo-asado.mp4"`), never an absolute path. Resolve it via local app settings (same local-state layer as the display profile) holding a `src → absolute path` mapping. Add a file-picker (Electron open-file dialog) so the user links the video once; remember the path. If the file isn't found at the remembered path, show a "Locate video…" re-link prompt rather than failing. On link/import, validate the file and **warn** (not block) if it's not a web-playable delivery encode (target: MP4 H.264, ≤1080p, ~5–10 Mbps; reject/warn on ProRes/MOV or very large files). Tests must use a fixture path and not depend on the real video.
 
 ### 5. Prompt H — end-card / acknowledgements screen
 
@@ -125,10 +134,27 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step
 
 ---
 
+## D-wire — in-app workflow (not a Code prompt)
+
+Goal: see VIDEO mode play end-to-end on the provisional Tragedia master. This is throwaway calibration — the accurate timeline comes later from Prompt B against the produced master, so don't perfect it.
+
+1. **Data:** ✅ done — `media` block added to `songs/tragedia-de-cerdo-asado.json` (`src: "tragedia-de-cerdo-asado.mp4"`, offset 0, trimStart 0). Re-import the song so the store picks it up.
+2. **Link the video:** in the app, use the new file-picker to point `tragedia-de-cerdo-asado.mp4` at the real file (`~/Chango Pepper/animations/tragedia-de-cerdo-asado/Tragedia de Cerdo Asado.mp4`, the 89 MB one — not the 22 GB `.mov`). The path is remembered locally.
+3. **Capture a rough timeline:** play the video and use Record mode (from C) to tap through the lyrics in time with it. Save the captured timeline into the song. _Note: Record mode (C) uses its own clock, so taps land ~your reaction-lag late vs the video — that's fine, the next step corrects it._
+4. **Test + nudge:** switch to VIDEO mode, watch the projection. Use `media.offset` to shift all subtitles earlier/later until they sit right, and the manual override (arrow/pedal) to re-sync any line live.
+
+If the subtitles feel systematically late by a fixed amount, that's the reaction-lag — a single negative `offset` fixes the whole song at once.
+
+> **Better-but-optional later:** make Record mode timestamp against `video.currentTime` (not its own clock) when a video is loaded, for lag-free capture. Skip it for now — Prompt B (forced alignment) supersedes manual capture entirely once the produced master exists.
+
 ## Notes
 
-- **A unblocks everything** — re-cut it off `main`, merge it, and pull before starting any other prompt.
+- **A unblocks everything** — merge it and pull before starting any other prompt.
+- **Timeline indexing (from A):** the `timeline` array is parallel to the **full items array** (lyrics + section markers), not just lyric lines, and validates length against that total. C (capture) and D (cue-lookup) must index the same way — one timeline entry per item, markers included.
 - **D is the payoff** but needs C and F merged first (cues + band geometry). Fastest path to the win: A → C → F → D.
+- **D assets (verified 2026-06-19):** live at the Chango Pepper **root**, not in the repo — `animations/tragedia-de-cerdo-asado/` + `songs/`. Clean master = `Tragedia de Cerdo Asado.mp4` (89 MB, 159.5 s, no burned text); ignore the 22 GB `.mov` (too heavy) and the two "EN subtitles" exports (the old per-screen versions D replaces). `reference/` stills present. `docs/subtitle-format.md` restored 2026-06-19.
+- **Asset path decision for D — DECIDED 2026-06-19 (`docs/media-assets.md`):** song JSON holds a logical `media.src` filename only; the absolute path lives in local app settings via a one-time file picker, with graceful "Locate video…" re-link. Delivery spec: MP4 H.264, ≤1080p, ~5–10 Mbps (audio kept but muted at play); warn on ProRes/large files. Big video masters stay out of git (outside the repo by design).
+- **Tragedia JSON** is already v3-shaped (`title_translations` + `intro`) but has no `media`/`timeline` — that's step **D-wire**.
 - **E and G survive the ASR shelving** — E covers fixed-tempo songs, G is the count-in; neither depends on voice-following.
 - **B before the produced master = mechanism only.** Wire and sanity-check, but the real alignment pass runs against the produced master's time-locked vocal stem (late June), not the current `voice.mp3` (different take, didn't match).
 - The full design rationale (the "why" behind each prompt) lived in `docs/auto-advance-and-video-sync.md`, also lost. I can rebuild that too from this chat if you want it back.
