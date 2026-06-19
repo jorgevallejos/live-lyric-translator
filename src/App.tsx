@@ -11,6 +11,7 @@ import {
   isNavigationEnabled,
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
+import { KEY_ARMED_BROADCAST } from './performanceState'
 import { useEffect, useState, useRef } from 'react'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
@@ -213,7 +214,8 @@ function ControlView() {
   const timerCircleContainerRef = useRef<HTMLButtonElement | null>(null)
   const timerActionsContainerRef = useRef<HTMLDivElement | null>(null)
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
-  const songIntroCues = currentSongId ? getLibrarySongById(currentSongId)?.intro_cues ?? '' : ''
+  const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
+  const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -349,6 +351,15 @@ function ControlView() {
     setShowNextSongTile(false)
   }
 
+  // When re-arming mid-song, restart so the performer sees the intro screen first.
+  const handleArmAndRestart = () => {
+    if (index >= 0) {
+      goRestart()
+      sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+    }
+    handleArmClick()
+  }
+
   const restartKeyHold = useRestartKeyHold(handleRestart)
 
   const handlersRef = useRef({
@@ -358,7 +369,7 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
-    arm: armWithConcertSessionStart,
+    arm: handleArmAndRestart,
     unarm,
     controlState,
     nextDisabled,
@@ -370,7 +381,7 @@ function ControlView() {
     handleBlankToggle,
     goToSongs,
     goToLanguages,
-    arm: armWithConcertSessionStart,
+    arm: handleArmAndRestart,
     unarm,
     controlState,
     nextDisabled,
@@ -578,7 +589,7 @@ function ControlView() {
                   <button
                     type="button"
                     className="ctrl-btn ctrl-arm"
-                    onClick={handleArmClick}
+                    onClick={handleArmAndRestart}
                     disabled={!canArm}
                   >
                     Arm
@@ -602,8 +613,8 @@ function ControlView() {
                       {nextPreviewText}
                     </span>
                   )}
-                  {notStarted && songIntroCues && (
-                    <p className="control-intro-cues">{songIntroCues}</p>
+                  {notStarted && songIntro && (
+                    <p className="control-song-intro">{songIntro}</p>
                   )}
                   {notStarted && (
                     <p className="control-state-instruction">Press Next to reveal the first line</p>
@@ -956,11 +967,30 @@ function ProjectionView() {
       ? getLyricText(currentItem as LyricLine, effectiveLang)
       : ''
   const renderedText = translation
-  const showContent = index >= 0 && !blank && !isSectionMarker
 
-  const hasEverStartedRef = useRef<boolean>(false)
-  if (index >= 0) hasEverStartedRef.current = true
-  const showLogo = !hasEverStartedRef.current
+  const currentSongId = getCurrentSongId()
+  const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
+  const singingLang = getSingingLanguage()
+
+  // Show logo on every mount; reveal intro only after the control fires an arm transition.
+  // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
+  // storage event that the projection can receive. This prevents leftover lyrics appearing
+  // when the projection window is reopened mid-song.
+  const isArmed = index === -1 && lines.length > 0
+  const [hasSeenArmedSinceMount, setHasSeenArmedSinceMount] = useState(false)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY_ARMED_BROADCAST && e.newValue === '1') {
+        setHasSeenArmedSinceMount(true)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  const showLogo = !hasSeenArmedSinceMount
+  const showIntroScreen = hasSeenArmedSinceMount && isArmed && !!currentLibrarySong
+  const showContent = hasSeenArmedSinceMount && index >= 0 && !blank && !isSectionMarker
 
   const [displayedText, setDisplayedText] = useState('')
   const [isVisible, setIsVisible] = useState(false)
@@ -1090,6 +1120,36 @@ function ProjectionView() {
           pointerEvents: 'none',
         }}
       />
+      {showIntroScreen && currentLibrarySong && (
+        <div
+          data-testid="song-intro-screen"
+          className="projection-intro-screen"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.25em',
+            textAlign: 'center',
+            padding: '0 2em',
+          }}
+        >
+          <span className="projection-intro-title">
+            {currentLibrarySong.title}
+          </span>
+          {effectiveLang !== singingLang &&
+            currentLibrarySong.title_translations?.[effectiveLang] && (
+              <span className="projection-intro-translated-title">
+                ({currentLibrarySong.title_translations[effectiveLang]})
+              </span>
+            )}
+          {currentLibrarySong.intro?.[effectiveLang] && (
+            <span className="projection-intro-tagline">
+              {currentLibrarySong.intro[effectiveLang]}
+            </span>
+          )}
+        </div>
+      )}
       <div
         style={{
           display: 'flex',
@@ -1101,12 +1161,7 @@ function ProjectionView() {
       >
         <span
           className="projection-lyric"
-          style={{
-            opacity: isVisible ? 1 : 0,
-            fontFamily: "'EB Garamond', Georgia, serif",
-            fontSize: '72px',
-            lineHeight: 1.25,
-          }}
+          style={{ opacity: isVisible ? 1 : 0 }}
         >
           {displayedText}
         </span>
