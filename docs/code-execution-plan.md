@@ -77,8 +77,8 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step
 | 3 | **F** — display profiles + band | Big-cinema / Small-130×100 / Custom; app composites the black subtitle band. | A | 🟢 Built — `computeProjectionLayout` pure fn (17 tests) + store (7 tests), 6 commits, presets calibrated to reference stills. In `/release`. |
 | 4 | **D** — VIDEO mode | Projection plays clean animation + overlaid translation, bound to `video.currentTime`. Replaces QuickTime + per-language + per-screen exports. | A, C, F | ✅ Merged to main. |
 | 4b | **D-wire** — wire Tragedia | `media` block added to Tragedia JSON ✅; capture a rough `timeline` in-app to see VIDEO mode end-to-end. | D, C | ☐ In-app task, do whenever (optional/throwaway calibration) — see below. |
-| 5 | **H** — end-card | Reusable acknowledgements/credits screen. | A | ☐ Next up (prompt below) |
-| 6 | **G** — count-in / metronome | Performer-view visual count-in; auto-rolls on the downbeat. Adds `tempo` field. | A | ☐ Not started |
+| 5 | **H** — end-card | Reusable acknowledgements/credits screen. | A | ✅ Merged to main. |
+| 6 | **G** — count-in / metronome | Performer-view visual count-in; auto-rolls on the downbeat. Adds `tempo` field. | A | ◑ Next up / running (prompt below) |
 | 7 | **E** — TIMED mode + nudge | Wall-clock timeline for fixed-tempo songs, ±0.25s nudge + manual override. | A | ☐ Not started |
 | 8 | **B** — offline alignment | Auto-generate `timeline` from lyrics + vocal stem (WhisperX). **Defer** until late-June produced master exists. | A | ☐ Deferred |
 | — | **I** — live ASR spike | **Shelved** 2026-06-18 (no-go on provisional take). Revisit after produced master. | — | ⏸ Shelved |
