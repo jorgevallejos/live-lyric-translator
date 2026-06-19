@@ -1,0 +1,95 @@
+# Code execution plan — auto-advance & video-sync feature (consolidated)
+
+_Rebuilt 2026-06-19 as a single self-contained runsheet. Contains the full A–H prompt blocks inline + run order + status, so it doesn't depend on any other file. Prompt I (live ASR) is **shelved** — see `project-context.md`._
+
+> ⚠️ **Commit this file** so it can't be lost again. The previous version was untracked and got wiped during a branch cleanup. After saving: `git add docs/code-execution-plan.md && git commit -m "docs: add consolidated Code execution plan"` (on a `docs/…` branch or directly, your call).
+
+---
+
+## How to run each prompt
+
+You drive Claude Code; I track status here. For **every** prompt, start clean from `main` so each lands on its own branch and PR:
+
+1. Switch to `main` and pull: `git checkout main && git pull`.
+2. Open a fresh Claude Code session (one session per prompt keeps context clean).
+3. Paste the **standard wrapper** below, then the prompt body.
+4. Let it work TDD (Red → Green → Refactor), then run `/release` — branch confirm → commit-message approval → push confirm → PR via `gh`.
+5. Review the PR on GitHub, merge, delete the branch, `git checkout main && git pull`.
+6. Tell me it's merged; I tick it off and confirm the next prompt is unblocked.
+
+**Standard wrapper — prepend to every prompt:**
+
+> Work in the `live-lyric-translator` repo on a new branch off `main` named per our convention (`feat/…`, max 40 chars). Follow strict TDD (Red → Green → Refactor), small atomic commits, no mixing feature work with refactoring. Don't touch unrelated files. When done, stop before pushing so I can run `/release`.
+
+---
+
+## Run order, dependencies, status
+
+Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **A → C → F → D**.
+
+| # | Prompt | Delivers | Depends on | Status |
+|---|--------|----------|------------|--------|
+| 1 | **A** — song schema | `timeline` + `media` fields, back-compatible. Foundation. | — | ◑ Built & green (413 tests). **Not merged**; branch `feat/song-timeline-media` was mis-cut off the spike branch — re-cut off `main` (cherry-pick `c0d6b6a`) before `/release`. |
+| 2 | **C** — record-by-tapping | Capture a `timeline` by performing once. Cue-capture MVP. | A | ☐ Not started |
+| 3 | **F** — display profiles + band | Big-cinema / Small-130×100 / Custom; app composites the black subtitle band. | A | ☐ Not started |
+| 4 | **D** — VIDEO mode | Projection plays clean animation + overlaid translation, bound to `video.currentTime`. Replaces QuickTime + per-language + per-screen exports. | A, C, F | ☐ Not started |
+| 5 | **H** — end-card | Reusable acknowledgements/credits screen. | A | ☐ Not started |
+| 6 | **G** — count-in / metronome | Performer-view visual count-in; auto-rolls on the downbeat. Adds `tempo` field. | A | ☐ Not started |
+| 7 | **E** — TIMED mode + nudge | Wall-clock timeline for fixed-tempo songs, ±0.25s nudge + manual override. | A | ☐ Not started |
+| 8 | **B** — offline alignment | Auto-generate `timeline` from lyrics + vocal stem (WhisperX). **Defer** until late-June produced master exists. | A | ☐ Deferred |
+| — | **I** — live ASR spike | **Shelved** 2026-06-18 (no-go on provisional take). Revisit after produced master. | — | ⏸ Shelved |
+
+---
+
+## The prompt blocks (full text, in run order)
+
+### 1. Prompt A — extend the song schema (timeline + media)
+
+> In the live-lyric-translator repo, extend the song file format in `src/songState.ts` with two optional, back-compatible fields, TDD (Red→Green→Refactor):
+> 1. `timeline`: an optional array parallel to `lyrics`, each entry `{ start: number, end: number }` in seconds. Validate that, when present, it has the same length as the lyric-line count and that times are non-negative and monotonic.
+> 2. `media`: an optional object `{ type: "video" | "audio", src: string, offset?: number }`.
+> Add both to `ParsedSongFile` and the parse/validate path, leaving songs without these fields behaving exactly as today. Add unit tests for: missing fields (current behaviour), valid timeline/media, mismatched timeline length, and non-monotonic times. Don't wire any UI yet.
+
+### 2. Prompt C — record-by-tapping (capture a timeline by performing once)
+
+> Add a "record timeline" mode to the control view. While armed in this mode, every lyric advance (arrow or pedal) timestamps the current line against a clock started on the first advance, building a `timeline` array. On stop, offer to save the captured timeline into the loaded song JSON. Reuse the existing navigation/state machine; don't change manual behaviour outside record mode. TDD the timestamp-capture logic as a pure function first, then wire the UI.
+
+### 3. Prompt F — display profiles + dynamic black band
+
+> Add gig-level **display profiles** that control how the projection frame is composited. Each profile defines the subtitle-band height (as a % of projection height) and a subtitle text scale. Ship two presets — "Big screen (cinema)" (~13% band, smaller text) and "Small canvas 130×100" (~28% band, larger text) — plus a "Custom" option (enter band % and text scale). The selected profile is app/gig state, not per song. The projection window uses it to size the black band and the subtitle; the clean animation scales with `object-fit: contain` into the region above the band. Calibrate the two presets against the reference stills in `animations/tragedia-de-cerdo-asado/reference/`. TDD the band/text geometry as a pure function (profile + viewport → band rect + font size) first.
+
+### 4. Prompt D — VIDEO mode (Request 2)
+
+> Add a VIDEO playback mode driven by a song's `media` (type `video`) + `timeline`. In the projection (audience) window, render the **clean, full-frame** animation (no baked-in black band) with the translated subtitle (current audience language) overlaid — the app replaces QuickTime, so the projector only ever shows this app. The app composites the projection frame itself: black background, `<video>` with `object-fit: contain` in the upper region, and a black subtitle band below whose height comes from the active **display profile** (see Prompt F). Start playback at `media.trimStart` to skip the clean master's blank lead-in, and bind the subtitle + blank-before/after behaviour to `video.currentTime + media.offset` — not a separate timer. Style the subtitle per `docs/subtitle-format.md`: white serif, centered in the band, dark outline/shadow, sized from the display profile's text scale. In the control/performer view, show the same video smaller with the current Spanish (singing-language) line and the next line greyed below it, plus a position bar. Add a thumbnail-strip fallback view (periodic frames as markers + current/next line) behind a toggle. Manual arrows/pedal must still override and re-seek. Keep the WebSocket sync model. TDD the cue-lookup-by-time as a pure function first.
+
+### 5. Prompt H — end-card / acknowledgements screen
+
+> Add a reusable **end-card** screen the performer can trigger to show at the end of a concert (acknowledgements / credits / thanks), independent of any song, projected like the title screen. Content comes from a simple editable source (e.g. an `end-card.md`/config), so it's not baked into any video. TDD the show/hide state as part of the existing performance state machine.
+
+### 6. Prompt G — performer-view tempo count-in / metronome
+
+> Add a per-song optional `tempo { bpm, meter, countInBars }` to the song schema (back-compatible). In the **performer view only** (never the audience projection), render a visual beat indicator: on start, count in for `countInBars` bars showing the beat number large (e.g. 1·2·3·4 for 4/4) with the downbeat emphasised; on the first beat after the count-in, fire a "begin" event that auto-starts the song (rolls the video in VIDEO mode, starts the clock in TIMED mode). During the song, show a small persistent beat pulse that can be toggled off. Default count-in = 1 bar. TDD the beat-scheduling logic as a pure function (bpm + meter + elapsed → current beat, in-count-in?, begin-fired?) first, then wire the UI. Keep it visual only for now — no audio click.
+
+### 7. Prompt E — TIMED mode + nudge (Request 1, track-based)
+
+> Wire `useSubtitleTimer`/`subtitleState` to a real song `timeline` instead of `SAMPLE_LINES`. Add a TIMED mode: start/pause/stop the clock, drive the active line from the timeline, and add a "nudge ±0.25 s" control plus an instant manual-override (any arrow/pedal press re-seizes control and resyncs the clock to that line's start). Surface a small drift indicator. TDD the active-line-from-timeline and nudge logic as pure functions first.
+
+### 8. Prompt B — offline cue-sheet generator (forced alignment) — DEFERRED
+
+> Add a repo script `scripts/align-song.ts` (or `.py`) that takes a song JSON and an audio file (e.g. an isolated vocal stem) and produces a `timeline` array of per-line `{ start, end }` times, using forced alignment. Use WhisperX (Spanish model) for word-level timestamps and snap them to the song's lyric-line boundaries; fall back to aeneas if WhisperX isn't available. Write the result back into the song JSON under `timeline`. Document the install steps in the script header. Include a `--review` flag that prints each line with its start time so I can eyeball it. Test against `songs/tragedia-de-cerdo-asado.json` + `songs/audio/Tragedia de Cerdo Asado - voice.mp3` (vocal onset is ~18.7 s, last phrase ends ~176.4 s — use that as a sanity check).
+
+### (shelved) Prompt I — live voice-recognition spike
+
+> Build a throwaway spike (separate branch, not wired into the app) that tests whether live speech recognition can auto-advance lyric lines by following a singer. Input: `songs/tragedia-de-cerdo-asado.json` (Spanish lyric lines) + a recording of the song. Use a streaming ASR (WhisperX, whisper-timestamped, or Vosk Spanish) to transcribe the vocal in (simulated) real time, and a matching layer that advances a pointer when the recognised words cross into the next lyric line — tolerant of mis-hearings, repeated/held words (melisma), and gaps. Report, per line, the detected advance time vs a hand-marked ground truth, and the accuracy/latency. Run it first on the clean vocal, then on the mixed voice+guitar audio, to quantify how much guitar bleed hurts. Goal is a go/no-go read on live following, especially for songs with an irregular/accelerating tempo where a fixed timeline can't work.
+
+**Shelved 2026-06-18.** Ran on the provisional vocal take and failed (detected 2 of 10 lines; placed line 1 at ~141.8s vs real onset ~18.7s). Test itself wasn't valid either (placeholder sample ground truth, 10 lines vs the song's 28). Revisit after the late-June produced master + time-locked vocal stem exist.
+
+---
+
+## Notes
+
+- **A unblocks everything** — re-cut it off `main`, merge it, and pull before starting any other prompt.
+- **D is the payoff** but needs C and F merged first (cues + band geometry). Fastest path to the win: A → C → F → D.
+- **E and G survive the ASR shelving** — E covers fixed-tempo songs, G is the count-in; neither depends on voice-following.
+- **B before the produced master = mechanism only.** Wire and sanity-check, but the real alignment pass runs against the produced master's time-locked vocal stem (late June), not the current `voice.mp3` (different take, didn't match).
+- The full design rationale (the "why" behind each prompt) lived in `docs/auto-advance-and-video-sync.md`, also lost. I can rebuild that too from this chat if you want it back.
