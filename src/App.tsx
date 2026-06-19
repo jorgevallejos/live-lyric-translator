@@ -11,6 +11,9 @@ import {
   setCustomProfile,
 } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
+import { getMediaPath } from './mediaPathStore'
+import { VideoProjectionRegion } from './VideoProjectionRegion'
+import { VideoControlPanel } from './VideoControlPanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -150,6 +153,8 @@ declare global {
       isProjectionOpen: () => Promise<boolean>
       onProjectionOpened: (cb: () => void) => () => void
       onProjectionClosed: (cb: () => void) => () => void
+      openFileDialog: () => Promise<string | null>
+      getFileStats: (filePath: string) => Promise<{ exists: boolean; size: number }>
     }
   }
 }
@@ -240,6 +245,8 @@ function ControlView() {
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
+  const isVideoMode = currentLibrarySong?.media?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -261,7 +268,7 @@ function ControlView() {
     lineCount: lines.length,
     currentIndex: index,
   })
-  const { sendCommandWithState } = useWebSocket({
+  const { sendCommandWithState, sendSeek } = useWebSocket({
     index,
     blank,
     applyRemoteState,
@@ -690,7 +697,18 @@ function ControlView() {
             </div>
           </div>
         )}
-        {showArmedShell && (
+        {showArmedShell && isVideoMode && (
+          <VideoControlPanel
+            absolutePath={resolvedVideoPath}
+            mediaSrc={currentLibrarySong!.media!.src}
+            media={currentLibrarySong!.media!}
+            timeline={currentLibrarySong!.timeline ?? []}
+            lines={lines}
+            singingLang={effectiveSingingLang}
+            onSeek={sendSeek}
+          />
+        )}
+        {showArmedShell && !isVideoMode && (
           <>
             <div className="control-performing-stage" data-testid="performing-content">
               <div className="control-performing-stage-stack">
@@ -1312,6 +1330,35 @@ function ProjectionView() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [singleScreen])
+
+  // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
+  const isVideoMode = currentLibrarySong?.media?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
+
+  if (isVideoMode && resolvedVideoPath) {
+    return (
+      <div
+        className="projection-screen"
+        style={{
+          background: '#000',
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          margin: 0,
+        }}
+      >
+        <VideoProjectionRegion
+          absolutePath={resolvedVideoPath}
+          media={currentLibrarySong!.media!}
+          timeline={currentLibrarySong!.timeline ?? []}
+          lines={lines}
+          effectiveLang={effectiveLang}
+          layout={layout}
+        />
+      </div>
+    )
+  }
 
   return (
     <div
