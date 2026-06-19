@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const fs = require('fs')
 const path = require('path')
 const { WebSocketServer } = require('ws')
 const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
@@ -180,6 +181,23 @@ ipcMain.handle('projection:isOpen', () => {
 
 ipcMain.handle('projection:close', () => {
   closeProjectionWindowIfOpen()
+})
+
+ipcMain.handle('dialog:openFile', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Video files', extensions: ['mp4', 'mov', 'webm', 'm4v', 'mkv'] }],
+  })
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+
+ipcMain.handle('fs:getFileStats', (_event, filePath) => {
+  try {
+    const stats = fs.statSync(filePath)
+    return { exists: true, size: stats.size }
+  } catch {
+    return { exists: false, size: 0 }
+  }
 })
 
 app.whenReady().then(createWindow)

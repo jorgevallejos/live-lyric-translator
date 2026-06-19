@@ -150,6 +150,8 @@ declare global {
       isProjectionOpen: () => Promise<boolean>
       onProjectionOpened: (cb: () => void) => () => void
       onProjectionClosed: (cb: () => void) => () => void
+      openFileDialog: () => Promise<string | null>
+      getFileStats: (filePath: string) => Promise<{ exists: boolean; size: number }>
     }
   }
 }
