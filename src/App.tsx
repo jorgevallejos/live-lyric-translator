@@ -27,6 +27,14 @@ import {
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import type { LyricLine, SongItem } from './songState'
+import { updateSongTimeline } from './setlistStore'
+import {
+  initTimelineCapture,
+  captureAdvance,
+  finalizeCapture,
+  buildTimelineFromCapture,
+  type TimelineCapture,
+} from './timelineCapture'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -203,6 +211,11 @@ function ControlView() {
   )
   const currentSongId = getCurrentSongId()
 
+  const [recordingMode, setRecordingMode] = useState(false)
+  const [capture, setCapture] = useState<TimelineCapture>(initTimelineCapture)
+  const [pendingSaveCapture, setPendingSaveCapture] = useState<TimelineCapture | null>(null)
+  const [recordingElapsedSec, setRecordingElapsedSec] = useState(0)
+
   const concertTimer = useConcertSessionTimer()
   const elapsedMinutes = concertTimer.elapsedMinutes
   const timerPaused = concertTimer.paused
@@ -285,8 +298,12 @@ function ControlView() {
 
   const handleNext = () => {
     goNext()
+    const newIndex = getSongIndex()
+    if (recordingMode) {
+      setCapture((prev) => captureAdvance(prev, newIndex, Date.now()))
+    }
     sendCommandWithState('next', undefined, {
-      currentIndex: getSongIndex(),
+      currentIndex: newIndex,
       blank: getBlank(),
     })
   }
@@ -308,6 +325,26 @@ function ControlView() {
   const handleBlankToggle = () => {
     setBlankState(!blank)
     sendCommandWithState('blankToggle', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
+  }
+
+  const handleRecordingAwareUnarm = () => {
+    if (recordingMode && capture.clockStartMs !== null) {
+      setPendingSaveCapture(finalizeCapture(capture, Date.now()))
+    }
+    setRecordingMode(false)
+    setCapture(initTimelineCapture())
+    handleUnarmClick()
+  }
+
+  const handleSaveTimeline = () => {
+    if (!pendingSaveCapture || !currentSongId) return
+    const timeline = buildTimelineFromCapture(pendingSaveCapture, lines.length)
+    updateSongTimeline(currentSongId, timeline)
+    setPendingSaveCapture(null)
+  }
+
+  const handleDiscardTimeline = () => {
+    setPendingSaveCapture(null)
   }
 
   const goToSongs = () => {
@@ -370,7 +407,7 @@ function ControlView() {
     goToSongs,
     goToLanguages,
     arm: handleArmAndRestart,
-    unarm,
+    unarm: handleRecordingAwareUnarm,
     controlState,
     nextDisabled,
   })
@@ -382,7 +419,7 @@ function ControlView() {
     goToSongs,
     goToLanguages,
     arm: handleArmAndRestart,
-    unarm,
+    unarm: handleRecordingAwareUnarm,
     controlState,
     nextDisabled,
   }
@@ -458,7 +495,7 @@ function ControlView() {
       : ''
 
   const restartHold = useHoldToConfirm(handleRestart)
-  const unarmHold = useHoldToConfirm(handleUnarmClick)
+  const unarmHold = useHoldToConfirm(handleRecordingAwareUnarm)
 
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
@@ -472,7 +509,22 @@ function ControlView() {
   useEffect(() => {
     if (showArmedShell) return
     setTimerActionsVisible(false)
+    // Stop recording when leaving armed state
+    setRecordingMode(false)
+    setCapture(initTimelineCapture())
   }, [showArmedShell])
+
+  // Update the recording elapsed display every second while recording is active
+  useEffect(() => {
+    if (!recordingMode || capture.clockStartMs === null) {
+      setRecordingElapsedSec(0)
+      return
+    }
+    const interval = setInterval(() => {
+      setRecordingElapsedSec(Math.floor((Date.now() - capture.clockStartMs!) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [recordingMode, capture.clockStartMs])
 
   useEffect(() => {
     setShowNextSongTile(false)
@@ -599,6 +651,33 @@ function ControlView() {
             </div>
           </>
         )}
+        {showArmedShell && pendingSaveCapture && (
+          <div className="ctrl-timeline-save-overlay" data-testid="timeline-save-dialog">
+            <div className="ctrl-timeline-save-dialog">
+              <p className="ctrl-timeline-save-message">
+                Save timeline to &ldquo;{currentSongTitle}&rdquo;?
+              </p>
+              <div className="ctrl-timeline-save-actions">
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-arm"
+                  data-testid="timeline-save-btn"
+                  onClick={handleSaveTimeline}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-unarm"
+                  data-testid="timeline-discard-btn"
+                  onClick={handleDiscardTimeline}
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {showArmedShell && (
           <>
             <div className="control-performing-stage" data-testid="performing-content">
@@ -634,6 +713,33 @@ function ControlView() {
                   </div>
                 )}
               </div>
+            </div>
+            <div className="ctrl-record-row" data-testid="record-timeline-row">
+              <button
+                type="button"
+                className={`ctrl-btn ${recordingMode ? 'ctrl-record-active' : 'ctrl-record'}`}
+                data-testid="record-timeline-btn"
+                onClick={() => {
+                  if (recordingMode) {
+                    setRecordingMode(false)
+                    setCapture(initTimelineCapture())
+                  } else {
+                    setRecordingMode(true)
+                  }
+                }}
+              >
+                {recordingMode ? 'Stop Recording' : 'Record Timeline'}
+              </button>
+              {recordingMode && (
+                <span
+                  className={`ctrl-record-indicator ${capture.clockStartMs !== null ? 'ctrl-record-indicator-active' : ''}`}
+                  data-testid="record-timeline-indicator"
+                >
+                  {capture.clockStartMs !== null
+                    ? `${recordingElapsedSec}s`
+                    : 'Waiting for first advance…'}
+                </span>
+              )}
             </div>
           </>
         )}
@@ -718,7 +824,7 @@ function ControlView() {
                 isEndOfSong && canUnarm
                   ? () => {
                       if (currentSongId) addPlayedSong(currentSongId)
-                      handleUnarmClick()
+                      handleRecordingAwareUnarm()
                     }
                   : undefined
               }
