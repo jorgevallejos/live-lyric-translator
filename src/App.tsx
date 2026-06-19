@@ -1,4 +1,15 @@
 import { useSongNavigation } from './useSongNavigation'
+import {
+  computeProjectionLayout,
+  DISPLAY_PRESETS,
+  type DisplayProfile,
+  type ProfileId,
+} from './displayProfile'
+import {
+  getActiveDisplayProfile,
+  setActiveProfileId,
+  setCustomProfile,
+} from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
@@ -648,6 +659,7 @@ function ControlView() {
                   </button>
                 </div>
               </div>
+              <DisplayProfileSetup />
             </div>
           </>
         )}
@@ -1061,6 +1073,98 @@ function LanguagesView() {
   )
 }
 
+function DisplayProfileSetup() {
+  const [profile, setProfileState] = useState<DisplayProfile>(getActiveDisplayProfile)
+  const [customBand, setCustomBand] = useState<number>(() => {
+    const p = getActiveDisplayProfile()
+    return p.id === 'custom' ? p.bandPercent : 20
+  })
+  const [customScale, setCustomScale] = useState<number>(() => {
+    const p = getActiveDisplayProfile()
+    return p.id === 'custom' ? p.textScale : 0.5
+  })
+
+  const selectPreset = (id: Exclude<ProfileId, 'custom'>) => {
+    setActiveProfileId(id)
+    setProfileState(getActiveDisplayProfile())
+  }
+
+  const activateCustom = () => {
+    setCustomProfile(customBand, customScale)
+    setProfileState(getActiveDisplayProfile())
+  }
+
+  return (
+    <div className="ctrl-display-row">
+      <span className="ctrl-display-label">Display</span>
+      <div className="ctrl-display-buttons">
+        {DISPLAY_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            className={`ctrl-btn ctrl-setup-link ${profile.id === preset.id ? 'ctrl-arm' : ''}`}
+            onClick={() => selectPreset(preset.id as Exclude<ProfileId, 'custom'>)}
+          >
+            {preset.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={`ctrl-btn ctrl-setup-link ${profile.id === 'custom' ? 'ctrl-arm' : ''}`}
+          onClick={activateCustom}
+        >
+          Custom
+        </button>
+      </div>
+      {profile.id === 'custom' && (
+        <div className="ctrl-custom-profile-form">
+          <label className="ctrl-custom-profile-field">
+            <span>Band %</span>
+            <input
+              type="number"
+              className="ctrl-custom-profile-input"
+              value={customBand}
+              min={1}
+              max={50}
+              step={1}
+              onChange={(e) => setCustomBand(Number(e.target.value))}
+            />
+          </label>
+          <label className="ctrl-custom-profile-field">
+            <span>Scale</span>
+            <input
+              type="number"
+              className="ctrl-custom-profile-input"
+              value={customScale}
+              min={0.1}
+              max={1.0}
+              step={0.05}
+              onChange={(e) => setCustomScale(Number(e.target.value))}
+            />
+          </label>
+          <button type="button" className="ctrl-btn ctrl-arm" onClick={activateCustom}>
+            Apply
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function useProjectionDisplayProfile(): DisplayProfile {
+  const [profile, setProfile] = useState<DisplayProfile>(getActiveDisplayProfile)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith('display_profile')) {
+        setProfile(getActiveDisplayProfile())
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+  return profile
+}
+
 function ProjectionView() {
   const singleScreen =
     import.meta.env.VITE_SINGLE_SCREEN === '1' ||
@@ -1181,6 +1285,15 @@ function ProjectionView() {
 
   useEffect(() => () => clearAllTimers(), [])
 
+  const displayProfile = useProjectionDisplayProfile()
+  const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight || 1080)
+  useEffect(() => {
+    const onResize = () => setViewportHeight(window.innerHeight)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const layout = computeProjectionLayout(displayProfile, window.innerWidth, viewportHeight)
+
   const navRef = useRef({ goNext, goPrev })
   navRef.current = { goNext, goPrev }
   useEffect(() => {
@@ -1208,66 +1321,91 @@ function ProjectionView() {
         width: '100vw',
         height: '100vh',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'column',
         margin: 0,
       }}
     >
-      <img
-        src="/chango-pepper-logo.png"
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          height: '100vh',
-          width: 'auto',
-          opacity: showLogo ? 1 : 0,
-          transition: `opacity ${FADE_MS}ms ease`,
-          pointerEvents: 'none',
-        }}
-      />
-      {showIntroScreen && currentLibrarySong && (
-        <div
-          data-testid="song-intro-screen"
-          className="projection-intro-screen"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.25em',
-            textAlign: 'center',
-            padding: '0 2em',
-          }}
-        >
-          <span className="projection-intro-title">
-            {currentLibrarySong.title}
-          </span>
-          {effectiveLang !== singingLang &&
-            currentLibrarySong.title_translations?.[effectiveLang] && (
-              <span className="projection-intro-translated-title">
-                ({currentLibrarySong.title_translations[effectiveLang]})
-              </span>
-            )}
-          {currentLibrarySong.intro?.[effectiveLang] && (
-            <span className="projection-intro-tagline">
-              {currentLibrarySong.intro[effectiveLang]}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Animation region: logo + intro screen, scaled with object-fit: contain */}
       <div
+        className="projection-animation-region"
         style={{
+          position: 'relative',
+          width: '100%',
+          height: `${layout.animationHeightPx}px`,
+          flexShrink: 0,
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '0.5em',
+          overflow: 'hidden',
+        }}
+      >
+        <img
+          src="/chango-pepper-logo.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            opacity: showLogo ? 1 : 0,
+            transition: `opacity ${FADE_MS}ms ease`,
+            pointerEvents: 'none',
+          }}
+        />
+        {showIntroScreen && currentLibrarySong && (
+          <div
+            data-testid="song-intro-screen"
+            className="projection-intro-screen"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.25em',
+              textAlign: 'center',
+              padding: '0 2em',
+            }}
+          >
+            <span className="projection-intro-title">
+              {currentLibrarySong.title}
+            </span>
+            {effectiveLang !== singingLang &&
+              currentLibrarySong.title_translations?.[effectiveLang] && (
+                <span className="projection-intro-translated-title">
+                  ({currentLibrarySong.title_translations[effectiveLang]})
+                </span>
+              )}
+            {currentLibrarySong.intro?.[effectiveLang] && (
+              <span className="projection-intro-tagline">
+                {currentLibrarySong.intro[effectiveLang]}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Subtitle band: fixed-height black strip at the bottom */}
+      <div
+        className="projection-subtitle-band"
+        style={{
+          width: '100%',
+          height: `${layout.bandHeightPx}px`,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 1.5rem',
+          boxSizing: 'border-box',
         }}
       >
         <span
           className="projection-lyric"
-          style={{ opacity: isVisible ? 1 : 0 }}
+          style={{
+            opacity: isVisible ? 1 : 0,
+            ...(layout.fontSizePx > 0 ? { fontSize: `${layout.fontSizePx}px` } : {}),
+          }}
         >
           {displayedText}
         </span>
