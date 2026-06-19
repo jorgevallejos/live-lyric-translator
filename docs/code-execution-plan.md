@@ -2,7 +2,42 @@
 
 _Rebuilt 2026-06-19 as a single self-contained runsheet. Contains the full A–H prompt blocks inline + run order + status, so it doesn't depend on any other file. Prompt I (live ASR) is **shelved** — see `project-context.md`._
 
+> ⚠️ **This is THE single plan of action for live-lyric-translator.** It supersedes the two scratch briefs (`git-cleanup-brief.md`, `phase0-asr-session-brief.md`) — those were written before this plan resurfaced and have been removed to avoid parallel agendas. The housekeeping from the cleanup brief is folded into **Step 0** below; the ASR spike stays **shelved** (Prompt I), not resumed.
+
 > ⚠️ **Commit this file** so it can't be lost again. The previous version was untracked and got wiped during a branch cleanup. After saving: `git add docs/code-execution-plan.md && git commit -m "docs: add consolidated Code execution plan"` (on a `docs/…` branch or directly, your call).
+
+---
+
+## Step 0 — Housekeeping (mostly done — 2026-06-19)
+
+A first Code pass cleared the truly-dead branches and surfaced a **major correction**: `fix/intro-cues-and-startup-reset` is NOT dead — it holds the **v3/intro schema foundation** that main lacks and that the whole feature set depends on (see Step 0.5). Recovery order changed accordingly.
+
+**Status of the cleanup:**
+
+- ✅ `chore/improve-claude-release-command`, `fix/dev-port-5174` — deleted (were clean-merged; already gone from remote).
+- 🟢 `feat/serif-and-intro-cues` — **approved for delete** (Code confirmed nothing unique in `src/`); local + origin.
+- 🟢 `stash@{0}` ("wip: phase0 docs") — **approved to drop** (docs-only path tweak, irrelevant).
+- 🔴 `fix/intro-cues-and-startup-reset` — **KEEP. Do not delete.** It's the v3 foundation → goes into main via Step 0.5.
+
+**Correction to the old plan:** the "cherry-pick `c0d6b6a` for Prompt A" instruction was wrong. `c0d6b6a` is built *on top of* the v3 branch (so it needs that foundation first) and is a tangled mega-commit (timeline+media + a separate `scripts/phase0-spike/spike.py` + images + the original lost docs). It's kept only as a *reference*; Prompt A is rebuilt fresh on the v3 base instead.
+
+**Keep, do not touch:** `main`, `spike/auto-advance-phase0`, `spike/live-asr-lyric-following`.
+
+### Finish-Step-0 Code prompt
+
+> On the live-lyric-translator repo: (1) delete `feat/serif-and-intro-cues` locally and on origin. (2) Drop `stash@{0}`. (3) Do NOT touch `fix/intro-cues-and-startup-reset` (we're merging it next), `main`, or the two `spike/*` branches. Print the final `git branch -vv`, then stop.
+
+---
+
+## Step 0.5 — Land the v3/intro foundation into `main` (do before Prompt A)
+
+`fix/intro-cues-and-startup-reset` (13 commits, tip `566ecc5`) migrates the schema **v2 → v3**: `title_translations`, `intro` replacing `intro_cues`, the full projection intro screen + control intro, plus session-reset fixes. ~850 tested lines across 10 source files. `main` is still v2/`intro_cues`. Everything downstream (Prompt A schema, the title screen in D/H, count-in in G) builds on this, so it lands first.
+
+The branch **diverged** from main: main gained 3 commits since (the logo-on-startup PR #9 work), so this is a real reconcile, not a fast-forward — expect conflicts in `App.tsx`, `control.css`, and the projection intro screen (both lines touched it). Keep **both** main's logo-on-startup behaviour and the branch's v3 intro screen.
+
+### Step 0.5 — ready-to-paste Code prompt
+
+> In the live-lyric-translator repo, bring the v3/intro foundation on `fix/intro-cues-and-startup-reset` (tip `566ecc5`) into `main`. Cut a fresh branch off current `main` (`feat/v3-intro-schema`) and rebase the 13 commits unique to `fix/intro-cues-and-startup-reset` onto it (`git log main..fix/intro-cues-and-startup-reset` lists them). The branch diverged from main, which has since gained the logo-on-startup work (PR #9) — resolve conflicts in `App.tsx`, `control.css`, and the projection intro screen by keeping BOTH main's logo-on-startup-before-first-lyric behaviour AND the branch's v3 translatable intro screen. This is a schema migration v2→v3 (`SETLIST_STORE_VERSION = 3`, `title_translations`, `intro` replacing `intro_cues`) with v2 snapshots migrated on load — make sure the migration path and its tests are intact. Run the full suite, confirm green, then stop so I can `/release`. After it merges, delete `fix/intro-cues-and-startup-reset`.
 
 ---
 
@@ -25,11 +60,13 @@ You drive Claude Code; I track status here. For **every** prompt, start clean fr
 
 ## Run order, dependencies, status
 
-Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **A → C → F → D**.
+Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step 0 → 0.5 → A → C → F → D**.
 
 | # | Prompt | Delivers | Depends on | Status |
 |---|--------|----------|------------|--------|
-| 1 | **A** — song schema | `timeline` + `media` fields, back-compatible. Foundation. | — | ◑ Built & green (413 tests). **Not merged**; branch `feat/song-timeline-media` was mis-cut off the spike branch — re-cut off `main` (cherry-pick `c0d6b6a`) before `/release`. |
+| 0 | **Housekeeping** | Delete dead branches + stash; clean `main`. | — | ◑ Mostly done; finish-prompt above (delete serif branch + drop stash) |
+| 0.5 | **v3 foundation** | Migrate main v2→v3: `title_translations`, `intro`, intro screen. Base for everything. | Step 0 | 🟢 `feat/v3-intro-schema` ready, 399/399 green, conflict-free rebase — in `/release`. After merge: delete `fix/intro-cues-and-startup-reset`. |
+| 1 | **A** — song schema | `timeline` + `media` fields, back-compatible. | 0.5 | ☐ Unblocked once 0.5 merges. Rebuild fresh on the v3 base (prompt below). `c0d6b6a` kept only as reference — too tangled to cherry-pick. |
 | 2 | **C** — record-by-tapping | Capture a `timeline` by performing once. Cue-capture MVP. | A | ☐ Not started |
 | 3 | **F** — display profiles + band | Big-cinema / Small-130×100 / Custom; app composites the black subtitle band. | A | ☐ Not started |
 | 4 | **D** — VIDEO mode | Projection plays clean animation + overlaid translation, bound to `video.currentTime`. Replaces QuickTime + per-language + per-screen exports. | A, C, F | ☐ Not started |
@@ -43,12 +80,14 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **A �
 
 ## The prompt blocks (full text, in run order)
 
-### 1. Prompt A — extend the song schema (timeline + media)
+### 1. Prompt A — extend the song schema (timeline + media), fresh on the v3 base
 
-> In the live-lyric-translator repo, extend the song file format in `src/songState.ts` with two optional, back-compatible fields, TDD (Red→Green→Refactor):
+> Prerequisite: Step 0.5 (v3 foundation) is merged to `main`. In the live-lyric-translator repo, on a fresh branch off `main`, extend the song file format in `src/songState.ts` with two optional, back-compatible fields, TDD (Red→Green→Refactor):
 > 1. `timeline`: an optional array parallel to `lyrics`, each entry `{ start: number, end: number }` in seconds. Validate that, when present, it has the same length as the lyric-line count and that times are non-negative and monotonic.
 > 2. `media`: an optional object `{ type: "video" | "audio", src: string, offset?: number }`.
 > Add both to `ParsedSongFile` and the parse/validate path, leaving songs without these fields behaving exactly as today. Add unit tests for: missing fields (current behaviour), valid timeline/media, mismatched timeline length, and non-monotonic times. Don't wire any UI yet.
+>
+> _Reference only: an earlier tangled version of this exists in commit `c0d6b6a` (also bundles a phase0-spike, images, and old docs — don't cherry-pick it; rebuild clean per above). You can `git show c0d6b6a -- src/songState.ts` if you want to crib the `MediaMetadata` shape._
 
 ### 2. Prompt C — record-by-tapping (capture a timeline by performing once)
 
