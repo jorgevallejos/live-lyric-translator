@@ -30,6 +30,7 @@ import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endC
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { BeatIndicator } from './BeatIndicator'
 import { useBeatClock } from './useBeatClock'
+import { useSubtitleTimer } from './useSubtitleTimer'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
   autoSelectFirstSongForActiveSetlist,
@@ -53,6 +54,20 @@ import {
   type TimelineCapture,
 } from './timelineCapture'
 import './control.css'
+
+function formatTimedT(t: number): string {
+  const m = Math.floor(t / 60)
+  const s = Math.floor(t % 60)
+  const d = Math.floor((t % 1) * 10)
+  return `${m}:${s.toString().padStart(2, '0')}.${d}`
+}
+
+function timedDriftClass(drift: number): string {
+  const abs = Math.abs(drift)
+  if (abs >= 4) return 'ctrl-timed-drift ctrl-timed-drift-alert'
+  if (abs >= 1.5) return 'ctrl-timed-drift ctrl-timed-drift-warn'
+  return 'ctrl-timed-drift'
+}
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
 const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> = {
@@ -324,6 +339,9 @@ function ControlView() {
     if (recordingMode) {
       setCapture((prev) => captureAdvance(prev, newIndex, Date.now()))
     }
+    if (timedTimer.running && songTimeline) {
+      timedTimer.resync(newIndex)
+    }
     sendCommandWithState('next', undefined, {
       currentIndex: newIndex,
       blank: getBlank(),
@@ -331,7 +349,11 @@ function ControlView() {
   }
   const handlePrev = () => {
     goPrev()
-    sendCommandWithState('prev', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
+    const prevIdx = getSongIndex()
+    if (timedTimer.running && songTimeline) {
+      timedTimer.resync(prevIdx)
+    }
+    sendCommandWithState('prev', undefined, { currentIndex: prevIdx, blank: getBlank() })
   }
   const handleRestart = () => {
     goRestart()
@@ -522,6 +544,36 @@ function ControlView() {
 
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
+
+  // Timed mode: timer-driven subtitle advancement when a song timeline exists.
+  // Keys on currentSongId (primitive) rather than the timeline object to avoid
+  // render-loop issues (getLibrarySongById returns a new object on every call).
+  const songTimeline = currentLibrarySong?.timeline
+  const timedTimer = useSubtitleTimer(songTimeline, currentSongId, index)
+
+  // Auto-advance song navigation when timer drives to a new line.
+  const prevTimerActiveIndexRef = useRef(-1)
+  useEffect(() => {
+    if (!timedTimer.running) {
+      prevTimerActiveIndexRef.current = -1
+      return
+    }
+    if (timedTimer.activeIndex < 0) return
+    if (timedTimer.activeIndex === prevTimerActiveIndexRef.current) return
+    prevTimerActiveIndexRef.current = timedTimer.activeIndex
+    applyCommand('setIndex', timedTimer.activeIndex)
+    sendCommandWithState('setIndex', timedTimer.activeIndex, {
+      currentIndex: timedTimer.activeIndex,
+      blank: false,
+    })
+  }, [timedTimer.running, timedTimer.activeIndex])
+
+  // Reset prevTimerActiveIndexRef when leaving armed state.
+  useEffect(() => {
+    if (!showArmedShell) {
+      prevTimerActiveIndexRef.current = -1
+    }
+  }, [showArmedShell])
 
   // Beat clock: performer view only, never the projection window.
   const songTempo = currentLibrarySong?.tempo
@@ -814,6 +866,63 @@ function ControlView() {
                 </span>
               )}
             </div>
+            {songTimeline && (
+              <div className="ctrl-timed-panel" data-testid="timed-mode-panel">
+                <div className="ctrl-timed-row">
+                  <span className="ctrl-timed-label">Timed</span>
+                  <button
+                    type="button"
+                    className="ctrl-btn"
+                    data-testid="timed-start-pause"
+                    onClick={() => timedTimer.startPause()}
+                  >
+                    {timedTimer.running ? 'Pause' : 'Start'}
+                  </button>
+                  <button
+                    type="button"
+                    className="ctrl-btn"
+                    data-testid="timed-stop"
+                    onClick={() => timedTimer.stop()}
+                  >
+                    Stop
+                  </button>
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-timed-nudge"
+                    data-testid="timed-nudge-back"
+                    onClick={() => timedTimer.nudge(-0.25)}
+                    aria-label="Nudge back 0.25 seconds"
+                  >
+                    −0.25s
+                  </button>
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-timed-nudge"
+                    data-testid="timed-nudge-fwd"
+                    onClick={() => timedTimer.nudge(0.25)}
+                    aria-label="Nudge forward 0.25 seconds"
+                  >
+                    +0.25s
+                  </button>
+                </div>
+                <div className="ctrl-timed-row">
+                  <span className="ctrl-timed-time" data-testid="timed-clock">
+                    {formatTimedT(timedTimer.t)}
+                  </span>
+                  <span className="ctrl-timed-line">
+                    {timedTimer.activeIndex >= 0
+                      ? `line ${timedTimer.activeIndex + 1}/${lines.length}`
+                      : '—'}
+                  </span>
+                  <span
+                    className={timedDriftClass(timedTimer.drift)}
+                    data-testid="timed-drift"
+                  >
+                    {timedTimer.drift >= 0 ? '+' : '−'}{Math.abs(timedTimer.drift).toFixed(1)}s
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
