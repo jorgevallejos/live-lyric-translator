@@ -1,14 +1,4 @@
-export interface SubtitleLine {
-  start: number
-  end: number
-  es: string
-  tr: string
-}
-
-export const SAMPLE_LINES: SubtitleLine[] = [
-  { start: 0, end: 3, es: 'Hola', tr: 'Hello' },
-  { start: 3, end: 6, es: '¿Cómo estás?', tr: 'How are you?' },
-]
+import type { TimelineEntry } from './songState'
 
 const KEY_RUNNING = 'subtitle_running'
 const KEY_T = 'subtitle_t'
@@ -39,6 +29,28 @@ export function setSubtitleState(partial: Partial<SubtitleState>): void {
   }
 }
 
-export function getActiveLine(t: number): SubtitleLine | null {
-  return SAMPLE_LINES.find((line) => line.start <= t && t < line.end) ?? null
+/** Applies delta to t, clamped to [0, maxT]. */
+export function nudgeT(t: number, delta: number, maxT: number): number {
+  return Math.max(0, Math.min(maxT, t + delta))
+}
+
+/**
+ * Returns the clock position (seconds) corresponding to the start of
+ * `timeline[index]`. Returns 0 for out-of-range or empty timeline.
+ */
+export function resyncToIndex(timeline: TimelineEntry[], index: number): number {
+  if (index < 0 || index >= timeline.length) return 0
+  return timeline[index].start
+}
+
+/**
+ * Returns t − timeline[index].start: how many seconds the clock has
+ * drifted past the expected start of the given line.
+ * Positive = clock is running late (we're past where we should be).
+ * Negative = clock arrived early.
+ * Returns 0 for out-of-range index or empty timeline.
+ */
+export function getDrift(t: number, timeline: TimelineEntry[], index: number): number {
+  if (index < 0 || index >= timeline.length) return 0
+  return t - timeline[index].start
 }
