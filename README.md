@@ -5,22 +5,27 @@
 <img src="docs/images/chango-pepper-banner-logo.png" width="600">
 </p>
 
-A minimal live subtitle system for concerts.
+A live subtitle system for concerts.
 
-This application allows a musician to project translated lyrics in real time during a live performance.  
-The performer advances each phrase manually (via keyboard or foot pedal), keeping subtitles aligned with the music without needing precise timing.
+This application allows a musician to project translated lyrics in real time during a live performance. The performer can advance each phrase manually (keyboard or foot pedal), or let the app follow a synchronized animation video or a recorded timeline — with manual override always available as the safety net.
 
 **Note:** Currently available on **macOS only**.
 
 ## ✨ Features
 
-- Manual lyric progression (live-performance friendly)
+- **Three playback modes** (per song): **Manual** (keyboard/pedal, always the fallback), **Video** (subtitles locked to a synchronized animation video), and **Timed** (auto-advance from a recorded timeline)
+- **Manual override is always live** — an arrow/pedal press re-seizes control in any mode
 - Dual-window setup (control + projection)
-- Multilingual lyrics
+- Multilingual lyrics, with translatable song **titles** and spoken **intros**
+- **Video projection mode** — the app plays a clean animation full-screen and overlays the chosen audience language itself, replacing per-language/per-screen video exports
+- **Display profiles** — the app composites the subtitle band on the fly, sized per screen (big cinema vs small canvas), so you feed it one clean video
+- **Performer count-in / beat indicator** (per-song tempo) to lock in before the song rolls
+- **Record-by-tapping** — capture a song timeline by performing through it once
+- **End-card screen** for end-of-concert acknowledgements
 - Setlists and songs library management
 - Next-line preview for performer
 - Keyboard & foot pedal control
-- Timer for concert
+- Concert timer
 - Works fully offline
 
 ## 📷 Screenshots
@@ -148,6 +153,16 @@ Performing -->|Unarm| Ready
 Armed -->|Unarm| Ready
 ```
 
+## 🎚 Playback modes
+
+Each song plays in one of three modes. Manual is always available and always wins on override.
+
+- **Manual** — the performer advances each phrase with the keyboard or foot pedal. The original, fully live mode; the default when a song has no timeline or media.
+- **Video** — for songs with a synchronized animation, the projection plays a clean full-frame video (muted; the audience hears the live performance) and the app overlays the translated subtitle, locked to the video's clock. Because subtitles ride `video.currentTime`, a pause or stutter never desyncs them. This replaces switching to QuickTime and maintaining one exported video per language and per screen.
+- **Timed** — for fixed-tempo / backing-track songs, a wall clock drives the active line from a recorded `timeline`. Includes a ±0.25 s nudge and a drift indicator; any manual press re-anchors the clock.
+
+A song timeline can be produced by **recording-by-tapping** (perform through the song once and the app timestamps each advance) or, later, by offline forced alignment. A per-song **count-in** locks the performer in before Video/Timed playback begins.
+
 ## ⏱️ Concert timer
 
 - Starts when the **first song is armed**
@@ -227,6 +242,11 @@ They can then be managed and organized into a Setlist for live performance.
 {
   "title": "Pimiento",
   "notes": "Capo 3, Acordes de DO",
+  "title_translations": { "en": "Pepper Tree", "fr": "Le pimentier", "nl": "Peperboom" },
+  "intro": { "es": "...", "en": "..." },
+  "tempo": { "bpm": 96, "meter": "4/4", "countInBars": 1 },
+  "media": { "type": "video", "src": "pimiento.mp4", "offset": 0, "trimStart": 0 },
+  "timeline": [ { "start": 0.0, "end": 3.2 }, { "start": 3.2, "end": 7.5 } ],
   "lyrics": [
     {
       "es": "Viejo pimiento,\nhoy vuelvo a visitarte",
@@ -241,24 +261,25 @@ They can then be managed and organized into a Setlist for live performance.
 
 **Fields**
 - `title` — song name
+- `title_translations` *(optional)* — translated titles for the intro/title screen, indexed by language code
+- `intro` *(optional)* — translatable spoken intro shown on the intro screen
 - `notes` *(optional)* — performer notes such as capo, key, or reminders
+- `tempo` *(optional)* — `{ bpm, meter, countInBars }`, drives the performer count-in
+- `media` *(optional)* — `{ type: "video" | "audio", src, offset?, trimStart? }` for Video mode. `src` is a logical filename; the actual file is linked once per machine and remembered locally (see [docs/media-assets.md](docs/media-assets.md)). Feed the app a web-playable MP4 (H.264, ≤1080p), not a ProRes master.
+- `timeline` *(optional)* — per-item `{ start, end }` in seconds, parallel to the lyrics/markers, driving Video/Timed advancement
 - `lyrics` — ordered list of lyric lines
 
-Each lyric line contains translations indexed by language code, for example:
-- `es` — Spanish
-- `en` — English
-- ...
-
-Missing translations are allowed. In that case, the line remains blank in projection.
+Each lyric line contains translations indexed by language code (`es`, `en`, `fr`, `nl`, …). Missing translations are allowed — the line simply stays blank in projection. Songs without the optional blocks behave exactly as before (Manual mode).
 
 ## 🧱 Technology stack
 
 This project is built with:
 
-- TypeScript — application logic  
-- React — user interface  
-- Vite — development and build system  
-- Electron — desktop application framework  
+- TypeScript (strict) — application logic
+- React 18 — user interface
+- Vite 8 — development and build system
+- Electron 41 — desktop application framework
+- Vitest 4 + React Testing Library — tests (jsdom)
 
 Electron is used to open two synchronized windows:
 

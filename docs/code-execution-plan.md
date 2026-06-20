@@ -8,6 +8,18 @@ _Rebuilt 2026-06-19 as a single self-contained runsheet. Contains the full A–H
 
 ---
 
+## Current state (2026-06-19)
+
+**The A–H video-sync / auto-advance build set is complete.** Merged to `main`: 0.5 (v3 foundation), A (timeline+media schema), C (record-by-tapping), F (display profiles), D (Video mode), H (end-card), G (count-in/metronome). E (Timed mode) is the last one — built, in `/release` (mark merged once its PR lands).
+
+**Next, in order:** **D-wire** (in-app: link Tragedia's mp4 + capture a timeline to validate Video mode on the projector — see the D-wire section below) → **Packaging** (`npm run pack` → real macOS `.dmg`/`.app`).
+
+**Deferred / shelved:** **B** (offline forced alignment) waits for the produced master (late June); the **live-ASR following spike** is shelved until then.
+
+**Companion docs:** design rationale in `auto-advance-and-video-sync.md`; asset rules in `media-assets.md`; subtitle styling in `subtitle-format.md`. Repo `CLAUDE.md` carries the new modules table + the unstable-reference render-loop gotcha.
+
+---
+
 ## Step 0 — Housekeeping (mostly done — 2026-06-19)
 
 A first Code pass cleared the truly-dead branches and surfaced a **major correction**: `fix/intro-cues-and-startup-reset` is NOT dead — it holds the **v3/intro schema foundation** that main lacks and that the whole feature set depends on (see Step 0.5). Recovery order changed accordingly.

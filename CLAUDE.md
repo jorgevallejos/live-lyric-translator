@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This App Does
 
-Live Lyric Translator is a macOS Electron desktop app for live concert subtitle projection. A performer manually advances lyric lines (keyboard or foot pedal) in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
+Live Lyric Translator is a macOS Electron desktop app for live concert subtitle projection. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
+
+Lines can advance in three per-song **playback modes**: **Manual** (keyboard/foot pedal — always available and always wins on override), **Video** (subtitles locked to a synchronized animation video via `video.currentTime`), and **Timed** (a wall clock drives the active line from a recorded `timeline`). The Projection window can render a clean animation full-frame and composite the subtitle band itself (display profiles), so a single clean video serves all languages and screens.
 
 ## Commands
 
@@ -39,15 +41,26 @@ State is split into pure-function modules with tests, each backed by `localStora
 
 | Module | Storage | Responsibility |
 |---|---|---|
-| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (v2 schema, migrates from v1) |
-| `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages |
+| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (**v3** schema: `title_translations`, `intro`, `tempo`, `media`, `timeline`; migrates v1→v2→v3 on load) |
+| `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaMetadata` |
 | `performanceState.ts` | sessionStorage | Performance lifecycle (setup → ready → armed → performing) |
 | `performanceControlStateMachine.ts` | — | Computes `SETUP / READY_TO_ARM / ARMED` from prereqs |
 | `navigationState.ts` | — | Pure index/blank transition logic |
 | `concertSessionState.ts` | sessionStorage | Concert timer (elapsed, pause/resume/reset) |
 | `playedSongsState.ts` | sessionStorage | Which songs have been played this session |
+| `subtitleState.ts` | — | Pure Timed-mode helpers: `nudgeT`, `resyncToIndex`, `getDrift` |
+| `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (shared by Video + Timed) |
+| `timelineCapture.ts` | — | Pure record-by-tapping: build a `timeline` from tapped advances |
+| `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
+| `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry |
+| `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings |
+| `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
 
-React hooks (`use*.ts` files) wire these modules to components. They own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC calls.
+Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` modules (no side effects, fully unit-tested). React hooks (`use*.ts`) wire them to components and own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC. Timer-driven hooks include `useBeatClock` (count-in) and `useSubtitleTimer` (Timed mode).
+
+### Playback modes
+
+Per song, selected from the song's data: **Manual** (default; no `timeline`/`media`), **Video** (`media.type === "video"` + `timeline`; projection plays the muted clean animation, subtitles bound to `video.currentTime + media.offset`, band composited via the active display profile), **Timed** (`timeline` only; `useSubtitleTimer` drives the active line off a wall clock, with ±0.25 s nudge + drift indicator). A manual arrow/pedal press always re-seizes control and re-anchors the clock.
 
 ### Performance State Machine
 
@@ -67,7 +80,13 @@ Hash-based: `#/control`, `#/projection`, `#/songs`, `#/languages`, `#/setlists`,
 
 ### Song Data Format
 
-Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (v1→v2 migration runs on load).
+Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (**v3**; v1→v2→v3 migration runs on load). v3 adds optional, back-compatible blocks: `title_translations`, `intro`, `tempo { bpm, meter, countInBars }`, `media { type, src, offset?, trimStart? }`, and `timeline` (per-item `{ start, end }` seconds, parallel to the full items array including section markers). Songs without these behave exactly as before. `media.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
+
+### Hook stability gotcha (important)
+
+`getLibrarySongById` returns a **fresh object on every call/render** (it's not memoized). So `currentLibrarySong` and anything derived from it (`tempo`, `media`, `timeline`) are **new references each render**. Any `useEffect`/`useMemo` that depends on one of these *by object identity* will re-run every render — which already caused an infinite render loop in `useBeatClock` (effect → `setState` → re-render → new object → effect again, exploding memory). 
+
+Rule: timer/effect hooks must key on **primitive values** (e.g. `tempo.bpm`, `currentSongId`), not the song object. Store the object itself in a `ref` updated each render if you need it inside a callback. `useBeatClock` and `useSubtitleTimer` both follow this pattern. A future refactor could memoize `getLibrarySongById`, but until then, never depend on `currentLibrarySong` identity.
 
 ## Development Protocol (TDD)
 
@@ -83,7 +102,8 @@ Prefer behavior tests over implementation-detail tests. Extract pure functions w
 
 ## Tech Stack
 
-- **Electron 33** + **Vite 5** + **React 18** + **TypeScript 5** (strict mode)
-- **Vitest 2** + **React Testing Library** for tests (jsdom environment)
+- **Electron 41** + **Vite 8** + **React 18** + **TypeScript 5.6** (strict mode)
+- **Vitest 4** + **React Testing Library** for tests (jsdom 28)
 - **@dnd-kit** for drag-and-drop in setlist management
 - **ws** for the WebSocket server
+- Packaging via **electron-builder** (`npm run pack`, `--mac`) — not yet exercised for distribution

@@ -15,8 +15,9 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 ## How it works (at a glance)
 
 - Two-window architecture: **Control** (performer) + **Projection** (audience), synchronized via WebSocket on `ws://localhost:8765`.
-- Performer advances lyrics manually via keyboard arrows or a Bluetooth foot pedal.
-- Multilingual JSON songs, setlists, and a performance state machine: `SETUP → READY_TO_ARM → ARMED → PERFORMING`.
+- **Three per-song playback modes** (as of June 2026): **Manual** (keyboard arrows / Bluetooth pedal — always the fallback), **Video** (subtitles locked to a synchronized animation video), **Timed** (auto-advance from a recorded timeline). Manual override always wins.
+- Projection can play a clean full-frame animation and composite the subtitle band itself (**display profiles**), replacing per-language and per-screen video exports. Plus a performer **count-in/beat indicator**, **record-by-tapping** timeline capture, translatable **titles/intros**, and an **end-card** screen.
+- Multilingual JSON songs (**v3 schema**: adds `title_translations`, `intro`, `tempo`, `media`, `timeline`), setlists, and a performance state machine: `SETUP → READY_TO_ARM → ARMED → PERFORMING`.
 - Live hardware: Mac mini + projector + iPad via Sidecar + Bluetooth pedal.
 
 ## Tech stack
@@ -32,16 +33,18 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 
 ## Project-specific model picks
 
+**Build state (June 2026):** the video-sync / auto-advance feature set is **built and merged** — schema v3 (timeline/media/tempo/intro/title_translations), record-by-tapping, display profiles, Video mode, end-card, count-in/metronome, and Timed mode. Full design rationale + per-prompt runsheet: `docs/code-execution-plan.md` (+ `docs/auto-advance-and-video-sync.md`, `docs/media-assets.md`, `docs/subtitle-format.md`). **Next:** D-wire (link Tragedia's mp4 + capture a timeline in-app to validate Video mode on the projector), then packaging (the installable-app goal). **Deferred:** offline forced alignment (Prompt B) until the produced master exists (late June); the live-ASR following spike is shelved.
+
 General model rule lives in `personal-context.md`. Picks specific to this project's upcoming workstreams:
 
 - Creating custom Claude agents for this app → **Sonnet** (iterative prompt-craft).
 - Product-flow model of the app to map frictions and opportunities → **Opus** for the initial framing, then **Sonnet** to populate and maintain.
-- Local-AI feature for auto-advancing lyrics without the pedal → **Opus** for architecture and trade-off design; **Sonnet** for implementation in Claude Code.
+- ~~Local-AI feature for auto-advancing lyrics without the pedal~~ → **DONE** as Video + Timed modes (the live-ASR-following variant is shelved until the produced master; see plan).
 - AI-generated UX/UI + design-system exploration → **Sonnet** by default; **Opus** only when deriving a coherent design system from the existing app.
 - Generative animation app reacting to live-performance events (audio, place, weather, unexpected pauses) → **Opus** for conceptual and architectural kickoff; **Sonnet** for build-out. (Likely becomes its own project under `~/Chango Pepper/projects/` when it starts.)
-- Add chords to lyrics and a possibility to turn them of/on
-- Explore packaging the app as a downloadable, installable app that runs natively on both macOS and Windows (currently only accessible as a local dev project).
-- Explore making the app available on iPad as a native experience — not just using the iPad as a second screen via Sidecar.
+- Add chords to lyrics and a possibility to turn them of/on (still open)
+- **Packaging** — downloadable, installable app (macOS first, Windows later). Currently a local dev project; `npm run pack` / electron-builder is wired but not yet exercised for distribution. **This is the planned next workstream after D-wire.**
+- Explore making the app available on iPad as a native experience — not just using the iPad as a second screen via Sidecar (still open).
 
 ## Project-specific workflow notes
 
@@ -50,6 +53,11 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - GitHub MCP is not currently available in Cowork's connector registry; may be addable in Claude Code later.
 
 ## Open follow-ups / parked items
+
+- **D-wire (next):** link Tragedia's `media.mp4` in-app, capture a timeline via Record mode, validate Video mode on the projector. The `media` block is already in `songs/tragedia-de-cerdo-asado.json`. Steps in `docs/code-execution-plan.md` → "D-wire — in-app workflow".
+- **Packaging (after D-wire):** exercise `npm run pack` to produce a real macOS `.dmg`/`.app`; the installable-app goal.
+- **`getLibrarySongById` refactor (tech debt):** it returns a fresh object every render, which caused a render-loop in G (fixed at the hook level). Memoizing it would remove the whole class of bug. Lesson captured in repo `CLAUDE.md` ("Hook stability gotcha").
+- The engineering-conventions lesson from G/E was folded into `CLAUDE.md` (new modules table + the unstable-reference gotcha) — an example of the "update CLAUDE.md as conventions crystallize" follow-up below.
 
 - When working on the product modelling/management discipline, revisit the ideas list in "Project-specific model picks" and properly categorize them: app extensions vs. standalone projects vs. cross-project concerns.
 
