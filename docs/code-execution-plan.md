@@ -78,8 +78,8 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step
 | 4 | **D** — VIDEO mode | Projection plays clean animation + overlaid translation, bound to `video.currentTime`. Replaces QuickTime + per-language + per-screen exports. | A, C, F | ✅ Merged to main. |
 | 4b | **D-wire** — wire Tragedia | `media` block added to Tragedia JSON ✅; capture a rough `timeline` in-app to see VIDEO mode end-to-end. | D, C | ☐ In-app task, do whenever (optional/throwaway calibration) — see below. |
 | 5 | **H** — end-card | Reusable acknowledgements/credits screen. | A | ✅ Merged to main. |
-| 6 | **G** — count-in / metronome | Performer-view visual count-in; auto-rolls on the downbeat. Adds `tempo` field. | A | ◑ Next up / running (prompt below) |
-| 7 | **E** — TIMED mode + nudge | Wall-clock timeline for fixed-tempo songs, ±0.25s nudge + manual override. | A | ☐ Not started |
+| 6 | **G** — count-in / metronome | Performer-view visual count-in; auto-rolls on the downbeat. Adds `tempo` field. | A | 🟢 Built + fixed a real render-loop bug (`useBeatClock` keyed on unstable `tempo` object → infinite loop; now keys on primitives). In `/release`. |
+| 7 | **E** — TIMED mode + nudge | Wall-clock timeline for fixed-tempo songs, ±0.25s nudge + manual override. | A | ☐ Next up — last build prompt (below) |
 | 8 | **B** — offline alignment | Auto-generate `timeline` from lyrics + vocal stem (WhisperX). **Defer** until late-June produced master exists. | A | ☐ Deferred |
 | — | **I** — live ASR spike | **Shelved** 2026-06-18 (no-go on provisional take). Revisit after produced master. | — | ⏸ Shelved |
 
@@ -146,6 +146,10 @@ Goal: see VIDEO mode play end-to-end on the provisional Tragedia master. This is
 If the subtitles feel systematically late by a fixed amount, that's the reaction-lag — a single negative `offset` fixes the whole song at once.
 
 > **Better-but-optional later:** make Record mode timestamp against `video.currentTime` (not its own clock) when a video is loaded, for lag-free capture. Skip it for now — Prompt B (forced alignment) supersedes manual capture entirely once the produced master exists.
+
+## Watch-item (from G)
+
+`getLibrarySongById` returns a **fresh object every render** (unmemoized), so `currentLibrarySong` and anything derived from it are new references each render. This caused the G render-loop (a `useEffect` keyed on `tempo` object identity). Fixed in `useBeatClock` by keying on primitives — but the underlying pattern remains: any future hook/effect that depends on `currentLibrarySong` (or a field of it) by object identity will loop the same way. Prefer depending on primitive fields, or memoize `getLibrarySongById`. Worth a small future refactor.
 
 ## Notes
 

@@ -34,7 +34,14 @@
       "Bash(gh repo view:*)",
       "Bash(gh api:*)",
       "Bash(git merge *)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(cat vite.config.ts)",
+      "Bash(cat vitest.config.ts)",
+      "Bash(pkill -9 -f \"vitest|vite\")",
+      "Bash(pkill -f vitest)",
+      "Bash(pkill -f \"node .*vite\")",
+      "Bash(lsof -ti:5174)",
+      "Bash(xargs kill)"
     ],
     "deny": [
       "Bash(git push --force*)",

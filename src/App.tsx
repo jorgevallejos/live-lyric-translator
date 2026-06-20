@@ -27,7 +27,9 @@ import {
 } from './performanceControlStateMachine'
 import { KEY_ARMED_BROADCAST } from './performanceState'
 import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { BeatIndicator } from './BeatIndicator'
+import { useBeatClock } from './useBeatClock'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
   autoSelectFirstSongForActiveSetlist,
@@ -521,6 +523,36 @@ function ControlView() {
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
+  // Beat clock: performer view only, never the projection window.
+  const songTempo = currentLibrarySong?.tempo
+  const { phase: beatPhase, beginFiredOnce, reset: resetBeatClock } = useBeatClock(
+    songTempo,
+    showArmedShell
+  )
+  const [beatPulseVisible, setBeatPulseVisible] = useState(true)
+  const handleToggleBeatPulse = useCallback(() => setBeatPulseVisible((v) => !v), [])
+
+  // When count-in ends, auto-advance to the first lyric (begin event).
+  const prevBeginFiredRef = useRef(false)
+  useEffect(() => {
+    if (beginFiredOnce && !prevBeginFiredRef.current && index === -1) {
+      prevBeginFiredRef.current = true
+      handleNext()
+    }
+    if (!beginFiredOnce) {
+      prevBeginFiredRef.current = false
+    }
+  }, [beginFiredOnce, index])
+
+  // Reset beat clock when leaving the armed shell.
+  useEffect(() => {
+    if (!showArmedShell) {
+      resetBeatClock()
+      prevBeginFiredRef.current = false
+      setBeatPulseVisible(true)
+    }
+  }, [showArmedShell, resetBeatClock])
+
   const languagesDisplay =
     effectiveSingingLang && effectiveLang
       ? `${effectiveSingingLang.toUpperCase()} → ${effectiveLang.toUpperCase()}`
@@ -713,7 +745,15 @@ function ControlView() {
         )}
         {showArmedShell && !isVideoMode && (
           <>
-            <div className="control-performing-stage" data-testid="performing-content">
+            <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
+              {songTempo && (
+                <BeatIndicator
+                  tempo={songTempo}
+                  phase={beatPhase}
+                  pulseVisible={beatPulseVisible}
+                  onTogglePulse={handleToggleBeatPulse}
+                />
+              )}
               <div className="control-performing-stage-stack">
                 <div className="control-performing-lyric-block">
                   <p className="control-lyric">{displayText}</p>
