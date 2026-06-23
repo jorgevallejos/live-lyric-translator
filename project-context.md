@@ -15,15 +15,15 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 ## How it works (at a glance)
 
 - Two-window architecture: **Control** (performer) + **Projection** (audience), synchronized via WebSocket on `ws://localhost:8765`.
-- **Three per-song playback modes** (as of June 2026): **Manual** (keyboard arrows / Bluetooth pedal — always the fallback), **Video** (subtitles locked to a synchronized animation video), **Timed** (auto-advance from a recorded timeline). Manual override always wins.
-- Projection can play a clean full-frame animation and composite the subtitle band itself (**display profiles**), replacing per-language and per-screen video exports. Plus a performer **count-in/beat indicator**, **record-by-tapping** timeline capture, translatable **titles/intros**, and an **end-card** screen.
-- Multilingual JSON songs (**v3 schema**: adds `title_translations`, `intro`, `tempo`, `media`, `timeline`), setlists, and a performance state machine: `SETUP → READY_TO_ARM → ARMED → PERFORMING`.
+- **Two per-song playback modes** (as of June 2026): **Manual** (keyboard arrows / Bluetooth pedal — always the fallback) and **Video** (subtitles locked to a synchronized animation video via `video.currentTime`). Manual override always wins. (Timed mode and record-by-tapping were removed in the June 2026 video & tempo rework — timelines are now authored offline in the JSON.)
+- Each song can link a **big-screen and a small-screen** video; the size is picked at arming time (Projection column) and broadcast to the Projection window. Projection can also play a clean full-frame animation and composite the subtitle band itself (**display profiles**). Plus a performer **count-in/beat indicator** (`BeatCircle`, driven by `getBeatPhase`, with compound-meter grouping), translatable **titles/intros**, and an **end-card** screen.
+- Multilingual JSON songs (**v5 schema**: `title_translations`, `intro`, `tempo {bpm, numerator, denominator, countInBars}`, `media {big?, small?}`, `timeline`), setlists, and a performance state machine: `SETUP → READY_TO_ARM → ARMED → PERFORMING`.
 - Live hardware: Mac mini + projector + iPad via Sidecar + Bluetooth pedal.
 
 ## Tech stack
 
-- Electron 33, Vite 5, React 18, TypeScript strict.
-- Vitest 2 for tests, @dnd-kit for drag-and-drop, `ws` for the websocket bridge.
+- Electron 41, Vite 8, React 18, TypeScript 5.6 strict.
+- Vitest 4 for tests, @dnd-kit for drag-and-drop, `ws` for the websocket bridge.
 - Core architectural pattern: pure-function state modules + React hooks, with strict TDD (Red → Green → Refactor).
 
 ## Links
@@ -33,13 +33,13 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 
 ## Project-specific model picks
 
-**Build state (June 2026):** the video-sync / auto-advance feature set is **built and merged** — schema v3 (timeline/media/tempo/intro/title_translations), record-by-tapping, display profiles, Video mode, end-card, count-in/metronome, and Timed mode. Full design rationale + per-prompt runsheet: `docs/code-execution-plan.md` (+ `docs/auto-advance-and-video-sync.md`, `docs/media-assets.md`, `docs/subtitle-format.md`). **Next:** D-wire (link Tragedia's mp4 + capture a timeline in-app to validate Video mode on the projector), then packaging (the installable-app goal). **Deferred:** offline forced alignment (Prompt B) until the produced master exists (late June); the live-ASR following spike is shelved.
+**Build state (June 2026):** the video-sync / auto-advance feature set was built and merged, then reworked. The **video & tempo rework** (spec: `docs/video-and-tempo-rework-prompt.md`, branch `feat/remove-timed-mode`) is complete across all 8 slices: tempo split into `numerator`/`denominator` with compound-meter beat grouping (§1), per-song big/small `media` slots (§2), Timed mode + record-by-tapping removed (§8), camera-icon link dialog in Manage Setlists (§3), Big/Small selector in the Projection column with WS broadcast (§4), shared `BeatCircle` indicator (§7), and simplified video + non-video performance screens with a single-clock count-in→video handoff (§5/§6). Schema is now **v5**. Full suite green (~600 tests). Remaining build docs: `docs/code-execution-plan.md`, `docs/media-assets.md`, `docs/subtitle-format.md`. **Next:** merge the PR, then D-wire (link Tragedia's big/small files via the camera dialog, author the timeline in JSON, validate Video mode + count-in handoff on the projector), then packaging (the installable-app goal). **Deferred:** offline forced alignment (Prompt B) until the produced master exists; the live-ASR following spike is shelved.
 
 General model rule lives in `personal-context.md`. Picks specific to this project's upcoming workstreams:
 
 - Creating custom Claude agents for this app → **Sonnet** (iterative prompt-craft).
 - Product-flow model of the app to map frictions and opportunities → **Opus** for the initial framing, then **Sonnet** to populate and maintain.
-- ~~Local-AI feature for auto-advancing lyrics without the pedal~~ → **DONE** as Video + Timed modes (the live-ASR-following variant is shelved until the produced master; see plan).
+- ~~Local-AI feature for auto-advancing lyrics without the pedal~~ → **DONE** as Video mode (Timed mode was later removed; the live-ASR-following variant is shelved until the produced master; see plan).
 - AI-generated UX/UI + design-system exploration → **Sonnet** by default; **Opus** only when deriving a coherent design system from the existing app.
 - Generative animation app reacting to live-performance events (audio, place, weather, unexpected pauses) → **Opus** for conceptual and architectural kickoff; **Sonnet** for build-out. (Likely becomes its own project under `~/Chango Pepper/projects/` when it starts.)
 - Add chords to lyrics and a possibility to turn them of/on (still open)
@@ -54,7 +54,7 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 
 ## Open follow-ups / parked items
 
-- **D-wire (next):** link Tragedia's `media.mp4` in-app, capture a timeline via Record mode, validate Video mode on the projector. The `media` block is already in `songs/tragedia-de-cerdo-asado.json`. Steps in `docs/code-execution-plan.md` → "D-wire — in-app workflow".
+- **D-wire (next, after PR merge):** link Tragedia's big/small files via the camera dialog in Manage Setlists, author the timeline in the song JSON (no more in-app Record mode), and validate Video mode + the count-in→video handoff on the projector. The `media` block is already in `songs/tragedia-de-cerdo-asado.json`. Steps in `docs/code-execution-plan.md` → "D-wire — in-app workflow".
 - **Packaging (after D-wire):** exercise `npm run pack` to produce a real macOS `.dmg`/`.app`; the installable-app goal.
 - **`getLibrarySongById` refactor (tech debt):** it returns a fresh object every render, which caused a render-loop in G (fixed at the hook level). Memoizing it would remove the whole class of bug. Lesson captured in repo `CLAUDE.md` ("Hook stability gotcha").
 - The engineering-conventions lesson from G/E was folded into `CLAUDE.md` (new modules table + the unstable-reference gotcha) — an example of the "update CLAUDE.md as conventions crystallize" follow-up below.
