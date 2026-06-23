@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **⚠️ In-flight (2026-06-23) — read before touching media/schema.** The D-wire projector test triaged 6 changes now being implemented (TDD prompts in `docs/d-wire-triage-and-prompts.md`). Direction, decided with Jorge: **one video per song** — `media` collapses from `{ big?, small? }` to a single `MediaFile` (schema **v5→v6**); **"Big"/"Small" becomes a projection display-format toggle** mapping to the `big-screen`/`small-canvas` display profiles, not a per-format file. Local video is served via a **`media://` custom protocol** (registered in `main.cjs`), not `file://` — the `http://localhost` dev origin makes `webSecurity` block `file://`. Also: single-file camera picker (video glyph, green when linked), the always-on bottom DISPLAY row removed, non-video beat gains Start/Pause/Restart decoupled from Next, end-card button removed. Sections below describe pre-change state; update them as each prompt lands.
+
 ## What This App Does
 
 Live Lyric Translator is a macOS Electron desktop app for live concert subtitle projection. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
@@ -53,7 +55,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (Video mode) |
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry |
-| `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings |
+| `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings. `absolutePathToMediaUrl` converts a path to a `media://` URL served by the Electron custom protocol (not `file://` — blocked by webSecurity on the http://localhost dev origin). |
 | `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
 
 Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` modules (no side effects, fully unit-tested). React hooks (`use*.ts`) wire them to components and own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC. Timer-driven hooks include `useBeatClock` (count-in).

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { getLyricText, isLyricLine, isSection, type SongItem, type MediaFile, type TimelineEntry } from './songState'
 import { videoCueLookup } from './videoCueLookup'
-import { absolutePathToFileUrl, validateVideoForImport, setMediaPath, type MediaValidationWarning } from './mediaPathStore'
+import { absolutePathToMediaUrl, validateVideoForImport, setMediaPath, type MediaValidationWarning } from './mediaPathStore'
 import { setVideoSeekTarget } from './VideoProjectionRegion'
 
 interface Props {
@@ -129,7 +129,7 @@ export function VideoControlPanel({
     // Force the video to reload by re-triggering effect via src change is handled by parent re-render
     // but we can seek to trimStart here immediately
     if (videoRef.current) {
-      videoRef.current.src = absolutePathToFileUrl(chosen)
+      videoRef.current.src = absolutePathToMediaUrl(chosen)
       videoRef.current.currentTime = trimStart
       videoRef.current.play().catch(() => {})
     }
@@ -163,7 +163,7 @@ export function VideoControlPanel({
         <div className="ctrl-video-preview-wrap">
           <video
             ref={videoRef}
-            src={absolutePathToFileUrl(absolutePath)}
+            src={absolutePathToMediaUrl(absolutePath)}
             muted
             playsInline
             className="ctrl-video-preview"

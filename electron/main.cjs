@@ -1,8 +1,15 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const { WebSocketServer } = require('ws')
 const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'media',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+  },
+])
 
 const WS_PORT = 8765
 let lastState = null // { currentIndex: number, blank: boolean } | null
@@ -204,7 +211,15 @@ ipcMain.handle('fs:getFileStats', (_event, filePath) => {
   }
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  protocol.handle('media', (request) => {
+    const url = new URL(request.url)
+    // URL path is already percent-encoded; decode to get the real filesystem path
+    const absolutePath = decodeURIComponent(url.pathname)
+    return net.fetch('file://' + absolutePath)
+  })
+  createWindow()
+})
 app.on('before-quit', (event) => {
   const openProjectionWindow = getOpenProjectionWindow()
   if (!openProjectionWindow) return

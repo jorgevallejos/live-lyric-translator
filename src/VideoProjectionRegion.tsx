@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getLyricText, isSection, isLyricLine, type SongItem, type MediaFile, type TimelineEntry } from './songState'
 import { type ProjectionLayout } from './displayProfile'
 import { videoCueLookup } from './videoCueLookup'
-import { absolutePathToFileUrl } from './mediaPathStore'
+import { absolutePathToMediaUrl } from './mediaPathStore'
 
 export const VIDEO_SEEK_TARGET_KEY = 'videoSeekTarget'
 export const VIDEO_TRANSPORT_KEY = 'videoTransport'
@@ -151,7 +151,7 @@ export function VideoProjectionRegion({
       >
         <video
           ref={videoRef}
-          src={absolutePathToFileUrl(absolutePath)}
+          src={absolutePathToMediaUrl(absolutePath)}
           muted
           playsInline
           style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}

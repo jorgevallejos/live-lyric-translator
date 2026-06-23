@@ -15,7 +15,7 @@ import type { MediaFile, TimelineEntry, SongItem } from './songState'
 import type { ProjectionLayout } from './displayProfile'
 
 vi.mock('./mediaPathStore', () => ({
-  absolutePathToFileUrl: (path: string) => `file://${path}`,
+  absolutePathToMediaUrl: (path: string) => `media://${path}`,
 }))
 
 const TIMELINE: TimelineEntry[] = [{ start: 0, end: 2 }]
