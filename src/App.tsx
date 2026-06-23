@@ -36,6 +36,7 @@ import {
   autoSelectFirstSongForActiveSetlist,
   ensureSongLibraryHydrated,
   getActiveSetlistId,
+  getActiveMediaFile,
   getLibrarySongById,
   getOrderedSongsForActiveSetlist,
   getSetlists,
@@ -264,8 +265,9 @@ function ControlView() {
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
-  const isVideoMode = currentLibrarySong?.media?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
+  const activeMedia = currentLibrarySong ? getActiveMediaFile(currentLibrarySong) : undefined
+  const isVideoMode = activeMedia?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -787,8 +789,8 @@ function ControlView() {
         {showArmedShell && isVideoMode && (
           <VideoControlPanel
             absolutePath={resolvedVideoPath}
-            mediaSrc={currentLibrarySong!.media!.src}
-            media={currentLibrarySong!.media!}
+            mediaSrc={activeMedia!.src}
+            media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
             lines={lines}
             singingLang={effectiveSingingLang}
@@ -1516,8 +1518,9 @@ function ProjectionView() {
   }, [singleScreen])
 
   // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
-  const isVideoMode = currentLibrarySong?.media?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
+  const activeMedia = currentLibrarySong ? getActiveMediaFile(currentLibrarySong) : undefined
+  const isVideoMode = activeMedia?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
 
   if (isVideoMode && resolvedVideoPath) {
     return (
@@ -1534,7 +1537,7 @@ function ProjectionView() {
       >
         <VideoProjectionRegion
           absolutePath={resolvedVideoPath}
-          media={currentLibrarySong!.media!}
+          media={activeMedia!}
           timeline={currentLibrarySong!.timeline ?? []}
           lines={lines}
           effectiveLang={effectiveLang}

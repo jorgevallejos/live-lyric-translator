@@ -92,7 +92,7 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
       id: s.id,
       title: s.title,
       items: [line],
-      ...(s.id === 'duelo' ? { tempo: { bpm: 120, meter: 4, countInBars: 1 } } : {}),
+      ...(s.id === 'duelo' ? { tempo: { bpm: 120, numerator: 4, denominator: 4, countInBars: 1 } } : {}),
     }))
     saveSetlistStore(createInitialSnapshot(songs))
   }
