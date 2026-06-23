@@ -35,7 +35,6 @@ import {
   autoSelectFirstSongForActiveSetlist,
   ensureSongLibraryHydrated,
   getActiveSetlistId,
-  getActiveMediaFile,
   getLibrarySongById,
   getOrderedSongsForActiveSetlist,
   getSetlists,
@@ -45,8 +44,6 @@ import {
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
 import {
-  getAvailableScreenSizes,
-  getDefaultScreenSize,
   getProjectionStatusText,
   getStoredScreenSize,
   setStoredScreenSize,
@@ -248,18 +245,12 @@ function ControlView() {
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
 
-  // Screen size selection: persisted per session; resets to default whenever the song changes.
-  const songMedia = currentLibrarySong?.media
-  const availableScreenSizes = getAvailableScreenSizes(songMedia)
-  const defaultScreenSize = getDefaultScreenSize(songMedia)
+  // Screen size persisted per session (used as display-format toggle; does not select a media file).
   const [selectedScreenSize, setSelectedScreenSize] = useState<ScreenSize | null>(() =>
     getStoredScreenSize()
   )
 
-  const activeMedia = currentLibrarySong
-    ? (selectedScreenSize && currentLibrarySong.media?.[selectedScreenSize])
-      || getActiveMediaFile(currentLibrarySong)
-    : undefined
+  const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
   const armed = performanceState === 'armed' || performanceState === 'performing'
@@ -289,22 +280,6 @@ function ControlView() {
     applyRemoteState,
     applyCommand,
   })
-
-  // When song changes, reset selection to the new song's default.
-  const prevSongIdRef = useRef<string | null>(null)
-  const sendScreenSizeRef = useRef(sendScreenSize)
-  sendScreenSizeRef.current = sendScreenSize
-  useEffect(() => {
-    if (currentSongId !== prevSongIdRef.current) {
-      prevSongIdRef.current = currentSongId ?? null
-      const def = defaultScreenSize
-      setSelectedScreenSize(def)
-      if (def !== null) {
-        setStoredScreenSize(def)
-        sendScreenSizeRef.current(def)
-      }
-    }
-  }, [currentSongId, defaultScreenSize])
 
   const handleSelectScreenSize = (size: ScreenSize) => {
     setSelectedScreenSize(size)
@@ -679,26 +654,22 @@ function ControlView() {
                     </span>
                   </div>
                   <div className="control-setup-buttons">
-                    {availableScreenSizes.length > 0 && (
+                    {isVideoMode && (
                       <div className="control-setup-button-row">
-                        {availableScreenSizes.includes('small') && (
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'small' ? ' ctrl-screen-size--active' : ''}`}
-                            onClick={() => handleSelectScreenSize('small')}
-                          >
-                            Small
-                          </button>
-                        )}
-                        {availableScreenSizes.includes('big') && (
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'big' ? ' ctrl-screen-size--active' : ''}`}
-                            onClick={() => handleSelectScreenSize('big')}
-                          >
-                            Big
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'small' ? ' ctrl-screen-size--active' : ''}`}
+                          onClick={() => handleSelectScreenSize('small')}
+                        >
+                          Small
+                        </button>
+                        <button
+                          type="button"
+                          className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'big' ? ' ctrl-screen-size--active' : ''}`}
+                          onClick={() => handleSelectScreenSize('big')}
+                        >
+                          Big
+                        </button>
                       </div>
                     )}
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
@@ -1217,9 +1188,8 @@ function ProjectionView() {
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const singingLang = getSingingLanguage()
 
-  // Screen size: the Control window writes KEY_SCREEN_SIZE_BROADCAST to localStorage when it
-  // changes the selection; we pick it up via storage events.
-  const [projectionScreenSize, setProjectionScreenSize] = useState<ScreenSize | null>(getBroadcastScreenSize)
+  // Screen size broadcast from Control window — tracked for Prompt 4 display-format toggle.
+  const [, setProjectionScreenSize] = useState<ScreenSize | null>(getBroadcastScreenSize)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === KEY_SCREEN_SIZE_BROADCAST || e.key === null) {
@@ -1384,10 +1354,7 @@ function ProjectionView() {
   }, [singleScreen])
 
   // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
-  const activeMedia = currentLibrarySong
-    ? (projectionScreenSize && currentLibrarySong.media?.[projectionScreenSize])
-      || getActiveMediaFile(currentLibrarySong)
-    : undefined
+  const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
 

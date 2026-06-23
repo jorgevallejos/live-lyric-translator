@@ -37,7 +37,7 @@ import {
   type SetlistStoreSnapshot,
 } from './setlistStore'
 import { setMediaPath, validateVideoForImport } from './mediaPathStore'
-import type { SongMedia } from './songState'
+import type { MediaFile } from './songState'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
@@ -180,7 +180,7 @@ function LinkVideoDialog({ song, onClose, onChooseFile, onClear, warnings }: Lin
       <div className="link-video-dialog">
         <h2 className="link-video-dialog-title">Link video — {song.title}</h2>
         {slots.map(({ slot, label }) => {
-          const file = song.media?.[slot]
+          const file: MediaFile | undefined = slot === 'small' ? song.media : undefined
           const slotWarnings = warnings[slot] ?? []
           return (
             <div key={slot} className="link-video-dialog-row">
@@ -616,11 +616,7 @@ export function ManageSetlistsView() {
       const warnings = validateVideoForImport(chosen)
       setLinkVideoWarnings((prev) => ({ ...prev, [slot]: warnings.length ? warnings : undefined }))
       setDraft((d) => {
-        const song = d.songLibrary.songs.find((s) => s.id === songId)
-        if (!song) return d
-        const currentMedia: SongMedia = song.media ?? {}
-        const nextMedia: SongMedia = { ...currentMedia, [slot]: { type: 'video', src: basename } }
-        const next = patchSongMediaInSnapshot(d, songId, nextMedia) ?? d
+        const next = patchSongMediaInSnapshot(d, songId, { type: 'video', src: basename }) ?? d
         saveSetlistStore(next)
         return next
       })
@@ -633,11 +629,7 @@ export function ManageSetlistsView() {
     if (!linkVideoSongId) return
     const songId = linkVideoSongId
     setDraft((d) => {
-      const song = d.songLibrary.songs.find((s) => s.id === songId)
-      if (!song) return d
-      const currentMedia: SongMedia = { ...song.media }
-      delete currentMedia[slot]
-      const next = patchSongMediaInSnapshot(d, songId, currentMedia) ?? d
+      const next = patchSongMediaInSnapshot(d, songId, undefined) ?? d
       saveSetlistStore(next)
       return next
     })
