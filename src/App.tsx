@@ -27,7 +27,7 @@ import {
 } from './performanceControlStateMachine'
 import { KEY_ARMED_BROADCAST } from './performanceState'
 import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
 import { ManageSetlistsView } from './ManageSetlistsView'
@@ -544,9 +544,6 @@ function ControlView() {
     songTempo,
     showArmedShell && !isVideoMode
   )
-  const [beatPulseVisible, setBeatPulseVisible] = useState(true)
-  const handleToggleBeatPulse = useCallback(() => setBeatPulseVisible((v) => !v), [])
-
   // When count-in ends, auto-advance to the first lyric (begin event).
   const prevBeginFiredRef = useRef(false)
   useEffect(() => {
