@@ -7,7 +7,6 @@ import {
   getStoredScreenSize,
   setStoredScreenSize,
   clearStoredScreenSize,
-  type ScreenSize,
 } from './screenSizeState'
 
 // ── selector visibility rules ──────────────────────────────────────────────

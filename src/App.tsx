@@ -44,6 +44,16 @@ import {
   type LibrarySong,
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
+import {
+  getAvailableScreenSizes,
+  getDefaultScreenSize,
+  getProjectionStatusText,
+  getStoredScreenSize,
+  setStoredScreenSize,
+  getBroadcastScreenSize,
+  KEY_SCREEN_SIZE_BROADCAST,
+  type ScreenSize,
+} from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
 
@@ -237,7 +247,19 @@ function ControlView() {
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
-  const activeMedia = currentLibrarySong ? getActiveMediaFile(currentLibrarySong) : undefined
+
+  // Screen size selection: persisted per session; resets to default whenever the song changes.
+  const songMedia = currentLibrarySong?.media
+  const availableScreenSizes = getAvailableScreenSizes(songMedia)
+  const defaultScreenSize = getDefaultScreenSize(songMedia)
+  const [selectedScreenSize, setSelectedScreenSize] = useState<ScreenSize | null>(() =>
+    getStoredScreenSize()
+  )
+
+  const activeMedia = currentLibrarySong
+    ? (selectedScreenSize && currentLibrarySong.media?.[selectedScreenSize])
+      || getActiveMediaFile(currentLibrarySong)
+    : undefined
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
   const armed = performanceState === 'armed' || performanceState === 'performing'
@@ -261,12 +283,34 @@ function ControlView() {
     lineCount: lines.length,
     currentIndex: index,
   })
-  const { sendCommandWithState, sendSeek } = useWebSocket({
+  const { sendCommandWithState, sendSeek, sendScreenSize } = useWebSocket({
     index,
     blank,
     applyRemoteState,
     applyCommand,
   })
+
+  // When song changes, reset selection to the new song's default.
+  const prevSongIdRef = useRef<string | null>(null)
+  const sendScreenSizeRef = useRef(sendScreenSize)
+  sendScreenSizeRef.current = sendScreenSize
+  useEffect(() => {
+    if (currentSongId !== prevSongIdRef.current) {
+      prevSongIdRef.current = currentSongId ?? null
+      const def = defaultScreenSize
+      setSelectedScreenSize(def)
+      if (def !== null) {
+        setStoredScreenSize(def)
+        sendScreenSizeRef.current(def)
+      }
+    }
+  }, [currentSongId, defaultScreenSize])
+
+  const handleSelectScreenSize = (size: ScreenSize) => {
+    setSelectedScreenSize(size)
+    setStoredScreenSize(size)
+    sendScreenSize(size)
+  }
 
   /** Tracked user-facing config (storage); avoids false positives when only derived effectiveLang changes. */
   const prevUserConfigRef = useRef<{
@@ -576,7 +620,7 @@ function ControlView() {
               Languages: {languagesDisplay || '—'}
             </span>
             <span className="top-summary-line">
-              Projection: {projectionOpen ? 'Open' : 'Closed'}
+              Projection: {getProjectionStatusText(projectionOpen, selectedScreenSize)}
             </span>
             <span
               className="top-title top-title-state"
@@ -634,9 +678,33 @@ function ControlView() {
                 <div className="control-setup-section">
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
-                    <span className="control-setup-value">{projectionOpen ? 'Open' : 'Closed'}</span>
+                    <span className="control-setup-value">
+                      {getProjectionStatusText(projectionOpen, selectedScreenSize)}
+                    </span>
                   </div>
                   <div className="control-setup-buttons">
+                    {availableScreenSizes.length > 0 && (
+                      <div className="control-setup-button-row">
+                        {availableScreenSizes.includes('small') && (
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'small' ? ' ctrl-screen-size--active' : ''}`}
+                            onClick={() => handleSelectScreenSize('small')}
+                          >
+                            Small
+                          </button>
+                        )}
+                        {availableScreenSizes.includes('big') && (
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'big' ? ' ctrl-screen-size--active' : ''}`}
+                            onClick={() => handleSelectScreenSize('big')}
+                          >
+                            Big
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
@@ -1155,6 +1223,19 @@ function ProjectionView() {
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const singingLang = getSingingLanguage()
 
+  // Screen size: the Control window writes KEY_SCREEN_SIZE_BROADCAST to localStorage when it
+  // changes the selection; we pick it up via storage events.
+  const [projectionScreenSize, setProjectionScreenSize] = useState<ScreenSize | null>(getBroadcastScreenSize)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY_SCREEN_SIZE_BROADCAST || e.key === null) {
+        setProjectionScreenSize(getBroadcastScreenSize())
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   // Show logo on every mount; reveal intro only after the control fires an arm transition.
   // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
   // storage event that the projection can receive. This prevents leftover lyrics appearing
@@ -1309,7 +1390,10 @@ function ProjectionView() {
   }, [singleScreen])
 
   // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
-  const activeMedia = currentLibrarySong ? getActiveMediaFile(currentLibrarySong) : undefined
+  const activeMedia = currentLibrarySong
+    ? (projectionScreenSize && currentLibrarySong.media?.[projectionScreenSize])
+      || getActiveMediaFile(currentLibrarySong)
+    : undefined
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
 
