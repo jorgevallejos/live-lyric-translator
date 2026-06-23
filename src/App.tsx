@@ -561,7 +561,6 @@ function ControlView() {
     if (!showArmedShell) {
       resetBeatClock()
       prevBeginFiredRef.current = false
-      setBeatPulseVisible(true)
     }
   }, [showArmedShell, resetBeatClock])
 
