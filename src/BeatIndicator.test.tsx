@@ -1,4 +1,11 @@
 /** @vitest-environment jsdom */
+/**
+ * Beat indicator integration tests — performer view.
+ *
+ * The performer view now uses BeatCircle (§7 shared component) for the non-video
+ * armed screen. Tests verify integration: clock starts on arm, count-in phase
+ * renders correctly, transitions to running phase, auto-advance fires, etc.
+ */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, waitFor, within, cleanup } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
@@ -85,7 +92,7 @@ function setupControlViewWithReadinessPassing() {
   return mockApi
 }
 
-describe('Beat indicator (count-in + pulse) — performer view', () => {
+describe('Beat indicator (count-in + running) — performer view (BeatCircle)', () => {
   function installLibraryWithTempo(): void {
     const line: SongItem = { languages: { es: 't', en: 't' } }
     const songs = SONGS.map((s) => ({
@@ -109,7 +116,7 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     delete (window as unknown as { electronAPI?: unknown }).electronAPI
   })
 
-  it('shows no beat indicator when song has no tempo', async () => {
+  it('shows no beat circle when song has no tempo', async () => {
     setupControlViewWithReadinessPassing()
     setCurrentSongId('pimiento')
     setCurrentSongTitle('Pimiento')
@@ -120,11 +127,10 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     }, { timeout: WAIT_TIMEOUT })
     await act(async () => { fireEvent.click(getArmButton()) })
 
-    expect(screen.queryByTestId('beat-count-in-overlay')).toBeNull()
-    expect(screen.queryByTestId('beat-pulse-wrap')).toBeNull()
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 
-  it('shows count-in overlay when armed with a tempo song', async () => {
+  it('shows BeatCircle in count-in mode when armed with a tempo song', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -135,8 +141,8 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     await act(async () => { fireEvent.click(getArmButton()) })
     act(() => { vi.advanceTimersByTime(50) })
 
-    expect(screen.getByTestId('beat-count-in-overlay')).toBeTruthy()
-    expect(screen.getByTestId('beat-count-in-number')).toBeTruthy()
+    expect(screen.getByTestId('beat-circle')).toBeTruthy()
+    expect(screen.getByTestId('beat-circle-count-in')).toBeTruthy()
   })
 
   it('count-in shows beat 1 at start (downbeat class applied)', async () => {
@@ -148,9 +154,9 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     await act(async () => { fireEvent.click(getArmButton()) })
     act(() => { vi.advanceTimersByTime(50) })
 
-    const numEl = screen.getByTestId('beat-count-in-number')
+    const numEl = screen.getByTestId('beat-circle-beat-number')
     expect(numEl.textContent).toBe('1')
-    expect(numEl.classList.contains('beat-count-in-downbeat')).toBe(true)
+    expect(numEl.classList.contains('beat-circle-downbeat')).toBe(true)
   })
 
   it('count-in advances to beat 2 after one beat duration (500ms at 120bpm)', async () => {
@@ -162,12 +168,12 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     await act(async () => { fireEvent.click(getArmButton()) })
     act(() => { vi.advanceTimersByTime(550) })
 
-    const numEl = screen.getByTestId('beat-count-in-number')
+    const numEl = screen.getByTestId('beat-circle-beat-number')
     expect(numEl.textContent).toBe('2')
-    expect(numEl.classList.contains('beat-count-in-downbeat')).toBe(false)
+    expect(numEl.classList.contains('beat-circle-downbeat')).toBe(false)
   })
 
-  it('shows 4 dots matching the meter', async () => {
+  it('shows 4 dots matching the meter (4/4)', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -176,12 +182,12 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     await act(async () => { fireEvent.click(getArmButton()) })
     act(() => { vi.advanceTimersByTime(50) })
 
-    const dotsEl = screen.getByTestId('beat-count-in-dots')
-    expect(dotsEl.querySelectorAll('.beat-count-in-dot').length).toBe(4)
-    expect(dotsEl.querySelectorAll('.beat-count-in-dot-active').length).toBe(1)
+    const dotsEl = screen.getByTestId('beat-circle-dots')
+    expect(dotsEl.querySelectorAll('[data-testid="beat-circle-dot"]').length).toBe(4)
+    expect(dotsEl.querySelectorAll('[data-testid="beat-circle-dot"]')[0].className).toMatch(/active/)
   })
 
-  it('after count-in, count-in overlay disappears and persistent pulse appears', async () => {
+  it('after count-in, count-in phase disappears and running phase appears', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -191,8 +197,8 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     // Count-in is 4 beats × 500ms = 2000ms
     act(() => { vi.advanceTimersByTime(2100) })
 
-    expect(screen.queryByTestId('beat-count-in-overlay')).toBeNull()
-    expect(screen.getByTestId('beat-pulse-wrap')).toBeTruthy()
+    expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
+    expect(screen.getByTestId('beat-circle-running')).toBeTruthy()
   })
 
   it('auto-navigates to first lyric when count-in ends (begin event)', async () => {
@@ -210,36 +216,14 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     expect(getSongIndex()).toBe(0)
   })
 
-  it('pulse toggle button hides and shows the pulse', async () => {
-    vi.useFakeTimers()
-    setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
-
-    await act(async () => { await Promise.resolve() })
-    await act(async () => { fireEvent.click(getArmButton()) })
-    act(() => { vi.advanceTimersByTime(2100) })
-    await act(async () => { await Promise.resolve() })
-
-    const toggleBtn = screen.getByTestId('beat-pulse-toggle')
-    // pulse is initially visible
-    expect(screen.queryByTestId('beat-pulse')).toBeTruthy()
-
-    await act(async () => { fireEvent.click(toggleBtn) })
-    expect(screen.queryByTestId('beat-pulse')).toBeNull()
-
-    await act(async () => { fireEvent.click(toggleBtn) })
-    expect(screen.queryByTestId('beat-pulse')).toBeTruthy()
-  })
-
-  it('beat indicator is never rendered in the projection view', async () => {
+  it('beat circle is never rendered in the projection view', async () => {
     render(<App initialHash="#/projection" />)
     await act(async () => { await Promise.resolve() })
 
-    expect(screen.queryByTestId('beat-count-in-overlay')).toBeNull()
-    expect(screen.queryByTestId('beat-pulse-wrap')).toBeNull()
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 
-  it('count-in overlay does not appear in SETUP state (not armed)', async () => {
+  it('count-in does not appear in SETUP state (not armed)', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -248,6 +232,6 @@ describe('Beat indicator (count-in + pulse) — performer view', () => {
     // Do NOT arm — remain in READY_TO_ARM
     act(() => { vi.advanceTimersByTime(2100) })
 
-    expect(screen.queryByTestId('beat-count-in-overlay')).toBeNull()
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 })

@@ -13,7 +13,7 @@ import {
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { getMediaPath } from './mediaPathStore'
 import { VideoProjectionRegion } from './VideoProjectionRegion'
-import { VideoControlPanel } from './VideoControlPanel'
+import { VideoPerformancePanel } from './VideoPerformancePanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -28,8 +28,8 @@ import {
 import { KEY_ARMED_BROADCAST } from './performanceState'
 import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { BeatIndicator } from './BeatIndicator'
 import { useBeatClock } from './useBeatClock'
+import { BeatCircle } from './BeatCircle'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
   autoSelectFirstSongForActiveSetlist,
@@ -538,11 +538,11 @@ function ControlView() {
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
-  // Beat clock: performer view only, never the projection window.
+  // Beat clock: non-video performer view only. Video mode manages its own clock inside VideoPerformancePanel.
   const songTempo = currentLibrarySong?.tempo
   const { phase: beatPhase, beginFiredOnce, reset: resetBeatClock } = useBeatClock(
     songTempo,
-    showArmedShell
+    showArmedShell && !isVideoMode
   )
   const [beatPulseVisible, setBeatPulseVisible] = useState(true)
   const handleToggleBeatPulse = useCallback(() => setBeatPulseVisible((v) => !v), [])
@@ -730,13 +730,14 @@ function ControlView() {
           </>
         )}
         {showArmedShell && isVideoMode && (
-          <VideoControlPanel
+          <VideoPerformancePanel
             absolutePath={resolvedVideoPath}
-            mediaSrc={activeMedia!.src}
             media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
             lines={lines}
             singingLang={effectiveSingingLang}
+            tempo={songTempo}
+            onUnarm={handleUnarm}
             onSeek={sendSeek}
           />
         )}
@@ -744,11 +745,10 @@ function ControlView() {
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
               {songTempo && (
-                <BeatIndicator
+                <BeatCircle
                   tempo={songTempo}
                   phase={beatPhase}
-                  pulseVisible={beatPulseVisible}
-                  onTogglePulse={handleToggleBeatPulse}
+                  style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem' }}
                 />
               )}
               <div className="control-performing-stage-stack">
@@ -832,7 +832,7 @@ function ControlView() {
         </div>
       )}
 
-      {showArmedShell && (
+      {showArmedShell && !isVideoMode && (
         <footer className="control-bottom-bar">
           <div className="bottom-buttons">
             <button
