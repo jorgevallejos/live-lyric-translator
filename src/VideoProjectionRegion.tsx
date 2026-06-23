@@ -5,9 +5,16 @@ import { videoCueLookup } from './videoCueLookup'
 import { absolutePathToFileUrl } from './mediaPathStore'
 
 export const VIDEO_SEEK_TARGET_KEY = 'videoSeekTarget'
+export const VIDEO_TRANSPORT_KEY = 'videoTransport'
 
 interface VideoSeekTarget {
   time: number
+  nonce: number
+}
+
+export interface VideoTransportCommand {
+  action: 'play' | 'pause' | 'seek'
+  time?: number
   nonce: number
 }
 
@@ -15,6 +22,12 @@ interface VideoSeekTarget {
 export function setVideoSeekTarget(time: number): void {
   const payload: VideoSeekTarget = { time, nonce: Date.now() }
   localStorage.setItem(VIDEO_SEEK_TARGET_KEY, JSON.stringify(payload))
+}
+
+/** Broadcasts a play/pause/seek transport command to the projection window via localStorage. */
+export function setVideoTransportCommand(action: 'play' | 'pause' | 'seek', time?: number): void {
+  const payload: VideoTransportCommand = { action, time, nonce: Date.now() }
+  localStorage.setItem(VIDEO_TRANSPORT_KEY, JSON.stringify(payload))
 }
 
 interface Props {
@@ -45,12 +58,11 @@ export function VideoProjectionRegion({
   const [subtitleText, setSubtitleText] = useState('')
   const [subtitleVisible, setSubtitleVisible] = useState(false)
 
-  // Start at trimStart when the src or trimStart changes
+  // Seek to trimStart when the src or trimStart changes. Does NOT auto-play.
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
     video.currentTime = media.trimStart ?? 0
-    video.play().catch(() => {})
   }, [absolutePath, media.trimStart])
 
   // Derive subtitle from video.currentTime via the timeline
@@ -84,7 +96,7 @@ export function VideoProjectionRegion({
     return () => video.removeEventListener('timeupdate', onTimeUpdate)
   }, [timeline, lines, effectiveLang, media.offset])
 
-  // Receive seek commands broadcast via localStorage by the control window
+  // Receive seek commands from the legacy seek channel (used by VideoControlPanel)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== VIDEO_SEEK_TARGET_KEY || !e.newValue) return
@@ -92,6 +104,29 @@ export function VideoProjectionRegion({
         const payload = JSON.parse(e.newValue) as VideoSeekTarget
         if (videoRef.current && typeof payload.time === 'number') {
           videoRef.current.currentTime = payload.time
+        }
+      } catch {
+        // ignore malformed payloads
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  // Receive play/pause/seek transport commands from VideoPerformancePanel
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== VIDEO_TRANSPORT_KEY || !e.newValue) return
+      try {
+        const payload = JSON.parse(e.newValue) as VideoTransportCommand
+        const video = videoRef.current
+        if (!video) return
+        if (payload.action === 'play') {
+          video.play().catch(() => {})
+        } else if (payload.action === 'pause') {
+          video.pause()
+        } else if (payload.action === 'seek' && typeof payload.time === 'number') {
+          video.currentTime = payload.time
         }
       } catch {
         // ignore malformed payloads
