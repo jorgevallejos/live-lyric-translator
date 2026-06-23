@@ -25,6 +25,7 @@ import {
   getOrderedSongsForSetlistFromSnapshot,
   getSetlistNamesContainingSongInSnapshot,
   loadSetlistStore,
+  patchSongMediaInSnapshot,
   removeSongFromSetlistInSnapshot,
   renameSetlistInSnapshot,
   reorderSongsInSetlistInSnapshot,
@@ -35,6 +36,8 @@ import {
   type Setlist,
   type SetlistStoreSnapshot,
 } from './setlistStore'
+import { setMediaPath, validateVideoForImport } from './mediaPathStore'
+import type { SongMedia } from './songState'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
@@ -126,13 +129,110 @@ function PencilIcon() {
   )
 }
 
+function CameraIcon() {
+  return (
+    <svg
+      className="manage-setlists-icon-svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  )
+}
+
+type SlotWarning = 'mov-or-prores' | 'large-file'
+
+function warningText(w: SlotWarning): string {
+  if (w === 'mov-or-prores') return 'Warning: ProRes/MOV files are not web-playable. Convert to MP4/H.264.'
+  return 'Warning: file is larger than 500 MB.'
+}
+
+type LinkVideoDialogProps = {
+  song: LibrarySong
+  onClose: () => void
+  onChooseFile: (slot: 'big' | 'small') => void
+  onClear: (slot: 'big' | 'small') => void
+  warnings: Partial<Record<'big' | 'small', SlotWarning[]>>
+}
+
+function LinkVideoDialog({ song, onClose, onChooseFile, onClear, warnings }: LinkVideoDialogProps) {
+  const slots: Array<{ slot: 'big' | 'small'; label: string }> = [
+    { slot: 'big', label: 'Big screen' },
+    { slot: 'small', label: 'Small screen' },
+  ]
+  return (
+    <div
+      className="link-video-dialog-overlay"
+      data-testid="link-video-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Link video for ${song.title}`}
+    >
+      <div className="link-video-dialog">
+        <h2 className="link-video-dialog-title">Link video — {song.title}</h2>
+        {slots.map(({ slot, label }) => {
+          const file = song.media?.[slot]
+          const slotWarnings = warnings[slot] ?? []
+          return (
+            <div key={slot} className="link-video-dialog-row">
+              <span className="link-video-dialog-slot-label">{label}</span>
+              {file ? (
+                <span className="link-video-dialog-filename">{file.src}</span>
+              ) : (
+                <span className="link-video-dialog-empty">—</span>
+              )}
+              <button
+                type="button"
+                className="manage-setlists-action-btn"
+                onClick={() => onChooseFile(slot)}
+              >
+                Choose file… ({label})
+              </button>
+              {file && (
+                <button
+                  type="button"
+                  className="manage-setlists-action-btn"
+                  aria-label={`Clear ${label}`}
+                  onClick={() => onClear(slot)}
+                >
+                  Clear {label}
+                </button>
+              )}
+              {slotWarnings.map((w) => (
+                <p key={w} className="link-video-dialog-warning">{warningText(w)}</p>
+              ))}
+            </div>
+          )
+        })}
+        <button
+          type="button"
+          className="ctrl-btn"
+          onClick={onClose}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
 type SortableSongRowProps = {
   song: LibrarySong
   setlistName: string
   onRemove: () => void
+  onLinkVideo: () => void
 }
 
-function SortableSongRow({ song, setlistName, onRemove }: SortableSongRowProps) {
+function SortableSongRow({ song, setlistName, onRemove, onLinkVideo }: SortableSongRowProps) {
   const {
     attributes,
     listeners,
@@ -170,6 +270,14 @@ function SortableSongRow({ song, setlistName, onRemove }: SortableSongRowProps) 
       <div className="manage-setlists-song-actions">
         <button
           type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn"
+          aria-label={`Link video for ${song.title}`}
+          onClick={onLinkVideo}
+        >
+          <CameraIcon />
+        </button>
+        <button
+          type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
           aria-label={`Remove ${song.title} from setlist ${setlistName}`}
           onClick={onRemove}
@@ -185,9 +293,10 @@ type SortableSongsInSetlistProps = {
   setlistName: string
   songs: LibrarySong[]
   onRemoveSong: (songId: string) => void
+  onLinkVideoSong: (songId: string) => void
 }
 
-function SortableSongsInSetlist({ setlistName, songs, onRemoveSong }: SortableSongsInSetlistProps) {
+function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoSong }: SortableSongsInSetlistProps) {
   return (
     <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
       {songs.map((song) => (
@@ -196,6 +305,7 @@ function SortableSongsInSetlist({ setlistName, songs, onRemoveSong }: SortableSo
           song={song}
           setlistName={setlistName}
           onRemove={() => onRemoveSong(song.id)}
+          onLinkVideo={() => onLinkVideoSong(song.id)}
         />
       ))}
     </ul>
@@ -283,6 +393,12 @@ export function ManageSetlistsView() {
   renamingIdRef.current = renamingId
   const renameDraftRef = useRef(renameDraft)
   renameDraftRef.current = renameDraft
+
+  const [linkVideoSongId, setLinkVideoSongId] = useState<string | null>(null)
+  const [linkVideoWarnings, setLinkVideoWarnings] = useState<Partial<Record<'big' | 'small', SlotWarning[]>>>({})
+  const linkVideoSong = linkVideoSongId
+    ? draft.songLibrary.songs.find((s) => s.id === linkVideoSongId) ?? null
+    : null
 
   const setlists = draft.setlists
   const activeId = draft.activeSetlistId
@@ -479,6 +595,60 @@ export function ManageSetlistsView() {
     refresh()
   }
 
+  const handleOpenLinkVideo = (songId: string) => {
+    setLinkVideoWarnings({})
+    setLinkVideoSongId(songId)
+  }
+
+  const handleCloseLinkVideo = () => {
+    setLinkVideoSongId(null)
+    setLinkVideoWarnings({})
+  }
+
+  const handleChooseFile = (slot: 'big' | 'small') => {
+    const api = window.electronAPI
+    if (!api || !linkVideoSongId) return
+    const songId = linkVideoSongId
+    void (async () => {
+      const chosen = await api.openFileDialog()
+      if (!chosen) return
+      const basename = chosen.split('/').pop() ?? chosen
+      const warnings = validateVideoForImport(chosen)
+      setLinkVideoWarnings((prev) => ({ ...prev, [slot]: warnings.length ? warnings : undefined }))
+      setDraft((d) => {
+        const song = d.songLibrary.songs.find((s) => s.id === songId)
+        if (!song) return d
+        const currentMedia: SongMedia = song.media ?? {}
+        const nextMedia: SongMedia = { ...currentMedia, [slot]: { type: 'video', src: basename } }
+        const next = patchSongMediaInSnapshot(d, songId, nextMedia) ?? d
+        saveSetlistStore(next)
+        return next
+      })
+      setMediaPath(basename, chosen)
+      refresh()
+    })()
+  }
+
+  const handleClearSlot = (slot: 'big' | 'small') => {
+    if (!linkVideoSongId) return
+    const songId = linkVideoSongId
+    setDraft((d) => {
+      const song = d.songLibrary.songs.find((s) => s.id === songId)
+      if (!song) return d
+      const currentMedia: SongMedia = { ...song.media }
+      delete currentMedia[slot]
+      const next = patchSongMediaInSnapshot(d, songId, currentMedia) ?? d
+      saveSetlistStore(next)
+      return next
+    })
+    setLinkVideoWarnings((prev) => {
+      const next = { ...prev }
+      delete next[slot]
+      return next
+    })
+    refresh()
+  }
+
   const handleReorderInSetlist = (setlistId: string, oldIndex: number, newIndex: number) => {
     setDraft((d) => reorderSongsInSetlistInSnapshot(d, setlistId, oldIndex, newIndex) ?? d)
     refresh()
@@ -619,6 +789,7 @@ export function ManageSetlistsView() {
                     setlistName={selectedSetlist.name}
                     songs={selectedSetlistSongs}
                     onRemoveSong={(songId) => handleRemoveSong(selectedSetlist.id, songId)}
+                    onLinkVideoSong={handleOpenLinkVideo}
                   />
                 </SortableContext>
               )}
@@ -672,6 +843,15 @@ export function ManageSetlistsView() {
           </button>
         </div>
       </main>
+      {linkVideoSong && (
+        <LinkVideoDialog
+          song={linkVideoSong}
+          onClose={handleCloseLinkVideo}
+          onChooseFile={handleChooseFile}
+          onClear={handleClearSlot}
+          warnings={linkVideoWarnings}
+        />
+      )}
     </div>
   )
 }
