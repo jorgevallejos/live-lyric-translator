@@ -213,10 +213,12 @@ ipcMain.handle('fs:getFileStats', (_event, filePath) => {
 
 app.whenReady().then(() => {
   protocol.handle('media', (request) => {
-    const url = new URL(request.url)
-    // URL path is already percent-encoded; decode to get the real filesystem path
-    const absolutePath = decodeURIComponent(url.pathname)
-    return net.fetch('file://' + absolutePath)
+    // media://local/Users/... — host is the fixed sentinel "local"; pathname is the
+    // absolute filesystem path. decodeURIComponent restores percent-encoded segments.
+    const { pathname } = new URL(request.url)
+    const absolutePath = decodeURIComponent(pathname)
+    const fileUrl = require('node:url').pathToFileURL(absolutePath).toString()
+    return net.fetch(fileUrl, { headers: request.headers })
   })
   createWindow()
 })
