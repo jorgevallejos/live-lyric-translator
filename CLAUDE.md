@@ -104,6 +104,10 @@ This project follows strict **Red → Green → Refactor** for every change:
 
 Prefer behavior tests over implementation-detail tests. Extract pure functions when logic is too coupled to test. Do not mix feature work, bug fixing, and refactoring in the same step.
 
+### Main-process / protocol code isn't covered by Vitest
+
+Anything in `electron/main.cjs` — custom `protocol.handle` schemes, IPC handlers, window logic — runs in the Electron main process and is invisible to Vitest (jsdom). A pure-helper unit test can be green while the real **renderer → Chromium → main-process** round trip is broken. This bit us on the `media://` protocol: the helper test asserted the URL string and passed, but the shipped empty-host form (`media:///Users/...`) was canonicalized by Chromium to `media://users/...`, dropping `/Users` from the handler's path (fixed by the `local` sentinel host — see the `mediaPathStore` row above). Rule: any change touching a custom scheme or `main.cjs` must carry a manual verification step that exercises the actual handler — minimally a DevTools `fetch("<scheme>://…")` asserting **status 200** — not just a pure-function test.
+
 ## Tech Stack
 
 - **Electron 41** + **Vite 8** + **React 18** + **TypeScript 5.6** (strict mode)
