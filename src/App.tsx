@@ -13,7 +13,7 @@ import {
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { getMediaPath } from './mediaPathStore'
 import { VideoProjectionRegion } from './VideoProjectionRegion'
-import { VideoControlPanel } from './VideoControlPanel'
+import { VideoPerformancePanel } from './VideoPerformancePanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
@@ -27,15 +27,15 @@ import {
 } from './performanceControlStateMachine'
 import { KEY_ARMED_BROADCAST } from './performanceState'
 import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { BeatIndicator } from './BeatIndicator'
+import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
-import { useSubtitleTimer } from './useSubtitleTimer'
+import { BeatCircle } from './BeatCircle'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
   autoSelectFirstSongForActiveSetlist,
   ensureSongLibraryHydrated,
   getActiveSetlistId,
+  getActiveMediaFile,
   getLibrarySongById,
   getOrderedSongsForActiveSetlist,
   getSetlists,
@@ -44,30 +44,18 @@ import {
   type LibrarySong,
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
-import type { LyricLine, SongItem } from './songState'
-import { updateSongTimeline } from './setlistStore'
 import {
-  initTimelineCapture,
-  captureAdvance,
-  finalizeCapture,
-  buildTimelineFromCapture,
-  type TimelineCapture,
-} from './timelineCapture'
+  getAvailableScreenSizes,
+  getDefaultScreenSize,
+  getProjectionStatusText,
+  getStoredScreenSize,
+  setStoredScreenSize,
+  getBroadcastScreenSize,
+  KEY_SCREEN_SIZE_BROADCAST,
+  type ScreenSize,
+} from './screenSizeState'
+import type { LyricLine, SongItem } from './songState'
 import './control.css'
-
-function formatTimedT(t: number): string {
-  const m = Math.floor(t / 60)
-  const s = Math.floor(t % 60)
-  const d = Math.floor((t % 1) * 10)
-  return `${m}:${s.toString().padStart(2, '0')}.${d}`
-}
-
-function timedDriftClass(drift: number): string {
-  const abs = Math.abs(drift)
-  if (abs >= 4) return 'ctrl-timed-drift ctrl-timed-drift-alert'
-  if (abs >= 1.5) return 'ctrl-timed-drift ctrl-timed-drift-warn'
-  return 'ctrl-timed-drift'
-}
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
 const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> = {
@@ -246,11 +234,6 @@ function ControlView() {
   const { visible: endCardVisible, toggle: toggleEndCard, hide: hideEndCard } = useEndCardState()
   const currentSongId = getCurrentSongId()
 
-  const [recordingMode, setRecordingMode] = useState(false)
-  const [capture, setCapture] = useState<TimelineCapture>(initTimelineCapture)
-  const [pendingSaveCapture, setPendingSaveCapture] = useState<TimelineCapture | null>(null)
-  const [recordingElapsedSec, setRecordingElapsedSec] = useState(0)
-
   const concertTimer = useConcertSessionTimer()
   const elapsedMinutes = concertTimer.elapsedMinutes
   const timerPaused = concertTimer.paused
@@ -264,8 +247,21 @@ function ControlView() {
   const songNotes = currentSongId ? getLibrarySongById(currentSongId)?.notes ?? '' : ''
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
-  const isVideoMode = currentLibrarySong?.media?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
+
+  // Screen size selection: persisted per session; resets to default whenever the song changes.
+  const songMedia = currentLibrarySong?.media
+  const availableScreenSizes = getAvailableScreenSizes(songMedia)
+  const defaultScreenSize = getDefaultScreenSize(songMedia)
+  const [selectedScreenSize, setSelectedScreenSize] = useState<ScreenSize | null>(() =>
+    getStoredScreenSize()
+  )
+
+  const activeMedia = currentLibrarySong
+    ? (selectedScreenSize && currentLibrarySong.media?.[selectedScreenSize])
+      || getActiveMediaFile(currentLibrarySong)
+    : undefined
+  const isVideoMode = activeMedia?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -287,12 +283,34 @@ function ControlView() {
     lineCount: lines.length,
     currentIndex: index,
   })
-  const { sendCommandWithState, sendSeek } = useWebSocket({
+  const { sendCommandWithState, sendSeek, sendScreenSize } = useWebSocket({
     index,
     blank,
     applyRemoteState,
     applyCommand,
   })
+
+  // When song changes, reset selection to the new song's default.
+  const prevSongIdRef = useRef<string | null>(null)
+  const sendScreenSizeRef = useRef(sendScreenSize)
+  sendScreenSizeRef.current = sendScreenSize
+  useEffect(() => {
+    if (currentSongId !== prevSongIdRef.current) {
+      prevSongIdRef.current = currentSongId ?? null
+      const def = defaultScreenSize
+      setSelectedScreenSize(def)
+      if (def !== null) {
+        setStoredScreenSize(def)
+        sendScreenSizeRef.current(def)
+      }
+    }
+  }, [currentSongId, defaultScreenSize])
+
+  const handleSelectScreenSize = (size: ScreenSize) => {
+    setSelectedScreenSize(size)
+    setStoredScreenSize(size)
+    sendScreenSize(size)
+  }
 
   /** Tracked user-facing config (storage); avoids false positives when only derived effectiveLang changes. */
   const prevUserConfigRef = useRef<{
@@ -336,12 +354,6 @@ function ControlView() {
   const handleNext = () => {
     goNext()
     const newIndex = getSongIndex()
-    if (recordingMode) {
-      setCapture((prev) => captureAdvance(prev, newIndex, Date.now()))
-    }
-    if (timedTimer.running && songTimeline) {
-      timedTimer.resync(newIndex)
-    }
     sendCommandWithState('next', undefined, {
       currentIndex: newIndex,
       blank: getBlank(),
@@ -350,9 +362,6 @@ function ControlView() {
   const handlePrev = () => {
     goPrev()
     const prevIdx = getSongIndex()
-    if (timedTimer.running && songTimeline) {
-      timedTimer.resync(prevIdx)
-    }
     sendCommandWithState('prev', undefined, { currentIndex: prevIdx, blank: getBlank() })
   }
   const handleRestart = () => {
@@ -371,25 +380,9 @@ function ControlView() {
     sendCommandWithState('blankToggle', undefined, { currentIndex: getSongIndex(), blank: getBlank() })
   }
 
-  const handleRecordingAwareUnarm = () => {
+  const handleUnarm = () => {
     hideEndCard()
-    if (recordingMode && capture.clockStartMs !== null) {
-      setPendingSaveCapture(finalizeCapture(capture, Date.now()))
-    }
-    setRecordingMode(false)
-    setCapture(initTimelineCapture())
     handleUnarmClick()
-  }
-
-  const handleSaveTimeline = () => {
-    if (!pendingSaveCapture || !currentSongId) return
-    const timeline = buildTimelineFromCapture(pendingSaveCapture, lines.length)
-    updateSongTimeline(currentSongId, timeline)
-    setPendingSaveCapture(null)
-  }
-
-  const handleDiscardTimeline = () => {
-    setPendingSaveCapture(null)
   }
 
   const goToSongs = () => {
@@ -452,7 +445,7 @@ function ControlView() {
     goToSongs,
     goToLanguages,
     arm: handleArmAndRestart,
-    unarm: handleRecordingAwareUnarm,
+    unarm: handleUnarm,
     controlState,
     nextDisabled,
   })
@@ -464,7 +457,7 @@ function ControlView() {
     goToSongs,
     goToLanguages,
     arm: handleArmAndRestart,
-    unarm: handleRecordingAwareUnarm,
+    unarm: handleUnarm,
     controlState,
     nextDisabled,
   }
@@ -540,50 +533,17 @@ function ControlView() {
       : ''
 
   const restartHold = useHoldToConfirm(handleRestart)
-  const unarmHold = useHoldToConfirm(handleRecordingAwareUnarm)
+  const unarmHold = useHoldToConfirm(handleUnarm)
 
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
-  // Timed mode: timer-driven subtitle advancement when a song timeline exists.
-  // Keys on currentSongId (primitive) rather than the timeline object to avoid
-  // render-loop issues (getLibrarySongById returns a new object on every call).
-  const songTimeline = currentLibrarySong?.timeline
-  const timedTimer = useSubtitleTimer(songTimeline, currentSongId, index)
-
-  // Auto-advance song navigation when timer drives to a new line.
-  const prevTimerActiveIndexRef = useRef(-1)
-  useEffect(() => {
-    if (!timedTimer.running) {
-      prevTimerActiveIndexRef.current = -1
-      return
-    }
-    if (timedTimer.activeIndex < 0) return
-    if (timedTimer.activeIndex === prevTimerActiveIndexRef.current) return
-    prevTimerActiveIndexRef.current = timedTimer.activeIndex
-    applyCommand('setIndex', timedTimer.activeIndex)
-    sendCommandWithState('setIndex', timedTimer.activeIndex, {
-      currentIndex: timedTimer.activeIndex,
-      blank: false,
-    })
-  }, [timedTimer.running, timedTimer.activeIndex])
-
-  // Reset prevTimerActiveIndexRef when leaving armed state.
-  useEffect(() => {
-    if (!showArmedShell) {
-      prevTimerActiveIndexRef.current = -1
-    }
-  }, [showArmedShell])
-
-  // Beat clock: performer view only, never the projection window.
+  // Beat clock: non-video performer view only. Video mode manages its own clock inside VideoPerformancePanel.
   const songTempo = currentLibrarySong?.tempo
   const { phase: beatPhase, beginFiredOnce, reset: resetBeatClock } = useBeatClock(
     songTempo,
-    showArmedShell
+    showArmedShell && !isVideoMode
   )
-  const [beatPulseVisible, setBeatPulseVisible] = useState(true)
-  const handleToggleBeatPulse = useCallback(() => setBeatPulseVisible((v) => !v), [])
-
   // When count-in ends, auto-advance to the first lyric (begin event).
   const prevBeginFiredRef = useRef(false)
   useEffect(() => {
@@ -601,7 +561,6 @@ function ControlView() {
     if (!showArmedShell) {
       resetBeatClock()
       prevBeginFiredRef.current = false
-      setBeatPulseVisible(true)
     }
   }, [showArmedShell, resetBeatClock])
 
@@ -614,22 +573,7 @@ function ControlView() {
   useEffect(() => {
     if (showArmedShell) return
     setTimerActionsVisible(false)
-    // Stop recording when leaving armed state
-    setRecordingMode(false)
-    setCapture(initTimelineCapture())
   }, [showArmedShell])
-
-  // Update the recording elapsed display every second while recording is active
-  useEffect(() => {
-    if (!recordingMode || capture.clockStartMs === null) {
-      setRecordingElapsedSec(0)
-      return
-    }
-    const interval = setInterval(() => {
-      setRecordingElapsedSec(Math.floor((Date.now() - capture.clockStartMs!) / 1000))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [recordingMode, capture.clockStartMs])
 
   useEffect(() => {
     setShowNextSongTile(false)
@@ -672,7 +616,7 @@ function ControlView() {
               Languages: {languagesDisplay || '—'}
             </span>
             <span className="top-summary-line">
-              Projection: {projectionOpen ? 'Open' : 'Closed'}
+              Projection: {getProjectionStatusText(projectionOpen, selectedScreenSize)}
             </span>
             <span
               className="top-title top-title-state"
@@ -730,9 +674,33 @@ function ControlView() {
                 <div className="control-setup-section">
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
-                    <span className="control-setup-value">{projectionOpen ? 'Open' : 'Closed'}</span>
+                    <span className="control-setup-value">
+                      {getProjectionStatusText(projectionOpen, selectedScreenSize)}
+                    </span>
                   </div>
                   <div className="control-setup-buttons">
+                    {availableScreenSizes.length > 0 && (
+                      <div className="control-setup-button-row">
+                        {availableScreenSizes.includes('small') && (
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'small' ? ' ctrl-screen-size--active' : ''}`}
+                            onClick={() => handleSelectScreenSize('small')}
+                          >
+                            Small
+                          </button>
+                        )}
+                        {availableScreenSizes.includes('big') && (
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'big' ? ' ctrl-screen-size--active' : ''}`}
+                            onClick={() => handleSelectScreenSize('big')}
+                          >
+                            Big
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
@@ -757,41 +725,15 @@ function ControlView() {
             </div>
           </>
         )}
-        {showArmedShell && pendingSaveCapture && (
-          <div className="ctrl-timeline-save-overlay" data-testid="timeline-save-dialog">
-            <div className="ctrl-timeline-save-dialog">
-              <p className="ctrl-timeline-save-message">
-                Save timeline to &ldquo;{currentSongTitle}&rdquo;?
-              </p>
-              <div className="ctrl-timeline-save-actions">
-                <button
-                  type="button"
-                  className="ctrl-btn ctrl-arm"
-                  data-testid="timeline-save-btn"
-                  onClick={handleSaveTimeline}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  className="ctrl-btn ctrl-unarm"
-                  data-testid="timeline-discard-btn"
-                  onClick={handleDiscardTimeline}
-                >
-                  Discard
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {showArmedShell && isVideoMode && (
-          <VideoControlPanel
+          <VideoPerformancePanel
             absolutePath={resolvedVideoPath}
-            mediaSrc={currentLibrarySong!.media!.src}
-            media={currentLibrarySong!.media!}
+            media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
             lines={lines}
             singingLang={effectiveSingingLang}
+            tempo={songTempo}
+            onUnarm={handleUnarm}
             onSeek={sendSeek}
           />
         )}
@@ -799,11 +741,10 @@ function ControlView() {
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
               {songTempo && (
-                <BeatIndicator
+                <BeatCircle
                   tempo={songTempo}
                   phase={beatPhase}
-                  pulseVisible={beatPulseVisible}
-                  onTogglePulse={handleToggleBeatPulse}
+                  style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem' }}
                 />
               )}
               <div className="control-performing-stage-stack">
@@ -839,90 +780,6 @@ function ControlView() {
                 )}
               </div>
             </div>
-            <div className="ctrl-record-row" data-testid="record-timeline-row">
-              <button
-                type="button"
-                className={`ctrl-btn ${recordingMode ? 'ctrl-record-active' : 'ctrl-record'}`}
-                data-testid="record-timeline-btn"
-                onClick={() => {
-                  if (recordingMode) {
-                    setRecordingMode(false)
-                    setCapture(initTimelineCapture())
-                  } else {
-                    setRecordingMode(true)
-                  }
-                }}
-              >
-                {recordingMode ? 'Stop Recording' : 'Record Timeline'}
-              </button>
-              {recordingMode && (
-                <span
-                  className={`ctrl-record-indicator ${capture.clockStartMs !== null ? 'ctrl-record-indicator-active' : ''}`}
-                  data-testid="record-timeline-indicator"
-                >
-                  {capture.clockStartMs !== null
-                    ? `${recordingElapsedSec}s`
-                    : 'Waiting for first advance…'}
-                </span>
-              )}
-            </div>
-            {songTimeline && (
-              <div className="ctrl-timed-panel" data-testid="timed-mode-panel">
-                <div className="ctrl-timed-row">
-                  <span className="ctrl-timed-label">Timed</span>
-                  <button
-                    type="button"
-                    className="ctrl-btn"
-                    data-testid="timed-start-pause"
-                    onClick={() => timedTimer.startPause()}
-                  >
-                    {timedTimer.running ? 'Pause' : 'Start'}
-                  </button>
-                  <button
-                    type="button"
-                    className="ctrl-btn"
-                    data-testid="timed-stop"
-                    onClick={() => timedTimer.stop()}
-                  >
-                    Stop
-                  </button>
-                  <button
-                    type="button"
-                    className="ctrl-btn ctrl-timed-nudge"
-                    data-testid="timed-nudge-back"
-                    onClick={() => timedTimer.nudge(-0.25)}
-                    aria-label="Nudge back 0.25 seconds"
-                  >
-                    −0.25s
-                  </button>
-                  <button
-                    type="button"
-                    className="ctrl-btn ctrl-timed-nudge"
-                    data-testid="timed-nudge-fwd"
-                    onClick={() => timedTimer.nudge(0.25)}
-                    aria-label="Nudge forward 0.25 seconds"
-                  >
-                    +0.25s
-                  </button>
-                </div>
-                <div className="ctrl-timed-row">
-                  <span className="ctrl-timed-time" data-testid="timed-clock">
-                    {formatTimedT(timedTimer.t)}
-                  </span>
-                  <span className="ctrl-timed-line">
-                    {timedTimer.activeIndex >= 0
-                      ? `line ${timedTimer.activeIndex + 1}/${lines.length}`
-                      : '—'}
-                  </span>
-                  <span
-                    className={timedDriftClass(timedTimer.drift)}
-                    data-testid="timed-drift"
-                  >
-                    {timedTimer.drift >= 0 ? '+' : '−'}{Math.abs(timedTimer.drift).toFixed(1)}s
-                  </span>
-                </div>
-              </div>
-            )}
           </>
         )}
       </main>
@@ -971,7 +828,7 @@ function ControlView() {
         </div>
       )}
 
-      {showArmedShell && (
+      {showArmedShell && !isVideoMode && (
         <footer className="control-bottom-bar">
           <div className="bottom-buttons">
             <button
@@ -1006,7 +863,7 @@ function ControlView() {
                 isEndOfSong && canUnarm
                   ? () => {
                       if (currentSongId) addPlayedSong(currentSongId)
-                      handleRecordingAwareUnarm()
+                      handleUnarm()
                     }
                   : undefined
               }
@@ -1362,6 +1219,19 @@ function ProjectionView() {
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const singingLang = getSingingLanguage()
 
+  // Screen size: the Control window writes KEY_SCREEN_SIZE_BROADCAST to localStorage when it
+  // changes the selection; we pick it up via storage events.
+  const [projectionScreenSize, setProjectionScreenSize] = useState<ScreenSize | null>(getBroadcastScreenSize)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY_SCREEN_SIZE_BROADCAST || e.key === null) {
+        setProjectionScreenSize(getBroadcastScreenSize())
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   // Show logo on every mount; reveal intro only after the control fires an arm transition.
   // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
   // storage event that the projection can receive. This prevents leftover lyrics appearing
@@ -1516,8 +1386,12 @@ function ProjectionView() {
   }, [singleScreen])
 
   // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
-  const isVideoMode = currentLibrarySong?.media?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? getMediaPath(currentLibrarySong!.media!.src) : null
+  const activeMedia = currentLibrarySong
+    ? (projectionScreenSize && currentLibrarySong.media?.[projectionScreenSize])
+      || getActiveMediaFile(currentLibrarySong)
+    : undefined
+  const isVideoMode = activeMedia?.type === 'video'
+  const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
 
   if (isVideoMode && resolvedVideoPath) {
     return (
@@ -1534,7 +1408,7 @@ function ProjectionView() {
       >
         <VideoProjectionRegion
           absolutePath={resolvedVideoPath}
-          media={currentLibrarySong!.media!}
+          media={activeMedia!}
           timeline={currentLibrarySong!.timeline ?? []}
           lines={lines}
           effectiveLang={effectiveLang}

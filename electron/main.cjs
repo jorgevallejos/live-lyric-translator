@@ -34,6 +34,10 @@ wss.on('connection', (ws) => {
         wss.clients.forEach((client) => {
           if (client.readyState === 1) client.send(data.toString())
         })
+      } else if (msg.type === 'screenSize') {
+        wss.clients.forEach((client) => {
+          if (client !== ws && client.readyState === 1) client.send(data.toString())
+        })
       }
     } catch (_) {}
   })

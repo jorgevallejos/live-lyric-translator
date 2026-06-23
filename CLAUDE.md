@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Live Lyric Translator is a macOS Electron desktop app for live concert subtitle projection. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
 
-Lines can advance in three per-song **playback modes**: **Manual** (keyboard/foot pedal — always available and always wins on override), **Video** (subtitles locked to a synchronized animation video via `video.currentTime`), and **Timed** (a wall clock drives the active line from a recorded `timeline`). The Projection window can render a clean animation full-frame and composite the subtitle band itself (display profiles), so a single clean video serves all languages and screens.
+Lines can advance in two per-song **playback modes**: **Manual** (keyboard/foot pedal — always available and always wins on override) and **Video** (subtitles locked to a synchronized animation video via `video.currentTime`). The Projection window can render a clean animation full-frame and composite the subtitle band itself (display profiles), so a single clean video serves all languages and screens.
 
 ## Commands
 
@@ -41,26 +41,24 @@ State is split into pure-function modules with tests, each backed by `localStora
 
 | Module | Storage | Responsibility |
 |---|---|---|
-| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (**v3** schema: `title_translations`, `intro`, `tempo`, `media`, `timeline`; migrates v1→v2→v3 on load) |
-| `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaMetadata` |
+| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (**v5** schema: `title_translations`, `intro`, `tempo`, `media`, `timeline`; migrates v1→v2→v3→v4→v5 on load) |
+| `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaFile` / `SongMedia` |
 | `performanceState.ts` | sessionStorage | Performance lifecycle (setup → ready → armed → performing) |
 | `performanceControlStateMachine.ts` | — | Computes `SETUP / READY_TO_ARM / ARMED` from prereqs |
 | `navigationState.ts` | — | Pure index/blank transition logic |
 | `concertSessionState.ts` | sessionStorage | Concert timer (elapsed, pause/resume/reset) |
 | `playedSongsState.ts` | sessionStorage | Which songs have been played this session |
-| `subtitleState.ts` | — | Pure Timed-mode helpers: `nudgeT`, `resyncToIndex`, `getDrift` |
-| `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (shared by Video + Timed) |
-| `timelineCapture.ts` | — | Pure record-by-tapping: build a `timeline` from tapped advances |
+| `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (Video mode) |
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry |
 | `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings |
 | `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
 
-Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` modules (no side effects, fully unit-tested). React hooks (`use*.ts`) wire them to components and own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC. Timer-driven hooks include `useBeatClock` (count-in) and `useSubtitleTimer` (Timed mode).
+Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` modules (no side effects, fully unit-tested). React hooks (`use*.ts`) wire them to components and own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC. Timer-driven hooks include `useBeatClock` (count-in).
 
 ### Playback modes
 
-Per song, selected from the song's data: **Manual** (default; no `timeline`/`media`), **Video** (`media.type === "video"` + `timeline`; projection plays the muted clean animation, subtitles bound to `video.currentTime + media.offset`, band composited via the active display profile), **Timed** (`timeline` only; `useSubtitleTimer` drives the active line off a wall clock, with ±0.25 s nudge + drift indicator). A manual arrow/pedal press always re-seizes control and re-anchors the clock.
+Per song, selected from the song's data: **Manual** (default; no `media`) and **Video** (`media` with a video slot + `timeline`; projection plays the muted clean animation, subtitles bound to `video.currentTime + media.offset`, band composited via the active display profile). A manual arrow/pedal press always re-seizes control in Video mode.
 
 ### Performance State Machine
 
@@ -80,13 +78,13 @@ Hash-based: `#/control`, `#/projection`, `#/songs`, `#/languages`, `#/setlists`,
 
 ### Song Data Format
 
-Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (**v3**; v1→v2→v3 migration runs on load). v3 adds optional, back-compatible blocks: `title_translations`, `intro`, `tempo { bpm, meter, countInBars }`, `media { type, src, offset?, trimStart? }`, and `timeline` (per-item `{ start, end }` seconds, parallel to the full items array including section markers). Songs without these behave exactly as before. `media.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
+Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (**v5**; v1→v2→v3→v4→v5 migration chain runs on load). Optional fields: `title_translations`, `intro`, `tempo { bpm, numerator, denominator, countInBars }`, `media { big?: MediaFile, small?: MediaFile }`, and `timeline` (per-item `{ start, end }` seconds, parallel to the full items array including section markers). Songs without these behave exactly as before. `media.*.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
 
 ### Hook stability gotcha (important)
 
 `getLibrarySongById` returns a **fresh object on every call/render** (it's not memoized). So `currentLibrarySong` and anything derived from it (`tempo`, `media`, `timeline`) are **new references each render**. Any `useEffect`/`useMemo` that depends on one of these *by object identity* will re-run every render — which already caused an infinite render loop in `useBeatClock` (effect → `setState` → re-render → new object → effect again, exploding memory). 
 
-Rule: timer/effect hooks must key on **primitive values** (e.g. `tempo.bpm`, `currentSongId`), not the song object. Store the object itself in a `ref` updated each render if you need it inside a callback. `useBeatClock` and `useSubtitleTimer` both follow this pattern. A future refactor could memoize `getLibrarySongById`, but until then, never depend on `currentLibrarySong` identity.
+Rule: timer/effect hooks must key on **primitive values** (e.g. `tempo.bpm`, `currentSongId`), not the song object. Store the object itself in a `ref` updated each render if you need it inside a callback. `useBeatClock` follows this pattern. A future refactor could memoize `getLibrarySongById`, but until then, never depend on `currentLibrarySong` identity.
 
 ## Development Protocol (TDD)
 

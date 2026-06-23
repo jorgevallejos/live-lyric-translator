@@ -1,4 +1,4 @@
-import type { BeatPhaseResult, SongTempo } from './beatScheduler'
+import { getBeatsPerBar, type BeatPhaseResult, type SongTempo } from './beatScheduler'
 
 type Props = {
   tempo: SongTempo
@@ -20,7 +20,7 @@ export function BeatIndicator({ tempo, phase, pulseVisible, onTogglePulse }: Pro
   if (!phase) return null
 
   if (phase.inCountIn) {
-    const dots = Array.from({ length: tempo.meter }, (_, i) => i + 1)
+    const dots = Array.from({ length: getBeatsPerBar(tempo) }, (_, i) => i + 1)
     const isDownbeat = phase.beatInBar === 1
 
     return (

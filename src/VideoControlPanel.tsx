@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { getLyricText, isLyricLine, isSection, type SongItem, type MediaMetadata, type TimelineEntry } from './songState'
+import { getLyricText, isLyricLine, isSection, type SongItem, type MediaFile, type TimelineEntry } from './songState'
 import { videoCueLookup } from './videoCueLookup'
 import { absolutePathToFileUrl, validateVideoForImport, setMediaPath, type MediaValidationWarning } from './mediaPathStore'
 import { setVideoSeekTarget } from './VideoProjectionRegion'
@@ -7,7 +7,7 @@ import { setVideoSeekTarget } from './VideoProjectionRegion'
 interface Props {
   absolutePath: string | null
   mediaSrc: string
-  media: MediaMetadata
+  media: MediaFile
   timeline: TimelineEntry[]
   lines: SongItem[]
   singingLang: string

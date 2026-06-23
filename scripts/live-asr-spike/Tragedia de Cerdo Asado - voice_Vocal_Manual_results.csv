@@ -1,0 +1,12 @@
+line_idx,line_text,ground_truth_time,detected_time,latency,status
+0,Me acuestan en la cama,0.500,39.780,39.280,late
+1,de plata brillante.,1.800,141.780,139.980,late
+2,"Me ungen con hierbas,",3.100,,,missed
+3,"manteca, ajo y sal.",4.400,,,missed
+4,"Mi piel como cristal,",5.700,,,missed
+5,El chef me admira como arte.,7.000,,,missed
+6,"""Una delicia serás"", suspira,
+mientras yo pienso en mi charco natal.",9.500,,,missed
+7,Soy la estrella de un festín infernal.,12.000,,,missed
+8,Me alzan en brazos,14.500,,,missed
+9,como al rey de Roma.,17.000,,,missed

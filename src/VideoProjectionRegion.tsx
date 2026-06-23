@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getLyricText, isSection, isLyricLine, type SongItem, type MediaMetadata, type TimelineEntry } from './songState'
+import { getLyricText, isSection, isLyricLine, type SongItem, type MediaFile, type TimelineEntry } from './songState'
 import { type ProjectionLayout } from './displayProfile'
 import { videoCueLookup } from './videoCueLookup'
 import { absolutePathToFileUrl } from './mediaPathStore'
@@ -19,7 +19,7 @@ export function setVideoSeekTarget(time: number): void {
 
 interface Props {
   absolutePath: string
-  media: MediaMetadata
+  media: MediaFile
   timeline: TimelineEntry[]
   lines: SongItem[]
   effectiveLang: string

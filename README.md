@@ -7,20 +7,20 @@
 
 A live subtitle system for concerts.
 
-This application allows a musician to project translated lyrics in real time during a live performance. The performer can advance each phrase manually (keyboard or foot pedal), or let the app follow a synchronized animation video or a recorded timeline — with manual override always available as the safety net.
+This application allows a musician to project translated lyrics in real time during a live performance. The performer can advance each phrase manually (keyboard or foot pedal), or let the app follow a synchronized animation video — with manual override always available as the safety net.
 
 **Note:** Currently available on **macOS only**.
 
 ## ✨ Features
 
-- **Three playback modes** (per song): **Manual** (keyboard/pedal, always the fallback), **Video** (subtitles locked to a synchronized animation video), and **Timed** (auto-advance from a recorded timeline)
-- **Manual override is always live** — an arrow/pedal press re-seizes control in any mode
+- **Two playback modes** (per song): **Manual** (keyboard/pedal, always the fallback) and **Video** (subtitles locked to a synchronized animation video via `video.currentTime`)
+- **Manual override is always live** — an arrow/pedal press re-seizes control in Video mode
 - Dual-window setup (control + projection)
 - Multilingual lyrics, with translatable song **titles** and spoken **intros**
 - **Video projection mode** — the app plays a clean animation full-screen and overlays the chosen audience language itself, replacing per-language/per-screen video exports
+- **Big / small screen videos** — link a big-screen and a small-screen export per song; pick the size at arming time and the Projection window plays the matching file
 - **Display profiles** — the app composites the subtitle band on the fly, sized per screen (big cinema vs small canvas), so you feed it one clean video
-- **Performer count-in / beat indicator** (per-song tempo) to lock in before the song rolls
-- **Record-by-tapping** — capture a song timeline by performing through it once
+- **Performer count-in / beat indicator** (per-song tempo, with compound-meter grouping) to lock in before the song rolls
 - **End-card screen** for end-of-concert acknowledgements
 - Setlists and songs library management
 - Next-line preview for performer
@@ -155,13 +155,12 @@ Armed -->|Unarm| Ready
 
 ## 🎚 Playback modes
 
-Each song plays in one of three modes. Manual is always available and always wins on override.
+Each song plays in one of two modes. Manual is always available and always wins on override.
 
-- **Manual** — the performer advances each phrase with the keyboard or foot pedal. The original, fully live mode; the default when a song has no timeline or media.
-- **Video** — for songs with a synchronized animation, the projection plays a clean full-frame video (muted; the audience hears the live performance) and the app overlays the translated subtitle, locked to the video's clock. Because subtitles ride `video.currentTime`, a pause or stutter never desyncs them. This replaces switching to QuickTime and maintaining one exported video per language and per screen.
-- **Timed** — for fixed-tempo / backing-track songs, a wall clock drives the active line from a recorded `timeline`. Includes a ±0.25 s nudge and a drift indicator; any manual press re-anchors the clock.
+- **Manual** — the performer advances each phrase with the keyboard or foot pedal. The original, fully live mode; the default when a song has no media.
+- **Video** — for songs with a synchronized animation, the projection plays a clean full-frame video (muted; the audience hears the live performance) and the app overlays the translated subtitle, locked to the video's clock. Because subtitles ride `video.currentTime`, a pause or stutter never desyncs them. This replaces switching to QuickTime and maintaining one exported video per language and per screen. On Play, a per-song **count-in** runs first, then the video starts — both driven off one clock so they stay locked.
 
-A song timeline can be produced by **recording-by-tapping** (perform through the song once and the app timestamps each advance) or, later, by offline forced alignment. A per-song **count-in** locks the performer in before Video/Timed playback begins.
+A song's `timeline` is authored offline in the song JSON (or, later, by offline forced alignment); Video mode reads it. (Earlier *Timed* mode and in-app *record-by-tapping* were removed in the June 2026 rework.) Songs with no media stay in Manual mode.
 
 ## ⏱️ Concert timer
 
@@ -244,8 +243,11 @@ They can then be managed and organized into a Setlist for live performance.
   "notes": "Capo 3, Acordes de DO",
   "title_translations": { "en": "Pepper Tree", "fr": "Le pimentier", "nl": "Peperboom" },
   "intro": { "es": "...", "en": "..." },
-  "tempo": { "bpm": 96, "meter": "4/4", "countInBars": 1 },
-  "media": { "type": "video", "src": "pimiento.mp4", "offset": 0, "trimStart": 0 },
+  "tempo": { "bpm": 96, "numerator": 4, "denominator": 4, "countInBars": 1 },
+  "media": {
+    "big": { "type": "video", "src": "pimiento-big.mp4", "offset": 0, "trimStart": 0 },
+    "small": { "type": "video", "src": "pimiento-small.mp4", "offset": 0, "trimStart": 0 }
+  },
   "timeline": [ { "start": 0.0, "end": 3.2 }, { "start": 3.2, "end": 7.5 } ],
   "lyrics": [
     {
@@ -264,9 +266,9 @@ They can then be managed and organized into a Setlist for live performance.
 - `title_translations` *(optional)* — translated titles for the intro/title screen, indexed by language code
 - `intro` *(optional)* — translatable spoken intro shown on the intro screen
 - `notes` *(optional)* — performer notes such as capo, key, or reminders
-- `tempo` *(optional)* — `{ bpm, meter, countInBars }`, drives the performer count-in
-- `media` *(optional)* — `{ type: "video" | "audio", src, offset?, trimStart? }` for Video mode. `src` is a logical filename; the actual file is linked once per machine and remembered locally (see [docs/media-assets.md](docs/media-assets.md)). Feed the app a web-playable MP4 (H.264, ≤1080p), not a ProRes master.
-- `timeline` *(optional)* — per-item `{ start, end }` in seconds, parallel to the lyrics/markers, driving Video/Timed advancement
+- `tempo` *(optional)* — `{ bpm, numerator, denominator, countInBars }`, drives the performer count-in. `bpm` is the felt pulse (in 6/8, the dotted-quarter rate); `numerator`/`denominator` give the meter, with compound meters (6/8, 9/8, 12/8) grouped into dotted-quarter beats.
+- `media` *(optional)* — per-screen video slots `{ big?: MediaFile, small?: MediaFile }`, each `{ type: "video" | "audio", src, offset?, trimStart? }`, for Video mode. A song may have neither, one, or both; the size is chosen at arming time. `src` is a logical filename; the actual file is linked once per machine (via the camera dialog in Manage Setlists) and remembered locally (see [docs/media-assets.md](docs/media-assets.md)). Feed the app web-playable MP4s (H.264, ≤1080p), not ProRes masters.
+- `timeline` *(optional)* — per-item `{ start, end }` in seconds, parallel to the lyrics/markers, driving Video-mode advancement. Both screen sizes share one timeline (use each slot's `offset` to align them if they differ slightly).
 - `lyrics` — ordered list of lyric lines
 
 Each lyric line contains translations indexed by language code (`es`, `en`, `fr`, `nl`, …). Missing translations are allowed — the line simply stays blank in projection. Songs without the optional blocks behave exactly as before (Manual mode).
