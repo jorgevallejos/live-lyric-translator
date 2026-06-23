@@ -35,6 +35,8 @@ The app opens two Electron windows:
 
 Both windows are served by the same Vite bundle. They synchronize state via a **WebSocket server on `ws://localhost:8765`**, managed by Electron's main process (`electron/main.cjs`). The Control window sends state and commands; the Projection window receives and applies them.
 
+A **second cross-window channel** runs over `localStorage` storage events, used where each window owns a local resource rather than shared lyric state: the end-card toggle (`endCardState.ts`), and — in Video mode — the video **seek** and **transport** commands. Each window renders its **own `<video>` element**, so they can't share a media clock; instead the Control window broadcasts transport intent and the Projection window applies it to its element (see Playback modes). Commands carry a `nonce` so repeated same-value writes still fire.
+
 ### State Management (No Redux/Zustand)
 
 State is split into pure-function modules with tests, each backed by `localStorage` or `sessionStorage`:
@@ -59,6 +61,8 @@ Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` module
 ### Playback modes
 
 Per song, selected from the song's data: **Manual** (default; no `media`) and **Video** (`media` with a video slot + `timeline`; projection plays the muted clean animation, subtitles bound to `video.currentTime + media.offset`, band composited via the active display profile). A manual arrow/pedal press always re-seizes control in Video mode.
+
+**Video mode is two video elements, transport-synced — not a shared clock.** The audience output is `VideoProjectionRegion.tsx` in the Projection window: it derives subtitles from *its own* `video.currentTime` and renders the band. It mounts **paused at `trimStart`** and obeys `play` / `pause` / `seek` commands broadcast from the Control window's `VideoPerformancePanel.tsx` over the `localStorage` transport channel (`setVideoTransportCommand`). The performer panel runs the single-clock count-in and, at the count-in→video handoff (`beginFired`), broadcasts `play` so the audience video starts on the downbeat; Pause broadcasts `pause`; Restart broadcasts `seek(trimStart)` then `play` at the next handoff. The panel also keeps a local preview `<video>` for the performer. Because the two elements aren't continuously time-synced, drift is corrected by manual seek — not a periodic resync (a known trade-off). `screenSizeState.ts` + the WS `screenSize` message decide which slot (`big`/`small`) the Projection plays.
 
 ### Performance State Machine
 
