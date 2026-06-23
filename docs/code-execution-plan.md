@@ -148,16 +148,16 @@ Sequenced by value-and-risk. Critical path to the big win (VIDEO mode) is **Step
 
 ## D-wire — in-app workflow (not a Code prompt)
 
-Goal: see VIDEO mode play end-to-end on the provisional Tragedia master. This is throwaway calibration — the accurate timeline comes later from Prompt B against the produced master, so don't perfect it.
+> **Updated 2026-06-23 for the video & tempo rework.** Linking moved into Manage Setlists (camera dialog, big/small slots) and Record mode was removed — the `timeline` is now authored offline in the song JSON. Steps below reflect that; the old "Record mode capture" flow no longer exists.
 
-1. **Data:** ✅ done — `media` block added to `songs/tragedia-de-cerdo-asado.json` (`src: "tragedia-de-cerdo-asado.mp4"`, offset 0, trimStart 0). Re-import the song so the store picks it up.
-2. **Link the video:** in the app, use the new file-picker to point `tragedia-de-cerdo-asado.mp4` at the real file (`~/Chango Pepper/animations/tragedia-de-cerdo-asado/Tragedia de Cerdo Asado.mp4`, the 89 MB one — not the 22 GB `.mov`). The path is remembered locally.
-3. **Capture a rough timeline:** play the video and use Record mode (from C) to tap through the lyrics in time with it. Save the captured timeline into the song. _Note: Record mode (C) uses its own clock, so taps land ~your reaction-lag late vs the video — that's fine, the next step corrects it._
-4. **Test + nudge:** switch to VIDEO mode, watch the projection. Use `media.offset` to shift all subtitles earlier/later until they sit right, and the manual override (arrow/pedal) to re-sync any line live.
+Goal: see VIDEO mode play end-to-end on the provisional Tragedia master. Throwaway calibration — the accurate timeline comes later from Prompt B against the produced master, so don't perfect it.
 
-If the subtitles feel systematically late by a fixed amount, that's the reaction-lag — a single negative `offset` fixes the whole song at once.
+1. **Data:** `songs/tragedia-de-cerdo-asado.json` carries a `media` block; on load it migrates to the v5 `{ small: { … } }` shape. Re-import the song so the store picks it up.
+2. **Link the video:** in **Manage setlists**, click the **camera icon** on Tragedia's row and pick the file for the **Small** (and/or **Big**) slot — point it at `~/Chango Pepper/animations/tragedia-de-cerdo-asado/Tragedia de Cerdo Asado.mp4` (the 89 MB one, not the 22 GB `.mov`). The absolute path is remembered locally, per slot.
+3. **Author a rough timeline:** edit `timeline` in the song JSON directly — one `{ start, end }` per item, covering lyrics **and** section markers in order. Eyeball it against the video; it doesn't need to be precise. (No in-app capture anymore.)
+4. **Test on the projector:** arm Tragedia, pick the screen size in the Projection column, hit **Play** — the count-in runs, then the video starts. Watch the audience projection. Tune `media.<size>.offset` to shift all subtitles earlier/later until they sit right; a single negative offset fixes a systematic lag.
 
-> **Better-but-optional later:** make Record mode timestamp against `video.currentTime` (not its own clock) when a video is loaded, for lag-free capture. Skip it for now — Prompt B (forced alignment) supersedes manual capture entirely once the produced master exists.
+> **Verify this integration gap first (surfaced 2026-06-23):** the performer panel's count-in→video handoff currently drives only the **preview** video. The **projection** video (`VideoProjectionRegion`) auto-plays when the song is armed and is only **seek**-synced — there's no play/pause broadcast — so the audience video may start before the count-in finishes and won't pause with the performer. If that's still true when you test, fix the control↔projection video transport sync before trusting D-wire results. Prompt B (forced alignment) still supersedes manual timeline authoring once the produced master exists.
 
 ## Watch-item (from G)
 
@@ -170,7 +170,7 @@ If the subtitles feel systematically late by a fixed amount, that's the reaction
 - **D is the payoff** but needs C and F merged first (cues + band geometry). Fastest path to the win: A → C → F → D.
 - **D assets (verified 2026-06-19):** live at the Chango Pepper **root**, not in the repo — `animations/tragedia-de-cerdo-asado/` + `songs/`. Clean master = `Tragedia de Cerdo Asado.mp4` (89 MB, 159.5 s, no burned text); ignore the 22 GB `.mov` (too heavy) and the two "EN subtitles" exports (the old per-screen versions D replaces). `reference/` stills present. `docs/subtitle-format.md` restored 2026-06-19.
 - **Asset path decision for D — DECIDED 2026-06-19 (`docs/media-assets.md`):** song JSON holds a logical `media.src` filename only; the absolute path lives in local app settings via a one-time file picker, with graceful "Locate video…" re-link. Delivery spec: MP4 H.264, ≤1080p, ~5–10 Mbps (audio kept but muted at play); warn on ProRes/large files. Big video masters stay out of git (outside the repo by design).
-- **Tragedia JSON** is already v3-shaped (`title_translations` + `intro`) but has no `media`/`timeline` — that's step **D-wire**.
+- **Tragedia JSON** has `title_translations` + `intro` + a `media` block (migrated to the v5 `{ small }` shape on load); it still needs a `timeline` authored in the JSON — that's step **D-wire**.
 - **E and G survive the ASR shelving** — E covers fixed-tempo songs, G is the count-in; neither depends on voice-following.
 - **B before the produced master = mechanism only.** Wire and sanity-check, but the real alignment pass runs against the produced master's time-locked vocal stem (late June), not the current `voice.mp3` (different take, didn't match).
 - The full design rationale (the "why" behind each prompt) lived in `docs/auto-advance-and-video-sync.md`, also lost. I can rebuild that too from this chat if you want it back.
