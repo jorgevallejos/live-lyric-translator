@@ -45,12 +45,12 @@ describe('getProjectionStatusText', () => {
     expect(getProjectionStatusText(true, null)).toBe('Open')
   })
 
-  it('returns "Open, Small screen" when open with small screen size', () => {
-    expect(getProjectionStatusText(true, 'small')).toBe('Open, Small screen')
+  it('returns "Open, Small" when open with small screen size', () => {
+    expect(getProjectionStatusText(true, 'small')).toBe('Open, Small')
   })
 
-  it('returns "Open, Big screen" when open with big screen size', () => {
-    expect(getProjectionStatusText(true, 'big')).toBe('Open, Big screen')
+  it('returns "Open, Big" when open with big screen size', () => {
+    expect(getProjectionStatusText(true, 'big')).toBe('Open, Big')
   })
 })
 
