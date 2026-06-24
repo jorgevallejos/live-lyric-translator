@@ -46,6 +46,7 @@ import {
   setStoredScreenSize,
   getBroadcastScreenSize,
   getAvailableScreenSizes,
+  getDefaultScreenSize,
   KEY_SCREEN_SIZE_BROADCAST,
   type ScreenSize,
 } from './screenSizeState'
@@ -252,6 +253,7 @@ function ControlView() {
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
   const availableScreenSizes = getAvailableScreenSizes(isVideoMode)
+  const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -286,6 +288,11 @@ function ControlView() {
     sendScreenSize(size)
     setActiveProfileId(size === 'big' ? 'big-screen' : 'small-canvas')
   }
+
+  useEffect(() => {
+    if (effectiveScreenSize === 'small') setActiveProfileId('small-canvas')
+    else if (effectiveScreenSize === 'big') setActiveProfileId('big-screen')
+  }, [effectiveScreenSize])
 
   /** Tracked user-facing config (storage); avoids false positives when only derived effectiveLang changes. */
   const prevUserConfigRef = useRef<{
@@ -591,7 +598,7 @@ function ControlView() {
               Languages: {languagesDisplay || '—'}
             </span>
             <span className="top-summary-line">
-              Projection: {getProjectionStatusText(projectionOpen, selectedScreenSize)}
+              Projection: {getProjectionStatusText(projectionOpen, effectiveScreenSize)}
             </span>
             <span
               className="top-title top-title-state"
@@ -650,22 +657,24 @@ function ControlView() {
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
                     <span className="control-setup-value">
-                      {getProjectionStatusText(projectionOpen, selectedScreenSize)}
+                      {getProjectionStatusText(projectionOpen, effectiveScreenSize)}
                     </span>
                   </div>
                   <div className="control-setup-buttons">
                     {availableScreenSizes.length > 0 && (
-                      <div className="control-setup-button-row">
+                      <div className="ctrl-segmented-control" role="group" aria-label="Projection format">
                         <button
                           type="button"
-                          className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'small' ? ' ctrl-screen-size--active' : ''}`}
+                          className={`ctrl-btn ctrl-screen-size${effectiveScreenSize === 'small' ? ' ctrl-screen-size--selected' : ''}`}
+                          aria-pressed={effectiveScreenSize === 'small'}
                           onClick={() => handleSelectScreenSize('small')}
                         >
                           Small
                         </button>
                         <button
                           type="button"
-                          className={`ctrl-btn ctrl-screen-size${selectedScreenSize === 'big' ? ' ctrl-screen-size--active' : ''}`}
+                          className={`ctrl-btn ctrl-screen-size${effectiveScreenSize === 'big' ? ' ctrl-screen-size--selected' : ''}`}
+                          aria-pressed={effectiveScreenSize === 'big'}
                           onClick={() => handleSelectScreenSize('big')}
                         >
                           Big
