@@ -23,7 +23,7 @@ import {
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
 import { KEY_ARMED_BROADCAST } from './performanceState'
-import { useEndCardState, getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
+import { getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
 import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
@@ -227,7 +227,6 @@ function ControlView() {
     effectiveLang,
     index
   )
-  const { visible: endCardVisible, toggle: toggleEndCard, hide: hideEndCard } = useEndCardState()
   const currentSongId = getCurrentSongId()
 
   const concertTimer = useConcertSessionTimer()
@@ -363,7 +362,6 @@ function ControlView() {
   }
 
   const handleUnarm = () => {
-    hideEndCard()
     handleUnarmClick()
   }
 
@@ -851,16 +849,6 @@ function ControlView() {
               aria-label="Unarm (return to setup without clearing song, language, or projection)"
             >
               {isEndOfSong ? 'Unarm' : unarmHold.isHolding ? 'Hold to confirm…' : 'Unarm'}
-            </button>
-          </div>
-          <div className="bottom-buttons-secondary">
-            <button
-              type="button"
-              className={`ctrl-btn ${endCardVisible ? 'ctrl-end-card-active' : 'ctrl-end-card'}`}
-              data-testid="end-card-btn"
-              onClick={toggleEndCard}
-            >
-              {endCardVisible ? 'Hide End Card' : 'End Card'}
             </button>
           </div>
         </footer>
