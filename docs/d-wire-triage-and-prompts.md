@@ -38,7 +38,8 @@ This reverses the §2 per-song big/small **file** slots from the rework, but kee
 1. **Prompt 1** (file:// → custom protocol) — unblocks the whole test; independent. **Shipped broken — must be followed by Prompt 1b** (fixes the empty-host canonicalization bug) before the video actually plays.
 2. **Prompt 2** (single-video schema) → **Prompt 3** (single-file camera + icons) → **Prompt 4** (Projection Big/Small + remove DISPLAY row). 4 depends on 2's schema.
 3. **Prompt 5** (non-video beat controls) and **Prompt 6** (remove end-card) — independent, any time.
-4. **Prompt 7** (projection holds black until Play) and **Prompt 8** (fit performer video) — video-display fixes surfaced once Prompt 1b made video render; independent, any time.
+4. **Prompt 7** (projection holds black until Play) and **Prompt 8** (fit performer video + restore button spacing) — video-display fixes surfaced once Prompt 1b made video render; independent, any time.
+5. **Second projector test (2026-06-24)** — see the dedicated section below for the new round (Prompts 9–11, the timeline-authoring DATA task, and the #7/#8 follow-ups folded into Prompt 8).
 
 ---
 
@@ -194,16 +195,114 @@ This is primarily a CSS/layout fix in `control.css`:
 2. `.video-perf-video-wrap` takes the remaining space and is allowed to shrink: `flex: 1 1 auto; min-height: 0; overflow: hidden`.
 3. `.video-perf-preview` fills that region with `width: 100%; height: 100%; object-fit: contain` (letterboxed, never cropped, never larger than its wrap).
 4. `.video-perf-lyric-row` and `.video-perf-bottom-bar` are `flex: 0 0 auto` so they keep their height and stay visible.
+5. **Restore button spacing (covers 2026-06-24 #8 — "no spacing between performer buttons").** `.video-perf-bottom-bar` currently has **no CSS rule at all** in `control.css`, so its four buttons (Play / Pause / Restart / Unarm) render flush against each other. Add a rule: `display: flex; gap: <match the previous spaced footer — use the same value as the other control footers, e.g. `0.75em`>; flex-wrap: wrap; justify-content: center` (or `space-between` if that matches the prior look). This restores the previous spaced layout rather than inventing a new one — match the spacing the non-video footer uses so both views look consistent.
 
 Layout/CSS isn't meaningfully unit-testable, so guard against regression with a light structural assertion and verify visually:
 
-1. **Red** — In a `VideoPerformancePanel` test, assert the panel renders the `video-perf-bottom-bar` and the `video-perf-video-wrap` together (the transport bar is always present alongside the video). If a snapshot/structure test is more natural, assert the bottom bar is a sibling after the video wrap.
-2. **Green** — Apply the flex rules above. Don't change component logic.
+1. **Red** — In a `VideoPerformancePanel` test, assert the panel renders the `video-perf-bottom-bar` and the `video-perf-video-wrap` together (the transport bar is always present alongside the video). If a snapshot/structure test is more natural, assert the bottom bar is a sibling after the video wrap. Also assert the bottom bar carries its `video-perf-bottom-bar` class so the spacing rule applies.
+2. **Green** — Apply the flex rules above, including the new spacing rule for `.video-perf-bottom-bar`. Don't change component logic.
 3. **Refactor** — Remove any fixed/`vh` height or unconstrained sizing on the preview that fought the flex layout.
 
-**Manual verification (required):** arm Tragedia, confirm the video fits within the panel and Play/Pause/Restart/Unarm are fully visible at the bottom; resize the window and confirm the controls never get pushed off.
+**Manual verification (required):** arm Tragedia, confirm the video fits within the panel, Play/Pause/Restart/Unarm are fully visible at the bottom **and visibly spaced apart**; resize the window and confirm the controls never get pushed off.
 
-**Commit:** `fix(performer): fit preview video so transport controls stay visible`
+> **Re-verify 2026-06-24 #7 (no beat indicator on the performer view) after this lands.** Tempo is set (Tragedia is 128 bpm), so the beat indicator is most likely just hidden behind the oversized video, not missing. Once Prompt 8 constrains the video, re-check the performer view: if the `BeatCircle`/count-in indicator now shows, no further work is needed — close #7. **Only add a new prompt if the indicator is still absent after the video is fitted.**
+
+**Commit:** `fix(performer): fit preview video and restore transport button spacing`
+
+---
+
+## Second projector test (2026-06-24)
+
+_Second end-to-end projector test, after the video-playback fix (Prompts 1/1b) and the camera/single-video/Big–Small prompts (2–4) landed — video now renders in both windows. Prompts 7 and 8 were still pending at test time, which is why #4 and #5 below map back to them. Jorge's feedback is numbered #1–#9 below; this numbering is **independent** of the first triage table (#1–12) above. Same conventions: real code bugs become paste-ready TDD prompts (Red → Green → Refactor, atomic commits, `/release` per change). The single-video v6 model is unchanged._
+
+### Disposition table
+
+| # | Observation | Disposition |
+|---|---|---|
+| #1 | Video link button should also appear in the **SONG LIBRARY** section of Manage Setlists (today it's only on setlist rows) | New code prompt → **Prompt 9** (combined with #2) |
+| #2 | Empty state: video-camera icon + a "+" affordance, same button size; stays green when linked | New code prompt → **Prompt 9** (combined with #1) |
+| #3 | Performance setup: make Big/Small a clear **toggle** (single segmented control), default to **"small"** | New code prompt → **Prompt 10** |
+| #4 | Video shows on projection open (should hold black until Play) | **Already planned — Prompt 7.** No new prompt. |
+| #5 | Oversized performer video | **Already planned — Prompt 8.** No new prompt. |
+| #6 | No lyrics — `songs/tragedia-de-cerdo-asado.json` has no `timeline` | **DATA task** (not a code prompt) — see "Timeline-authoring path" below |
+| #7 | No beat indicator on the performer view | **Re-verify after Prompt 8** (tempo is set at 128 bpm, so it's likely hidden behind the oversized video). Prompt only if still missing — note folded into Prompt 8. |
+| #8 | No spacing between performer transport buttons | **Folded into Prompt 8** (restore the previous spaced layout). |
+| #9 | Projection status text reads "Open, Small **screen**" — drop the word "screen" | New code prompt → **Prompt 11** |
+
+### Decisions taken (2026-06-24)
+
+1. **#1 + #2 → one prompt.** Both touch the same component and the same link-button design, so they're combined into a single **Prompt 9** (one branch) to avoid editing the same lines twice.
+2. **#3 → a single segmented control.** Big/Small becomes one segmented toggle (not two separate buttons). Prompt 10 is written for this.
+3. **#3 → default Small confirmed.** A song that has a video displays in the **Small** projection format by default; the segmented toggle sits on "Small" on arm until the performer switches it.
+
+### Timeline-authoring path (DATA task for #6 — no code prompt)
+
+`songs/tragedia-de-cerdo-asado.json` has a `media` block but **no `timeline`**, so Video mode shows no lyrics. Decided source and method (Cowork does this as a data task, not Code):
+
+- **Source:** Jorge provides a video with the lyric phrases **burned in** at the correct times (he's producing the EN-subtitled video anyway, so this is free).
+- **Method:** Cowork derives the timeline from that video — `ffmpeg` subtitle-region change detection to find the timestamps where the burned-in text changes; the lyric order is fixed, so assign the **29 lines** to the detected change points in order; OCR is used **only to verify** the assignment, not as the primary signal. Cowork then writes the resulting `timeline` into the song JSON.
+- **Status:** This is the timeline-authoring path of record for the current test. **Prompt B (offline forced alignment)** remains the eventual *automated* path, but only once the produced master audio exists — it's deferred until then (consistent with the project context's "Deferred" note).
+
+---
+
+## Prompt 9 — Video-link button on library rows + empty-state "+" affordance (covers #1 and #2)
+
+**Branch:** `feat/library-video-link-and-empty-state`
+
+Depends on Prompt 3 (single-file camera picker, video glyph, green-when-linked) — already merged. Two coupled changes to the link button in `ManageSetlistsView.tsx`, done together:
+
+- **#1 — also on library rows.** Today the camera/link button lives only on `SortableSongRow` (setlist rows); `LibrarySongRow` (the SONG LIBRARY column, ~line 253) renders only **Add (+)** and **Delete**. The video should be linkable from the library too, reusing the same button, glyph, handler, and linked-state styling.
+- **#2 — empty-state affordance.** The link button should read clearly as "add a video" when empty and "linked" when set, at a consistent size in **both** row types: empty (no `media`) shows the `VideoCameraIcon` plus a small "+" affordance; linked (`media` set) drops the "+", keeps the camera glyph, and uses the green `--linked` styling. The "+" must not change the button's footprint.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — In `ManageSetlistsView` tests:
+   - A `LibrarySongRow` renders a video-link button (`manage-setlists-icon-btn`, `VideoCameraIcon`); clicking it runs the same flow as setlist rows (`handleLinkVideo(song.id)` → file dialog → `patchSongMediaInSnapshot` → `setMediaPath`).
+   - A song with no `media` renders the button with the "+" affordance (assert the added glyph/`--add` class) plus the camera icon; a song with `media` renders it **without** the "+" and **with** `manage-setlists-icon-btn--linked` — in **both** setlist and library rows.
+   - Both states share the same base class so the footprint is identical (no size-changing modifier).
+2. **Green** — Extract a shared `VideoLinkButton` component (camera glyph; conditional "+" when `!hasMedia`; `--linked` when `hasMedia`) and use it in both `SortableSongRow` and `LibrarySongRow`. Add `onLinkVideo` + `hasMedia` to `LibrarySongRowProps`, and wire `onLinkVideo={() => handleLinkVideo(song.id)}` and `hasMedia={!!song.media}` at the `LibrarySongRow` call site (~line 710), matching the setlist row (`hasMedia={!!song.media}`, ~line 238). Reuse `handleLinkVideo` — do **not** fork a second link path. Add CSS in `control.css` so empty and linked states are the same dimensions and the linked state is green (reuse the existing `--linked` color rule).
+3. **Refactor** — Remove any now-duplicated row markup/styling; keep the suite green.
+
+**Manual verification:** in Manage Setlists, an unlinked song (setlist *and* library row) shows camera + "+"; link a video from the library column; the "+" disappears, the button turns green, and it persists; button size is identical before/after and across both row types.
+
+**Commit:** `feat(setlists): link video from library rows with empty-state "+" affordance`
+
+---
+
+## Prompt 10 — Big/Small as a single segmented toggle, default Small
+
+**Branch:** `feat/projection-format-segmented-toggle`
+
+Depends on Prompt 4 (Big/Small in the Projection column) — already merged. Replace the two separate Big/Small `ctrl-screen-size` buttons (`App.tsx` ~lines 661–671) with **one segmented control** (a single toggle with two segments), and **default it to Small** when a song with a video is armed.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — In `screenSizeState.test.ts` / a `ControlView` test:
+   - When a song with `media` is armed and no size has been chosen yet, the resolved/selected screen size is **`small`** (activating `small-canvas`).
+   - The control renders as a **single segmented toggle** with two segments (Small | Big), exactly one selected at a time (assert a `--selected`/`aria-pressed`/`role="radiogroup"`-style state on one segment and not the other). Selecting Big moves the selection to Big; selecting Small moves it back.
+   - When the current song has no video, the segmented toggle is not shown (regression with Prompt 4's song-gating).
+2. **Green** — In `screenSizeState.ts`, make the default screen size resolve to `'small'` (rather than `null`/unset) when a video is present. In `App.tsx`, replace the two-button block with one segmented-toggle component (two segments mapping to `setActiveProfileId('small-canvas'|'big-screen')` and the existing size broadcast), gated on `availableScreenSizes` as today. Style it in `control.css` as a proper segmented switch (connected segments, clear selected segment). Keep the WS broadcast + display-profile mapping from Prompt 4 unchanged.
+3. **Refactor** — Remove the now-dead `ctrl-screen-size`/`--active` two-button styling; centralize "which segment is selected" if it lives in more than one place. Keep both suites green.
+
+**Manual verification:** arm Tragedia — the toggle sits on **Small** and the projection opens in small-canvas; flip to Big — it switches cleanly; flip back to Small. Confirm the selected segment is obvious at a glance on the projector, and the toggle is absent for a song with no video.
+
+**Commit:** `feat(projection): replace big/small buttons with a segmented toggle defaulting to small`
+
+---
+
+## Prompt 11 — Projection status text: drop "screen"
+
+**Branch:** `fix/projection-status-text`
+
+`getProjectionStatusText` (`screenSizeState.ts`) currently returns `` `Open, ${screenSize === 'small' ? 'Small' : 'Big'} screen` `` → e.g. "Open, Small screen". Drop the trailing word "screen" so it reads "Open, Small" / "Open, Big". The `null` case ("Open") and the closed case are unchanged.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — In `screenSizeState.test.ts`, update the `getProjectionStatusText` cases to expect `"Open, Small"` and `"Open, Big"` (no " screen"); keep the existing `"Open"` (null) and closed-state expectations. Run; confirm failure.
+2. **Green** — Change the return to `` `Open, ${screenSize === 'small' ? 'Small' : 'Big'}` ``.
+3. **Refactor** — None expected; confirm the two call sites in `App.tsx` (~lines 594, 653) still render correctly.
+
+**Commit:** `fix(ui): drop "screen" from projection status text`
 
 ---
 
