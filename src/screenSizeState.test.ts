@@ -5,9 +5,20 @@ import {
   setStoredScreenSize,
   clearStoredScreenSize,
   getAvailableScreenSizes,
+  getDefaultScreenSize,
 } from './screenSizeState'
 
 // ── available screen sizes ─────────────────────────────────────────────────
+
+describe('getDefaultScreenSize', () => {
+  it('returns small when song has media', () => {
+    expect(getDefaultScreenSize(true)).toBe('small')
+  })
+
+  it('returns null when song has no media', () => {
+    expect(getDefaultScreenSize(false)).toBeNull()
+  })
+})
 
 describe('getAvailableScreenSizes', () => {
   it('returns both sizes when song has media', () => {

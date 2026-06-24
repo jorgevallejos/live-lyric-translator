@@ -34,6 +34,11 @@ export function getAvailableScreenSizes(songHasMedia: boolean): ScreenSize[] {
   return songHasMedia ? ['big', 'small'] : []
 }
 
+/** Returns the default size (small) when the song has media, null otherwise. */
+export function getDefaultScreenSize(songHasMedia: boolean): ScreenSize | null {
+  return songHasMedia ? 'small' : null
+}
+
 /** Read the broadcast value from localStorage (used by the Projection window). */
 export function getBroadcastScreenSize(): ScreenSize | null {
   try {
