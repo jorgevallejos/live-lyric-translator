@@ -7,7 +7,7 @@ export const KEY_SCREEN_SIZE_BROADCAST = 'liveLyricScreenSizeBroadcast'
 export function getProjectionStatusText(projectionOpen: boolean, screenSize: ScreenSize | null): string {
   if (!projectionOpen) return 'Closed'
   if (screenSize === null) return 'Open'
-  return `Open, ${screenSize === 'small' ? 'Small' : 'Big'} screen`
+  return `Open, ${screenSize === 'small' ? 'Small' : 'Big'}`
 }
 
 export function getStoredScreenSize(): ScreenSize | null {
