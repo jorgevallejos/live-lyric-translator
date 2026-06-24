@@ -518,6 +518,8 @@ function ControlView() {
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
   const showArmedShell = controlState === 'ARMED'
 
+  const [beatIndicatorOn, setBeatIndicatorOn] = useState(true)
+
   // Beat clock: non-video performer view only. Video mode manages its own clock inside VideoPerformancePanel.
   const songTempo = currentLibrarySong?.tempo
   const { phase: beatPhase, beginFiredOnce, reset: resetBeatClock } = useBeatClock(
@@ -680,6 +682,15 @@ function ControlView() {
                       </div>
                     )}
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-beat-indicator-toggle"
+                      aria-label="Beat indicator"
+                      aria-pressed={beatIndicatorOn}
+                      onClick={() => setBeatIndicatorOn((on) => !on)}
+                    >
+                      {beatIndicatorOn ? '●' : '⊘'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -708,6 +719,7 @@ function ControlView() {
             media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
             tempo={songTempo}
+            beatIndicatorOn={beatIndicatorOn}
             onUnarm={handleUnarm}
             onSeek={sendSeek}
           />
@@ -715,7 +727,7 @@ function ControlView() {
         {showArmedShell && !isVideoMode && (
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
-              {songTempo && (
+              {songTempo && beatIndicatorOn && (
                 <BeatCircle
                   tempo={songTempo}
                   phase={beatPhase}
