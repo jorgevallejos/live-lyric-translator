@@ -153,6 +153,20 @@ function mediaWarningText(w: MediaValidationWarning): string {
   return 'Warning: file is larger than 500 MB.'
 }
 
+function VideoLinkButton({ onLinkVideo, hasMedia, songTitle }: { onLinkVideo: () => void; hasMedia: boolean; songTitle: string }) {
+  return (
+    <button
+      type="button"
+      className={`manage-setlists-action-btn manage-setlists-icon-btn${hasMedia ? ' manage-setlists-icon-btn--linked' : ' manage-setlists-icon-btn--add'}`}
+      aria-label={`Link video for ${songTitle}`}
+      onClick={onLinkVideo}
+    >
+      <VideoCameraIcon />
+      {!hasMedia && <span className="video-link-btn-badge" aria-hidden="true">+</span>}
+    </button>
+  )
+}
+
 type SortableSongRowProps = {
   song: LibrarySong
   setlistName: string
@@ -197,14 +211,7 @@ function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia }:
       </button>
       <span className="manage-setlists-song-title">{song.title}</span>
       <div className="manage-setlists-song-actions">
-        <button
-          type="button"
-          className={`manage-setlists-action-btn manage-setlists-icon-btn${hasMedia ? ' manage-setlists-icon-btn--linked' : ''}`}
-          aria-label={`Link video for ${song.title}`}
-          onClick={onLinkVideo}
-        >
-          <VideoCameraIcon />
-        </button>
+        <VideoLinkButton onLinkVideo={onLinkVideo} hasMedia={hasMedia} songTitle={song.title} />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
@@ -248,13 +255,16 @@ type LibrarySongRowProps = {
   addDisabled: boolean
   addLabel: string
   onDelete: () => void
+  onLinkVideo: () => void
+  hasMedia: boolean
 }
 
-function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete }: LibrarySongRowProps) {
+function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete, onLinkVideo, hasMedia }: LibrarySongRowProps) {
   return (
     <li className="manage-setlists-song-row">
       <span className="manage-setlists-song-title">{song.title}</span>
       <div className="manage-setlists-song-actions">
+        <VideoLinkButton onLinkVideo={onLinkVideo} hasMedia={hasMedia} songTitle={song.title} />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
@@ -721,6 +731,8 @@ export function ManageSetlistsView() {
                           : `Add ${song.title} to selected setlist`
                       }
                       onDelete={() => handleDeleteSongFromLibrary(song.id)}
+                      onLinkVideo={() => handleLinkVideo(song.id)}
+                      hasMedia={!!song.media}
                     />
                   ))
                 )}
