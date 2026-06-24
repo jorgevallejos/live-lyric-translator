@@ -38,7 +38,7 @@ This reverses the §2 per-song big/small **file** slots from the rework, but kee
 1. **Prompt 1** (file:// → custom protocol) — unblocks the whole test; independent. **Shipped broken — must be followed by Prompt 1b** (fixes the empty-host canonicalization bug) before the video actually plays.
 2. **Prompt 2** (single-video schema) → **Prompt 3** (single-file camera + icons) → **Prompt 4** (Projection Big/Small + remove DISPLAY row). 4 depends on 2's schema.
 3. **Prompt 5** (non-video beat controls) and **Prompt 6** (remove end-card) — independent, any time.
-4. **Prompt 7** (projection holds black until Play) and **Prompt 8** (fit performer video + restore button spacing) — video-display fixes surfaced once Prompt 1b made video render; independent, any time.
+4. **Prompt 7** (projection holds black until Play) and **Prompt 8** (fit performer video + restore button spacing) — video-display fixes surfaced once Prompt 1b made video render; independent, any time. **Prompt 7 shipped, then Prompt 7b** (re-black on Restart count-in + on Unarm) followed from testing it. **Prompt 8 shipped (released 2026-06-24).**
 5. **Second projector test (2026-06-24)** — see the dedicated section below for the new round (Prompts 9–11, the timeline-authoring DATA task, and the #7/#8 follow-ups folded into Prompt 8).
 
 ---
@@ -180,6 +180,35 @@ TDD, strict Red → Green → Refactor:
 **Manual verification:** open projection, arm Tragedia — screen stays black; hit Play — video appears on the downbeat in both windows; unarm — projection returns to black.
 
 **Commit:** `fix(projection): hold black until play instead of revealing video on arm`
+
+---
+
+## Prompt 7b — Re-black the audience on Restart (count-in) and on Unarm
+
+**Branch:** `fix/projection-reblack-restart-unarm`
+
+Surfaced testing Prompt 7 (2026-06-24). Prompt 7 added a one-way `hasStarted` gate in `VideoProjectionRegion` — it flips true on `play` and never resets — so two cases stay wrong:
+
+- **Restart should return the audience to black.** `handleRestart` (`VideoPerformancePanel`) only broadcasts `setVideoTransportCommand('seek', trimStart)`, which the projection handler treats as a bare `currentTime` set and leaves `hasStarted` true. So after Restart the audience keeps showing the cued frame while the 2-bar count-in runs, instead of going black and only revealing the video on the new downbeat.
+- **Unarm should remove the video from the audience.** The unarm action (`useHoldToConfirm(onUnarm)`) broadcasts nothing, so `hasStarted` stays true and the audience keeps the frame after unarm.
+
+Fix with an explicit `stop` transport action that returns the projection to black and re-cues, used by both Restart and Unarm. The performer preview is unaffected (the performer may keep seeing the cued frame).
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** —
+   - `VideoProjectionRegion` test: extend `VideoTransportCommand.action` with `'stop'`. After a `play` event (video visible), a `stop` transport event returns the region to black (cover shown / `hasStarted` false), pauses the video, and seeks it to `media.trimStart`. A subsequent `play` reveals it again.
+   - `VideoPerformancePanel` test: `handleRestart` broadcasts a `stop` command (re-cue to black) at the start of its count-in and only emits `play` when the count-in downbeat fires (existing handoff unchanged). The unarm action broadcasts a `stop` command in addition to calling `onUnarm`.
+2. **Green** —
+   - Add `'stop'` to the `VideoTransportCommand` action union and to `setVideoTransportCommand`'s signature in `VideoProjectionRegion.tsx`.
+   - In the projection transport handler, handle `'stop'`: `setHasStarted(false)`, `video.pause()`, `video.currentTime = media.trimStart ?? 0`.
+   - In `VideoPerformancePanel.handleRestart`, replace `setVideoTransportCommand('seek', trimStart)` with `setVideoTransportCommand('stop')` (audience blacks out + re-cues); keep the local performer-side `video.currentTime = trimStart`, `onSeek(trimStart)`, and the count-in → `play` handoff unchanged.
+   - Wrap the unarm action to broadcast `stop` first: `useHoldToConfirm(() => { setVideoTransportCommand('stop'); onUnarm() })`.
+3. **Refactor** — If `handleRestart` was the only emitter of transport `'seek'`, remove that branch from the projection handler and `setVideoTransportCommand` (verify no other caller first; the legacy `VIDEO_SEEK_TARGET_KEY` channel is separate and stays). Keep both suites green.
+
+**Manual verification (required):** open projection, arm Tragedia, Play → video appears on the downbeat. Hit **Restart** → audience returns to black, the beat indicator runs the 2-bar count-in, and the video reappears + plays on the downbeat. Hit **Unarm** → the audience video disappears.
+
+**Commit:** `fix(projection): re-black audience on restart count-in and on unarm`
 
 ---
 
