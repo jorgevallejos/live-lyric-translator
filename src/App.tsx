@@ -1,14 +1,11 @@
 import { useSongNavigation } from './useSongNavigation'
 import {
   computeProjectionLayout,
-  DISPLAY_PRESETS,
   type DisplayProfile,
-  type ProfileId,
 } from './displayProfile'
 import {
   getActiveDisplayProfile,
   setActiveProfileId,
-  setCustomProfile,
 } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { getMediaPath } from './mediaPathStore'
@@ -48,6 +45,7 @@ import {
   getStoredScreenSize,
   setStoredScreenSize,
   getBroadcastScreenSize,
+  getAvailableScreenSizes,
   KEY_SCREEN_SIZE_BROADCAST,
   type ScreenSize,
 } from './screenSizeState'
@@ -253,6 +251,7 @@ function ControlView() {
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
+  const availableScreenSizes = getAvailableScreenSizes(isVideoMode)
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -285,6 +284,7 @@ function ControlView() {
     setSelectedScreenSize(size)
     setStoredScreenSize(size)
     sendScreenSize(size)
+    setActiveProfileId(size === 'big' ? 'big-screen' : 'small-canvas')
   }
 
   /** Tracked user-facing config (storage); avoids false positives when only derived effectiveLang changes. */
@@ -654,7 +654,7 @@ function ControlView() {
                     </span>
                   </div>
                   <div className="control-setup-buttons">
-                    {isVideoMode && (
+                    {availableScreenSizes.length > 0 && (
                       <div className="control-setup-button-row">
                         <button
                           type="button"
@@ -692,7 +692,6 @@ function ControlView() {
                   </button>
                 </div>
               </div>
-              <DisplayProfileSetup />
             </div>
           </>
         )}
@@ -1075,84 +1074,6 @@ function LanguagesView() {
           </>
         )}
       </main>
-    </div>
-  )
-}
-
-function DisplayProfileSetup() {
-  const [profile, setProfileState] = useState<DisplayProfile>(getActiveDisplayProfile)
-  const [customBand, setCustomBand] = useState<number>(() => {
-    const p = getActiveDisplayProfile()
-    return p.id === 'custom' ? p.bandPercent : 20
-  })
-  const [customScale, setCustomScale] = useState<number>(() => {
-    const p = getActiveDisplayProfile()
-    return p.id === 'custom' ? p.textScale : 0.5
-  })
-
-  const selectPreset = (id: Exclude<ProfileId, 'custom'>) => {
-    setActiveProfileId(id)
-    setProfileState(getActiveDisplayProfile())
-  }
-
-  const activateCustom = () => {
-    setCustomProfile(customBand, customScale)
-    setProfileState(getActiveDisplayProfile())
-  }
-
-  return (
-    <div className="ctrl-display-row">
-      <span className="ctrl-display-label">Display</span>
-      <div className="ctrl-display-buttons">
-        {DISPLAY_PRESETS.map((preset) => (
-          <button
-            key={preset.id}
-            type="button"
-            className={`ctrl-btn ctrl-setup-link ${profile.id === preset.id ? 'ctrl-arm' : ''}`}
-            onClick={() => selectPreset(preset.id as Exclude<ProfileId, 'custom'>)}
-          >
-            {preset.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          className={`ctrl-btn ctrl-setup-link ${profile.id === 'custom' ? 'ctrl-arm' : ''}`}
-          onClick={activateCustom}
-        >
-          Custom
-        </button>
-      </div>
-      {profile.id === 'custom' && (
-        <div className="ctrl-custom-profile-form">
-          <label className="ctrl-custom-profile-field">
-            <span>Band %</span>
-            <input
-              type="number"
-              className="ctrl-custom-profile-input"
-              value={customBand}
-              min={1}
-              max={50}
-              step={1}
-              onChange={(e) => setCustomBand(Number(e.target.value))}
-            />
-          </label>
-          <label className="ctrl-custom-profile-field">
-            <span>Scale</span>
-            <input
-              type="number"
-              className="ctrl-custom-profile-input"
-              value={customScale}
-              min={0.1}
-              max={1.0}
-              step={0.05}
-              onChange={(e) => setCustomScale(Number(e.target.value))}
-            />
-          </label>
-          <button type="button" className="ctrl-btn ctrl-arm" onClick={activateCustom}>
-            Apply
-          </button>
-        </div>
-      )}
     </div>
   )
 }

@@ -4,7 +4,20 @@ import {
   getStoredScreenSize,
   setStoredScreenSize,
   clearStoredScreenSize,
+  getAvailableScreenSizes,
 } from './screenSizeState'
+
+// ── available screen sizes ─────────────────────────────────────────────────
+
+describe('getAvailableScreenSizes', () => {
+  it('returns both sizes when song has media', () => {
+    expect(getAvailableScreenSizes(true)).toEqual(['big', 'small'])
+  })
+
+  it('returns empty array when song has no media', () => {
+    expect(getAvailableScreenSizes(false)).toEqual([])
+  })
+})
 
 // ── status text ────────────────────────────────────────────────────────────
 

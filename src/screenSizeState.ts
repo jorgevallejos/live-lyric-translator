@@ -29,6 +29,11 @@ export function clearStoredScreenSize(): void {
   try { localStorage.removeItem(KEY_SCREEN_SIZE_BROADCAST) } catch { /* unavailable in some envs */ }
 }
 
+/** Returns both sizes when the song has media, empty array otherwise. */
+export function getAvailableScreenSizes(songHasMedia: boolean): ScreenSize[] {
+  return songHasMedia ? ['big', 'small'] : []
+}
+
 /** Read the broadcast value from localStorage (used by the Projection window). */
 export function getBroadcastScreenSize(): ScreenSize | null {
   try {
