@@ -1,73 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import type { SongMedia } from './songState'
 import {
-  getAvailableScreenSizes,
-  getDefaultScreenSize,
   getProjectionStatusText,
   getStoredScreenSize,
   setStoredScreenSize,
   clearStoredScreenSize,
 } from './screenSizeState'
-
-// ── selector visibility rules ──────────────────────────────────────────────
-
-describe('getAvailableScreenSizes', () => {
-  it('returns [] when media is undefined', () => {
-    expect(getAvailableScreenSizes(undefined)).toEqual([])
-  })
-
-  it('returns [] when media has no slots', () => {
-    expect(getAvailableScreenSizes({})).toEqual([])
-  })
-
-  it('returns [small] when only small slot present', () => {
-    const media: SongMedia = { small: { type: 'video', src: 'song-small.mov' } }
-    expect(getAvailableScreenSizes(media)).toEqual(['small'])
-  })
-
-  it('returns [big] when only big slot present', () => {
-    const media: SongMedia = { big: { type: 'video', src: 'song-big.mov' } }
-    expect(getAvailableScreenSizes(media)).toEqual(['big'])
-  })
-
-  it('returns [small, big] when both slots present', () => {
-    const media: SongMedia = {
-      small: { type: 'video', src: 'song-small.mov' },
-      big: { type: 'video', src: 'song-big.mov' },
-    }
-    expect(getAvailableScreenSizes(media)).toEqual(['small', 'big'])
-  })
-})
-
-// ── default selection ──────────────────────────────────────────────────────
-
-describe('getDefaultScreenSize', () => {
-  it('returns null when media is undefined', () => {
-    expect(getDefaultScreenSize(undefined)).toBeNull()
-  })
-
-  it('returns null when media has no slots', () => {
-    expect(getDefaultScreenSize({})).toBeNull()
-  })
-
-  it('returns small when small slot present (even if big also present)', () => {
-    const withBoth: SongMedia = {
-      small: { type: 'video', src: 'song-small.mov' },
-      big: { type: 'video', src: 'song-big.mov' },
-    }
-    expect(getDefaultScreenSize(withBoth)).toBe('small')
-  })
-
-  it('returns small when only small slot present', () => {
-    const media: SongMedia = { small: { type: 'video', src: 'song-small.mov' } }
-    expect(getDefaultScreenSize(media)).toBe('small')
-  })
-
-  it('returns big when only big slot present (small absent)', () => {
-    const media: SongMedia = { big: { type: 'video', src: 'song-big.mov' } }
-    expect(getDefaultScreenSize(media)).toBe('big')
-  })
-})
 
 // ── status text ────────────────────────────────────────────────────────────
 

@@ -1,25 +1,8 @@
-import type { SongMedia } from './songState'
-
 export type ScreenSize = 'big' | 'small'
 
 export const KEY_SCREEN_SIZE = 'liveLyricScreenSize'
 /** Written to localStorage so the Projection window receives it via the cross-window storage event. */
 export const KEY_SCREEN_SIZE_BROADCAST = 'liveLyricScreenSizeBroadcast'
-
-export function getAvailableScreenSizes(media: SongMedia | undefined): ScreenSize[] {
-  if (!media) return []
-  const sizes: ScreenSize[] = []
-  if (media.small) sizes.push('small')
-  if (media.big) sizes.push('big')
-  return sizes
-}
-
-export function getDefaultScreenSize(media: SongMedia | undefined): ScreenSize | null {
-  if (!media) return null
-  if (media.small) return 'small'
-  if (media.big) return 'big'
-  return null
-}
 
 export function getProjectionStatusText(projectionOpen: boolean, screenSize: ScreenSize | null): string {
   if (!projectionOpen) return 'Closed'
