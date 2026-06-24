@@ -39,7 +39,8 @@ This reverses the §2 per-song big/small **file** slots from the rework, but kee
 2. **Prompt 2** (single-video schema) → **Prompt 3** (single-file camera + icons) → **Prompt 4** (Projection Big/Small + remove DISPLAY row). 4 depends on 2's schema.
 3. **Prompt 5** (non-video beat controls) and **Prompt 6** (remove end-card) — independent, any time.
 4. **Prompt 7** (projection holds black until Play) and **Prompt 8** (fit performer video + restore button spacing) — video-display fixes surfaced once Prompt 1b made video render; independent, any time. **Prompt 7 shipped, then Prompt 7b** (re-black on Restart count-in + on Unarm) followed from testing it. **Prompt 8 shipped (released 2026-06-24).**
-5. **Second projector test (2026-06-24)** — see the dedicated section below for the new round (Prompts 9–11, the timeline-authoring DATA task, and the #7/#8 follow-ups folded into Prompt 8).
+5. **Second projector test (2026-06-24)** — Prompts 9–11 (all released), the timeline-authoring DATA task, and the #7/#8 follow-ups folded into Prompt 8.
+6. **Third projector test (2026-06-24)** — performance-setup controls + timeline decoupling: Prompts 12–16 (beat toggle, 3-way display toggle, timeline-import button, Manual/Auto advance decouple with a downbeat-timer clock, layout). See the dedicated section below; confirm the two flags before Prompt 14.
 
 ---
 
@@ -270,7 +271,8 @@ _Second end-to-end projector test, after the video-playback fix (Prompts 1/1b) a
 
 - **Source:** Jorge provides a video with the lyric phrases **burned in** at the correct times (he's producing the EN-subtitled video anyway, so this is free).
 - **Method:** Cowork derives the timeline from that video — `ffmpeg` subtitle-region change detection to find the timestamps where the burned-in text changes; the lyric order is fixed, so assign the **29 lines** to the detected change points in order; OCR is used **only to verify** the assignment, not as the primary signal. Cowork then writes the resulting `timeline` into the song JSON.
-- **Status:** This is the timeline-authoring path of record for the current test. **Prompt B (offline forced alignment)** remains the eventual *automated* path, but only once the produced master audio exists — it's deferred until then (consistent with the project context's "Deferred" note).
+- **Status:** This is the timeline-authoring path of record. **Prompt B (offline forced alignment)** remains the eventual *automated* path, but only once the produced master audio exists — deferred until then (consistent with the project context's "Deferred" note).
+- **Near-term unblock (decided 2026-06-24):** Auto mode (Prompt 14) is untestable on the projector while Tragedia has no `timeline`. So Cowork **hand-authors a rough timeline now** for `songs/tragedia-de-cerdo-asado.json` — approximate line starts from the song's tempo/structure — purely to make Auto exercisable. Jorge **replaces it with the `timeline-extractor` output** once that project is ready (`projects/timeline-extractor/`). Don't over-invest in tuning the hand-authored values; they're scaffolding.
 
 ---
 
@@ -332,6 +334,152 @@ TDD, strict Red → Green → Refactor:
 3. **Refactor** — None expected; confirm the two call sites in `App.tsx` (~lines 594, 653) still render correctly.
 
 **Commit:** `fix(ui): drop "screen" from projection status text`
+
+---
+
+## Third projector test (2026-06-24) — performance-setup controls
+
+_Third round, from testing the released Prompts 9–11 on the projector. Focus: the projection-column controls in Performance Setup. Introduces three orthogonal per-song controls and reworks the size toggle into a 3-way display toggle. Same conventions (branch, Red → Green → Refactor, `/release` per change). **Icons only — no text labels on any of these controls.**_
+
+### New control model (decisions taken 2026-06-24)
+
+**Key correction (timeline ⟂ video):** the **timeline is independent song data**, sourced separately from the animation video. A new **timeline-import button (A+)** in Manage Setlists attaches a timeline to a song (Prompt 16); the animation-video link (camera button) is a separate, optional visual. Lyric timing and video are fully decoupled. (In-app derivation of a timeline from a lyrics-only video is deferred to its own new project — see Prompt 16 note.)
+
+Three independent controls in the projection column, **icons only, no labels**:
+
+1. **Lyric advance — Manual / Auto** (icon button). Manual = performer passes lyric phrases by hand (Next / pedal). Auto = lyrics follow the song's `timeline`, advanced by a **downbeat timer** (not the video — see clock model below). **Orthogonal to whether the video is shown.** Disabled and locked to Manual when the song has no `timeline`. **Default = Auto when the song has a timeline, Manual otherwise** (decided 2026-06-24; see "Flags resolved"). Icon: a hand with an "A" (manual) → an "A" alone (auto). _[Alt below.]_
+2. **Beat indicator — On / Off** (icon button). On (default) = beat indicator shown. Off = hidden. Icon: a circle (on) → a circle struck through (off). _[Alt: metronome glyph.]_
+3. **Display — None / Small / Big** (3-way segmented toggle). Replaces the 2-way Small/Big text toggle and absorbs the old "video on/off" idea. None (rectangle with a diagonal strike) = audience sees the lyric screen, no video. Small (small rectangle) / Big (big rectangle) = animation shown at that display profile. Default **Small** for songs with a video; the toggle only appears when the song has a video.
+
+**Layout (user-revised):** row 1 = `[Manual/Auto] [Beat]` side by side; row 2 = the `None / Small / Big` toggle.
+
+When Display = None, the audience sees the same lyric-phrase screen used by songs without a video (confirmed).
+
+**Icon alternatives (open — pick if you prefer):** the Manual/Auto "hand+A → A" pair can read ambiguously; a clearer pairing is **hand (manual) vs clock/timeline (auto)** since Auto = timeline. Beat could use a **metronome** glyph instead of a plain circle. The prompts below implement exactly what you specified; say the word to swap.
+
+### Architectural note + clock model (revised 2026-06-24)
+
+The current code fuses three concerns into one flag, `isVideoMode = activeMedia?.type === 'video'` (`App.tsx` ~line 253): it selects the performer panel (`VideoPerformancePanel` vs the non-video view at ~lines 707–717), the projection region (`VideoProjectionRegion` at ~line 1304 vs the lyric/logo screen at ~line 1345), **and** the clock. The new model **separates** these into a 2×2 of *display* (video frame vs lyric screen) × *advance* (timeline-timer vs manual index) — the substance of **Prompt 14**, the largest change in this round.
+
+**Clock for Auto (decided).** Because the timeline is now independent data, Auto is driven by a **downbeat timer**, not the animation video: extend the existing count-in beat clock so it advances timeline cue lookup by elapsed time since the downbeat. Auto therefore works with no video, with video, at any display size. When an animation video *is* shown in Auto, it plays from `trimStart` on the downbeat and shares that same clock (cues shifted by `media.offset`), so video and lyrics stay in sync without either being master. This revives the timer-based advance removed in June, now cleanly decoupled from the video.
+
+Flags resolved (2026-06-24, Jorge):
+
+1. **Default advance = Auto for songs that have a timeline, Manual otherwise.** A song with a non-empty `timeline` arms in **Auto** (timeline-synced); a song with no timeline arms in **Manual** and the Auto segment is disabled. This preserves Tragedia's "arms into synced playback" feel rather than forcing a manual tap each time. (Supersedes the earlier "default Manual for everything" wording in Prompt 14 — Prompt 14's spec below has been updated to match.)
+2. **Beat-toggle scope = performer indicator only.** There is no audience-side beat indicator today (BeatCircle is performer-only — `App.tsx` ~line 721 and inside `VideoPerformancePanel` ~line 220). The toggle hides/shows the **performer** indicator only. Confirmed — no audience-side indicator to build.
+
+### Prompt 5 / Prompt 6 disposition (2026-06-24)
+
+Prompts 5 and 6 (from the first triage table) were never built. Resolved:
+
+- **Prompt 6 (remove the End Card button) — KEEP, do it.** The end card is dead UI and is not used anywhere in the new 12–16 steps. Code should land Prompt 6 as written (independent quick win, any time).
+- **Prompt 5 (non-video beat Start/Pause/Restart, decouple from Next) — DROP as a standalone.** Its one substantive job — stop the count-in downbeat from auto-firing `handleNext` (`App.tsx` lines 532–534) — is rewritten by **Prompt 14**'s Manual/Auto + downbeat-timer model, which owns that exact code path. Folding it into Prompt 14 avoids touching the beat code twice. Prompt 14 must therefore remove the auto-`handleNext`-on-downbeat coupling as part of its work.
+
+### Suggested run order
+
+**Prompt 6** (remove end-card — independent quick win, clears clutter first) → **Prompt 12** (beat toggle) → **Prompt 13** (3-way display toggle) → **Prompt 16** (timeline-import button — gives songs a timeline to drive Auto) → **Prompt 14** (Manual/Auto decouple + downbeat-timer clock — the big one; flags now resolved above, run it alone, re-test) → **Prompt 15** (layout + icons-only polish). Each on its own branch + `/release`; finish/merge/pull `main` before the next (they share `App.tsx` / `control.css` / `ManageSetlistsView.tsx`). Prompts 13 and 14 are tightly coupled — Code may do them together. **Prompt 5 is dropped** (folded into Prompt 14 — see disposition above). Cowork hand-authors Tragedia's timeline **in parallel** so Prompt 14's Auto is testable the moment it lands.
+
+---
+
+## Prompt 12 — Beat-indicator on/off toggle
+
+**Branch:** `feat/beat-indicator-toggle`
+
+Add an icon-only button that shows/hides the **performer** beat indicator. Default **on**.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — Add a `beatIndicatorOn` control-state value (default `true`). In a `ControlView` test: the armed performer view renders `BeatCircle` when `beatIndicatorOn` and not when off; clicking the toggle flips it. The button is icon-only (no text), with `aria-pressed` reflecting state and an `aria-label` like "Beat indicator". Cover both the non-video armed view (`App.tsx` ~line 721) and the video panel path (`VideoPerformancePanel` ~line 220).
+2. **Green** — Add the state + an icon button (circle glyph when on; circle-with-diagonal-strike when off). Gate the non-video `BeatCircle` render on it, and pass a `beatIndicatorOn` prop into `VideoPerformancePanel` to gate its `BeatCircle`. Place the button in the projection-column setup area for now (final position is set in Prompt 15).
+3. **Refactor** — Extract a shared icon-button shell if it helps Prompts 13–15; keep suites green.
+
+**Commit:** `feat(beat): add beat-indicator on/off toggle (default on)`
+
+---
+
+## Prompt 13 — Display toggle: None / Small / Big with rectangle icons
+
+**Branch:** `feat/display-mode-three-way`
+
+Replace the 2-way Small/Big **text** toggle (`App.tsx` ~lines 664–683) with a **3-way icon** segmented control — None / Small / Big — fixing the mis-rendered text labels. Introduce `DisplayMode = 'none' | 'small' | 'big'` (extend `screenSizeState.ts`; the existing `ScreenSize` is the `'small' | 'big'` subset). Default **Small** for songs with a video; the toggle only shows when the song has a video. None means the audience sees the lyric screen instead of the video frame.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — In `screenSizeState.test.ts`: `DisplayMode` includes `'none'`; the default for a video song is `'small'`; `getProjectionStatusText` reflects None/Small/Big (e.g. "Open, No video" / "Open, Small" / "Open, Big"). In a `ControlView` test: three icon-only segments render, exactly one `--selected`; selecting None broadcasts the none state; the toggle is absent when the song has no video.
+2. **Green** — Extend the display-mode type, defaults, broadcast (mirror `KEY_SCREEN_SIZE_BROADCAST`), and `getProjectionStatusText`. Rework the segmented control to three icon buttons with rectangle SVGs (None = a rectangle with a diagonal strike; Small = a small rectangle; Big = a large rectangle). In the `ProjectionView`, when display is None, render the lyric screen instead of `VideoProjectionRegion`'s video frame. (The lyric advance source is finalized in Prompt 14's downbeat-timer model; for now None simply shows the lyric screen using the existing subtitle path.)
+3. **Refactor** — Remove the old Small/Big text-button code; keep `computeProjectionLayout`/display profiles. Keep suites green.
+
+**Commit:** `feat(projection): 3-way none/small/big display toggle with rectangle icons`
+
+**Manual check:** arm Tragedia; default lands on Small; None → audience shows lyric phrases (no video); Small/Big → video at that size.
+
+---
+
+## Prompt 14 — Manual / Auto lyric advance (decouple advance from display)
+
+**Branch:** `feat/lyric-advance-manual-auto`
+
+> **Flags resolved (see "Flags resolved" above) — no longer blocked.** This is the largest change in the round — run it alone and re-test on the projector before Prompt 15. **Also folds in dropped Prompt 5:** remove the count-in's auto-`handleNext`-on-downbeat coupling (`App.tsx` lines 532–534) as part of this work.
+
+Introduce `advanceMode: 'manual' | 'auto'` per armed song, broadcast to the projection. **Default = Auto when `currentLibrarySong.timeline` is non-empty, Manual otherwise** (decided 2026-06-24). Auto is available only when the timeline is non-empty; a timeline-less song is **disabled and locked to Manual**. Decouple "how lyrics advance" from "is the video shown" (the display mode from Prompt 13) and from the `isVideoMode` gate.
+
+Behavior matrix to support:
+
+- **Manual (any display):** lyrics advance by Next / pedal (index-based) on performer and projection. If a video is shown (Small/Big) it plays muted as a backdrop but does **not** drive lyrics.
+- **Auto (any display):** lyrics follow `timeline` via the **downbeat timer** (the count-in beat clock extended). The animation video, if shown, plays from `trimStart` on the downbeat in sync with that timer; with Display = None there is simply no video — the audience sees the lyric screen advancing on the timer.
+
+TDD, strict Red → Green → Refactor (Code to split into atomic commits as needed):
+
+1. **Red** — State + gating tests: a song **with** a non-empty `timeline` arms with `advanceMode === 'auto'`; a song **without** a timeline arms with `advanceMode === 'manual'` and the Auto segment is disabled. Toggle icon hand+A (manual) vs A (auto), icon-only, `aria-pressed`. Also assert the count-in downbeat no longer auto-advances the index (dropped-Prompt-5 decoupling): in Manual, the first lyric appears only on Next/pedal. Performer + projection advance tests across the four (display × advance) combos, including Auto advancing by elapsed time (timer), not by `video.currentTime`.
+2. **Green** — Add the state + broadcast; extend the count-in beat clock into a timeline driver (elapsed-since-downbeat → cue index); refactor the performer render so the panel choice is driven by `(displayMode, advanceMode)` rather than `isVideoMode`; make `VideoProjectionRegion` / the lyric screen accept an `advanceMode` (Auto = timer-driven cue lookup; Manual = index-driven by Next). The animation video plays whenever display ≠ None (muted backdrop), started on the downbeat so it tracks the timer in Auto.
+3. **Refactor** — Collapse the now-dead `isVideoMode`-gated branches in `App.tsx` (performer ~707–717, projection ~1304); keep all suites green.
+
+**Commit(s):** `feat(advance): add manual/auto lyric advance decoupled from video display`
+
+**Manual check:** arm Tragedia (now has a hand-authored timeline) — lands in **Auto**; lyrics sync to the timeline on the downbeat. Switch to Manual — Next advances phrases (video, if shown, is just backdrop) and the downbeat no longer auto-fires the first line. Arm a timeline-less song — lands in Manual with Auto disabled. Toggle Display None/Small/Big in each advance mode and confirm all four combos behave.
+
+---
+
+## Prompt 15 — Performance-setup layout & icons-only polish
+
+**Branch:** `feat/performance-setup-layout`
+
+Arrange the projection-column controls per the revised layout and ensure **no text labels** anywhere in these controls:
+
+- Row 1: `[Manual/Auto] [Beat]` side by side.
+- Row 2: the `None / Small / Big` display toggle.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — Structural test: the two icon buttons render in one row container positioned above the display-toggle row; none of these buttons (incl. the display segments) contain visible text — only `aria-label`s.
+2. **Green** — Wrap the controls in the two row containers, move the beat + advance buttons above the display toggle, and add the CSS in `control.css`.
+3. **Refactor** — Remove any dead label markup/CSS; keep suites green.
+
+**Commit:** `feat(setup): lay out performance-setup icon controls (no labels)`
+
+---
+
+## Prompt 16 — Timeline-import button (A+) with green-checked state, plus camera checkmark
+
+**Branch:** `feat/timeline-import-button`
+
+In Manage Setlists, add a **third** per-song icon button (alongside the video-camera link and the add/delete) for the **timeline**, on both setlist and library rows (mirror Prompt 9's shared button). It attaches an already-authored timeline to the song.
+
+> **Scope (decided 2026-06-24):** the button **imports** a timeline; it does **not** derive one from a video. In-app derivation from a lyrics-only video (bundled ffmpeg + subtitle-region change detection + OCR verify) is deferred to **its own new project** (to be scaffolded under `projects/`). Until then the timeline-authoring path of record is the **#6 DATA task** (Cowork derives the timeline offline from the lyrics-only video and writes the JSON); this button imports that result (a timeline JSON or SRT).
+
+States (same footprint, same base class — like Prompt 9/10):
+
+- **No timeline:** icon = letter "A" with a "+" affordance, neutral color.
+- **Has timeline** (just imported *or* already present in the song JSON): icon = letter "A" with a checkmark, green (reuse the `--linked` styling).
+- Also: add a checkmark to the **video-camera** icon's linked (green) state, for consistency.
+
+TDD, strict Red → Green → Refactor:
+
+1. **Red** — In `ManageSetlistsView` tests: a song with empty/absent `timeline` renders the timeline button with the "A +" affordance (assert glyph/`--add`); a song with a non-empty `timeline` renders it with "A ✓" + the green `--linked` class — on both row types. Clicking opens a file dialog and, on selecting a valid timeline/SRT, parses it to `TimelineEntry[]`, writes it into the song, and saves, so the button flips to the checked green state. Assert the camera button's linked state now also shows a checkmark.
+2. **Green** — Add a `TimelineIcon` (letter "A"; conditional "+" vs "✓") and an `onImportTimeline(songId)` handler: open the dialog, parse the timeline/SRT into `TimelineEntry[]`, write it via a store patch + save (mirror `patchSongMediaInSnapshot`). Render the timeline button via the shared icon-button pattern from Prompt 9. Add the checkmark to the camera icon's linked state. CSS in `control.css` (empty vs linked same size; green when present).
+3. **Refactor** — Consolidate the per-song icon buttons (camera / timeline / add-remove) markup; keep suites green.
+
+**Commit:** `feat(setlists): add timeline-import button with green-checked state`
 
 ---
 
