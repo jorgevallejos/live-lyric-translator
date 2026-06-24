@@ -57,6 +57,7 @@ export function VideoProjectionRegion({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [subtitleText, setSubtitleText] = useState('')
   const [subtitleVisible, setSubtitleVisible] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
 
   // Seek to trimStart when the src or trimStart changes. Does NOT auto-play.
   useEffect(() => {
@@ -122,6 +123,7 @@ export function VideoProjectionRegion({
         const video = videoRef.current
         if (!video) return
         if (payload.action === 'play') {
+          setHasStarted(true)
           video.play().catch(() => {})
         } else if (payload.action === 'pause') {
           video.pause()
@@ -156,6 +158,12 @@ export function VideoProjectionRegion({
           playsInline
           style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
         />
+        {!hasStarted && (
+          <div
+            className="projection-animation-cover"
+            style={{ position: 'absolute', inset: 0, background: '#000' }}
+          />
+        )}
       </div>
 
       <div
