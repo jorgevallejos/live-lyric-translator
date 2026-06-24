@@ -36,8 +36,7 @@ import {
   type Setlist,
   type SetlistStoreSnapshot,
 } from './setlistStore'
-import { setMediaPath, validateVideoForImport } from './mediaPathStore'
-import type { MediaFile } from './songState'
+import { setMediaPath, validateVideoForImport, type MediaValidationWarning } from './mediaPathStore'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
@@ -129,7 +128,7 @@ function PencilIcon() {
   )
 }
 
-function CameraIcon() {
+function VideoCameraIcon() {
   return (
     <svg
       className="manage-setlists-icon-svg"
@@ -143,86 +142,15 @@ function CameraIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
+      <rect x="2" y="7" width="15" height="10" rx="2" ry="2" />
+      <polygon points="17 9 22 6 22 18 17 15" />
     </svg>
   )
 }
 
-type SlotWarning = 'mov-or-prores' | 'large-file'
-
-function warningText(w: SlotWarning): string {
+function mediaWarningText(w: MediaValidationWarning): string {
   if (w === 'mov-or-prores') return 'Warning: ProRes/MOV files are not web-playable. Convert to MP4/H.264.'
   return 'Warning: file is larger than 500 MB.'
-}
-
-type LinkVideoDialogProps = {
-  song: LibrarySong
-  onClose: () => void
-  onChooseFile: (slot: 'big' | 'small') => void
-  onClear: (slot: 'big' | 'small') => void
-  warnings: Partial<Record<'big' | 'small', SlotWarning[]>>
-}
-
-function LinkVideoDialog({ song, onClose, onChooseFile, onClear, warnings }: LinkVideoDialogProps) {
-  const slots: Array<{ slot: 'big' | 'small'; label: string }> = [
-    { slot: 'big', label: 'Big screen' },
-    { slot: 'small', label: 'Small screen' },
-  ]
-  return (
-    <div
-      className="link-video-dialog-overlay"
-      data-testid="link-video-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Link video for ${song.title}`}
-    >
-      <div className="link-video-dialog">
-        <h2 className="link-video-dialog-title">Link video — {song.title}</h2>
-        {slots.map(({ slot, label }) => {
-          const file: MediaFile | undefined = slot === 'small' ? song.media : undefined
-          const slotWarnings = warnings[slot] ?? []
-          return (
-            <div key={slot} className="link-video-dialog-row">
-              <span className="link-video-dialog-slot-label">{label}</span>
-              {file ? (
-                <span className="link-video-dialog-filename">{file.src}</span>
-              ) : (
-                <span className="link-video-dialog-empty">—</span>
-              )}
-              <button
-                type="button"
-                className="manage-setlists-action-btn"
-                onClick={() => onChooseFile(slot)}
-              >
-                Choose file… ({label})
-              </button>
-              {file && (
-                <button
-                  type="button"
-                  className="manage-setlists-action-btn"
-                  aria-label={`Clear ${label}`}
-                  onClick={() => onClear(slot)}
-                >
-                  Clear {label}
-                </button>
-              )}
-              {slotWarnings.map((w) => (
-                <p key={w} className="link-video-dialog-warning">{warningText(w)}</p>
-              ))}
-            </div>
-          )
-        })}
-        <button
-          type="button"
-          className="ctrl-btn"
-          onClick={onClose}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  )
 }
 
 type SortableSongRowProps = {
@@ -230,9 +158,10 @@ type SortableSongRowProps = {
   setlistName: string
   onRemove: () => void
   onLinkVideo: () => void
+  hasMedia: boolean
 }
 
-function SortableSongRow({ song, setlistName, onRemove, onLinkVideo }: SortableSongRowProps) {
+function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia }: SortableSongRowProps) {
   const {
     attributes,
     listeners,
@@ -270,11 +199,11 @@ function SortableSongRow({ song, setlistName, onRemove, onLinkVideo }: SortableS
       <div className="manage-setlists-song-actions">
         <button
           type="button"
-          className="manage-setlists-action-btn manage-setlists-icon-btn"
+          className={`manage-setlists-action-btn manage-setlists-icon-btn${hasMedia ? ' manage-setlists-icon-btn--linked' : ''}`}
           aria-label={`Link video for ${song.title}`}
           onClick={onLinkVideo}
         >
-          <CameraIcon />
+          <VideoCameraIcon />
         </button>
         <button
           type="button"
@@ -306,6 +235,7 @@ function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoS
           setlistName={setlistName}
           onRemove={() => onRemoveSong(song.id)}
           onLinkVideo={() => onLinkVideoSong(song.id)}
+          hasMedia={!!song.media}
         />
       ))}
     </ul>
@@ -393,12 +323,6 @@ export function ManageSetlistsView() {
   renamingIdRef.current = renamingId
   const renameDraftRef = useRef(renameDraft)
   renameDraftRef.current = renameDraft
-
-  const [linkVideoSongId, setLinkVideoSongId] = useState<string | null>(null)
-  const [linkVideoWarnings, setLinkVideoWarnings] = useState<Partial<Record<'big' | 'small', SlotWarning[]>>>({})
-  const linkVideoSong = linkVideoSongId
-    ? draft.songLibrary.songs.find((s) => s.id === linkVideoSongId) ?? null
-    : null
 
   const setlists = draft.setlists
   const activeId = draft.activeSetlistId
@@ -595,26 +519,17 @@ export function ManageSetlistsView() {
     refresh()
   }
 
-  const handleOpenLinkVideo = (songId: string) => {
-    setLinkVideoWarnings({})
-    setLinkVideoSongId(songId)
-  }
-
-  const handleCloseLinkVideo = () => {
-    setLinkVideoSongId(null)
-    setLinkVideoWarnings({})
-  }
-
-  const handleChooseFile = (slot: 'big' | 'small') => {
+  const handleLinkVideo = (songId: string) => {
     const api = window.electronAPI
-    if (!api || !linkVideoSongId) return
-    const songId = linkVideoSongId
+    if (!api) return
     void (async () => {
       const chosen = await api.openFileDialog()
       if (!chosen) return
       const basename = chosen.split('/').pop() ?? chosen
       const warnings = validateVideoForImport(chosen)
-      setLinkVideoWarnings((prev) => ({ ...prev, [slot]: warnings.length ? warnings : undefined }))
+      if (warnings.length) {
+        window.alert(warnings.map(mediaWarningText).join('\n'))
+      }
       setDraft((d) => {
         const next = patchSongMediaInSnapshot(d, songId, { type: 'video', src: basename }) ?? d
         saveSetlistStore(next)
@@ -623,22 +538,6 @@ export function ManageSetlistsView() {
       setMediaPath(basename, chosen)
       refresh()
     })()
-  }
-
-  const handleClearSlot = (slot: 'big' | 'small') => {
-    if (!linkVideoSongId) return
-    const songId = linkVideoSongId
-    setDraft((d) => {
-      const next = patchSongMediaInSnapshot(d, songId, undefined) ?? d
-      saveSetlistStore(next)
-      return next
-    })
-    setLinkVideoWarnings((prev) => {
-      const next = { ...prev }
-      delete next[slot]
-      return next
-    })
-    refresh()
   }
 
   const handleReorderInSetlist = (setlistId: string, oldIndex: number, newIndex: number) => {
@@ -781,7 +680,7 @@ export function ManageSetlistsView() {
                     setlistName={selectedSetlist.name}
                     songs={selectedSetlistSongs}
                     onRemoveSong={(songId) => handleRemoveSong(selectedSetlist.id, songId)}
-                    onLinkVideoSong={handleOpenLinkVideo}
+                    onLinkVideoSong={handleLinkVideo}
                   />
                 </SortableContext>
               )}
@@ -835,15 +734,6 @@ export function ManageSetlistsView() {
           </button>
         </div>
       </main>
-      {linkVideoSong && (
-        <LinkVideoDialog
-          song={linkVideoSong}
-          onClose={handleCloseLinkVideo}
-          onChooseFile={handleChooseFile}
-          onClear={handleClearSlot}
-          warnings={linkVideoWarnings}
-        />
-      )}
     </div>
   )
 }
