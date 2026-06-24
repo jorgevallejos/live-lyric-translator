@@ -13,7 +13,7 @@ interface VideoSeekTarget {
 }
 
 export interface VideoTransportCommand {
-  action: 'play' | 'pause' | 'seek'
+  action: 'play' | 'pause' | 'stop'
   time?: number
   nonce: number
 }
@@ -24,9 +24,9 @@ export function setVideoSeekTarget(time: number): void {
   localStorage.setItem(VIDEO_SEEK_TARGET_KEY, JSON.stringify(payload))
 }
 
-/** Broadcasts a play/pause/seek transport command to the projection window via localStorage. */
-export function setVideoTransportCommand(action: 'play' | 'pause' | 'seek', time?: number): void {
-  const payload: VideoTransportCommand = { action, time, nonce: Date.now() }
+/** Broadcasts a transport command to the projection window via localStorage. */
+export function setVideoTransportCommand(action: 'play' | 'pause' | 'stop'): void {
+  const payload: VideoTransportCommand = { action, nonce: Date.now() }
   localStorage.setItem(VIDEO_TRANSPORT_KEY, JSON.stringify(payload))
 }
 
@@ -114,8 +114,9 @@ export function VideoProjectionRegion({
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  // Receive play/pause/seek transport commands from VideoPerformancePanel
+  // Receive play/pause/seek/stop transport commands from VideoPerformancePanel
   useEffect(() => {
+    const trimStart = media.trimStart ?? 0
     const onStorage = (e: StorageEvent) => {
       if (e.key !== VIDEO_TRANSPORT_KEY || !e.newValue) return
       try {
@@ -127,8 +128,10 @@ export function VideoProjectionRegion({
           video.play().catch(() => {})
         } else if (payload.action === 'pause') {
           video.pause()
-        } else if (payload.action === 'seek' && typeof payload.time === 'number') {
-          video.currentTime = payload.time
+        } else if (payload.action === 'stop') {
+          setHasStarted(false)
+          video.pause()
+          video.currentTime = trimStart
         }
       } catch {
         // ignore malformed payloads
@@ -136,7 +139,7 @@ export function VideoProjectionRegion({
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
-  }, [])
+  }, [media.trimStart])
 
   return (
     <>

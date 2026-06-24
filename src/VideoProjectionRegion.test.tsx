@@ -54,7 +54,7 @@ async function importRegion() {
   return { VideoProjectionRegion: mod.VideoProjectionRegion, VIDEO_TRANSPORT_KEY: mod.VIDEO_TRANSPORT_KEY }
 }
 
-function fireTransport(key: string, action: 'play' | 'pause' | 'seek', time?: number) {
+function fireTransport(key: string, action: 'play' | 'pause' | 'stop', time?: number) {
   const payload = JSON.stringify({ action, time, nonce: Date.now() })
   window.dispatchEvent(new StorageEvent('storage', { key, newValue: payload }))
 }
@@ -118,18 +118,6 @@ describe('VideoProjectionRegion — transport pause', () => {
   })
 })
 
-// ── transport: seek ─────────────────────────────────────────────────────────
-
-describe('VideoProjectionRegion — transport seek', () => {
-  it('sets video.currentTime when a seek transport command arrives', async () => {
-    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
-    await act(async () => { render(<VideoProjectionRegion {...defaultProps()} />) })
-    currentTimeSetter.mockClear()
-    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'seek', 7.5) })
-    expect(currentTimeSetter).toHaveBeenCalledWith(7.5)
-  })
-})
-
 // ── visibility hold ─────────────────────────────────────────────────────────
 
 describe('VideoProjectionRegion — visibility hold until play', () => {
@@ -162,5 +150,46 @@ describe('VideoProjectionRegion — visibility hold until play', () => {
     unmount()
     const { container: c2 } = await act(async () => render(<VideoProjectionRegion {...defaultProps()} />))
     expect(c2.querySelector('.projection-animation-cover')).not.toBeNull()
+  })
+})
+
+// ── transport: stop ─────────────────────────────────────────────────────────
+
+describe('VideoProjectionRegion — transport stop', () => {
+  it('restores the black cover after play + stop (hasStarted → false)', async () => {
+    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
+    const { container } = await act(async () => render(<VideoProjectionRegion {...defaultProps()} />))
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    expect(container.querySelector('.projection-animation-cover')).toBeNull()
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'stop') })
+    expect(container.querySelector('.projection-animation-cover')).not.toBeNull()
+  })
+
+  it('calls video.pause() on stop', async () => {
+    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
+    await act(async () => render(<VideoProjectionRegion {...defaultProps()} />))
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    pauseSpy.mockClear()
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'stop') })
+    expect(pauseSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('seeks to media.trimStart on stop', async () => {
+    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
+    await act(async () => render(<VideoProjectionRegion {...defaultProps()} />))
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    currentTimeSetter.mockClear()
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'stop') })
+    expect(currentTimeSetter).toHaveBeenCalledWith(MEDIA.trimStart)
+  })
+
+  it('reveals the video again when play arrives after a stop', async () => {
+    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
+    const { container } = await act(async () => render(<VideoProjectionRegion {...defaultProps()} />))
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'stop') })
+    expect(container.querySelector('.projection-animation-cover')).not.toBeNull()
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    expect(container.querySelector('.projection-animation-cover')).toBeNull()
   })
 })
