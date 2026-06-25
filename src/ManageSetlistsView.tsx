@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import type { TimelineEntry } from './songState'
 import {
   DndContext,
   KeyboardSensor,
@@ -26,6 +27,8 @@ import {
   getSetlistNamesContainingSongInSnapshot,
   loadSetlistStore,
   patchSongMediaInSnapshot,
+  patchSongTimelineInSnapshot,
+  parseTimelineFromJsonText,
   removeSongFromSetlistInSnapshot,
   renameSetlistInSnapshot,
   reorderSongsInSetlistInSnapshot,
@@ -153,6 +156,22 @@ function mediaWarningText(w: MediaValidationWarning): string {
   return 'Warning: file is larger than 500 MB.'
 }
 
+function TimelineIcon() {
+  return (
+    <svg
+      className="manage-setlists-icon-svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+    >
+      <text x="12" y="18" textAnchor="middle" fontSize="17" fontWeight="bold">A</text>
+    </svg>
+  )
+}
+
 function VideoLinkButton({ onLinkVideo, hasMedia, songTitle }: { onLinkVideo: () => void; hasMedia: boolean; songTitle: string }) {
   return (
     <button
@@ -162,7 +181,21 @@ function VideoLinkButton({ onLinkVideo, hasMedia, songTitle }: { onLinkVideo: ()
       onClick={onLinkVideo}
     >
       <VideoCameraIcon />
-      {!hasMedia && <span className="video-link-btn-badge" aria-hidden="true">+</span>}
+      <span className="video-link-btn-badge" aria-hidden="true">{hasMedia ? '✓' : '+'}</span>
+    </button>
+  )
+}
+
+function TimelineImportButton({ onImportTimeline, hasTimeline, songTitle }: { onImportTimeline: () => void; hasTimeline: boolean; songTitle: string }) {
+  return (
+    <button
+      type="button"
+      className={`manage-setlists-action-btn manage-setlists-icon-btn${hasTimeline ? ' manage-setlists-icon-btn--linked' : ' manage-setlists-icon-btn--add'}`}
+      aria-label={`Import timeline for ${songTitle}`}
+      onClick={onImportTimeline}
+    >
+      <TimelineIcon />
+      <span className="video-link-btn-badge" aria-hidden="true">{hasTimeline ? '✓' : '+'}</span>
     </button>
   )
 }
@@ -173,9 +206,11 @@ type SortableSongRowProps = {
   onRemove: () => void
   onLinkVideo: () => void
   hasMedia: boolean
+  onImportTimeline: () => void
+  hasTimeline: boolean
 }
 
-function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia }: SortableSongRowProps) {
+function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia, onImportTimeline, hasTimeline }: SortableSongRowProps) {
   const {
     attributes,
     listeners,
@@ -212,6 +247,7 @@ function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia }:
       <span className="manage-setlists-song-title">{song.title}</span>
       <div className="manage-setlists-song-actions">
         <VideoLinkButton onLinkVideo={onLinkVideo} hasMedia={hasMedia} songTitle={song.title} />
+        <TimelineImportButton onImportTimeline={onImportTimeline} hasTimeline={hasTimeline} songTitle={song.title} />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
@@ -230,9 +266,10 @@ type SortableSongsInSetlistProps = {
   songs: LibrarySong[]
   onRemoveSong: (songId: string) => void
   onLinkVideoSong: (songId: string) => void
+  onImportTimelineSong: (songId: string) => void
 }
 
-function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoSong }: SortableSongsInSetlistProps) {
+function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoSong, onImportTimelineSong }: SortableSongsInSetlistProps) {
   return (
     <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
       {songs.map((song) => (
@@ -243,6 +280,8 @@ function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoS
           onRemove={() => onRemoveSong(song.id)}
           onLinkVideo={() => onLinkVideoSong(song.id)}
           hasMedia={!!song.media}
+          onImportTimeline={() => onImportTimelineSong(song.id)}
+          hasTimeline={Array.isArray(song.timeline) && song.timeline.length > 0}
         />
       ))}
     </ul>
@@ -257,14 +296,17 @@ type LibrarySongRowProps = {
   onDelete: () => void
   onLinkVideo: () => void
   hasMedia: boolean
+  onImportTimeline: () => void
+  hasTimeline: boolean
 }
 
-function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete, onLinkVideo, hasMedia }: LibrarySongRowProps) {
+function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete, onLinkVideo, hasMedia, onImportTimeline, hasTimeline }: LibrarySongRowProps) {
   return (
     <li className="manage-setlists-song-row">
       <span className="manage-setlists-song-title">{song.title}</span>
       <div className="manage-setlists-song-actions">
         <VideoLinkButton onLinkVideo={onLinkVideo} hasMedia={hasMedia} songTitle={song.title} />
+        <TimelineImportButton onImportTimeline={onImportTimeline} hasTimeline={hasTimeline} songTitle={song.title} />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
@@ -328,6 +370,8 @@ export function ManageSetlistsView() {
   const [renameDraft, setRenameDraft] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const timelineInputRef = useRef<HTMLInputElement>(null)
+  const pendingTimelineSongIdRef = useRef<string | null>(null)
   const renamingSetlistItemRef = useRef<HTMLLIElement | null>(null)
   const renamingIdRef = useRef<string | null>(null)
   renamingIdRef.current = renamingId
@@ -550,6 +594,40 @@ export function ManageSetlistsView() {
     })()
   }
 
+  const handleImportTimeline = (songId: string) => {
+    pendingTimelineSongIdRef.current = songId
+    timelineInputRef.current?.click()
+  }
+
+  const handleTimelineFileSelected = (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
+    const file = input.files?.[0]
+    const songId = pendingTimelineSongIdRef.current
+    pendingTimelineSongIdRef.current = null
+    if (!file || !songId) return
+    void (async () => {
+      const r = await readFileAsUtf8(file)
+      if (!r.ok) {
+        window.alert('Could not read the timeline file.')
+        return
+      }
+      let timeline: TimelineEntry[]
+      try {
+        timeline = parseTimelineFromJsonText(r.text)
+      } catch (err) {
+        window.alert(`Invalid timeline file: ${err instanceof Error ? err.message : String(err)}`)
+        return
+      }
+      setDraft((d) => {
+        const next = patchSongTimelineInSnapshot(d, songId, timeline) ?? d
+        saveSetlistStore(next)
+        return next
+      })
+      input.value = ''
+      refresh()
+    })()
+  }
+
   const handleReorderInSetlist = (setlistId: string, oldIndex: number, newIndex: number) => {
     setDraft((d) => reorderSongsInSetlistInSnapshot(d, setlistId, oldIndex, newIndex) ?? d)
     refresh()
@@ -590,6 +668,15 @@ export function ManageSetlistsView() {
             data-testid="import-song-input"
             aria-label="Choose one or more song JSON files to import"
             onChange={handleImportSongFiles}
+          />
+          <input
+            ref={timelineInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="manage-setlists-import-input-hidden"
+            data-testid="import-timeline-input"
+            aria-label="Choose a timeline JSON file to import"
+            onChange={handleTimelineFileSelected}
           />
         </div>
       </header>
@@ -691,6 +778,7 @@ export function ManageSetlistsView() {
                     songs={selectedSetlistSongs}
                     onRemoveSong={(songId) => handleRemoveSong(selectedSetlist.id, songId)}
                     onLinkVideoSong={handleLinkVideo}
+                    onImportTimelineSong={handleImportTimeline}
                   />
                 </SortableContext>
               )}
@@ -733,6 +821,8 @@ export function ManageSetlistsView() {
                       onDelete={() => handleDeleteSongFromLibrary(song.id)}
                       onLinkVideo={() => handleLinkVideo(song.id)}
                       hasMedia={!!song.media}
+                      onImportTimeline={() => handleImportTimeline(song.id)}
+                      hasTimeline={Array.isArray(song.timeline) && song.timeline.length > 0}
                     />
                   ))
                 )}
