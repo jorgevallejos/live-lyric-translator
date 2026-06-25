@@ -248,6 +248,9 @@ function ControlView() {
     getStoredScreenSize()
   )
 
+  // Beat indicator on/off toggle — performer view only.
+  const [beatIndicatorOn, setBeatIndicatorOn] = useState(true)
+
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
@@ -679,6 +682,24 @@ function ControlView() {
                         </button>
                       </div>
                     )}
+                    <button
+                      type="button"
+                      className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? '' : ' ctrl-beat-indicator-toggle--off'}`}
+                      aria-pressed={beatIndicatorOn}
+                      aria-label="Beat indicator"
+                      onClick={() => setBeatIndicatorOn((on) => !on)}
+                    >
+                      {beatIndicatorOn ? (
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
+                          <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      )}
+                    </button>
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
@@ -708,6 +729,7 @@ function ControlView() {
             media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
             tempo={songTempo}
+            beatIndicatorOn={beatIndicatorOn}
             onUnarm={handleUnarm}
             onSeek={sendSeek}
           />
@@ -715,7 +737,7 @@ function ControlView() {
         {showArmedShell && !isVideoMode && (
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
-              {songTempo && (
+              {songTempo && beatIndicatorOn && (
                 <BeatCircle
                   tempo={songTempo}
                   phase={beatPhase}
