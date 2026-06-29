@@ -45,10 +45,15 @@ import {
   getStoredScreenSize,
   setStoredScreenSize,
   getBroadcastScreenSize,
-  getAvailableScreenSizes,
   getDefaultScreenSize,
   KEY_SCREEN_SIZE_BROADCAST,
+  getStoredDisplayMode,
+  setStoredDisplayMode,
+  getDefaultDisplayMode,
+  getBroadcastDisplayMode,
+  KEY_DISPLAY_MODE_BROADCAST,
   type ScreenSize,
+  type DisplayMode,
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
 import './control.css'
@@ -248,14 +253,20 @@ function ControlView() {
     getStoredScreenSize()
   )
 
+  // 3-way display mode: 'none' | 'small' | 'big'. Replaces the old 2-way Small/Big toggle.
+  const [selectedDisplayMode, setSelectedDisplayMode] = useState<DisplayMode | null>(() =>
+    getStoredDisplayMode()
+  )
+
   // Beat indicator on/off toggle — performer view only.
   const [beatIndicatorOn, setBeatIndicatorOn] = useState(true)
 
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
-  const availableScreenSizes = getAvailableScreenSizes(isVideoMode)
   const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
+  // Effective display mode: stored value or default (small for video songs, none for non-video)
+  const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -284,11 +295,17 @@ function ControlView() {
     applyCommand,
   })
 
-  const handleSelectScreenSize = (size: ScreenSize) => {
-    setSelectedScreenSize(size)
-    setStoredScreenSize(size)
-    sendScreenSize(size)
-    setActiveProfileId(size === 'big' ? 'big-screen' : 'small-canvas')
+  const handleSelectDisplayMode = (mode: DisplayMode) => {
+    setSelectedDisplayMode(mode)
+    setStoredDisplayMode(mode)
+    // Sync legacy screen size for WebSocket broadcast and display profile
+    if (mode === 'small' || mode === 'big') {
+      setSelectedScreenSize(mode)
+      setStoredScreenSize(mode)
+      sendScreenSize(mode)
+      setActiveProfileId(mode === 'big' ? 'big-screen' : 'small-canvas')
+    }
+    // For 'none', keep whatever display profile was last active (no video shown anyway)
   }
 
   useEffect(() => {
@@ -599,7 +616,7 @@ function ControlView() {
               Languages: {languagesDisplay || '—'}
             </span>
             <span className="top-summary-line">
-              Projection: {getProjectionStatusText(projectionOpen, effectiveScreenSize)}
+              Projection: {getProjectionStatusText(projectionOpen, effectiveScreenSize, isVideoMode ? effectiveDisplayMode : undefined)}
             </span>
             <span
               className="top-title top-title-state"
@@ -658,27 +675,48 @@ function ControlView() {
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
                     <span className="control-setup-value">
-                      {getProjectionStatusText(projectionOpen, effectiveScreenSize)}
+                      {getProjectionStatusText(projectionOpen, effectiveScreenSize, isVideoMode ? effectiveDisplayMode : undefined)}
                     </span>
                   </div>
                   <div className="control-setup-buttons">
-                    {availableScreenSizes.length > 0 && (
-                      <div className="ctrl-segmented-control" role="group" aria-label="Projection format">
+                    {isVideoMode && (
+                      <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
                         <button
                           type="button"
-                          className={`ctrl-btn ctrl-screen-size${effectiveScreenSize === 'small' ? ' ctrl-screen-size--selected' : ''}`}
-                          aria-pressed={effectiveScreenSize === 'small'}
-                          onClick={() => handleSelectScreenSize('small')}
+                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                          aria-pressed={effectiveDisplayMode === 'none'}
+                          aria-label="No video"
+                          onClick={() => handleSelectDisplayMode('none')}
                         >
-                          Small
+                          {/* None: rectangle with diagonal strike */}
+                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                          </svg>
                         </button>
                         <button
                           type="button"
-                          className={`ctrl-btn ctrl-screen-size${effectiveScreenSize === 'big' ? ' ctrl-screen-size--selected' : ''}`}
-                          aria-pressed={effectiveScreenSize === 'big'}
-                          onClick={() => handleSelectScreenSize('big')}
+                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                          aria-pressed={effectiveDisplayMode === 'small'}
+                          aria-label="Small"
+                          onClick={() => handleSelectDisplayMode('small')}
                         >
-                          Big
+                          {/* Small: small rectangle centered */}
+                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'big' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                          aria-pressed={effectiveDisplayMode === 'big'}
+                          aria-label="Big"
+                          onClick={() => handleSelectDisplayMode('big')}
+                        >
+                          {/* Big: large rectangle filling the icon area */}
+                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                          </svg>
                         </button>
                       </div>
                     )}
@@ -1140,6 +1178,18 @@ function ProjectionView() {
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
+  // Display mode broadcast from Control window — 3-way None/Small/Big toggle (Prompt 13).
+  const [projectionDisplayMode, setProjectionDisplayMode] = useState<DisplayMode | null>(getBroadcastDisplayMode)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY_DISPLAY_MODE_BROADCAST || e.key === null) {
+        setProjectionDisplayMode(getBroadcastDisplayMode())
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   // Show logo on every mount; reveal intro only after the control fires an arm transition.
   // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
   // storage event that the projection can receive. This prevents leftover lyrics appearing
@@ -1297,8 +1347,11 @@ function ProjectionView() {
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
+  // Respect the display mode broadcast: 'none' means lyric screen, 'small'/'big' means video
+  const effectiveProjectionDisplayMode: DisplayMode = projectionDisplayMode ?? getDefaultDisplayMode(isVideoMode)
+  const showVideoProjection = isVideoMode && resolvedVideoPath && effectiveProjectionDisplayMode !== 'none'
 
-  if (isVideoMode && resolvedVideoPath) {
+  if (showVideoProjection) {
     return (
       <div
         className="projection-screen"

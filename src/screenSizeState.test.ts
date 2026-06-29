@@ -6,7 +6,26 @@ import {
   clearStoredScreenSize,
   getAvailableScreenSizes,
   getDefaultScreenSize,
+  getStoredDisplayMode,
+  setStoredDisplayMode,
+  clearStoredDisplayMode,
+  getDefaultDisplayMode,
+  type DisplayMode,
 } from './screenSizeState'
+
+// ── DisplayMode type ───────────────────────────────────────────────────────
+
+describe('DisplayMode type', () => {
+  it('getDefaultDisplayMode returns "small" when song has media', () => {
+    const mode: DisplayMode = getDefaultDisplayMode(true)
+    expect(mode).toBe('small')
+  })
+
+  it('getDefaultDisplayMode returns "none" when song has no media', () => {
+    const mode: DisplayMode = getDefaultDisplayMode(false)
+    expect(mode).toBe('none')
+  })
+})
 
 // ── available screen sizes ─────────────────────────────────────────────────
 
@@ -51,6 +70,69 @@ describe('getProjectionStatusText', () => {
 
   it('returns "Open, Big" when open with big screen size', () => {
     expect(getProjectionStatusText(true, 'big')).toBe('Open, Big')
+  })
+})
+
+// ── getProjectionStatusText with DisplayMode ───────────────────────────────
+
+describe('getProjectionStatusText with DisplayMode', () => {
+  it('returns "Open, No video" when open with display mode "none"', () => {
+    expect(getProjectionStatusText(true, null, 'none')).toBe('Open, No video')
+  })
+
+  it('returns "Open, Small" when open with display mode "small"', () => {
+    expect(getProjectionStatusText(true, null, 'small')).toBe('Open, Small')
+  })
+
+  it('returns "Open, Big" when open with display mode "big"', () => {
+    expect(getProjectionStatusText(true, null, 'big')).toBe('Open, Big')
+  })
+
+  it('returns "Closed" when not open, even with display mode', () => {
+    expect(getProjectionStatusText(false, null, 'none')).toBe('Closed')
+    expect(getProjectionStatusText(false, null, 'small')).toBe('Closed')
+  })
+})
+
+// ── sessionStorage display mode state ─────────────────────────────────────
+
+describe('sessionStorage display mode state', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+  })
+
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
+  it('getStoredDisplayMode returns null when nothing stored', () => {
+    expect(getStoredDisplayMode()).toBeNull()
+  })
+
+  it('setStoredDisplayMode persists "none" and getStoredDisplayMode reads it back', () => {
+    setStoredDisplayMode('none')
+    expect(getStoredDisplayMode()).toBe('none')
+  })
+
+  it('setStoredDisplayMode persists "small" and reads back', () => {
+    setStoredDisplayMode('small')
+    expect(getStoredDisplayMode()).toBe('small')
+  })
+
+  it('setStoredDisplayMode persists "big" and reads back', () => {
+    setStoredDisplayMode('big')
+    expect(getStoredDisplayMode()).toBe('big')
+  })
+
+  it('clearStoredDisplayMode removes the value', () => {
+    setStoredDisplayMode('big')
+    clearStoredDisplayMode()
+    expect(getStoredDisplayMode()).toBeNull()
+  })
+
+  it('getStoredDisplayMode returns null for an unrecognized stored value', () => {
+    sessionStorage.setItem('liveLyricDisplayMode', 'medium')
+    expect(getStoredDisplayMode()).toBeNull()
   })
 })
 
