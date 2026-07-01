@@ -357,8 +357,13 @@ function ControlView() {
   }, [controlState, unarm, goRestart, sendCommandWithState])
 
   const handleNext = () => {
+    // The first Next (index -1 → 0) also starts the non-video beat clock — the beat
+    // indicator is driven by the existing controls, not a separate Start button.
+    // startBeatClock() is a no-op when already running or when there is no tempo.
+    const wasNotStarted = getSongIndex() === -1
     goNext()
     const newIndex = getSongIndex()
+    if (wasNotStarted) startBeatClock()
     sendCommandWithState('next', undefined, {
       currentIndex: newIndex,
       blank: getBlank(),
@@ -371,6 +376,8 @@ function ControlView() {
   }
   const handleRestart = () => {
     goRestart()
+    // Restart also restarts the non-video beat clock (no-op when there is no tempo).
+    restartBeatClock()
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
   const handleToggleProjection = () => {
@@ -548,9 +555,7 @@ function ControlView() {
   const songTempo = currentLibrarySong?.tempo
   const {
     phase: beatPhase,
-    playState: beatPlayState,
     start: startBeatClock,
-    pause: pauseBeatClock,
     restart: restartBeatClock,
   } = useBeatClock(
     songTempo,
@@ -784,38 +789,10 @@ function ControlView() {
                     bottom: '0.75rem',
                     left: '0.75rem',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '0.5rem',
                   }}
                 >
                   <BeatCircle tempo={songTempo} phase={beatPhase} />
-                  <div className="control-beat-clock-controls" role="group" aria-label="Beat clock">
-                    <button
-                      type="button"
-                      className="ctrl-btn ctrl-beat-start"
-                      onClick={startBeatClock}
-                      disabled={beatPlayState === 'count-in' || beatPlayState === 'playing'}
-                    >
-                      Start
-                    </button>
-                    <button
-                      type="button"
-                      className="ctrl-btn ctrl-beat-pause"
-                      onClick={pauseBeatClock}
-                      disabled={beatPlayState !== 'count-in' && beatPlayState !== 'playing'}
-                    >
-                      Pause
-                    </button>
-                    <button
-                      type="button"
-                      className="ctrl-btn ctrl-beat-restart"
-                      onClick={restartBeatClock}
-                      aria-label="Restart beat"
-                    >
-                      Restart
-                    </button>
-                  </div>
                 </div>
               )}
               <div className="control-performing-stage-stack">
