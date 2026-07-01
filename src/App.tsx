@@ -688,7 +688,7 @@ function ControlView() {
                             onClick={() => handleSelectDisplayMode('small')}
                           >
                             {/* Small: small rectangle centered */}
-                            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
                               <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
                             </svg>
                           </button>
@@ -700,7 +700,7 @@ function ControlView() {
                             onClick={() => handleSelectDisplayMode('big')}
                           >
                             {/* Big: large rectangle filling the icon area */}
-                            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
                               <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
                             </svg>
                           </button>
@@ -712,7 +712,7 @@ function ControlView() {
                             onClick={() => handleSelectDisplayMode('none')}
                           >
                             {/* None: rectangle with diagonal strike */}
-                            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
                               <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
                               <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
                             </svg>
@@ -727,14 +727,14 @@ function ControlView() {
                         onClick={() => setBeatIndicatorOn((on) => !on)}
                       >
                         {beatIndicatorOn ? (
-                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                          <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true">
                             {/* Metronome/timer: circle face + two clock hands */}
                             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
                             <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                             <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                           </svg>
                         ) : (
-                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                          <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true">
                             {/* Metronome/timer off: same face + diagonal strike */}
                             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
                             <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
