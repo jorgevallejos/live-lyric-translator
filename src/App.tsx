@@ -633,8 +633,8 @@ function ControlView() {
   // must not re-run on every render just because a callback reference changed.
   const timelineRef = useRef(songTimeline)
   timelineRef.current = songTimeline
-  const applyCommandRef = useRef(applyCommand)
-  applyCommandRef.current = applyCommand
+  const applyRemoteStateRef = useRef(applyRemoteState)
+  applyRemoteStateRef.current = applyRemoteState
   const sendCommandWithStateRef = useRef(sendCommandWithState)
   sendCommandWithStateRef.current = sendCommandWithState
   useEffect(() => {
@@ -643,10 +643,19 @@ function ControlView() {
     if (songElapsedMs <= 0) return
     const targetIndex = computeAutoAdvanceIndex(timelineRef.current, songElapsedMs)
     if (targetIndex === index) return
-    applyCommandRef.current('setIndex', targetIndex)
+    // A real cue (index >= 0) un-blanks; before the first cue / in gaps (index -1) stays blank.
+    const targetBlank = targetIndex < 0
+    // Update the local performer state AND the shared (cross-window) localStorage index/blank
+    // via applyRemoteState — NOT applyCommand('setIndex'). computeNavigationState's setIndex
+    // branch PRESERVES the current blank, so an applyCommand path would leave blank=true in
+    // localStorage while the WS broadcast carries blank=false. The Projection window re-reads
+    // index/blank from localStorage on every storage event, so it would read blank=true and
+    // stay BLACK even though a cue is due — the Auto "audience stays black" bug. Writing the
+    // same blank the broadcast carries keeps both windows consistent, exactly like manual Next.
+    applyRemoteStateRef.current(targetIndex, targetBlank)
     sendCommandWithStateRef.current('setIndex', targetIndex, {
       currentIndex: targetIndex,
-      blank: targetIndex === -1,
+      blank: targetBlank,
     })
   }, [songElapsedMs, effectiveAdvanceMode, hasTimeline, showVideoPerformance, index])
 
