@@ -56,6 +56,7 @@ import {
   type DisplayMode,
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
+import { getDefaultAdvanceMode, computeAutoAdvanceIndex, type AdvanceMode } from './autoAdvanceState'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -261,12 +262,29 @@ function ControlView() {
   // Beat indicator on/off toggle — performer view only.
   const [beatIndicatorOn, setBeatIndicatorOn] = useState(true)
 
+  // Manual/Auto lyric-advance toggle. Default: auto when the song has a non-empty timeline,
+  // manual otherwise. Resets to null (defer to the per-song default) whenever the song changes,
+  // so switching songs doesn't carry over an explicit choice made for a previous song.
+  const [selectedAdvanceMode, setSelectedAdvanceMode] = useState<AdvanceMode | null>(null)
+  const prevAdvanceModeSongIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (prevAdvanceModeSongIdRef.current !== currentSongId) {
+      prevAdvanceModeSongIdRef.current = currentSongId
+      setSelectedAdvanceMode(null)
+    }
+  }, [currentSongId])
+
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
   const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
   // Effective display mode: stored value or default (small for video songs, none for non-video)
   const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
+  // Lyric advance mode (non-video performer view only). Auto is only selectable when the
+  // song has a non-empty timeline to drive off.
+  const songTimeline = currentLibrarySong?.timeline ?? []
+  const hasTimeline = songTimeline.length > 0
+  const effectiveAdvanceMode: AdvanceMode = selectedAdvanceMode ?? getDefaultAdvanceMode(hasTimeline)
   // The performer only gets the video panel when the song has a video AND it's actually
   // being shown (display mode isn't 'none'). In 'none' mode a video song behaves exactly
   // like a non-video song for the performer (manual Next/Previous/Restart).
@@ -555,12 +573,45 @@ function ControlView() {
   const songTempo = currentLibrarySong?.tempo
   const {
     phase: beatPhase,
+    songElapsedMs,
     start: startBeatClock,
     restart: restartBeatClock,
   } = useBeatClock(
     songTempo,
     showArmedShell && !showVideoPerformance
   )
+
+  // Auto lyric-advance drive (non-video performer view only): once the beat clock's song
+  // has begun (songElapsedMs ticking, i.e. the first Next has started the clock and the
+  // count-in has completed), map elapsed time against the timeline to a target cue index
+  // and, if it differs from the current index, jump there — same path a remote/manual
+  // setIndex command takes, so the Projection window stays in sync. Manual Next/Prev always
+  // remain available and simply move `index`; because this effect keys off songElapsedMs
+  // (not index), the next tick recomputes from the timeline and Auto resumes tracking
+  // elapsed time rather than fighting the manual move.
+  // Deps are primitives only (songElapsedMs, hasTimeline, index, effectiveAdvanceMode,
+  // showVideoPerformance) — never the timeline/song object identity, and not applyCommand/
+  // sendCommandWithState (unmemoized, new reference every render) — per the hook-stability
+  // gotcha (CLAUDE.md): currentLibrarySong is a fresh object every render, and this effect
+  // must not re-run on every render just because a callback reference changed.
+  const timelineRef = useRef(songTimeline)
+  timelineRef.current = songTimeline
+  const applyCommandRef = useRef(applyCommand)
+  applyCommandRef.current = applyCommand
+  const sendCommandWithStateRef = useRef(sendCommandWithState)
+  sendCommandWithStateRef.current = sendCommandWithState
+  useEffect(() => {
+    if (showVideoPerformance) return
+    if (effectiveAdvanceMode !== 'auto' || !hasTimeline) return
+    if (songElapsedMs <= 0) return
+    const targetIndex = computeAutoAdvanceIndex(timelineRef.current, songElapsedMs)
+    if (targetIndex === index) return
+    applyCommandRef.current('setIndex', targetIndex)
+    sendCommandWithStateRef.current('setIndex', targetIndex, {
+      currentIndex: targetIndex,
+      blank: targetIndex === -1,
+    })
+  }, [songElapsedMs, effectiveAdvanceMode, hasTimeline, showVideoPerformance, index])
 
   const languagesDisplay =
     effectiveSingingLang && effectiveLang
@@ -715,6 +766,37 @@ function ControlView() {
                             <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
                               <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
                               <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {!showVideoPerformance && (
+                        <div className="ctrl-segmented-control ctrl-advance-mode-toggle" role="group" aria-label="Lyric advance mode">
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'manual' ? ' ctrl-advance-mode-seg--selected' : ''}`}
+                            aria-pressed={effectiveAdvanceMode === 'manual'}
+                            aria-label="Advance: Manual"
+                            onClick={() => setSelectedAdvanceMode('manual')}
+                          >
+                            {/* Manual: hand/pointer glyph */}
+                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
+                              <path d="M4 7 L14 7 M10 3 L14 7 L10 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'auto' ? ' ctrl-advance-mode-seg--selected' : ''}`}
+                            aria-pressed={effectiveAdvanceMode === 'auto'}
+                            aria-label="Advance: Auto"
+                            disabled={!hasTimeline}
+                            onClick={() => hasTimeline && setSelectedAdvanceMode('auto')}
+                          >
+                            {/* Auto: timer/clock glyph, matching the beat-indicator icon language */}
+                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
+                              <circle cx="9" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                              <line x1="9" y1="7" x2="9" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                              <line x1="9" y1="7" x2="11.5" y2="8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                             </svg>
                           </button>
                         </div>
