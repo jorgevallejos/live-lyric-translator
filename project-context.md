@@ -52,6 +52,26 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - `.claude/settings.json` in this repo pre-approves the standard release commands for this project and denies destructive ones (matches the universal policy in `personal-context.md`).
 - GitHub MCP is not currently available in Cowork's connector registry; may be addable in Claude Code later.
 
+## Wave 2 resume state (2026-07-01)
+
+Verified against the repo on 2026-07-01. Supersedes the older "in-flight" narrative in the model-picks paragraph.
+
+- **Wave 1 — merged:** Prompt 12 beat-indicator toggle (PR #31), Prompt 16 timeline-import / A+ button (PR #32).
+- **Prompt 13 (3-way display toggle) — LANDED.** Merged clean as **PR #33** (`feat/display-mode-three-way`), now the tip of `main`. The dashboard's earlier "drafted as a patch, not landed" note was stale.
+- **Prompt 14 (Manual/Auto lyric-advance toggle) — STILL OPEN.** No branch, no PR. Only UI-toggle scaffolding exists, captured in **`stash@{0}` (`cowork-leaked-p13-p14-worktree-20260629`)** — and even there the actual Auto **drive** (the `useBeatClock` elapsed→cue-index advance) is explicitly deferred ("future work"). This is the substantive Wave 2 coding task.
+- **Repo hygiene:** the stale `.git/index.lock` is cleared; the 06-29 leaked edits are safely in `stash@{0}` (not loose in a worktree). Only uncommitted change on `main` is `.claude/settings.json` (06-29 permission additions). Tests can't run in Cowork's Linux sandbox (darwin-only vitest bindings) — verify on the Mac.
+
+### Projection-column toggle — design decisions (2026-07-01, agreed with Jorge)
+
+Refinement of the Projection-column controls in the Setup screen (`src/App.tsx` ~lines 681–742, `src/control.css`). **Green is the single, consistent "active" indicator across the whole column.**
+
+1. **Display-mode segmented toggle — reorder to `small → big → none`** (currently `none → small → big`). Behavior/defaults unchanged.
+2. **Consistent selection styling:** selected/active = **green**, unselected = **gray**. Replaces the current white-border selected style. Applies to *both* the display-mode segmented toggle **and** the beat-indicator toggle.
+3. **Beat-indicator toggle — swap the circle icon for a timer/metronome-style glyph.** On/enabled = green; off/disabled = gray with a strike-through. This is still the **beat-indicator** on/off control (aria-label stays semantically correct) — the icon changes, not the behavior. (Note for Jorge: not a countdown-timer feature.)
+4. **Make the toggle buttons slightly smaller** and tighten their spacing so they stop competing visually with the primary column buttons (Setlist / Languages / Open / Arm). Reuse the app's existing "active/linked" green token for consistency. Final size + green shade to be **calibrated by the builder and user-tested by Jorge** on screen/projector.
+
+Kickoff for the Claude Code build: `docs/wave2-kickoff-2026-07-01.md`.
+
 ## Open follow-ups / parked items
 
 - **Timeline-import contract (Prompt 16 / A+ button) — JSON, locked 2026-06-24:** the standalone `timeline-extractor` project produces the timeline this app imports. Interchange format is **JSON**: a `{ "timeline": [...] }` envelope deserializing straight into `TimelineEntry[]`, parallel-array contract preserved (one entry per song item, section markers as `start == end == 0`). **The A+ button parser must accept exactly this shape — not SRT.** SRT was rejected because it carries cue text (duplicating the song JSON's source-of-truth lyric order) and can't represent section markers. An optional `.srt` export may exist on the extractor side as a human-QA debug convenience only; it is never the canonical contract. Source of truth for the shape stays `src/songState.ts` (`TimelineEntry`, `videoCueLookup`); the extractor mirrors it in its `docs/output-contract.md`.
