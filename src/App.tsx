@@ -400,6 +400,14 @@ function ControlView() {
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
 
+  // R2: Manual Start-step Restart — return to the pre-Start state so the button flips back to
+  // "Start": index -1, beat clock idle (not a fresh count-in), Next/Previous disabled again.
+  const handleManualStartRestart = () => {
+    goRestart()
+    resetBeatClock()
+    sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+  }
+
   // ── T2 Auto transport (non-video, Auto mode): mirrors the Video panel's Play/Pause/Restart,
   // but the clock is the beat clock and the audience is black (no video) until a cue is due. ──
   const handleAutoPlay = () => {
@@ -586,6 +594,7 @@ function ControlView() {
       : ''
 
   const restartHold = useHoldToConfirm(handleRestart)
+  const manualStartRestartHold = useHoldToConfirm(handleManualStartRestart)
   const unarmHold = useHoldToConfirm(handleUnarm)
 
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
@@ -617,6 +626,16 @@ function ControlView() {
   // Once Play has been pressed (count-in or later), the pre-first-cue screens go black instead
   // of showing the intro/notes; idle means we're still at the pre-Play intro.
   const autoPerformanceStarted = isAutoArmed && beatPlayState !== 'idle'
+
+  // R2: Manual mode gets an explicit Start step so the count-in runs a full bar BEFORE the
+  // first lyric — the performer can catch the tempo before singing, instead of the beat
+  // starting on the same Next press that reveals line 1. This only applies when there is a
+  // count-in to pre-run: the song has a tempo AND the beat indicator is on. Otherwise Next
+  // reveals line 1 immediately (today's behaviour, no Start step).
+  const isManualArmed = showArmedShell && !showVideoPerformance && !isAutoArmed
+  const manualStartStep = isManualArmed && !!songTempo && beatIndicatorOn
+  // Before Start the beat clock is idle; Start begins the count-in (count-in → playing).
+  const manualPreStart = manualStartStep && beatPlayState === 'idle'
 
   // Auto lyric-advance drive (non-video performer view only): once the beat clock's song
   // has begun (songElapsedMs ticking, i.e. the first Next has started the clock and the
@@ -952,7 +971,11 @@ function ControlView() {
                   )}
                   {notStarted && !autoPerformanceStarted && (
                     <p className="control-state-instruction">
-                      {isAutoArmed ? 'Press Play to start' : 'Press Next to reveal the first line'}
+                      {isAutoArmed
+                        ? 'Press Play to start'
+                        : manualPreStart
+                          ? 'Press Start to begin the count-in'
+                          : 'Press Next to reveal the first line'}
                     </p>
                   )}
                 </div>
@@ -1067,19 +1090,46 @@ function ControlView() {
                   type="button"
                   className="ctrl-btn ctrl-next"
                   onClick={handleNext}
-                  disabled={nextDisabled}
+                  disabled={nextDisabled || manualPreStart}
                 >
                   Next
                 </button>
-                <button
-                  type="button"
-                  className="ctrl-btn ctrl-restart"
-                  onPointerDown={restartHold.onPointerDown}
-                  onPointerUp={restartHold.onPointerUp}
-                  onPointerLeave={restartHold.onPointerLeave}
-                >
-                  {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
-                </button>
+                {manualPreStart ? (
+                  /* R2: before the count-in, the third button is Start (relabelled Restart).
+                     Pressing it runs the count-in a bar before the first lyric; Next stays
+                     disabled until it does. Plain click — it's a forward, safe action. */
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-restart"
+                    onClick={startBeatClock}
+                    aria-label="Start"
+                  >
+                    Start
+                  </button>
+                ) : manualStartStep ? (
+                  /* After Start, the same button becomes Restart, returning to the pre-Start
+                     state (beat idle, index -1, button back to Start). Hold-to-confirm guards
+                     against an accidental mid-song reset. */
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-restart"
+                    onPointerDown={manualStartRestartHold.onPointerDown}
+                    onPointerUp={manualStartRestartHold.onPointerUp}
+                    onPointerLeave={manualStartRestartHold.onPointerLeave}
+                  >
+                    {manualStartRestartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-restart"
+                    onPointerDown={restartHold.onPointerDown}
+                    onPointerUp={restartHold.onPointerUp}
+                    onPointerLeave={restartHold.onPointerLeave}
+                  >
+                    {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
+                  </button>
+                )}
               </>
             )}
             <button

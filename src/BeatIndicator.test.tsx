@@ -134,7 +134,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 
-  it('shows BeatCircle in count-in mode after the first Next is pressed', async () => {
+  it('shows BeatCircle in count-in mode after Start is pressed', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -146,7 +146,8 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     // Arming alone must not start the clock — no beat circle yet.
     expect(screen.queryByTestId('beat-circle')).toBeNull()
 
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
+    // R2: the count-in begins on the explicit Start step, before any lyric.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
     expect(screen.getByTestId('beat-circle')).toBeTruthy()
@@ -160,7 +161,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
     const numEl = screen.getByTestId('beat-circle-beat-number')
@@ -175,7 +176,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     act(() => { vi.advanceTimersByTime(550) })
 
     const numEl = screen.getByTestId('beat-circle-beat-number')
@@ -190,7 +191,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
     const dotsEl = screen.getByTestId('beat-circle-dots')
@@ -205,7 +206,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     // Count-in is 4 beats × 500ms = 2000ms
     act(() => { vi.advanceTimersByTime(2100) })
 
@@ -220,7 +221,8 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    // The first Next reveals line 0 and starts the beat clock's count-in.
+    // R2: Start begins the count-in; the first Next then reveals line 0.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
     expect(getSongIndex()).toBe(0)
 
