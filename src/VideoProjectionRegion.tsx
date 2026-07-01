@@ -150,91 +150,124 @@ export function VideoProjectionRegion({
     return () => window.removeEventListener('storage', onStorage)
   }, [media.trimStart])
 
-  return (
-    <>
-      <div
-        className="projection-animation-region"
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: `${layout.animationHeightPx}px`,
-          flexShrink: 0,
-          overflow: 'hidden',
-          background: '#000',
-        }}
-      >
-        <video
-          ref={videoRef}
-          src={absolutePathToMediaUrl(absolutePath)}
-          muted
-          playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-        />
-        {!hasStarted && (
-          <div
-            className="projection-animation-cover"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {showIntroScreen && introTitle && (
-              <div
-                data-testid="song-intro-screen"
-                className="projection-intro-screen"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.25em',
-                  textAlign: 'center',
-                  padding: '0 2em',
-                }}
-              >
-                <span className="projection-intro-title">{introTitle}</span>
-                {introTranslatedTitle && (
-                  <span className="projection-intro-translated-title">
-                    ({introTranslatedTitle})
-                  </span>
-                )}
-                {introTagline && (
-                  <span className="projection-intro-tagline">{introTagline}</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+  const isOverlay = layout.subtitlePosition === 'overlay-bottom'
 
-      <div
-        className="projection-subtitle-band"
+  const lyricSpan = (
+    <span
+      className="projection-lyric"
+      style={{
+        opacity: subtitleVisible ? 1 : 0,
+        transition: 'opacity 300ms ease',
+        ...(layout.fontSizePx > 0 ? { fontSize: `${layout.fontSizePx}px` } : {}),
+      }}
+    >
+      {subtitleText}
+    </span>
+  )
+
+  return (
+    <div
+      className="projection-animation-region"
+      style={{
+        position: 'absolute',
+        left: `${layout.frameLeftPx}px`,
+        top: `${layout.frameTopPx}px`,
+        width: `${layout.frameWidthPx}px`,
+        height: `${layout.frameHeightPx}px`,
+        overflow: 'hidden',
+        background: '#000',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={absolutePathToMediaUrl(absolutePath)}
+        muted
+        playsInline
         style={{
-          width: '100%',
-          height: `${layout.bandHeightPx}px`,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 1.5rem',
-          boxSizing: 'border-box',
+          position: 'absolute',
+          left: `${layout.videoLeftPx - layout.frameLeftPx}px`,
+          top: `${layout.videoTopPx - layout.frameTopPx}px`,
+          width: `${layout.videoWidthPx}px`,
+          height: `${layout.videoHeightPx}px`,
+          display: 'block',
         }}
-      >
-        <span
-          className="projection-lyric"
+      />
+
+      {isOverlay ? (
+        <div
+          className="projection-lyric-overlay"
           style={{
-            opacity: subtitleVisible ? 1 : 0,
-            transition: 'opacity 300ms ease',
-            ...(layout.fontSizePx > 0 ? { fontSize: `${layout.fontSizePx}px` } : {}),
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: `${layout.subtitleBottomMarginPx}px`,
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '0 1.5rem',
+            boxSizing: 'border-box',
           }}
         >
-          {subtitleText}
-        </span>
-      </div>
-    </>
+          {lyricSpan}
+        </div>
+      ) : (
+        <div
+          className="projection-subtitle-band"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: `${layout.videoTopPx - layout.frameTopPx + layout.videoHeightPx}px`,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 1.5rem',
+            boxSizing: 'border-box',
+          }}
+        >
+          {lyricSpan}
+        </div>
+      )}
+
+      {!hasStarted && (
+        <div
+          className="projection-animation-cover"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {showIntroScreen && introTitle && (
+            <div
+              data-testid="song-intro-screen"
+              className="projection-intro-screen"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.25em',
+                textAlign: 'center',
+                padding: '0 2em',
+              }}
+            >
+              <span className="projection-intro-title">{introTitle}</span>
+              {introTranslatedTitle && (
+                <span className="projection-intro-translated-title">
+                  ({introTranslatedTitle})
+                </span>
+              )}
+              {introTagline && (
+                <span className="projection-intro-tagline">{introTagline}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

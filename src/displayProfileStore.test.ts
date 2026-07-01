@@ -28,16 +28,16 @@ describe('getActiveDisplayProfile', () => {
   it('returns big-screen preset when nothing is stored', () => {
     const profile = getActiveDisplayProfile()
     expect(profile.id).toBe('big-screen')
-    expect(profile.bandPercent).toBe(BIG_SCREEN_PRESET.bandPercent)
-    expect(profile.textScale).toBe(BIG_SCREEN_PRESET.textScale)
+    expect(profile.videoScalePercent).toBe(BIG_SCREEN_PRESET.videoScalePercent)
+    expect(profile.subtitleFontPercent).toBe(BIG_SCREEN_PRESET.subtitleFontPercent)
   })
 
   it('returns small-canvas preset after setActiveProfileId("small-canvas")', () => {
     setActiveProfileId('small-canvas')
     const profile = getActiveDisplayProfile()
     expect(profile.id).toBe('small-canvas')
-    expect(profile.bandPercent).toBe(SMALL_CANVAS_PRESET.bandPercent)
-    expect(profile.textScale).toBe(SMALL_CANVAS_PRESET.textScale)
+    expect(profile.videoScalePercent).toBe(SMALL_CANVAS_PRESET.videoScalePercent)
+    expect(profile.subtitleFontPercent).toBe(SMALL_CANVAS_PRESET.subtitleFontPercent)
   })
 
   it('returns big-screen preset after setActiveProfileId("big-screen")', () => {
@@ -47,24 +47,26 @@ describe('getActiveDisplayProfile', () => {
   })
 
   it('returns custom profile after setCustomProfile', () => {
-    setCustomProfile(22, 0.6)
+    setCustomProfile({ videoScalePercent: 80, videoCenterYPercent: 45, subtitleFontPercent: 4 })
     const profile = getActiveDisplayProfile()
     expect(profile.id).toBe('custom')
-    expect(profile.bandPercent).toBe(22)
-    expect(profile.textScale).toBe(0.6)
+    expect(profile.videoScalePercent).toBe(80)
+    expect(profile.videoCenterYPercent).toBe(45)
+    expect(profile.subtitleFontPercent).toBe(4)
   })
 
   it('custom profile label is "Custom"', () => {
-    setCustomProfile(20, 0.5)
+    setCustomProfile({ videoScalePercent: 100, videoCenterYPercent: 50, subtitleFontPercent: 3.73 })
     expect(getActiveDisplayProfile().label).toBe('Custom')
   })
 
   it('custom profile reads back updated values after a second setCustomProfile', () => {
-    setCustomProfile(20, 0.5)
-    setCustomProfile(35, 0.7)
+    setCustomProfile({ videoScalePercent: 100, videoCenterYPercent: 50, subtitleFontPercent: 3.73 })
+    setCustomProfile({ videoScalePercent: 60, videoCenterYPercent: 35, subtitleFontPercent: 5 })
     const profile = getActiveDisplayProfile()
-    expect(profile.bandPercent).toBe(35)
-    expect(profile.textScale).toBe(0.7)
+    expect(profile.videoScalePercent).toBe(60)
+    expect(profile.videoCenterYPercent).toBe(35)
+    expect(profile.subtitleFontPercent).toBe(5)
   })
 
   it('stores profile id under DISPLAY_PROFILE_STORAGE_KEY', () => {

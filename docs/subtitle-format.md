@@ -8,22 +8,22 @@ The single line of translated lyric shown to the audience, composited by the app
 
 ## Visual spec
 
-- **Font:** EB Garamond serif — the same family already used for audience lyrics on `main`. Weight regular.
+- **Font:** EB Garamond — the same family already used for audience lyrics on `main`. Weight **SemiBold (600)**, matching the reference Premiere export (the bundled variable font covers weights 400–700, so no new font file was needed).
 - **Colour:** white (`#fff` / the audience-lyric CSS variable already in use).
-- **Alignment:** centered horizontally; vertically centered within the subtitle band.
-- **Legibility:** subtle dark shadow / outline so text stays readable if it ever overlaps a light frame edge (it normally sits on the black band, so keep the shadow light, not heavy).
-- **Wrapping:** the overlay reproduces the current audience-view line behaviour — one logical lyric line at a time; long two-clause lines (with `\n`) wrap within the band rather than overflowing it.
-- **Position:** in the black band along the bottom; the animation occupies the region above (`object-fit: contain`).
+- **Alignment:** centered horizontally.
+- **Legibility:** subtle dark text-shadow so text stays readable when it overlaps a light frame (big-screen format superimposes the subtitle directly over the video, not a solid black band).
+- **Wrapping:** the overlay reproduces the current audience-view line behaviour — one logical lyric line at a time; long two-clause lines (with `\n`) wrap rather than overflowing.
+- **Position:** driven by the active display profile's `subtitlePosition` (see below).
 
-## Size — driven by the display profile
+## Size and position — driven by the display profile
 
-Size is **not** absolute. It comes from the active display profile's `textScale` (see `displayProfile`), expressed relative to the projection height so the same show reads correctly on very different screens:
+Geometry comes from the active display profile (see `displayProfile.ts`), expressed as **percentages of a fixed 3:2 reference frame** (4752×3168 in the source Premiere export; the clean master mp4 is 1920×1280, same ratio). The frame is `object-fit: contain`-ed into the actual projector viewport, so all percentages are resolution-independent.
 
-- **Big screen (cinema):** ~13% band, smaller text (picture dominates).
-- **Small canvas 130×100:** ~28% band, larger text (text stays readable from the room).
-- **Custom:** band% + textScale entered directly.
+- **Big screen (cinema):** video fills the frame at native scale (`videoScalePercent: 100`, no crop, no split). Subtitle is **superimposed over the video**, bottom-centered (`subtitlePosition: 'overlay-bottom'`), font ≈ 3.73% of frame height (118/3168pt in the reference), bottom margin ≈ 4.5% of frame height.
+- **Small canvas 130×100:** video is scaled to 75.8% of the frame, horizontally centered, vertically shifted up so its center sits at 38.3% of frame height — leaving the bottom ~23.8% of the frame black. Subtitle is **centered in that black area** (`subtitlePosition: 'below-video'`), font ≈ 5.05% of frame height (160/3168pt in the reference).
+- **Custom:** all of the above (`videoScalePercent`, `videoCenterYPercent`, `subtitlePosition`, `subtitleFontPercent`, `subtitleBottomMarginPercent`) entered directly — see `displayProfileStore.setCustomProfile`.
 
-The subtitle font size = a function of projection height × the profile's `textScale`, matching `computeProjectionLayout`. One global per-gig size, nudgeable on the night via the Custom profile — no per-song sizing.
+`computeProjectionLayout(profile, viewportWidth, viewportHeight)` turns these percentages into pixel geometry: it contains the 3:2 frame in the viewport, then positions the video box and subtitle within that frame. One global per-gig size/position, nudgeable on the night via the Custom profile — no per-song sizing.
 
 ## Tempo schema
 
