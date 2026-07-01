@@ -22,9 +22,30 @@ const TIMELINE: TimelineEntry[] = [{ start: 0, end: 2 }]
 const LINES: SongItem[] = [{ languages: { es: 'Hola', en: 'Hello' } }]
 const MEDIA: MediaFile = { type: 'video', src: 'test.mp4', trimStart: 3.0 }
 const LAYOUT: ProjectionLayout = {
-  animationHeightPx: 400,
-  bandHeightPx: 100,
+  frameWidthPx: 1920,
+  frameHeightPx: 1280,
+  frameLeftPx: 0,
+  frameTopPx: 0,
+  videoWidthPx: 1920,
+  videoHeightPx: 1280,
+  videoLeftPx: 0,
+  videoTopPx: 0,
+  subtitlePosition: 'overlay-bottom',
   fontSizePx: 48,
+  subtitleBottomMarginPx: 58,
+}
+const SMALL_LAYOUT: ProjectionLayout = {
+  frameWidthPx: 1920,
+  frameHeightPx: 1280,
+  frameLeftPx: 0,
+  frameTopPx: 0,
+  videoWidthPx: 1455,
+  videoHeightPx: 970,
+  videoLeftPx: 233,
+  videoTopPx: -160,
+  subtitlePosition: 'below-video',
+  fontSizePx: 65,
+  subtitleBottomMarginPx: 0,
 }
 
 let playSpy: ReturnType<typeof vi.fn>
@@ -287,5 +308,69 @@ describe('VideoProjectionRegion — intro screen (A2.3)', () => {
     expect(queryByTestId('song-intro-screen')).toBeNull()
     await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'stop') })
     expect(queryByTestId('song-intro-screen')).toBeTruthy()
+  })
+})
+
+// ── compositing geometry (Task B) ────────────────────────────────────────────
+
+describe('VideoProjectionRegion — compositing geometry', () => {
+  it('renders the animation region sized to the frame (letterbox container)', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { container } = await act(async () =>
+      render(<VideoProjectionRegion {...defaultProps({ layout: LAYOUT })} />)
+    )
+    const region = container.querySelector('.projection-animation-region') as HTMLElement
+    expect(region).not.toBeNull()
+    expect(region.style.width).toBe(`${LAYOUT.frameWidthPx}px`)
+    expect(region.style.height).toBe(`${LAYOUT.frameHeightPx}px`)
+  })
+
+  it('big-screen profile: video box fills the frame exactly', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { container } = await act(async () =>
+      render(<VideoProjectionRegion {...defaultProps({ layout: LAYOUT })} />)
+    )
+    const video = container.querySelector('video') as HTMLVideoElement
+    expect(video.style.width).toBe(`${LAYOUT.videoWidthPx}px`)
+    expect(video.style.height).toBe(`${LAYOUT.videoHeightPx}px`)
+  })
+
+  it('big-screen profile: subtitle is positioned as an overlay near the bottom of the frame', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { container } = await act(async () =>
+      render(<VideoProjectionRegion {...defaultProps({ layout: LAYOUT })} />)
+    )
+    const subtitle = container.querySelector('.projection-lyric-overlay')
+    expect(subtitle).not.toBeNull()
+    // Should NOT render the separate below-video band container for overlay mode.
+    expect(container.querySelector('.projection-subtitle-band')).toBeNull()
+  })
+
+  it('small-canvas profile: video box is scaled and offset within the frame', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { container } = await act(async () =>
+      render(<VideoProjectionRegion {...defaultProps({ layout: SMALL_LAYOUT })} />)
+    )
+    const video = container.querySelector('video') as HTMLVideoElement
+    expect(video.style.width).toBe(`${SMALL_LAYOUT.videoWidthPx}px`)
+    expect(video.style.height).toBe(`${SMALL_LAYOUT.videoHeightPx}px`)
+  })
+
+  it('small-canvas profile: subtitle renders in the below-video band, not as an overlay', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { container } = await act(async () =>
+      render(<VideoProjectionRegion {...defaultProps({ layout: SMALL_LAYOUT })} />)
+    )
+    expect(container.querySelector('.projection-subtitle-band')).not.toBeNull()
+    expect(container.querySelector('.projection-lyric-overlay')).toBeNull()
+  })
+
+  it('subtitle font size always comes from layout.fontSizePx', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { container } = await act(async () =>
+      render(<VideoProjectionRegion {...defaultProps({ layout: SMALL_LAYOUT })} />)
+    )
+    const lyric = container.querySelector('.projection-lyric') as HTMLElement
+    expect(lyric.style.fontSize).toBe(`${SMALL_LAYOUT.fontSizePx}px`)
   })
 })

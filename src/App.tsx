@@ -1393,8 +1393,7 @@ function ProjectionView() {
           background: '#000',
           width: '100vw',
           height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
+          position: 'relative',
           margin: 0,
         }}
       >
