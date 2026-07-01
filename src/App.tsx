@@ -285,7 +285,15 @@ function ControlView() {
   // song has a non-empty timeline to drive off.
   const songTimeline = currentLibrarySong?.timeline ?? []
   const hasTimeline = songTimeline.length > 0
-  const effectiveAdvanceMode: AdvanceMode = selectedAdvanceMode ?? getDefaultAdvanceMode(hasTimeline)
+  // T3: Auto is beat-clock-driven, so it needs the beat indicator on. When the beat
+  // indicator is off, Auto is disabled and the mode is forced to Manual. This is
+  // one-directional — selecting Auto never touches the beat. We force at the computed
+  // (effective) level and deliberately don't mutate selectedAdvanceMode, so turning the
+  // beat back on restores the song's default (or previously chosen) advance mode.
+  const autoAdvanceAvailable = hasTimeline && beatIndicatorOn
+  const effectiveAdvanceMode: AdvanceMode = !beatIndicatorOn
+    ? 'manual'
+    : (selectedAdvanceMode ?? getDefaultAdvanceMode(hasTimeline))
   // The performer only gets the video panel when the song has a video AND it's actually
   // being shown (display mode isn't 'none'). In 'none' mode a video song behaves exactly
   // like a non-video song for the performer (manual Next/Previous/Restart).
@@ -848,7 +856,10 @@ function ControlView() {
                                 className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'manual' ? ' ctrl-advance-mode-seg--selected' : ''}`}
                                 aria-pressed={effectiveAdvanceMode === 'manual'}
                                 aria-label="Advance: Manual"
-                                onClick={() => setSelectedAdvanceMode('manual')}
+                                // T3: while the beat is off the mode is already forced to
+                                // Manual — don't persist a selection, so restore-to-default
+                                // works when the beat turns back on.
+                                onClick={() => beatIndicatorOn && setSelectedAdvanceMode('manual')}
                               >
                                 {/* Manual: capital A + a pointer/cursor — you select/advance
                                     each line yourself. Reads clearly at iPad size (the old
@@ -863,8 +874,9 @@ function ControlView() {
                                 className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'auto' ? ' ctrl-advance-mode-seg--selected' : ''}`}
                                 aria-pressed={effectiveAdvanceMode === 'auto'}
                                 aria-label="Advance: Auto"
-                                disabled={!hasTimeline}
-                                onClick={() => hasTimeline && setSelectedAdvanceMode('auto')}
+                                disabled={!autoAdvanceAvailable}
+                                title={!beatIndicatorOn ? 'Auto needs the beat indicator on.' : undefined}
+                                onClick={() => autoAdvanceAvailable && setSelectedAdvanceMode('auto')}
                               >
                                 {/* Auto: capital A with a small filled circle in the corner */}
                                 <svg className="ctrl-toggle-icon" width="18" height="14" viewBox="0 0 16 14" aria-hidden="true">
@@ -874,6 +886,27 @@ function ControlView() {
                               </button>
                             </div>
                           </div>
+                        )}
+                        {/* T3: when the beat indicator is off, Auto is disabled and locked to
+                            Manual. A tiny link glyph between the Transitions toggle and the Beat
+                            button explains why (also surfaced as the Auto button's tooltip). */}
+                        {!showVideoPerformance && hasTimeline && songTempo && !beatIndicatorOn && (
+                          <span
+                            className="ctrl-advance-beat-hint"
+                            role="note"
+                            aria-label="Auto needs the beat indicator on."
+                            title="Auto needs the beat indicator on."
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                              <path
+                                d="M6.4 9.6 L9.6 6.4 M5.8 8 L4.6 9.2 a1.7 1.7 0 0 0 2.4 2.4 L8.2 10.4 M10.2 8 L11.4 6.8 a1.7 1.7 0 0 0-2.4-2.4 L7.8 5.6"
+                                stroke="currentColor"
+                                strokeWidth="1.4"
+                                strokeLinecap="round"
+                                fill="none"
+                              />
+                            </svg>
+                          </span>
                         )}
                         {songTempo && (
                           <div className="ctrl-toggle-group">
