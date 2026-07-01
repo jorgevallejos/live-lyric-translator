@@ -27,6 +27,7 @@ import { getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
 import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
+import { setAutoBlackout, getAutoBlackout, AUTO_BLACKOUT_KEY } from './autoBlackout'
 import { ManageSetlistsView } from './ManageSetlistsView'
 import {
   autoSelectFirstSongForActiveSetlist,
@@ -398,6 +399,26 @@ function ControlView() {
     restartBeatClock()
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
+
+  // ── T2 Auto transport (non-video, Auto mode): mirrors the Video panel's Play/Pause/Restart,
+  // but the clock is the beat clock and the audience is black (no video) until a cue is due. ──
+  const handleAutoPlay = () => {
+    // start() begins the count-in (or resumes from pause). The audience goes black immediately
+    // (the count-in shows on the performer's beat indicator, not on the audience screen); cues
+    // then reveal lyrics on both screens via the Auto drive effect's setIndex broadcasts.
+    startBeatClock()
+    setAutoBlackout(true)
+  }
+  const handleAutoPause = () => {
+    pauseBeatClock()
+  }
+  const handleAutoRestart = () => {
+    // Return to the pre-Play state: clock idle, audience back on the intro/title, index reset.
+    resetBeatClock()
+    setAutoBlackout(false)
+    goRestart()
+    sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
+  }
   const handleToggleProjection = () => {
     if (projectionOpen) {
       closeProjection()
@@ -411,6 +432,7 @@ function ControlView() {
   }
 
   const handleUnarm = () => {
+    setAutoBlackout(false)
     handleUnarmClick()
   }
 
@@ -457,6 +479,8 @@ function ControlView() {
 
   // When re-arming mid-song, restart so the performer sees the intro screen first.
   const handleArmAndRestart = () => {
+    // Fresh arm: audience starts on the intro/title, not blacked out from a prior performance.
+    setAutoBlackout(false)
     if (index >= 0) {
       goRestart()
       sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
@@ -574,12 +598,25 @@ function ControlView() {
   const {
     phase: beatPhase,
     songElapsedMs,
+    playState: beatPlayState,
     start: startBeatClock,
+    pause: pauseBeatClock,
     restart: restartBeatClock,
+    reset: resetBeatClock,
   } = useBeatClock(
     songTempo,
     showArmedShell && !showVideoPerformance
   )
+
+  // T2: Auto lyric-advance behaves like Video mode but driven by the beat clock. When the
+  // song is armed non-video in Auto, the performer gets Play/Pause/Restart transport (not
+  // Next/Previous), and the audience is black during the count-in and before the first cue
+  // (see handleAutoPlay / autoBlackout / the projection blackout listener).
+  const isAutoArmed =
+    showArmedShell && !showVideoPerformance && effectiveAdvanceMode === 'auto' && hasTimeline
+  // Once Play has been pressed (count-in or later), the pre-first-cue screens go black instead
+  // of showing the intro/notes; idle means we're still at the pre-Play intro.
+  const autoPerformanceStarted = isAutoArmed && beatPlayState !== 'idle'
 
   // Auto lyric-advance drive (non-video performer view only): once the beat clock's song
   // has begun (songElapsedMs ticking, i.e. the first Next has started the clock and the
@@ -888,7 +925,11 @@ function ControlView() {
               )}
               <div className="control-performing-stage-stack">
                 <div className="control-performing-lyric-block">
-                  <p className="control-lyric">{displayText}</p>
+                  {/* T2: in Auto, once Play is pressed the performer screen is black until the
+                      first cue (mirrors the audience) — no notes, intro, or instruction. */}
+                  <p className="control-lyric">
+                    {autoPerformanceStarted && notStarted ? '' : displayText}
+                  </p>
                   {!notStarted && (
                     <span
                       data-testid="control-next-preview"
@@ -897,11 +938,13 @@ function ControlView() {
                       {nextPreviewText}
                     </span>
                   )}
-                  {notStarted && songIntro && (
+                  {notStarted && !autoPerformanceStarted && songIntro && (
                     <p className="control-song-intro">{songIntro}</p>
                   )}
-                  {notStarted && (
-                    <p className="control-state-instruction">Press Next to reveal the first line</p>
+                  {notStarted && !autoPerformanceStarted && (
+                    <p className="control-state-instruction">
+                      {isAutoArmed ? 'Press Play to start' : 'Press Next to reveal the first line'}
+                    </p>
                   )}
                 </div>
                 {isEndOfSong && nextSongForTile && showNextSongTile && (
@@ -970,31 +1013,66 @@ function ControlView() {
       {showArmedShell && !showVideoPerformance && (
         <footer className="control-bottom-bar">
           <div className="bottom-buttons">
-            <button
-              type="button"
-              className="ctrl-btn ctrl-prev"
-              onClick={handlePrev}
-              disabled={lines.length === 0 || index <= -1}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              className="ctrl-btn ctrl-next"
-              onClick={handleNext}
-              disabled={nextDisabled}
-            >
-              Next
-            </button>
-            <button
-              type="button"
-              className="ctrl-btn ctrl-restart"
-              onPointerDown={restartHold.onPointerDown}
-              onPointerUp={restartHold.onPointerUp}
-              onPointerLeave={restartHold.onPointerLeave}
-            >
-              {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
-            </button>
+            {isAutoArmed ? (
+              <>
+                {/* T2: Auto uses video-style transport — you don't reason in terms of
+                    next/previous, the beat clock drives the cues. */}
+                <button
+                  type="button"
+                  className={`ctrl-btn ctrl-auto-play${beatPlayState === 'idle' || beatPlayState === 'paused' ? ' ctrl-arm' : ''}`}
+                  onClick={handleAutoPlay}
+                  disabled={!(beatPlayState === 'idle' || beatPlayState === 'paused')}
+                  aria-label="Play"
+                >
+                  Play
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-auto-pause"
+                  onClick={handleAutoPause}
+                  disabled={!(beatPlayState === 'count-in' || beatPlayState === 'playing')}
+                  aria-label="Pause"
+                >
+                  Pause
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-auto-restart"
+                  onClick={handleAutoRestart}
+                  aria-label="Restart"
+                >
+                  Restart
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-prev"
+                  onClick={handlePrev}
+                  disabled={lines.length === 0 || index <= -1}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-next"
+                  onClick={handleNext}
+                  disabled={nextDisabled}
+                >
+                  Next
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-restart"
+                  onPointerDown={restartHold.onPointerDown}
+                  onPointerUp={restartHold.onPointerUp}
+                  onPointerLeave={restartHold.onPointerLeave}
+                >
+                  {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
+                </button>
+              </>
+            )}
             <button
               type="button"
               className={`ctrl-btn ${isEndOfSong ? 'ctrl-arm' : 'ctrl-unarm'}`}
@@ -1294,6 +1372,21 @@ function ProjectionView() {
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
+  // Auto blackout broadcast from Control window (T2). While active, the pre-first-cue index -1
+  // state renders BLACK instead of the intro/title — the audience is dark during the count-in
+  // and between/around cues in Auto mode (there is no video to show). No effect once a lyric
+  // index (>= 0) is showing.
+  const [performanceBlackout, setPerformanceBlackout] = useState(getAutoBlackout)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === AUTO_BLACKOUT_KEY || e.key === null) {
+        setPerformanceBlackout(getAutoBlackout())
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   // Show logo on every mount; reveal intro only after the control fires an arm transition.
   // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
   // storage event that the projection can receive. This prevents leftover lyrics appearing
@@ -1333,7 +1426,8 @@ function ProjectionView() {
   }, [])
 
   const showLogo = !hasSeenArmedSinceMount
-  const showIntroScreen = hasSeenArmedSinceMount && isArmed && !!currentLibrarySong
+  const showIntroScreen =
+    hasSeenArmedSinceMount && isArmed && !performanceBlackout && !!currentLibrarySong
   const showContent = hasSeenArmedSinceMount && index >= 0 && !blank && !isSectionMarker
 
   const [displayedText, setDisplayedText] = useState('')
