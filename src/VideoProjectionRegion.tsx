@@ -37,6 +37,11 @@ interface Props {
   lines: SongItem[]
   effectiveLang: string
   layout: ProjectionLayout
+  /** Show the title/intro overlay over the black pre-play cover (armed, video not yet started). */
+  showIntroScreen?: boolean
+  introTitle?: string
+  introTranslatedTitle?: string
+  introTagline?: string
 }
 
 /**
@@ -53,6 +58,10 @@ export function VideoProjectionRegion({
   lines,
   effectiveLang,
   layout,
+  showIntroScreen = false,
+  introTitle,
+  introTranslatedTitle,
+  introTagline,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [subtitleText, setSubtitleText] = useState('')
@@ -164,8 +173,41 @@ export function VideoProjectionRegion({
         {!hasStarted && (
           <div
             className="projection-animation-cover"
-            style={{ position: 'absolute', inset: 0, background: '#000' }}
-          />
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {showIntroScreen && introTitle && (
+              <div
+                data-testid="song-intro-screen"
+                className="projection-intro-screen"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.25em',
+                  textAlign: 'center',
+                  padding: '0 2em',
+                }}
+              >
+                <span className="projection-intro-title">{introTitle}</span>
+                {introTranslatedTitle && (
+                  <span className="projection-intro-translated-title">
+                    ({introTranslatedTitle})
+                  </span>
+                )}
+                {introTagline && (
+                  <span className="projection-intro-tagline">{introTagline}</span>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

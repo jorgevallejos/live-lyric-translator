@@ -267,6 +267,10 @@ function ControlView() {
   const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
   // Effective display mode: stored value or default (small for video songs, none for non-video)
   const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
+  // The performer only gets the video panel when the song has a video AND it's actually
+  // being shown (display mode isn't 'none'). In 'none' mode a video song behaves exactly
+  // like a non-video song for the performer (manual Next/Previous/Restart).
+  const showVideoPerformance = isVideoMode && effectiveDisplayMode !== 'none'
   const armed = performanceState === 'armed' || performanceState === 'performing'
   const {
     controlState,
@@ -539,30 +543,19 @@ function ControlView() {
   const showArmedShell = controlState === 'ARMED'
 
   // Beat clock: non-video performer view only. Video mode manages its own clock inside VideoPerformancePanel.
+  // The clock does NOT auto-start on arm — it stays idle until the performer presses Start,
+  // decoupled from lyric advance (Next). See CLAUDE.md / d-wire Prompt 5.
   const songTempo = currentLibrarySong?.tempo
-  const { phase: beatPhase, beginFiredOnce, reset: resetBeatClock } = useBeatClock(
+  const {
+    phase: beatPhase,
+    playState: beatPlayState,
+    start: startBeatClock,
+    pause: pauseBeatClock,
+    restart: restartBeatClock,
+  } = useBeatClock(
     songTempo,
-    showArmedShell && !isVideoMode
+    showArmedShell && !showVideoPerformance
   )
-  // When count-in ends, auto-advance to the first lyric (begin event).
-  const prevBeginFiredRef = useRef(false)
-  useEffect(() => {
-    if (beginFiredOnce && !prevBeginFiredRef.current && index === -1) {
-      prevBeginFiredRef.current = true
-      handleNext()
-    }
-    if (!beginFiredOnce) {
-      prevBeginFiredRef.current = false
-    }
-  }, [beginFiredOnce, index])
-
-  // Reset beat clock when leaving the armed shell.
-  useEffect(() => {
-    if (!showArmedShell) {
-      resetBeatClock()
-      prevBeginFiredRef.current = false
-    }
-  }, [showArmedShell, resetBeatClock])
 
   const languagesDisplay =
     effectiveSingingLang && effectiveLang
@@ -767,7 +760,7 @@ function ControlView() {
             </div>
           </>
         )}
-        {showArmedShell && isVideoMode && (
+        {showArmedShell && showVideoPerformance && (
           <VideoPerformancePanel
             absolutePath={resolvedVideoPath}
             media={activeMedia!}
@@ -778,15 +771,50 @@ function ControlView() {
             onSeek={sendSeek}
           />
         )}
-        {showArmedShell && !isVideoMode && (
+        {showArmedShell && !showVideoPerformance && (
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
               {songTempo && beatIndicatorOn && (
-                <BeatCircle
-                  tempo={songTempo}
-                  phase={beatPhase}
-                  style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem' }}
-                />
+                <div
+                  className="control-beat-clock-wrap"
+                  style={{
+                    position: 'absolute',
+                    bottom: '0.75rem',
+                    left: '0.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <BeatCircle tempo={songTempo} phase={beatPhase} />
+                  <div className="control-beat-clock-controls" role="group" aria-label="Beat clock">
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-beat-start"
+                      onClick={startBeatClock}
+                      disabled={beatPlayState === 'count-in' || beatPlayState === 'playing'}
+                    >
+                      Start
+                    </button>
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-beat-pause"
+                      onClick={pauseBeatClock}
+                      disabled={beatPlayState !== 'count-in' && beatPlayState !== 'playing'}
+                    >
+                      Pause
+                    </button>
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-beat-restart"
+                      onClick={restartBeatClock}
+                      aria-label="Restart beat"
+                    >
+                      Restart
+                    </button>
+                  </div>
+                </div>
               )}
               <div className="control-performing-stage-stack">
                 <div className="control-performing-lyric-block">
@@ -869,7 +897,7 @@ function ControlView() {
         </div>
       )}
 
-      {showArmedShell && !isVideoMode && (
+      {showArmedShell && !showVideoPerformance && (
         <footer className="control-bottom-bar">
           <div className="bottom-buttons">
             <button
@@ -1377,6 +1405,14 @@ function ProjectionView() {
           lines={lines}
           effectiveLang={effectiveLang}
           layout={layout}
+          showIntroScreen={showIntroScreen}
+          introTitle={currentLibrarySong!.title}
+          introTranslatedTitle={
+            effectiveLang !== singingLang
+              ? currentLibrarySong!.title_translations?.[effectiveLang]
+              : undefined
+          }
+          introTagline={currentLibrarySong!.intro?.[effectiveLang]}
         />
       </div>
     )
