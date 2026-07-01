@@ -850,11 +850,12 @@ function ControlView() {
                                 aria-label="Advance: Manual"
                                 onClick={() => setSelectedAdvanceMode('manual')}
                               >
-                                {/* Manual: capital A with a small hand (tap) glyph in the corner */}
+                                {/* Manual: capital A + a pointer/cursor — you select/advance
+                                    each line yourself. Reads clearly at iPad size (the old
+                                    tap-blob didn't) and pairs against Auto's "A + filled dot". */}
                                 <svg className="ctrl-toggle-icon" width="18" height="14" viewBox="0 0 16 14" aria-hidden="true">
                                   <text x="0" y="11.5" fontSize="11" fontWeight="700" fill="currentColor" fontFamily="system-ui, -apple-system, sans-serif">A</text>
-                                  <rect x="11.4" y="6.8" width="1.3" height="3.6" rx="0.65" fill="currentColor" />
-                                  <rect x="10.2" y="9.3" width="3.6" height="3.6" rx="1.5" fill="currentColor" />
+                                  <path d="M9.7 4.9 L9.7 12.5 L11.55 10.75 L12.95 13.5 L14.05 12.95 L12.65 10.3 L15.05 10.3 Z" fill="currentColor" />
                                 </svg>
                               </button>
                               <button
