@@ -672,71 +672,73 @@ function ControlView() {
                     </span>
                   </div>
                   <div className="control-setup-buttons">
-                    {isVideoMode && (
-                      <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
-                        <button
-                          type="button"
-                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                          aria-pressed={effectiveDisplayMode === 'small'}
-                          aria-label="Small"
-                          onClick={() => handleSelectDisplayMode('small')}
-                        >
-                          {/* Small: small rectangle centered */}
-                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
-                            <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'big' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                          aria-pressed={effectiveDisplayMode === 'big'}
-                          aria-label="Big"
-                          onClick={() => handleSelectDisplayMode('big')}
-                        >
-                          {/* Big: large rectangle filling the icon area */}
-                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
-                            <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                          aria-pressed={effectiveDisplayMode === 'none'}
-                          aria-label="No video"
-                          onClick={() => handleSelectDisplayMode('none')}
-                        >
-                          {/* None: rectangle with diagonal strike */}
-                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
-                            <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                            <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? ' ctrl-beat-indicator-toggle--on' : ' ctrl-beat-indicator-toggle--off'}`}
-                      aria-pressed={beatIndicatorOn}
-                      aria-label="Beat indicator"
-                      onClick={() => setBeatIndicatorOn((on) => !on)}
-                    >
-                      {beatIndicatorOn ? (
-                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                          {/* Metronome/timer: circle face + two clock hands */}
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                          <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                          <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                          {/* Metronome/timer off: same face + diagonal strike */}
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                          <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                          <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                          <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" />
-                        </svg>
+                    <div className="control-setup-toggle-row">
+                      {isVideoMode && (
+                        <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                            aria-pressed={effectiveDisplayMode === 'small'}
+                            aria-label="Small"
+                            onClick={() => handleSelectDisplayMode('small')}
+                          >
+                            {/* Small: small rectangle centered */}
+                            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                              <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'big' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                            aria-pressed={effectiveDisplayMode === 'big'}
+                            aria-label="Big"
+                            onClick={() => handleSelectDisplayMode('big')}
+                          >
+                            {/* Big: large rectangle filling the icon area */}
+                            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                              <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                            aria-pressed={effectiveDisplayMode === 'none'}
+                            aria-label="No video"
+                            onClick={() => handleSelectDisplayMode('none')}
+                          >
+                            {/* None: rectangle with diagonal strike */}
+                            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                              <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                              <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                            </svg>
+                          </button>
+                        </div>
                       )}
-                    </button>
+                      <button
+                        type="button"
+                        className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? ' ctrl-beat-indicator-toggle--on' : ' ctrl-beat-indicator-toggle--off'}`}
+                        aria-pressed={beatIndicatorOn}
+                        aria-label="Beat indicator"
+                        onClick={() => setBeatIndicatorOn((on) => !on)}
+                      >
+                        {beatIndicatorOn ? (
+                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                            {/* Metronome/timer: circle face + two clock hands */}
+                            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                            {/* Metronome/timer off: same face + diagonal strike */}
+                            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
