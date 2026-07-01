@@ -683,19 +683,6 @@ function ControlView() {
                       <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
                         <button
                           type="button"
-                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                          aria-pressed={effectiveDisplayMode === 'none'}
-                          aria-label="No video"
-                          onClick={() => handleSelectDisplayMode('none')}
-                        >
-                          {/* None: rectangle with diagonal strike */}
-                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
-                            <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                            <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
                           className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
                           aria-pressed={effectiveDisplayMode === 'small'}
                           aria-label="Small"
@@ -718,23 +705,42 @@ function ControlView() {
                             <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
                           </svg>
                         </button>
+                        <button
+                          type="button"
+                          className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                          aria-pressed={effectiveDisplayMode === 'none'}
+                          aria-label="No video"
+                          onClick={() => handleSelectDisplayMode('none')}
+                        >
+                          {/* None: rectangle with diagonal strike */}
+                          <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+                            <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                          </svg>
+                        </button>
                       </div>
                     )}
                     <button
                       type="button"
-                      className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? '' : ' ctrl-beat-indicator-toggle--off'}`}
+                      className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? ' ctrl-beat-indicator-toggle--on' : ' ctrl-beat-indicator-toggle--off'}`}
                       aria-pressed={beatIndicatorOn}
                       aria-label="Beat indicator"
                       onClick={() => setBeatIndicatorOn((on) => !on)}
                     >
                       {beatIndicatorOn ? (
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
+                          {/* Metronome/timer: circle face + two clock hands */}
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                          <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                         </svg>
                       ) : (
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
-                          <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="2" />
+                          {/* Metronome/timer off: same face + diagonal strike */}
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                          <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" />
                         </svg>
                       )}
                     </button>
