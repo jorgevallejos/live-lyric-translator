@@ -1411,6 +1411,8 @@ function ProjectionView() {
     )
   }
 
+  // Non-video path: centered full-screen layout (pre-regression behavior).
+  // The animation-region/subtitle-band split is VIDEO-only (see showVideoProjection branch above).
   return (
     <div
       className="projection-screen"
@@ -1419,91 +1421,66 @@ function ProjectionView() {
         width: '100vw',
         height: '100vh',
         display: 'flex',
-        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         margin: 0,
       }}
     >
-      {/* Animation region: logo + intro screen, scaled with object-fit: contain */}
-      <div
-        className="projection-animation-region"
+      <img
+        src="/chango-pepper-logo.png"
+        alt=""
+        aria-hidden="true"
         style={{
-          position: 'relative',
-          width: '100%',
-          height: `${layout.animationHeightPx}px`,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
+          position: 'absolute',
+          height: '100vh',
+          width: 'auto',
+          opacity: showLogo ? 1 : 0,
+          transition: `opacity ${FADE_MS}ms ease`,
+          pointerEvents: 'none',
         }}
-      >
-        <img
-          src="/chango-pepper-logo.png"
-          alt=""
-          aria-hidden="true"
+      />
+      {showIntroScreen && currentLibrarySong && (
+        <div
+          data-testid="song-intro-screen"
+          className="projection-intro-screen"
           style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            opacity: showLogo ? 1 : 0,
-            transition: `opacity ${FADE_MS}ms ease`,
-            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.25em',
+            textAlign: 'center',
+            padding: '0 2em',
           }}
-        />
-        {showIntroScreen && currentLibrarySong && (
-          <div
-            data-testid="song-intro-screen"
-            className="projection-intro-screen"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.25em',
-              textAlign: 'center',
-              padding: '0 2em',
-            }}
-          >
-            <span className="projection-intro-title">
-              {currentLibrarySong.title}
-            </span>
-            {effectiveLang !== singingLang &&
-              currentLibrarySong.title_translations?.[effectiveLang] && (
-                <span className="projection-intro-translated-title">
-                  ({currentLibrarySong.title_translations[effectiveLang]})
-                </span>
-              )}
-            {currentLibrarySong.intro?.[effectiveLang] && (
-              <span className="projection-intro-tagline">
-                {currentLibrarySong.intro[effectiveLang]}
+        >
+          <span className="projection-intro-title">
+            {currentLibrarySong.title}
+          </span>
+          {effectiveLang !== singingLang &&
+            currentLibrarySong.title_translations?.[effectiveLang] && (
+              <span className="projection-intro-translated-title">
+                ({currentLibrarySong.title_translations[effectiveLang]})
               </span>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* Subtitle band: fixed-height black strip at the bottom */}
+          {currentLibrarySong.intro?.[effectiveLang] && (
+            <span className="projection-intro-tagline">
+              {currentLibrarySong.intro[effectiveLang]}
+            </span>
+          )}
+        </div>
+      )}
       <div
-        className="projection-subtitle-band"
         style={{
-          width: '100%',
-          height: `${layout.bandHeightPx}px`,
-          flexShrink: 0,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '0 1.5rem',
-          boxSizing: 'border-box',
+          gap: '0.5em',
         }}
       >
         <span
           className="projection-lyric"
-          style={{
-            opacity: isVisible ? 1 : 0,
-            ...(layout.fontSizePx > 0 ? { fontSize: `${layout.fontSizePx}px` } : {}),
-          }}
+          style={{ opacity: isVisible ? 1 : 0 }}
         >
           {displayedText}
         </span>
