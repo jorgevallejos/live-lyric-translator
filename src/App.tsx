@@ -728,103 +728,112 @@ function ControlView() {
                     </span>
                   </div>
                   <div className="control-setup-buttons">
-                    <div className="control-setup-toggle-row">
+                    <div className="control-setup-toggle-area">
                       {isVideoMode && (
-                        <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                            aria-pressed={effectiveDisplayMode === 'small'}
-                            aria-label="Small"
-                            onClick={() => handleSelectDisplayMode('small')}
-                          >
-                            {/* Small: small rectangle centered */}
-                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
-                              <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'big' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                            aria-pressed={effectiveDisplayMode === 'big'}
-                            aria-label="Big"
-                            onClick={() => handleSelectDisplayMode('big')}
-                          >
-                            {/* Big: large rectangle filling the icon area */}
-                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
-                              <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                            aria-pressed={effectiveDisplayMode === 'none'}
-                            aria-label="No video"
-                            onClick={() => handleSelectDisplayMode('none')}
-                          >
-                            {/* None: rectangle with diagonal strike */}
-                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
-                              <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                              <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
-                            </svg>
-                          </button>
+                        <div className="ctrl-toggle-group">
+                          <span className="ctrl-toggle-label">Display format</span>
+                          <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
+                            <button
+                              type="button"
+                              className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                              aria-pressed={effectiveDisplayMode === 'small'}
+                              aria-label="Small"
+                              onClick={() => handleSelectDisplayMode('small')}
+                            >
+                              {/* Small: small rectangle centered */}
+                              <svg className="ctrl-toggle-icon" width="16" height="12" viewBox="0 0 18 14" aria-hidden="true">
+                                <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'big' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                              aria-pressed={effectiveDisplayMode === 'big'}
+                              aria-label="Big"
+                              onClick={() => handleSelectDisplayMode('big')}
+                            >
+                              {/* Big: large rectangle filling the icon area */}
+                              <svg className="ctrl-toggle-icon" width="16" height="12" viewBox="0 0 18 14" aria-hidden="true">
+                                <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
+                              aria-pressed={effectiveDisplayMode === 'none'}
+                              aria-label="No video"
+                              onClick={() => handleSelectDisplayMode('none')}
+                            >
+                              {/* None: rectangle with diagonal strike */}
+                              <svg className="ctrl-toggle-icon" width="16" height="12" viewBox="0 0 18 14" aria-hidden="true">
+                                <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       )}
-                      {!showVideoPerformance && (
-                        <div className="ctrl-segmented-control ctrl-advance-mode-toggle" role="group" aria-label="Lyric advance mode">
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'manual' ? ' ctrl-advance-mode-seg--selected' : ''}`}
-                            aria-pressed={effectiveAdvanceMode === 'manual'}
-                            aria-label="Advance: Manual"
-                            onClick={() => setSelectedAdvanceMode('manual')}
-                          >
-                            {/* Manual: hand/pointer glyph */}
-                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
-                              <path d="M4 7 L14 7 M10 3 L14 7 L10 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'auto' ? ' ctrl-advance-mode-seg--selected' : ''}`}
-                            aria-pressed={effectiveAdvanceMode === 'auto'}
-                            aria-label="Advance: Auto"
-                            disabled={!hasTimeline}
-                            onClick={() => hasTimeline && setSelectedAdvanceMode('auto')}
-                          >
-                            {/* Auto: timer/clock glyph, matching the beat-indicator icon language */}
-                            <svg width="12" height="9" viewBox="0 0 18 14" aria-hidden="true">
-                              <circle cx="9" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                              <line x1="9" y1="7" x2="9" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                              <line x1="9" y1="7" x2="11.5" y2="8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? ' ctrl-beat-indicator-toggle--on' : ' ctrl-beat-indicator-toggle--off'}`}
-                        aria-pressed={beatIndicatorOn}
-                        aria-label="Beat indicator"
-                        onClick={() => setBeatIndicatorOn((on) => !on)}
-                      >
-                        {beatIndicatorOn ? (
-                          <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true">
-                            {/* Metronome/timer: circle face + two clock hands */}
-                            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                            <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                          </svg>
-                        ) : (
-                          <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true">
-                            {/* Metronome/timer off: same face + diagonal strike */}
-                            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                            <line x1="8" y1="8" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            <line x1="8" y1="8" x2="11" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" />
-                          </svg>
+                      <div className="ctrl-toggle-row-b">
+                        {!showVideoPerformance && hasTimeline && (
+                          <div className="ctrl-toggle-group">
+                            <span className="ctrl-toggle-label">Transitions</span>
+                            <div className="ctrl-segmented-control ctrl-advance-mode-toggle" role="group" aria-label="Lyric advance mode">
+                              <button
+                                type="button"
+                                className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'manual' ? ' ctrl-advance-mode-seg--selected' : ''}`}
+                                aria-pressed={effectiveAdvanceMode === 'manual'}
+                                aria-label="Advance: Manual"
+                                onClick={() => setSelectedAdvanceMode('manual')}
+                              >
+                                {/* Manual: capital A with a small hand (tap) glyph in the corner */}
+                                <svg className="ctrl-toggle-icon" width="18" height="14" viewBox="0 0 16 14" aria-hidden="true">
+                                  <text x="0" y="11.5" fontSize="11" fontWeight="700" fill="currentColor" fontFamily="system-ui, -apple-system, sans-serif">A</text>
+                                  <rect x="11.4" y="6.8" width="1.3" height="3.6" rx="0.65" fill="currentColor" />
+                                  <rect x="10.2" y="9.3" width="3.6" height="3.6" rx="1.5" fill="currentColor" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'auto' ? ' ctrl-advance-mode-seg--selected' : ''}`}
+                                aria-pressed={effectiveAdvanceMode === 'auto'}
+                                aria-label="Advance: Auto"
+                                disabled={!hasTimeline}
+                                onClick={() => hasTimeline && setSelectedAdvanceMode('auto')}
+                              >
+                                {/* Auto: capital A with a small filled circle in the corner */}
+                                <svg className="ctrl-toggle-icon" width="18" height="14" viewBox="0 0 16 14" aria-hidden="true">
+                                  <text x="0" y="11.5" fontSize="11" fontWeight="700" fill="currentColor" fontFamily="system-ui, -apple-system, sans-serif">A</text>
+                                  <circle cx="12" cy="10.5" r="2.7" fill="currentColor" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
                         )}
-                      </button>
+                        {songTempo && (
+                          <div className="ctrl-toggle-group">
+                            <span className="ctrl-toggle-label">Beat indicator</span>
+                            <button
+                              type="button"
+                              className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? ' ctrl-beat-indicator-toggle--on' : ' ctrl-beat-indicator-toggle--off'}`}
+                              aria-pressed={beatIndicatorOn}
+                              aria-label="Beat indicator"
+                              onClick={() => setBeatIndicatorOn((on) => !on)}
+                            >
+                              {beatIndicatorOn ? (
+                                <svg className="ctrl-toggle-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                                  {/* Beat on: filled circle */}
+                                  <circle cx="8" cy="8" r="5" fill="currentColor" />
+                                </svg>
+                              ) : (
+                                <svg className="ctrl-toggle-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                                  {/* Beat off: empty circle */}
+                                  <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
