@@ -193,3 +193,99 @@ describe('VideoProjectionRegion — transport stop', () => {
     expect(container.querySelector('.projection-animation-cover')).toBeNull()
   })
 })
+
+// ── intro screen (A2.3) ──────────────────────────────────────────────────────
+
+describe('VideoProjectionRegion — intro screen (A2.3)', () => {
+  it('shows the intro screen over the black cover when showIntroScreen is true and video has not started', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { getByTestId } = await act(async () =>
+      render(
+        <VideoProjectionRegion
+          {...defaultProps()}
+          showIntroScreen
+          introTitle="Tragedia de cerdo asado"
+        />
+      )
+    )
+    expect(getByTestId('song-intro-screen')).toBeTruthy()
+    expect(getByTestId('song-intro-screen').textContent).toContain('Tragedia de cerdo asado')
+  })
+
+  it('does NOT show the intro screen when showIntroScreen is false', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { queryByTestId } = await act(async () =>
+      render(
+        <VideoProjectionRegion
+          {...defaultProps()}
+          showIntroScreen={false}
+          introTitle="Tragedia de cerdo asado"
+        />
+      )
+    )
+    expect(queryByTestId('song-intro-screen')).toBeNull()
+  })
+
+  it('shows translated title in parentheses when provided', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { getByText } = await act(async () =>
+      render(
+        <VideoProjectionRegion
+          {...defaultProps()}
+          showIntroScreen
+          introTitle="Tragedia de cerdo asado"
+          introTranslatedTitle="Tragedy of Roasted Pig"
+        />
+      )
+    )
+    expect(getByText('(Tragedy of Roasted Pig)')).toBeTruthy()
+  })
+
+  it('shows intro tagline when provided', async () => {
+    const { VideoProjectionRegion } = await importRegion()
+    const { getByText } = await act(async () =>
+      render(
+        <VideoProjectionRegion
+          {...defaultProps()}
+          showIntroScreen
+          introTitle="Tragedia de cerdo asado"
+          introTagline="Fight your destiny."
+        />
+      )
+    )
+    expect(getByText('Fight your destiny.')).toBeTruthy()
+  })
+
+  it('hides the intro screen once a play transport command arrives (hasStarted flips true)', async () => {
+    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
+    const { queryByTestId } = await act(async () =>
+      render(
+        <VideoProjectionRegion
+          {...defaultProps()}
+          showIntroScreen
+          introTitle="Tragedia de cerdo asado"
+        />
+      )
+    )
+    expect(queryByTestId('song-intro-screen')).toBeTruthy()
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    expect(queryByTestId('song-intro-screen')).toBeNull()
+  })
+
+  it('intro screen reappears after a stop transport command (hasStarted flips back false)', async () => {
+    const { VideoProjectionRegion, VIDEO_TRANSPORT_KEY } = await importRegion()
+    const { queryByTestId } = await act(async () =>
+      render(
+        <VideoProjectionRegion
+          {...defaultProps()}
+          showIntroScreen
+          introTitle="Tragedia de cerdo asado"
+        />
+      )
+    )
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'play') })
+    expect(queryByTestId('song-intro-screen')).toBeNull()
+    await act(async () => { fireTransport(VIDEO_TRANSPORT_KEY, 'stop') })
+    expect(queryByTestId('song-intro-screen')).toBeTruthy()
+  })
+})
