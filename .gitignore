@@ -9,3 +9,4 @@ public/*.json
 # Claude Code — local-only config (commands/ is intentionally tracked)
 .claude/settings.local.json
 .claude/sessions/
+.claude/worktrees/
