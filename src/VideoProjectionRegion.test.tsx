@@ -346,7 +346,7 @@ describe('VideoProjectionRegion — compositing geometry', () => {
     expect(container.querySelector('.projection-subtitle-band')).toBeNull()
   })
 
-  it('small-canvas profile: video box is scaled and offset within the frame', async () => {
+  it('below-video layout: video box is scaled and offset within the frame', async () => {
     const { VideoProjectionRegion } = await importRegion()
     const { container } = await act(async () =>
       render(<VideoProjectionRegion {...defaultProps({ layout: SMALL_LAYOUT })} />)
@@ -356,7 +356,7 @@ describe('VideoProjectionRegion — compositing geometry', () => {
     expect(video.style.height).toBe(`${SMALL_LAYOUT.videoHeightPx}px`)
   })
 
-  it('small-canvas profile: subtitle renders in the below-video band, not as an overlay', async () => {
+  it('below-video layout: subtitle renders in the below-video band, not as an overlay', async () => {
     const { VideoProjectionRegion } = await importRegion()
     const { container } = await act(async () =>
       render(<VideoProjectionRegion {...defaultProps({ layout: SMALL_LAYOUT })} />)

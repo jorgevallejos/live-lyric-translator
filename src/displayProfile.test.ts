@@ -149,16 +149,16 @@ describe('SMALL_CANVAS_PRESET', () => {
     expect(SMALL_CANVAS_PRESET.id).toBe('small-canvas')
   })
 
-  it('scales the video to 75.8% of the frame', () => {
-    expect(SMALL_CANVAS_PRESET.videoScalePercent).toBe(75.8)
+  it('fills the frame at native scale, identical geometry to big screen', () => {
+    // Small no longer uses a scaled/shifted video box + bottom band; it reuses
+    // big screen's full-frame overlay geometry and differs ONLY in font size.
+    expect(SMALL_CANVAS_PRESET.videoScalePercent).toBe(100)
+    expect(SMALL_CANVAS_PRESET.videoCenterYPercent).toBe(50)
   })
 
-  it('shifts the video center up to 38.3% of frame height', () => {
-    expect(SMALL_CANVAS_PRESET.videoCenterYPercent).toBeCloseTo(1213.4 / 3168 * 100, 2)
-  })
-
-  it('centers the subtitle in the bottom black area', () => {
-    expect(SMALL_CANVAS_PRESET.subtitlePosition).toBe('below-video')
+  it('overlays the subtitle over the bottom of the video (like big screen)', () => {
+    expect(SMALL_CANVAS_PRESET.subtitlePosition).toBe('overlay-bottom')
+    expect(SMALL_CANVAS_PRESET.subtitleBottomMarginPercent).toBe(4.5)
   })
 
   it('subtitle font is ~5.05% of frame height (160/3168), larger than big screen', () => {
@@ -166,19 +166,19 @@ describe('SMALL_CANVAS_PRESET', () => {
     expect(SMALL_CANVAS_PRESET.subtitleFontPercent).toBeGreaterThan(BIG_SCREEN_PRESET.subtitleFontPercent)
   })
 
-  it('leaves the bottom ~23.8% of the frame black below the video at 1920x1280', () => {
+  it('produces a full-frame video box at 1920x1280 (same as big screen)', () => {
     const layout = computeProjectionLayout(SMALL_CANVAS_PRESET, 1920, 1280)
-    const videoBottom = layout.videoTopPx + layout.videoHeightPx
-    const frameBottom = layout.frameTopPx + layout.frameHeightPx
-    const blackBandPx = frameBottom - videoBottom
-    expect(blackBandPx / layout.frameHeightPx).toBeCloseTo(0.238, 1)
+    expect(layout.videoWidthPx).toBe(layout.frameWidthPx)
+    expect(layout.videoHeightPx).toBe(layout.frameHeightPx)
   })
 
-  it('has a smaller video box than big screen at the same resolution', () => {
+  it('has the same video box as big screen at the same resolution', () => {
     const big = computeProjectionLayout(BIG_SCREEN_PRESET, 1920, 1280)
     const small = computeProjectionLayout(SMALL_CANVAS_PRESET, 1920, 1280)
-    expect(small.videoWidthPx).toBeLessThan(big.videoWidthPx)
-    expect(small.videoHeightPx).toBeLessThan(big.videoHeightPx)
+    expect(small.videoWidthPx).toBe(big.videoWidthPx)
+    expect(small.videoHeightPx).toBe(big.videoHeightPx)
+    expect(small.videoTopPx).toBe(big.videoTopPx)
+    expect(small.videoLeftPx).toBe(big.videoLeftPx)
   })
 })
 

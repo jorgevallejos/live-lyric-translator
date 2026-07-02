@@ -61,11 +61,12 @@ export const BIG_SCREEN_PRESET: DisplayProfile = {
 export const SMALL_CANVAS_PRESET: DisplayProfile = {
   id: 'small-canvas',
   label: 'Small canvas 130×100',
-  videoScalePercent: 75.8,
-  videoCenterYPercent: (1213.4 / 3168) * 100,
-  subtitlePosition: 'below-video',
+  // Same full-frame overlay geometry as big screen; differs ONLY in font size.
+  videoScalePercent: 100,
+  videoCenterYPercent: 50,
+  subtitlePosition: 'overlay-bottom',
   subtitleFontPercent: (160 / 3168) * 100,
-  subtitleBottomMarginPercent: 0,
+  subtitleBottomMarginPercent: 4.5,
 }
 
 export const DISPLAY_PRESETS: DisplayProfile[] = [BIG_SCREEN_PRESET, SMALL_CANVAS_PRESET]
