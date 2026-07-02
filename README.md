@@ -18,8 +18,8 @@ This application allows a musician to project translated lyrics in real time dur
 - Dual-window setup (control + projection)
 - Multilingual lyrics, with translatable song **titles** and spoken **intros**
 - **Video projection mode** — the app plays a clean animation full-screen and overlays the chosen audience language itself, replacing per-language/per-screen video exports
-- **Big / small screen videos** — link a big-screen and a small-screen export per song; pick the size at arming time and the Projection window plays the matching file
-- **Display profiles** — the app composites the subtitle band on the fly, sized per screen (big cinema vs small canvas), so you feed it one clean video
+- **One clean video per song** — link a single animation export per song; the app composites the translated subtitle band on the fly, so you no longer maintain separate per-language or per-screen files
+- **Big / Small display format** — pick the format at arming time. Both are the same full-frame layout (the video fills the screen with the subtitle superimposed); **Small just uses a larger subtitle font** for closer or smaller screens
 - **Performer count-in / beat indicator** (per-song tempo, with compound-meter grouping) to lock in before the song rolls
 - **End-card screen** for end-of-concert acknowledgements
 - Setlists and songs library management
@@ -244,10 +244,7 @@ They can then be managed and organized into a Setlist for live performance.
   "title_translations": { "en": "Pepper Tree", "fr": "Le pimentier", "nl": "Peperboom" },
   "intro": { "es": "...", "en": "..." },
   "tempo": { "bpm": 96, "numerator": 4, "denominator": 4, "countInBars": 1 },
-  "media": {
-    "big": { "type": "video", "src": "pimiento-big.mp4", "offset": 0, "trimStart": 0 },
-    "small": { "type": "video", "src": "pimiento-small.mp4", "offset": 0, "trimStart": 0 }
-  },
+  "media": { "type": "video", "src": "pimiento.mp4", "offset": 0, "trimStart": 0 },
   "timeline": [ { "start": 0.0, "end": 3.2 }, { "start": 3.2, "end": 7.5 } ],
   "lyrics": [
     {
@@ -267,8 +264,8 @@ They can then be managed and organized into a Setlist for live performance.
 - `intro` *(optional)* — translatable spoken intro shown on the intro screen
 - `notes` *(optional)* — performer notes such as capo, key, or reminders
 - `tempo` *(optional)* — `{ bpm, numerator, denominator, countInBars }`, drives the performer count-in. `bpm` is the felt pulse (in 6/8, the dotted-quarter rate); `numerator`/`denominator` give the meter, with compound meters (6/8, 9/8, 12/8) grouped into dotted-quarter beats.
-- `media` *(optional)* — per-screen video slots `{ big?: MediaFile, small?: MediaFile }`, each `{ type: "video" | "audio", src, offset?, trimStart? }`, for Video mode. A song may have neither, one, or both; the size is chosen at arming time. `src` is a logical filename; the actual file is linked once per machine (via the camera dialog in Manage Setlists) and remembered locally (see [docs/media-assets.md](docs/media-assets.md)). Feed the app web-playable MP4s (H.264, ≤1080p), not ProRes masters.
-- `timeline` *(optional)* — per-item `{ start, end }` in seconds, parallel to the lyrics/markers, driving Video-mode advancement. Both screen sizes share one timeline (use each slot's `offset` to align them if they differ slightly).
+- `media` *(optional)* — a single video/audio file `{ type: "video" | "audio", src, offset?, trimStart? }` for Video mode. One clean export per song; the Big/Small display format is a projection toggle (full-frame layout, differing only in subtitle font size), **not** a separate file. `src` is a logical filename; the actual file is linked once per machine (via the camera dialog in Manage Setlists) and remembered locally (see [docs/media-assets.md](docs/media-assets.md)). Feed the app web-playable MP4s (H.264, ≤1080p), not ProRes masters.
+- `timeline` *(optional)* — per-item `{ start, end }` in seconds, parallel to the lyrics/markers, driving Video-mode advancement. Both display formats share the one timeline (use `offset` to nudge alignment if needed).
 - `lyrics` — ordered list of lyric lines
 
 Each lyric line contains translations indexed by language code (`es`, `en`, `fr`, `nl`, …). Missing translations are allowed — the line simply stays blank in projection. Songs without the optional blocks behave exactly as before (Manual mode).
