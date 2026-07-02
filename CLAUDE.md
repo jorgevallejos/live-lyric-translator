@@ -92,6 +92,12 @@ Songs are stored as JSON with multilingual lyrics indexed by language code. Each
 
 Rule: timer/effect hooks must key on **primitive values** (e.g. `tempo.bpm`, `currentSongId`), not the song object. Store the object itself in a `ref` updated each render if you need it inside a callback. `useBeatClock` follows this pattern. A future refactor could memoize `getLibrarySongById`, but until then, never depend on `currentLibrarySong` identity.
 
+### Storage-event / persisted-flag gotcha (important)
+
+Browsers only fire a cross-window `storage` event when a `localStorage` key's value **actually changes** — writing the same value twice is a no-op with no event. This matters because several keys pair a `sessionStorage`-backed flag (fresh every launch) with a `localStorage`-backed broadcast companion (persists across launches): `setArmedInStorage` in `performanceState.ts` is the canonical example (`KEY_ARMED` in sessionStorage, `KEY_ARMED_BROADCAST` in localStorage). If a previous session left the broadcast key already holding its "true" value and the write uses a **constant**, the *first* write of a new session is a same-value no-op — no event fires, and any consumer that only reacts to that event (rather than reading current state at mount) gets stuck. This bit the Projection window's logo-reveal on 2026-07-02 (audience view stuck on the logo on the first arm of a session; unarm/re-arm worked around it).
+
+Rule: any broadcast write whose consumer needs to detect a **transition** (not just "what's the current value") — arm, video seek/transport, auto-blackout — must write a changing nonce (e.g. `` `${Date.now()}-${counter}` `` or `{ ..., nonce: Date.now() }`), never a constant, so the event is guaranteed to fire regardless of prior state. The consumer should treat *any* value as the signal, not match a literal. Broadcasts whose consumer reads the current value directly at mount (`useState(getBroadcastX)`) — screenSize, displayMode, endCard — don't need this, since a suppressed no-op event is harmless (the mount-time read is already correct).
+
 ## Development Protocol (TDD)
 
 This project follows strict **Red → Green → Refactor** for every change:
