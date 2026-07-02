@@ -43,7 +43,7 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - AI-generated UX/UI + design-system exploration → **Sonnet** by default; **Opus** only when deriving a coherent design system from the existing app.
 - Generative animation app reacting to live-performance events (audio, place, weather, unexpected pauses) → **Opus** for conceptual and architectural kickoff; **Sonnet** for build-out. (Likely becomes its own project under `~/Chango Pepper/projects/` when it starts.)
 - Add chords to lyrics and a possibility to turn them of/on (still open)
-- **Packaging** — downloadable, installable app (macOS first, Windows later). Currently a local dev project; `npm run pack` / electron-builder is wired but not yet exercised for distribution. **This is the planned next workstream after D-wire.**
+- **Packaging** — local macOS `.dmg` **done (P1, PR #48)**; distributable signed+notarized build (**P2**) and Windows remain future. See "Current build state (2026-07-02)".
 - Explore making the app available on iPad as a native experience — not just using the iPad as a second screen via Sidecar (still open).
 
 ## Project-specific workflow notes
@@ -52,31 +52,32 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - `.claude/settings.json` in this repo pre-approves the standard release commands for this project and denies destructive ones (matches the universal policy in `personal-context.md`).
 - GitHub MCP is not currently available in Cowork's connector registry; may be addable in Claude Code later.
 
-## Wave 2 resume state (2026-07-01)
+## Current build state (2026-07-02)
 
-Verified against the repo on 2026-07-01. Supersedes the older "in-flight" narrative in the model-picks paragraph.
+The app is **feature-complete for performing** and now packages into a local installable. Everything through **PR #48** is merged to `main`. This section supersedes the older "Build state (June 2026)" narrative above; the round-by-round history lives in the dispatch docs listed at the end.
 
-- **Wave 1 — merged:** Prompt 12 beat-indicator toggle (PR #31), Prompt 16 timeline-import / A+ button (PR #32).
-- **Prompt 13 (3-way display toggle) — LANDED.** Merged clean as **PR #33** (`feat/display-mode-three-way`), now the tip of `main`. The dashboard's earlier "drafted as a patch, not landed" note was stale.
-- **Prompt 14 (Manual/Auto lyric-advance toggle) — STILL OPEN.** No branch, no PR. Only UI-toggle scaffolding exists, captured in **`stash@{0}` (`cowork-leaked-p13-p14-worktree-20260629`)** — and even there the actual Auto **drive** (the `useBeatClock` elapsed→cue-index advance) is explicitly deferred ("future work"). This is the substantive Wave 2 coding task.
-- **Repo hygiene:** the stale `.git/index.lock` is cleared; the 06-29 leaked edits are safely in `stash@{0}` (not loose in a worktree). Only uncommitted change on `main` is `.claude/settings.json` (06-29 permission additions). Tests can't run in Cowork's Linux sandbox (darwin-only vitest bindings) — verify on the Mac.
+**What the app does now (performer/audience UX):**
+- **Projection-column setup** has fixed-px, labelled toggle controls (no more window-rescaling icons): **Display format** (Small / Big / None), **Transitions** (Manual / Auto), and a **Beat indicator** on/off (filled/empty circle). Green = active. Four equal setup columns.
+- **Manual mode:** after arm, the bottom-bar button is **Start** (Next/Prev disabled) → Start runs the count-in so the performer catches the tempo → button becomes **Restart**, Next/Prev enabled → first **Next** reveals line 1. (No Start step when beat is off / song has no tempo.)
+- **Auto mode:** behaves like Video mode but driven by the beat clock — **Play / Pause / Restart** transport, Play runs the count-in with the audience black, and after `tempo.countInBars` the timeline drives cues into **both** performer and audience windows.
+- **Beat↔Auto dependency:** beat OFF disables Auto and forces Manual (one-directional, with a hint).
+- **Video big/small formats** match the Premiere reference proportions (single **3:2** frame; Big = full-frame `contain` + superimposed subtitle; Small = 75.8% scaled, centered, shifted up, subtitle in the bottom band; EB Garamond SemiBold). Non-video songs render centered.
 
-### Projection-column toggle — design decisions (2026-07-01, agreed with Jorge)
+**Packaging — P1 DONE (PR #48):** `npm run pack` = `npm run build && electron-builder --mac`; mac targets `dmg` + `zip`; `build.files` = dist + electron + package.json; app icon from `assets/logo/`; unsigned (`identity: null`). Produces **`release/Live-Lyric-Translator-0.1.0.dmg`** (arm64). Runs on Jorge's Macs via right-click → Open (Gatekeeper). Songs/animations stay on disk, resolved via the `media://` protocol (confirmed working packaged).
 
-Refinement of the Projection-column controls in the Setup screen (`src/App.tsx` ~lines 681–742, `src/control.css`). **Green is the single, consistent "active" indicator across the whole column.**
+**Prompt 15 — CLOSED as obsolete.** Its two-row control layout was effectively built by the T1 toggle redesign; its "icons-only, no text labels" rule was **intentionally reversed** when Jorge asked for the tiny "Display format / Transitions / Beat indicator" labels. Nothing to do.
 
-1. **Display-mode segmented toggle — reorder to `small → big → none`** (currently `none → small → big`). Behavior/defaults unchanged.
-2. **Consistent selection styling:** selected/active = **green**, unselected = **gray**. Replaces the current white-border selected style. Applies to *both* the display-mode segmented toggle **and** the beat-indicator toggle.
-3. **Beat-indicator toggle — swap the circle icon for a timer/metronome-style glyph.** On/enabled = green; off/disabled = gray with a strike-through. This is still the **beat-indicator** on/off control (aria-label stays semantically correct) — the icon changes, not the behavior. (Note for Jorge: not a countdown-timer feature.)
-4. **Make the toggle buttons slightly smaller** and tighten their spacing so they stop competing visually with the primary column buttons (Setlist / Languages / Open / Arm). Reuse the app's existing "active/linked" green token for consistency. Final size + green shade to be **calibrated by the builder and user-tested by Jorge** on screen/projector.
+**Only remaining item: Packaging P2 — sign + notarize** (distributable, no Gatekeeper warning). Gated on Jorge getting an **Apple Developer account** ($99/yr): Developer ID cert, hardened-runtime entitlements (allow `media://`), notarization via `notarytool`. Stub in `docs/t3-and-packaging-2026-07-01.md`; write a full dispatch when creds exist.
 
-Kickoff for the Claude Code build: `docs/wave2-kickoff-2026-07-01.md`.
+**Optional / deferred:** add a `tempo` block to `songs/libertad*.json` if Jorge wants a beat indicator on it (data only); offline forced alignment (Prompt B, awaits the produced master); live-ASR following (shelved); chords on/off toggle (open idea); native iPad app beyond Sidecar (open idea).
+
+**How this was built (way of working):** Opus-in-Cowork coordinates/specs; Claude Code on the Mac runs the builds as autonomous batches in **bypass permission mode**, auto-merging PRs on green with screenshots attached for async review. Dispatch docs (2026-07-01, for history): `wave2-kickoff`, `projection-format-fixes`, `performer-polish`, `auto-polish-and-manual-start`, `toggle-and-auto-transition`, `t3-and-packaging`.
 
 ## Open follow-ups / parked items
 
 - **Timeline-import contract (Prompt 16 / A+ button) — JSON, locked 2026-06-24:** the standalone `timeline-extractor` project produces the timeline this app imports. Interchange format is **JSON**: a `{ "timeline": [...] }` envelope deserializing straight into `TimelineEntry[]`, parallel-array contract preserved (one entry per song item, section markers as `start == end == 0`). **The A+ button parser must accept exactly this shape — not SRT.** SRT was rejected because it carries cue text (duplicating the song JSON's source-of-truth lyric order) and can't represent section markers. An optional `.srt` export may exist on the extractor side as a human-QA debug convenience only; it is never the canonical contract. Source of truth for the shape stays `src/songState.ts` (`TimelineEntry`, `videoCueLookup`); the extractor mirrors it in its `docs/output-contract.md`.
-- **D-wire (next, after PR merge):** link Tragedia's big/small files via the camera dialog in Manage Setlists, author the timeline in the song JSON (no more in-app Record mode), and validate Video mode + the count-in→video handoff on the projector. The `media` block is already in `songs/tragedia-de-cerdo-asado.json`. Steps in `docs/code-execution-plan.md` → "D-wire — in-app workflow".
-- **Packaging (after D-wire):** exercise `npm run pack` to produce a real macOS `.dmg`/`.app`; the installable-app goal.
+- ~~**D-wire**~~ — ✅ done (Tragedia linked, timeline authored, Video + count-in handoff validated on projector across the 2026-07-01 rounds).
+- ~~**Packaging (local)**~~ — ✅ done as Packaging P1 (PR #48); see "Current build state (2026-07-02)". Only **P2 (sign + notarize)** remains.
 - **`getLibrarySongById` refactor (tech debt):** it returns a fresh object every render, which caused a render-loop in G (fixed at the hook level). Memoizing it would remove the whole class of bug. Lesson captured in repo `CLAUDE.md` ("Hook stability gotcha").
 - The engineering-conventions lesson from G/E was folded into `CLAUDE.md` (new modules table + the unstable-reference gotcha) — an example of the "update CLAUDE.md as conventions crystallize" follow-up below.
 

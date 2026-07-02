@@ -94,7 +94,13 @@
       "Bash(git cherry:*)",
       "Bash(git apply:*)",
       "Edit(//Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/**)",
-      "Write(//Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/**)"
+      "Write(//Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/**)",
+      "Bash(tee /tmp/tsc_main.txt)",
+      "Read(//tmp/**)",
+      "Bash(gh pr *)",
+      "Bash(tee /tmp/tsc_new.txt)",
+      "Bash(tee /private/tmp/claude-501/-Users-jorgevallejos-Chango-Pepper-projects-live-lyric-translator-dev/03f3aad9-75c8-4ff0-8ba7-f23a1698fb1b/scratchpad/tsc_after.txt)",
+      "Bash(tee /private/tmp/claude-501/-Users-jorgevallejos-Chango-Pepper-projects-live-lyric-translator-dev/03f3aad9-75c8-4ff0-8ba7-f23a1698fb1b/scratchpad/tsc_before.txt)"
     ],
     "deny": [
       "Bash(git push --force*)",
