@@ -1484,11 +1484,14 @@ function ProjectionView() {
   // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
   // storage event that the projection can receive. This prevents leftover lyrics appearing
   // when the projection window is reopened mid-song.
+  // The broadcast value is a changing nonce (not a constant '1') — see performanceState.ts —
+  // so any non-null value written to this key means an arm just happened; unarm removes the
+  // key (newValue === null), which correctly does NOT re-show the logo transition flag.
   const isArmed = index === -1 && lines.length > 0
   const [hasSeenArmedSinceMount, setHasSeenArmedSinceMount] = useState(false)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY_ARMED_BROADCAST && e.newValue === '1') {
+      if (e.key === KEY_ARMED_BROADCAST && e.newValue !== null) {
         setHasSeenArmedSinceMount(true)
       }
     }
