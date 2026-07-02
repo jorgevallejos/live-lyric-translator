@@ -54,18 +54,22 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 
 ## Current build state (2026-07-02)
 
-The app is **feature-complete for performing** and now packages into a local installable. Everything through **PR #48** is merged to `main`. This section supersedes the older "Build state (June 2026)" narrative above; the round-by-round history lives in the dispatch docs listed at the end.
+The app is **feature-complete for performing** and now packages into a local installable. Everything through **PR #50** is merged to `main`. This section supersedes the older "Build state (June 2026)" narrative above; the round-by-round history lives in the dispatch docs listed at the end.
 
 **What the app does now (performer/audience UX):**
 - **Projection-column setup** has fixed-px, labelled toggle controls (no more window-rescaling icons): **Display format** (Small / Big / None), **Transitions** (Manual / Auto), and a **Beat indicator** on/off (filled/empty circle). Green = active. Four equal setup columns.
 - **Manual mode:** after arm, the bottom-bar button is **Start** (Next/Prev disabled) → Start runs the count-in so the performer catches the tempo → button becomes **Restart**, Next/Prev enabled → first **Next** reveals line 1. (No Start step when beat is off / song has no tempo.)
 - **Auto mode:** behaves like Video mode but driven by the beat clock — **Play / Pause / Restart** transport, Play runs the count-in with the audience black, and after `tempo.countInBars` the timeline drives cues into **both** performer and audience windows.
 - **Beat↔Auto dependency:** beat OFF disables Auto and forces Manual (one-directional, with a hint).
-- **Video big/small formats** match the Premiere reference proportions (single **3:2** frame; Big = full-frame `contain` + superimposed subtitle; Small = 75.8% scaled, centered, shifted up, subtitle in the bottom band; EB Garamond SemiBold). Non-video songs render centered.
+- **Video big/small formats** now share one full-frame layout (single **3:2** frame; both Big and Small = full-frame `contain` + superimposed subtitle at the bottom; EB Garamond SemiBold). **The only per-format difference is subtitle font size** — Small keeps the larger font (`160/3168` of frame height). Non-video songs render centered. *(PR #50, 2026-07-02 — simplified from the old Small = 75.8% scaled + bottom-band geometry, which matched a now-superseded Premiere reference still. The Small font was carried over unvalidated for the overlay context; **needs a live projector eyeball** and may be re-tuned.)*
 
 **Packaging — P1 DONE (PR #48):** `npm run pack` = `npm run build && electron-builder --mac`; mac targets `dmg` + `zip`; `build.files` = dist + electron + package.json; app icon from `assets/logo/`; unsigned (`identity: null`). Produces **`release/Live-Lyric-Translator-0.1.0.dmg`** (arm64). Runs on Jorge's Macs via right-click → Open (Gatekeeper). Songs/animations stay on disk, resolved via the `media://` protocol (confirmed working packaged).
 
 **Prompt 15 — CLOSED as obsolete.** Its two-row control layout was effectively built by the T1 toggle redesign; its "icons-only, no text labels" rule was **intentionally reversed** when Jorge asked for the tiny "Display format / Transitions / Beat indicator" labels. Nothing to do.
+
+**PR #48 review fixes (2026-07-02):** re-testing behaviour after packaging P1 surfaced two topics, both fixed and merged.
+- **Stuck-logo-on-first-arm (PR #49).** The audience Projection window stayed on the Chango Pepper logo on the *first* arm of a session (unarm/re-arm worked around it). Cause: `KEY_ARMED_BROADCAST` (localStorage, persists across launches) wrote the constant `'1'`, so a leftover `'1'` from a prior session made the first arm a same-value no-op — no cross-window `storage` event, logo never cleared. Fixed by writing a changing nonce on every arm; the consumer now treats any non-null value as "armed". Audit found the other broadcasts (screenSize, displayMode, endCard) not at risk (they read the current value at mount). Class of bug now documented as the **"storage-event / persisted-flag gotcha"** in repo `CLAUDE.md`.
+- **Small format = full-frame + larger font (PR #50).** See the Video big/small formats bullet above.
 
 **Only remaining item: Packaging P2 — sign + notarize** (distributable, no Gatekeeper warning). Gated on Jorge getting an **Apple Developer account** ($99/yr): Developer ID cert, hardened-runtime entitlements (allow `media://`), notarization via `notarytool`. Stub in `docs/t3-and-packaging-2026-07-01.md`; write a full dispatch when creds exist.
 
