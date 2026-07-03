@@ -28,6 +28,12 @@ def load_ground_truth(song_path: str, gt_offset: float) -> list[float]:
             if not (t["start"] == 0 and t["end"] == 0)]
 
 
+def load_truth_file(path: str) -> list[float]:
+    """Empirical ground truth: JSON [{"line": i, "start": seconds}, ...]."""
+    entries = json.loads(Path(path).read_text())
+    return [e["start"] for e in sorted(entries, key=lambda e: e["line"])]
+
+
 def load_events(path: str) -> list[dict]:
     events = []
     for line in Path(path).read_text().splitlines():
@@ -122,11 +128,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--song", required=True)
     ap.add_argument("--gt-offset", type=float, default=9.303)
+    ap.add_argument("--truth-file", help="empirical ground truth JSON; overrides song timeline")
     ap.add_argument("--events", nargs="+", required=True)
     ap.add_argument("--json", help="write machine-readable summaries here")
     args = ap.parse_args()
 
-    truth = load_ground_truth(args.song, args.gt_offset)
+    truth = (load_truth_file(args.truth_file) if args.truth_file
+             else load_ground_truth(args.song, args.gt_offset))
     all_summaries = {}
     for path in args.events:
         name = Path(path).name.replace(".events.jsonl", "").replace(".jsonl", "")

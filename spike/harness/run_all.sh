@@ -19,5 +19,12 @@ for stream in spike/asr_bench/out/*.jsonl; do
   events_files+=("$OUT/$name.events.jsonl")
 done
 
-python3 spike/harness/metrics.py --song "$SONG" --gt-offset "$GT_OFFSET" \
-  --events "${events_files[@]}" --json "$OUT/summary.json" | tee "$OUT/metrics.md"
+# empirical derived truth (see report); fall back to authored timeline + offset if absent
+TRUTH=spike/harness/ground-truth-derived.json
+if [[ -f "$TRUTH" ]]; then
+  python3 spike/harness/metrics.py --song "$SONG" --truth-file "$TRUTH" \
+    --events "${events_files[@]}" --json "$OUT/summary.json" | tee "$OUT/metrics.md"
+else
+  python3 spike/harness/metrics.py --song "$SONG" --gt-offset "$GT_OFFSET" \
+    --events "${events_files[@]}" --json "$OUT/summary.json" | tee "$OUT/metrics.md"
+fi

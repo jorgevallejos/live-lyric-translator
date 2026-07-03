@@ -1,0 +1,984 @@
+{
+  "model_size": "small",
+  "model_load_seconds": 0.6953893330064602,
+  "n_chunks": 320,
+  "chunk_seconds": 0.5,
+  "window_seconds": 12.0,
+  "retranscribe_every_n": 4,
+  "commit_lag": 1.5,
+  "n_words": 202,
+  "n_passes": 81,
+  "pass_latencies": [
+    1.0807299170119222,
+    1.0204742920177523,
+    1.1252649999805726,
+    1.1076374999829568,
+    1.2247740000020713,
+    1.206163374998141,
+    1.2433747920149472,
+    1.2420320420060307,
+    1.2642743340111338,
+    1.263882500003092,
+    1.30825862500933,
+    1.4069075000006706,
+    1.3359616249799728,
+    1.4538510830025189,
+    1.3956035829905886,
+    1.5522136670188047,
+    1.397684499999741,
+    1.3710706249985378,
+    1.2956547919893637,
+    1.3052255829970818,
+    1.2221402919967659,
+    1.315881459013326,
+    1.1142289999988861,
+    1.2762954999925569,
+    1.3808002910227515,
+    1.42095712502487,
+    1.3575980410096236,
+    1.2226108750037383,
+    1.3525880000088364,
+    1.308643333002692,
+    1.3261019159981515,
+    1.4214517920045182,
+    1.5303132499975618,
+    1.5969100419897586,
+    1.6582256660040002,
+    1.6625915830081794,
+    1.6412767919828184,
+    1.7371037919947412,
+    1.713606167002581,
+    1.7102215830236673,
+    1.6147238340054173,
+    1.571513083006721,
+    1.667001416994026,
+    1.4982839999720454,
+    1.5321034579828847,
+    1.3792160830053035,
+    1.4678257079795003,
+    1.6008784580044448,
+    1.5707711669965647,
+    1.674205583985895,
+    1.723904834012501,
+    1.8896810830046888,
+    2.0090891250001732,
+    1.9254327079979703,
+    1.8198259590135422,
+    1.756473207991803,
+    1.7600600000005215,
+    1.7708660830103327,
+    1.760490791988559,
+    1.777276708977297,
+    1.8496158329944592,
+    1.9185869590146467,
+    1.9955008340184577,
+    1.9074919999984559,
+    2.0532975000096485,
+    1.8373379580152687,
+    1.867414792010095,
+    2.00616037499276,
+    1.9653880829864647,
+    1.9560135829960927,
+    1.814877916011028,
+    1.6738846249936614,
+    1.5030777500069235,
+    1.529820459021721,
+    1.3843134169874247,
+    17.845608624978922,
+    23.781463541003177,
+    28.939595250005368,
+    25.502080791979097,
+    28.352675333007937,
+    25.065979624981992
+  ],
+  "final_sim_clock": 301.4874031659565,
+  "audio_duration": 159.5093125,
+  "pass_records": [
+    {
+      "trigger_time": 2.0,
+      "sim_clock_after": 3.081,
+      "proc_latency": 1.081,
+      "buffer_span": [
+        0.0,
+        2.0
+      ],
+      "n_words_in_pass": 5,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 4.0,
+      "sim_clock_after": 5.02,
+      "proc_latency": 1.02,
+      "buffer_span": [
+        0.0,
+        4.0
+      ],
+      "n_words_in_pass": 5,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 6.0,
+      "sim_clock_after": 7.125,
+      "proc_latency": 1.125,
+      "buffer_span": [
+        0.0,
+        6.0
+      ],
+      "n_words_in_pass": 8,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 8.0,
+      "sim_clock_after": 9.108,
+      "proc_latency": 1.108,
+      "buffer_span": [
+        0.0,
+        8.0
+      ],
+      "n_words_in_pass": 8,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 10.0,
+      "sim_clock_after": 11.225,
+      "proc_latency": 1.225,
+      "buffer_span": [
+        0.0,
+        10.0
+      ],
+      "n_words_in_pass": 12,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 12.0,
+      "sim_clock_after": 13.206,
+      "proc_latency": 1.206,
+      "buffer_span": [
+        0.0,
+        12.0
+      ],
+      "n_words_in_pass": 12,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 14.0,
+      "sim_clock_after": 15.243,
+      "proc_latency": 1.243,
+      "buffer_span": [
+        2.0,
+        14.0
+      ],
+      "n_words_in_pass": 11,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 16.0,
+      "sim_clock_after": 17.242,
+      "proc_latency": 1.242,
+      "buffer_span": [
+        4.0,
+        16.0
+      ],
+      "n_words_in_pass": 11,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 18.0,
+      "sim_clock_after": 19.264,
+      "proc_latency": 1.264,
+      "buffer_span": [
+        6.0,
+        18.0
+      ],
+      "n_words_in_pass": 12,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 20.0,
+      "sim_clock_after": 21.264,
+      "proc_latency": 1.264,
+      "buffer_span": [
+        8.0,
+        20.0
+      ],
+      "n_words_in_pass": 12,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 22.0,
+      "sim_clock_after": 23.308,
+      "proc_latency": 1.308,
+      "buffer_span": [
+        10.0,
+        22.0
+      ],
+      "n_words_in_pass": 14,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 24.0,
+      "sim_clock_after": 25.407,
+      "proc_latency": 1.407,
+      "buffer_span": [
+        12.0,
+        24.0
+      ],
+      "n_words_in_pass": 16,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 26.0,
+      "sim_clock_after": 27.336,
+      "proc_latency": 1.336,
+      "buffer_span": [
+        14.0,
+        26.0
+      ],
+      "n_words_in_pass": 15,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 28.0,
+      "sim_clock_after": 29.454,
+      "proc_latency": 1.454,
+      "buffer_span": [
+        16.0,
+        28.0
+      ],
+      "n_words_in_pass": 20,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 30.0,
+      "sim_clock_after": 31.396,
+      "proc_latency": 1.396,
+      "buffer_span": [
+        18.0,
+        30.0
+      ],
+      "n_words_in_pass": 17,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 32.0,
+      "sim_clock_after": 33.552,
+      "proc_latency": 1.552,
+      "buffer_span": [
+        20.0,
+        32.0
+      ],
+      "n_words_in_pass": 21,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 34.0,
+      "sim_clock_after": 35.398,
+      "proc_latency": 1.398,
+      "buffer_span": [
+        22.0,
+        34.0
+      ],
+      "n_words_in_pass": 17,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 36.0,
+      "sim_clock_after": 37.371,
+      "proc_latency": 1.371,
+      "buffer_span": [
+        24.0,
+        36.0
+      ],
+      "n_words_in_pass": 17,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 38.0,
+      "sim_clock_after": 39.296,
+      "proc_latency": 1.296,
+      "buffer_span": [
+        26.0,
+        38.0
+      ],
+      "n_words_in_pass": 14,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 40.0,
+      "sim_clock_after": 41.305,
+      "proc_latency": 1.305,
+      "buffer_span": [
+        28.0,
+        40.0
+      ],
+      "n_words_in_pass": 9,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 42.0,
+      "sim_clock_after": 43.222,
+      "proc_latency": 1.222,
+      "buffer_span": [
+        30.0,
+        42.0
+      ],
+      "n_words_in_pass": 11,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 44.0,
+      "sim_clock_after": 45.316,
+      "proc_latency": 1.316,
+      "buffer_span": [
+        32.0,
+        44.0
+      ],
+      "n_words_in_pass": 14,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 46.0,
+      "sim_clock_after": 47.114,
+      "proc_latency": 1.114,
+      "buffer_span": [
+        34.0,
+        46.0
+      ],
+      "n_words_in_pass": 9,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 48.0,
+      "sim_clock_after": 49.276,
+      "proc_latency": 1.276,
+      "buffer_span": [
+        36.0,
+        48.0
+      ],
+      "n_words_in_pass": 14,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 50.0,
+      "sim_clock_after": 51.381,
+      "proc_latency": 1.381,
+      "buffer_span": [
+        38.0,
+        50.0
+      ],
+      "n_words_in_pass": 13,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 52.0,
+      "sim_clock_after": 53.421,
+      "proc_latency": 1.421,
+      "buffer_span": [
+        40.0,
+        52.0
+      ],
+      "n_words_in_pass": 15,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 54.0,
+      "sim_clock_after": 55.358,
+      "proc_latency": 1.358,
+      "buffer_span": [
+        42.0,
+        54.0
+      ],
+      "n_words_in_pass": 13,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 56.0,
+      "sim_clock_after": 57.223,
+      "proc_latency": 1.223,
+      "buffer_span": [
+        44.0,
+        56.0
+      ],
+      "n_words_in_pass": 9,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 58.0,
+      "sim_clock_after": 59.353,
+      "proc_latency": 1.353,
+      "buffer_span": [
+        46.0,
+        58.0
+      ],
+      "n_words_in_pass": 12,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 60.0,
+      "sim_clock_after": 61.309,
+      "proc_latency": 1.309,
+      "buffer_span": [
+        48.0,
+        60.0
+      ],
+      "n_words_in_pass": 10,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 62.0,
+      "sim_clock_after": 63.326,
+      "proc_latency": 1.326,
+      "buffer_span": [
+        50.0,
+        62.0
+      ],
+      "n_words_in_pass": 9,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 64.0,
+      "sim_clock_after": 65.421,
+      "proc_latency": 1.421,
+      "buffer_span": [
+        52.0,
+        64.0
+      ],
+      "n_words_in_pass": 13,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 66.0,
+      "sim_clock_after": 67.53,
+      "proc_latency": 1.53,
+      "buffer_span": [
+        54.0,
+        66.0
+      ],
+      "n_words_in_pass": 19,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 68.0,
+      "sim_clock_after": 69.597,
+      "proc_latency": 1.597,
+      "buffer_span": [
+        56.0,
+        68.0
+      ],
+      "n_words_in_pass": 22,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 70.0,
+      "sim_clock_after": 71.658,
+      "proc_latency": 1.658,
+      "buffer_span": [
+        58.0,
+        70.0
+      ],
+      "n_words_in_pass": 21,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 72.0,
+      "sim_clock_after": 73.663,
+      "proc_latency": 1.663,
+      "buffer_span": [
+        60.0,
+        72.0
+      ],
+      "n_words_in_pass": 21,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 74.0,
+      "sim_clock_after": 75.641,
+      "proc_latency": 1.641,
+      "buffer_span": [
+        62.0,
+        74.0
+      ],
+      "n_words_in_pass": 22,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 76.0,
+      "sim_clock_after": 77.737,
+      "proc_latency": 1.737,
+      "buffer_span": [
+        64.0,
+        76.0
+      ],
+      "n_words_in_pass": 23,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 78.0,
+      "sim_clock_after": 79.714,
+      "proc_latency": 1.714,
+      "buffer_span": [
+        66.0,
+        78.0
+      ],
+      "n_words_in_pass": 23,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 80.0,
+      "sim_clock_after": 81.71,
+      "proc_latency": 1.71,
+      "buffer_span": [
+        68.0,
+        80.0
+      ],
+      "n_words_in_pass": 17,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 82.0,
+      "sim_clock_after": 83.615,
+      "proc_latency": 1.615,
+      "buffer_span": [
+        70.0,
+        82.0
+      ],
+      "n_words_in_pass": 17,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 84.0,
+      "sim_clock_after": 85.572,
+      "proc_latency": 1.572,
+      "buffer_span": [
+        72.0,
+        84.0
+      ],
+      "n_words_in_pass": 15,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 86.0,
+      "sim_clock_after": 87.667,
+      "proc_latency": 1.667,
+      "buffer_span": [
+        74.0,
+        86.0
+      ],
+      "n_words_in_pass": 18,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 88.0,
+      "sim_clock_after": 89.498,
+      "proc_latency": 1.498,
+      "buffer_span": [
+        76.0,
+        88.0
+      ],
+      "n_words_in_pass": 13,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 90.0,
+      "sim_clock_after": 91.532,
+      "proc_latency": 1.532,
+      "buffer_span": [
+        78.0,
+        90.0
+      ],
+      "n_words_in_pass": 13,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 92.0,
+      "sim_clock_after": 93.379,
+      "proc_latency": 1.379,
+      "buffer_span": [
+        80.0,
+        92.0
+      ],
+      "n_words_in_pass": 9,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 94.0,
+      "sim_clock_after": 95.468,
+      "proc_latency": 1.468,
+      "buffer_span": [
+        82.0,
+        94.0
+      ],
+      "n_words_in_pass": 10,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 96.0,
+      "sim_clock_after": 97.601,
+      "proc_latency": 1.601,
+      "buffer_span": [
+        84.0,
+        96.0
+      ],
+      "n_words_in_pass": 15,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 98.0,
+      "sim_clock_after": 99.571,
+      "proc_latency": 1.571,
+      "buffer_span": [
+        86.0,
+        98.0
+      ],
+      "n_words_in_pass": 14,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 100.0,
+      "sim_clock_after": 101.674,
+      "proc_latency": 1.674,
+      "buffer_span": [
+        88.0,
+        100.0
+      ],
+      "n_words_in_pass": 16,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 102.0,
+      "sim_clock_after": 103.724,
+      "proc_latency": 1.724,
+      "buffer_span": [
+        90.0,
+        102.0
+      ],
+      "n_words_in_pass": 18,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 104.0,
+      "sim_clock_after": 105.89,
+      "proc_latency": 1.89,
+      "buffer_span": [
+        92.0,
+        104.0
+      ],
+      "n_words_in_pass": 22,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 106.0,
+      "sim_clock_after": 108.009,
+      "proc_latency": 2.009,
+      "buffer_span": [
+        94.0,
+        106.0
+      ],
+      "n_words_in_pass": 23,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 108.009,
+      "sim_clock_after": 109.935,
+      "proc_latency": 1.925,
+      "buffer_span": [
+        96.0,
+        108.0
+      ],
+      "n_words_in_pass": 25,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 110.0,
+      "sim_clock_after": 111.82,
+      "proc_latency": 1.82,
+      "buffer_span": [
+        98.0,
+        110.0
+      ],
+      "n_words_in_pass": 23,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 112.0,
+      "sim_clock_after": 113.756,
+      "proc_latency": 1.756,
+      "buffer_span": [
+        100.0,
+        112.0
+      ],
+      "n_words_in_pass": 21,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 114.0,
+      "sim_clock_after": 115.76,
+      "proc_latency": 1.76,
+      "buffer_span": [
+        102.0,
+        114.0
+      ],
+      "n_words_in_pass": 20,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 116.0,
+      "sim_clock_after": 117.771,
+      "proc_latency": 1.771,
+      "buffer_span": [
+        104.0,
+        116.0
+      ],
+      "n_words_in_pass": 19,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 118.0,
+      "sim_clock_after": 119.76,
+      "proc_latency": 1.76,
+      "buffer_span": [
+        106.0,
+        118.0
+      ],
+      "n_words_in_pass": 18,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 120.0,
+      "sim_clock_after": 121.777,
+      "proc_latency": 1.777,
+      "buffer_span": [
+        108.0,
+        120.0
+      ],
+      "n_words_in_pass": 17,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 122.0,
+      "sim_clock_after": 123.85,
+      "proc_latency": 1.85,
+      "buffer_span": [
+        110.0,
+        122.0
+      ],
+      "n_words_in_pass": 19,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 124.0,
+      "sim_clock_after": 125.919,
+      "proc_latency": 1.919,
+      "buffer_span": [
+        112.0,
+        124.0
+      ],
+      "n_words_in_pass": 22,
+      "n_emitted": 5
+    },
+    {
+      "trigger_time": 126.0,
+      "sim_clock_after": 127.996,
+      "proc_latency": 1.996,
+      "buffer_span": [
+        114.0,
+        126.0
+      ],
+      "n_words_in_pass": 22,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 128.0,
+      "sim_clock_after": 129.907,
+      "proc_latency": 1.907,
+      "buffer_span": [
+        116.0,
+        128.0
+      ],
+      "n_words_in_pass": 20,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 130.0,
+      "sim_clock_after": 132.053,
+      "proc_latency": 2.053,
+      "buffer_span": [
+        118.0,
+        130.0
+      ],
+      "n_words_in_pass": 19,
+      "n_emitted": 1
+    },
+    {
+      "trigger_time": 132.053,
+      "sim_clock_after": 133.891,
+      "proc_latency": 1.837,
+      "buffer_span": [
+        120.0,
+        132.0
+      ],
+      "n_words_in_pass": 21,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 134.0,
+      "sim_clock_after": 135.867,
+      "proc_latency": 1.867,
+      "buffer_span": [
+        122.0,
+        134.0
+      ],
+      "n_words_in_pass": 20,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 136.0,
+      "sim_clock_after": 138.006,
+      "proc_latency": 2.006,
+      "buffer_span": [
+        124.0,
+        136.0
+      ],
+      "n_words_in_pass": 20,
+      "n_emitted": 2
+    },
+    {
+      "trigger_time": 138.006,
+      "sim_clock_after": 139.972,
+      "proc_latency": 1.965,
+      "buffer_span": [
+        126.0,
+        138.0
+      ],
+      "n_words_in_pass": 20,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 140.0,
+      "sim_clock_after": 141.956,
+      "proc_latency": 1.956,
+      "buffer_span": [
+        128.0,
+        140.0
+      ],
+      "n_words_in_pass": 19,
+      "n_emitted": 4
+    },
+    {
+      "trigger_time": 142.0,
+      "sim_clock_after": 143.815,
+      "proc_latency": 1.815,
+      "buffer_span": [
+        130.0,
+        142.0
+      ],
+      "n_words_in_pass": 16,
+      "n_emitted": 3
+    },
+    {
+      "trigger_time": 144.0,
+      "sim_clock_after": 145.674,
+      "proc_latency": 1.674,
+      "buffer_span": [
+        132.0,
+        144.0
+      ],
+      "n_words_in_pass": 13,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 146.0,
+      "sim_clock_after": 147.503,
+      "proc_latency": 1.503,
+      "buffer_span": [
+        134.0,
+        146.0
+      ],
+      "n_words_in_pass": 8,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 148.0,
+      "sim_clock_after": 149.53,
+      "proc_latency": 1.53,
+      "buffer_span": [
+        136.0,
+        148.0
+      ],
+      "n_words_in_pass": 7,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 150.0,
+      "sim_clock_after": 151.384,
+      "proc_latency": 1.384,
+      "buffer_span": [
+        138.0,
+        150.0
+      ],
+      "n_words_in_pass": 4,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 152.0,
+      "sim_clock_after": 169.846,
+      "proc_latency": 17.846,
+      "buffer_span": [
+        140.0,
+        152.0
+      ],
+      "n_words_in_pass": 0,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 169.846,
+      "sim_clock_after": 193.627,
+      "proc_latency": 23.781,
+      "buffer_span": [
+        142.0,
+        154.0
+      ],
+      "n_words_in_pass": 0,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 193.627,
+      "sim_clock_after": 222.567,
+      "proc_latency": 28.94,
+      "buffer_span": [
+        144.0,
+        156.0
+      ],
+      "n_words_in_pass": 0,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 222.567,
+      "sim_clock_after": 248.069,
+      "proc_latency": 25.502,
+      "buffer_span": [
+        146.0,
+        158.0
+      ],
+      "n_words_in_pass": 0,
+      "n_emitted": 0
+    },
+    {
+      "trigger_time": 248.069,
+      "sim_clock_after": 276.421,
+      "proc_latency": 28.353,
+      "buffer_span": [
+        147.509,
+        159.509
+      ],
+      "n_words_in_pass": 12,
+      "n_emitted": 12
+    },
+    {
+      "trigger_time": "final_flush",
+      "sim_clock_after": 301.487,
+      "proc_latency": 25.066,
+      "n_emitted": 0
+    }
+  ]
+}
