@@ -10,3 +10,7 @@ public/*.json
 .claude/settings.local.json
 .claude/sessions/
 .claude/worktrees/
+
+# ASR-following spike (2026-07-03, throwaway) — local scratch: 1.1 GB venv + data.
+# Canonical copy of the report + reusable scripts lives on the spike/asr-following branch.
+spike/

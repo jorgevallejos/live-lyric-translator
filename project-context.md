@@ -73,9 +73,18 @@ The app is **feature-complete for performing** and now packages into a local ins
 
 **Only remaining item: Packaging P2 — sign + notarize** (distributable, no Gatekeeper warning). Gated on Jorge getting an **Apple Developer account** ($99/yr): Developer ID cert, hardened-runtime entitlements (allow `media://`), notarization via `notarytool`. Stub in `docs/t3-and-packaging-2026-07-01.md`; write a full dispatch when creds exist.
 
-**Optional / deferred:** add a `tempo` block to `songs/libertad*.json` if Jorge wants a beat indicator on it (data only); offline forced alignment (Prompt B, awaits the produced master); live-ASR following (shelved); chords on/off toggle (open idea); native iPad app beyond Sidecar (open idea).
+**Optional / deferred:** add a `tempo` block to `songs/libertad*.json` if Jorge wants a beat indicator on it (data only); chords on/off toggle (open idea); native iPad app beyond Sidecar (open idea). *(Offline forced alignment (Prompt B) and live-ASR following are both resolved by the 2026-07-03 spike — see next section.)*
 
 **How this was built (way of working):** Opus-in-Cowork coordinates/specs; Claude Code on the Mac runs the builds as autonomous batches in **bypass permission mode**, auto-merging PRs on green with screenshots attached for async review. Dispatch docs (2026-07-01, for history): `wave2-kickoff`, `projection-format-fixes`, `performer-polish`, `auto-polish-and-manual-start`, `toggle-and-auto-transition`, `t3-and-packaging`.
+
+## ASR-following spike — CLOSED NO-GO (2026-07-03)
+
+Dispatched from Cowork (`docs/asr-following-spike-kickoff-2026-07-03.md`), run in Claude Code (Fable coordinator + Sonnet slices). Branch `spike/asr-following`, report `docs/asr-spike-report-2026-07.md` on that branch. Throwaway — never merged.
+
+- **Verdict: NO-GO on live ASR driving the lyric pointer.** The *tracking* problem is solved — best candidate (faster-whisper small) advanced all 29 Tragedia lines in order through the accelerando, zero false jumps — but streaming latency kills it: median wall-clock lag **5.36 s** vs the ≤1.0 s rule (3.4% of lines within ±1.0 s vs ≥90% required). Core trade found: on local CPU today, recognizers fast enough for realtime are too inaccurate on sung Spanish over guitar; the accurate one runs at 0.60× realtime. Question closed; the **timeline/Auto (beat-clock) architecture stands validated**.
+- **Side finding 1 — offline forced alignment is the win:** faster-whisper `medium` batch-aligned the whole song near-verbatim in 46 s. Adopted 2026-07-03 as the **timeline-extractor's core mechanism** (pivot recorded in that project) — ASR authors timelines; it doesn't drive the show.
+- **Side finding 2 — real bug found:** the shipped `tragedia-de-cerdo-asado.json` `timeline` is a misaligned uniform 5.5 s scaffold, **~17 s late vs its linked video** (`media.offset` 0) and overrunning it by 18 s. Must be **regenerated (via the extractor) before this song is performed in Video mode**. Lesson for repo `CLAUDE.md`: timeline values are only meaningful relative to the linked video's own clock — generate them from that video's audio.
+- **Housekeeping (pending, part B of the 2026-07-03 extractor dispatch):** push `spike/asr-following` to origin (preserve report + reusable scripts, no PR), commit the kickoff doc + the `CLAUDE.md` timeline-validity note to `main` via a docs PR, delete the stray `feat/timeline-import-button` branch.
 
 ## Open follow-ups / parked items
 
