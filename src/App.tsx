@@ -982,6 +982,8 @@ function ControlView() {
             absolutePath={resolvedVideoPath}
             media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
+            lines={lines}
+            singingLang={effectiveSingingLang}
             tempo={songTempo}
             beatIndicatorOn={beatIndicatorOn}
             onUnarm={handleUnarm}
