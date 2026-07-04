@@ -281,6 +281,16 @@ function ControlView() {
   const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
   // Effective display mode: stored value or default (small for video songs, none for non-video)
   const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
+  // Keep the localStorage broadcast in sync with the effective display mode at all times —
+  // not just on toggle clicks. Without this, a broadcast left over from a previous session
+  // (e.g. 'none') can be stale relative to this session's fresh computed default (e.g. 'small'
+  // for a video song), and the Projection window — which reads the broadcast at mount — ends up
+  // disagreeing with Control until the user manually clicks the toggle. See the A1 bug
+  // (2026-07-04 projector test) and the "Storage-event / persisted-flag gotcha" in CLAUDE.md.
+  // effectiveDisplayMode is a string primitive, safe as an effect dependency.
+  useEffect(() => {
+    try { localStorage.setItem(KEY_DISPLAY_MODE_BROADCAST, effectiveDisplayMode) } catch { /* unavailable in some envs */ }
+  }, [effectiveDisplayMode])
   // Lyric advance mode (non-video performer view only). Auto is only selectable when the
   // song has a non-empty timeline to drive off.
   const songTimeline = currentLibrarySong?.timeline ?? []
