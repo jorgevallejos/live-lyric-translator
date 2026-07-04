@@ -622,6 +622,16 @@ function ControlView() {
   // The clock does NOT auto-start on arm — it stays idle until the performer presses Start,
   // decoupled from lyric advance (Next). See CLAUDE.md / d-wire Prompt 5.
   const songTempo = currentLibrarySong?.tempo
+  // C1: the Transitions toggle is shown whenever there's *some* reason a performer would look
+  // for it (a timeline to drive Auto off of, or a tempo that suggests Auto might apply) — not
+  // only when Auto is actually available. When Auto can't be selected, explain why: a missing
+  // timeline is the more fundamental blocker, so it takes precedence over the beat-off reason.
+  const showAdvanceModeToggle = hasTimeline || !!songTempo
+  const advanceAutoDisabledReason: string | null = !hasTimeline
+    ? 'Auto needs a timeline.'
+    : !beatIndicatorOn
+    ? 'Auto needs the beat indicator on.'
+    : null
   const {
     phase: beatPhase,
     songElapsedMs,
@@ -748,7 +758,7 @@ function ControlView() {
               Languages: {languagesDisplay || '—'}
             </span>
             <span className="top-summary-line">
-              Projection: {getProjectionStatusText(projectionOpen, effectiveScreenSize, isVideoMode ? effectiveDisplayMode : undefined)}
+              Projection: {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
             </span>
             <span
               className="top-title top-title-state"
@@ -807,7 +817,7 @@ function ControlView() {
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
                     <span className="control-setup-value">
-                      {getProjectionStatusText(projectionOpen, effectiveScreenSize, isVideoMode ? effectiveDisplayMode : undefined)}
+                      {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
                     </span>
                   </div>
                   <div className="control-setup-buttons">
@@ -857,7 +867,7 @@ function ControlView() {
                         </div>
                       )}
                       <div className="ctrl-toggle-row-b">
-                        {!showVideoPerformance && hasTimeline && (
+                        {!showVideoPerformance && showAdvanceModeToggle && (
                           <div className="ctrl-toggle-group">
                             <span className="ctrl-toggle-label">Transitions</span>
                             <div className="ctrl-segmented-control ctrl-advance-mode-toggle" role="group" aria-label="Lyric advance mode">
@@ -885,7 +895,7 @@ function ControlView() {
                                 aria-pressed={effectiveAdvanceMode === 'auto'}
                                 aria-label="Advance: Auto"
                                 disabled={!autoAdvanceAvailable}
-                                title={!beatIndicatorOn ? 'Auto needs the beat indicator on.' : undefined}
+                                title={advanceAutoDisabledReason ?? undefined}
                                 onClick={() => autoAdvanceAvailable && setSelectedAdvanceMode('auto')}
                               >
                                 {/* Auto: capital A with a small filled circle in the corner */}
@@ -897,15 +907,15 @@ function ControlView() {
                             </div>
                           </div>
                         )}
-                        {/* T3: when the beat indicator is off, Auto is disabled and locked to
-                            Manual. A tiny link glyph between the Transitions toggle and the Beat
-                            button explains why (also surfaced as the Auto button's tooltip). */}
-                        {!showVideoPerformance && hasTimeline && songTempo && !beatIndicatorOn && (
+                        {/* When Auto is unavailable, a tiny link glyph between the Transitions
+                            toggle and the Beat button explains why (also surfaced as the Auto
+                            button's tooltip): missing timeline (C1) or beat indicator off (T3). */}
+                        {!showVideoPerformance && showAdvanceModeToggle && advanceAutoDisabledReason && (
                           <span
                             className="ctrl-advance-beat-hint"
                             role="note"
-                            aria-label="Auto needs the beat indicator on."
-                            title="Auto needs the beat indicator on."
+                            aria-label={advanceAutoDisabledReason}
+                            title={advanceAutoDisabledReason}
                           >
                             <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
                               <path
