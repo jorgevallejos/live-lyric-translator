@@ -64,3 +64,14 @@ For a song with no video, "Big"/"Small" is meaningless. The Projection summary s
 
 ## Not in scope here (already known, don't re-triage)
 - The shipped `tragedia-de-cerdo-asado.json` timeline is a misaligned ~17 s-late scaffold and must be regenerated via the extractor before Video-mode timing is trusted (per the 2026-07-03 ASR spike). A1 above is about the video not *appearing at all*, which is separate from timing.
+
+---
+
+## Follow-up round 2 (2026-07-04, after first implementation) — verified fixes + 1 new bug
+
+First implementation landed and Jorge re-tested. C1 and C2 are confirmed fixed (Manual/Auto toggle now present; Projection label reads "Open" for the non-video song). One remaining cosmetic bug:
+
+**D1. Projection-column toggle labels are truncated on the non-video Ready-to-Arm screen.**
+The control labels are clipped at both ends: "TRANSITIONS" renders as "RANSITIONS" (leading T cut) and "BEAT INDICATOR" as "BEAT INDICATO" (trailing R cut). See screenshot. The lyric-only layout (no video) gives the Projection column a different width than the video case, and the labels no longer fit.
+- Likely cause: fixed-width label container with `overflow: hidden` and a centered, letter-spaced uppercase label wider than the box → both ends shave off. Check the toggle-control label component/CSS (the "Display format / Transitions / Beat indicator" labels from the T1 toggle redesign).
+- Desired outcome: labels render in full in both layouts (video and non-video). Prefer letting the label size to its content / not clip, rather than shrinking the font so far it's unreadable — but keep it consistent with the video-mode column. Small, self-contained CSS fix.
