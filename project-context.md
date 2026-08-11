@@ -52,6 +52,16 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - `.claude/settings.json` in this repo pre-approves the standard release commands for this project and denies destructive ones (matches the universal policy in `personal-context.md`).
 - GitHub MCP is not currently available in Cowork's connector registry; may be addable in Claude Code later.
 
+## Current build state (2026-08-11)
+
+The **2026-07-04 projector-test fixes are all merged to `main`** (round complete):
+- **#52** — Projection resyncs display-mode broadcast to Control's effective value (A1 area).
+- **#53** — non-video Projection label drops the stale size; Transitions toggle shown for tempo-only songs (C1/C2).
+- **#54** — performer sees the big centered singing-language lyric superimposed over the video, transport bar kept reachable (A2/B1/B2).
+- **#55** — toggle labels no longer clip in the non-video Projection column (D1).
+
+**Untested live** — these need a projector re-test (Mac mini + iPad Sidecar + projector), focused on **Auto/tempo solo mode**. **Data gap for solo:** Auto mode needs a `tempo` block per song; as of 2026-08-11 only `luz-y-sal.json` (140, 3/4) and `tragedia-de-cerdo-asado.json` (128, 4/4) have one — the other 11 songs are Manual-only until authored. Tragedia's timeline still needs regen via the extractor before Video mode (known ~17 s late). See the older state below for full history.
+
 ## Current build state (2026-07-02)
 
 The app is **feature-complete for performing** and now packages into a local installable. Everything through **PR #50** is merged to `main`. This section supersedes the older "Build state (June 2026)" narrative above; the round-by-round history lives in the dispatch docs listed at the end.
