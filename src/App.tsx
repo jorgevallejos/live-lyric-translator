@@ -68,6 +68,13 @@ const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> =
 }
 const NEXT_SONG_TILE_DELAY_MS = 6_000
 
+/** Cycle order for the single Videoclip toggle button: none → small → big → none. */
+function getNextDisplayMode(mode: DisplayMode): DisplayMode {
+  if (mode === 'none') return 'small'
+  if (mode === 'small') return 'big'
+  return 'none'
+}
+
 function ConcertSessionTimerRunner() {
   // Keep the concert/session timer hook alive across route transitions.
   // This prevents "time stops updating while ControlView is unmounted" issues (including under fake timers).
@@ -260,9 +267,6 @@ function ControlView() {
     getStoredDisplayMode()
   )
 
-  // Beat indicator on/off toggle — performer view only.
-  const [beatIndicatorOn, setBeatIndicatorOn] = useState(true)
-
   // Manual/Auto lyric-advance toggle. Default: auto when the song has a non-empty timeline,
   // manual otherwise. Resets to null (defer to the per-song default) whenever the song changes,
   // so switching songs doesn't carry over an explicit choice made for a previous song.
@@ -295,15 +299,8 @@ function ControlView() {
   // song has a non-empty timeline to drive off.
   const songTimeline = currentLibrarySong?.timeline ?? []
   const hasTimeline = songTimeline.length > 0
-  // T3: Auto is beat-clock-driven, so it needs the beat indicator on. When the beat
-  // indicator is off, Auto is disabled and the mode is forced to Manual. This is
-  // one-directional — selecting Auto never touches the beat. We force at the computed
-  // (effective) level and deliberately don't mutate selectedAdvanceMode, so turning the
-  // beat back on restores the song's default (or previously chosen) advance mode.
-  const autoAdvanceAvailable = hasTimeline && beatIndicatorOn
-  const effectiveAdvanceMode: AdvanceMode = !beatIndicatorOn
-    ? 'manual'
-    : (selectedAdvanceMode ?? getDefaultAdvanceMode(hasTimeline))
+  const autoAdvanceAvailable = hasTimeline
+  const effectiveAdvanceMode: AdvanceMode = selectedAdvanceMode ?? getDefaultAdvanceMode(hasTimeline)
   // The performer only gets the video panel when the song has a video AND it's actually
   // being shown (display mode isn't 'none'). In 'none' mode a video song behaves exactly
   // like a non-video song for the performer (manual Next/Previous/Restart).
@@ -624,13 +621,11 @@ function ControlView() {
   const songTempo = currentLibrarySong?.tempo
   // C1: the Transitions toggle is shown whenever there's *some* reason a performer would look
   // for it (a timeline to drive Auto off of, or a tempo that suggests Auto might apply) — not
-  // only when Auto is actually available. When Auto can't be selected, explain why: a missing
-  // timeline is the more fundamental blocker, so it takes precedence over the beat-off reason.
+  // only when Auto is actually available. When Auto can't be selected, the tooltip explains why
+  // (missing timeline is the only reason now that the beat indicator no longer gates Auto).
   const showAdvanceModeToggle = hasTimeline || !!songTempo
   const advanceAutoDisabledReason: string | null = !hasTimeline
     ? 'Auto needs a timeline.'
-    : !beatIndicatorOn
-    ? 'Auto needs the beat indicator on.'
     : null
   const {
     phase: beatPhase,
@@ -658,10 +653,10 @@ function ControlView() {
   // R2: Manual mode gets an explicit Start step so the count-in runs a full bar BEFORE the
   // first lyric — the performer can catch the tempo before singing, instead of the beat
   // starting on the same Next press that reveals line 1. This only applies when there is a
-  // count-in to pre-run: the song has a tempo AND the beat indicator is on. Otherwise Next
-  // reveals line 1 immediately (today's behaviour, no Start step).
+  // count-in to pre-run: the song has a tempo. Otherwise Next reveals line 1 immediately
+  // (today's behaviour, no Start step).
   const isManualArmed = showArmedShell && !showVideoPerformance && !isAutoArmed
-  const manualStartStep = isManualArmed && !!songTempo && beatIndicatorOn
+  const manualStartStep = isManualArmed && !!songTempo
   // Before Start the beat clock is idle; Start begins the count-in (count-in → playing).
   const manualPreStart = manualStartStep && beatPlayState === 'idle'
 
@@ -800,13 +795,37 @@ function ControlView() {
                 </div>
               </div>
               <div className="control-setup-section">
-                <span className="control-setup-label">LANGUAGE DISPLAY</span>
+                <span className="control-setup-label">Lyrics display</span>
                 <div className="control-setup-content">
                   {effectiveLang ? (
                     <span className="control-setup-value">{languagesDisplay}</span>
                   ) : null}
                 </div>
                 <div className="control-setup-buttons">
+                  {!showVideoPerformance && showAdvanceModeToggle && (
+                    <div className="control-setup-toggle-area">
+                      <div className="ctrl-toggle-group">
+                        <span className="ctrl-toggle-label">Transitions</span>
+                        <button
+                          type="button"
+                          className="ctrl-btn ctrl-advance-mode-toggle-btn"
+                          aria-pressed={effectiveAdvanceMode === 'auto'}
+                          aria-label={effectiveAdvanceMode === 'auto' ? 'Advance: Auto' : 'Advance: Manual'}
+                          title={advanceAutoDisabledReason ?? undefined}
+                          // Single toggle: click flips Manual<->Auto when Auto is actually
+                          // available (timeline present); otherwise a no-op — the button
+                          // stays green, showing the forced Manual mode (see effectiveAdvanceMode).
+                          onClick={() => {
+                            if (autoAdvanceAvailable) {
+                              setSelectedAdvanceMode(effectiveAdvanceMode === 'auto' ? 'manual' : 'auto')
+                            }
+                          }}
+                        >
+                          {effectiveAdvanceMode === 'manual' ? 'Manual' : 'Auto'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
                     Languages
                   </button>
@@ -821,139 +840,31 @@ function ControlView() {
                     </span>
                   </div>
                   <div className="control-setup-buttons">
-                    <div className="control-setup-toggle-area">
-                      {isVideoMode && (
+                    {isVideoMode && (
+                      <div className="control-setup-toggle-area">
                         <div className="ctrl-toggle-group">
-                          <span className="ctrl-toggle-label">Display format</span>
-                          <div className="ctrl-segmented-control ctrl-display-mode-toggle" role="group" aria-label="Projection format">
-                            <button
-                              type="button"
-                              className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'small' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                              aria-pressed={effectiveDisplayMode === 'small'}
-                              aria-label="Small"
-                              onClick={() => handleSelectDisplayMode('small')}
-                            >
-                              {/* Small: small rectangle centered */}
-                              <svg className="ctrl-toggle-icon" width="16" height="12" viewBox="0 0 18 14" aria-hidden="true">
-                                <rect x="4" y="3" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'big' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                              aria-pressed={effectiveDisplayMode === 'big'}
-                              aria-label="Big"
-                              onClick={() => handleSelectDisplayMode('big')}
-                            >
-                              {/* Big: large rectangle filling the icon area */}
-                              <svg className="ctrl-toggle-icon" width="16" height="12" viewBox="0 0 18 14" aria-hidden="true">
-                                <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              className={`ctrl-btn ctrl-display-mode-seg${effectiveDisplayMode === 'none' ? ' ctrl-display-mode-seg--selected' : ''}`}
-                              aria-pressed={effectiveDisplayMode === 'none'}
-                              aria-label="No video"
-                              onClick={() => handleSelectDisplayMode('none')}
-                            >
-                              {/* None: rectangle with diagonal strike */}
-                              <svg className="ctrl-toggle-icon" width="16" height="12" viewBox="0 0 18 14" aria-hidden="true">
-                                <rect x="1" y="1" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                                <line x1="2" y1="2" x2="16" y2="12" stroke="currentColor" strokeWidth="1.5" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <div className="ctrl-toggle-row-b">
-                        {!showVideoPerformance && showAdvanceModeToggle && (
-                          <div className="ctrl-toggle-group">
-                            <span className="ctrl-toggle-label">Transitions</span>
-                            <div className="ctrl-segmented-control ctrl-advance-mode-toggle" role="group" aria-label="Lyric advance mode">
-                              <button
-                                type="button"
-                                className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'manual' ? ' ctrl-advance-mode-seg--selected' : ''}`}
-                                aria-pressed={effectiveAdvanceMode === 'manual'}
-                                aria-label="Advance: Manual"
-                                // T3: while the beat is off the mode is already forced to
-                                // Manual — don't persist a selection, so restore-to-default
-                                // works when the beat turns back on.
-                                onClick={() => beatIndicatorOn && setSelectedAdvanceMode('manual')}
-                              >
-                                {/* Manual: capital A + a pointer/cursor — you select/advance
-                                    each line yourself. Reads clearly at iPad size (the old
-                                    tap-blob didn't) and pairs against Auto's "A + filled dot". */}
-                                <svg className="ctrl-toggle-icon" width="18" height="14" viewBox="0 0 16 14" aria-hidden="true">
-                                  <text x="0" y="11.5" fontSize="11" fontWeight="700" fill="currentColor" fontFamily="system-ui, -apple-system, sans-serif">A</text>
-                                  <path d="M9.7 4.9 L9.7 12.5 L11.55 10.75 L12.95 13.5 L14.05 12.95 L12.65 10.3 L15.05 10.3 Z" fill="currentColor" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                className={`ctrl-btn ctrl-advance-mode-seg${effectiveAdvanceMode === 'auto' ? ' ctrl-advance-mode-seg--selected' : ''}`}
-                                aria-pressed={effectiveAdvanceMode === 'auto'}
-                                aria-label="Advance: Auto"
-                                disabled={!autoAdvanceAvailable}
-                                title={advanceAutoDisabledReason ?? undefined}
-                                onClick={() => autoAdvanceAvailable && setSelectedAdvanceMode('auto')}
-                              >
-                                {/* Auto: capital A with a small filled circle in the corner */}
-                                <svg className="ctrl-toggle-icon" width="18" height="14" viewBox="0 0 16 14" aria-hidden="true">
-                                  <text x="0" y="11.5" fontSize="11" fontWeight="700" fill="currentColor" fontFamily="system-ui, -apple-system, sans-serif">A</text>
-                                  <circle cx="12" cy="10.5" r="2.7" fill="currentColor" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {/* When Auto is unavailable, a tiny link glyph between the Transitions
-                            toggle and the Beat button explains why (also surfaced as the Auto
-                            button's tooltip): missing timeline (C1) or beat indicator off (T3). */}
-                        {!showVideoPerformance && showAdvanceModeToggle && advanceAutoDisabledReason && (
-                          <span
-                            className="ctrl-advance-beat-hint"
-                            role="note"
-                            aria-label={advanceAutoDisabledReason}
-                            title={advanceAutoDisabledReason}
+                          <span className="ctrl-toggle-label">Videoclip</span>
+                          <button
+                            type="button"
+                            className={`ctrl-btn ctrl-display-mode-toggle-btn${effectiveDisplayMode !== 'none' ? ' ctrl-display-mode-toggle-btn--selected' : ''}`}
+                            aria-label={
+                              effectiveDisplayMode === 'small'
+                                ? 'Small screen'
+                                : effectiveDisplayMode === 'big'
+                                ? 'Big screen'
+                                : 'None'
+                            }
+                            onClick={() => handleSelectDisplayMode(getNextDisplayMode(effectiveDisplayMode))}
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                              <path
-                                d="M6.4 9.6 L9.6 6.4 M5.8 8 L4.6 9.2 a1.7 1.7 0 0 0 2.4 2.4 L8.2 10.4 M10.2 8 L11.4 6.8 a1.7 1.7 0 0 0-2.4-2.4 L7.8 5.6"
-                                stroke="currentColor"
-                                strokeWidth="1.4"
-                                strokeLinecap="round"
-                                fill="none"
-                              />
-                            </svg>
-                          </span>
-                        )}
-                        {songTempo && (
-                          <div className="ctrl-toggle-group">
-                            <span className="ctrl-toggle-label">Beat indicator</span>
-                            <button
-                              type="button"
-                              className={`ctrl-btn ctrl-icon-btn ctrl-beat-indicator-toggle${beatIndicatorOn ? ' ctrl-beat-indicator-toggle--on' : ' ctrl-beat-indicator-toggle--off'}`}
-                              aria-pressed={beatIndicatorOn}
-                              aria-label="Beat indicator"
-                              onClick={() => setBeatIndicatorOn((on) => !on)}
-                            >
-                              {beatIndicatorOn ? (
-                                <svg className="ctrl-toggle-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                                  {/* Beat on: filled circle */}
-                                  <circle cx="8" cy="8" r="5" fill="currentColor" />
-                                </svg>
-                              ) : (
-                                <svg className="ctrl-toggle-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                                  {/* Beat off: empty circle */}
-                                  <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                                </svg>
-                              )}
-                            </button>
-                          </div>
-                        )}
+                            {effectiveDisplayMode === 'small'
+                              ? 'Small screen'
+                              : effectiveDisplayMode === 'big'
+                              ? 'Big screen'
+                              : 'None'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
@@ -985,7 +896,6 @@ function ControlView() {
             lines={lines}
             singingLang={effectiveSingingLang}
             tempo={songTempo}
-            beatIndicatorOn={beatIndicatorOn}
             onUnarm={handleUnarm}
             onSeek={sendSeek}
           />
@@ -993,7 +903,7 @@ function ControlView() {
         {showArmedShell && !showVideoPerformance && (
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
-              {songTempo && beatIndicatorOn && (
+              {songTempo && (
                 <div
                   className="control-beat-clock-wrap"
                   style={{

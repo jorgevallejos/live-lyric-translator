@@ -16,9 +16,9 @@ import {
 // ── DisplayMode type ───────────────────────────────────────────────────────
 
 describe('DisplayMode type', () => {
-  it('getDefaultDisplayMode returns "small" when song has media', () => {
+  it('getDefaultDisplayMode returns "none" when song has media (default is always None)', () => {
     const mode: DisplayMode = getDefaultDisplayMode(true)
-    expect(mode).toBe('small')
+    expect(mode).toBe('none')
   })
 
   it('getDefaultDisplayMode returns "none" when song has no media', () => {

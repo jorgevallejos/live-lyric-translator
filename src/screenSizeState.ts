@@ -67,9 +67,11 @@ export function getBroadcastScreenSize(): ScreenSize | null {
 
 // ── DisplayMode storage ────────────────────────────────────────────────────
 
-/** Returns the default display mode: 'small' when song has media, 'none' otherwise. */
-export function getDefaultDisplayMode(songHasMedia: boolean): DisplayMode {
-  return songHasMedia ? 'small' : 'none'
+/** Returns the default display mode: always 'none' (no video frame) regardless of whether
+ * the song has media. The performer opts in to Small/Big video display explicitly via the
+ * Videoclip toggle; media presence no longer implies an automatic video display default. */
+export function getDefaultDisplayMode(_songHasMedia: boolean): DisplayMode {
+  return 'none'
 }
 
 export function getStoredDisplayMode(): DisplayMode | null {
