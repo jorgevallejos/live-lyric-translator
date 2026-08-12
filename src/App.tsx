@@ -68,13 +68,6 @@ const CONTROL_STATE_LABELS: Record<'SETUP' | 'READY_TO_ARM' | 'ARMED', string> =
 }
 const NEXT_SONG_TILE_DELAY_MS = 6_000
 
-/** Cycle order for the single Videoclip toggle button: none → small → big → none. */
-function getNextDisplayMode(mode: DisplayMode): DisplayMode {
-  if (mode === 'none') return 'small'
-  if (mode === 'small') return 'big'
-  return 'none'
-}
-
 function ConcertSessionTimerRunner() {
   // Keep the concert/session timer hook alive across route transitions.
   // This prevents "time stops updating while ControlView is unmounted" issues (including under fake timers).
@@ -806,23 +799,30 @@ function ControlView() {
                     <div className="control-setup-toggle-area">
                       <div className="ctrl-toggle-group">
                         <span className="ctrl-toggle-label">Transitions</span>
-                        <button
-                          type="button"
-                          className="ctrl-btn ctrl-advance-mode-toggle-btn"
-                          aria-pressed={effectiveAdvanceMode === 'auto'}
-                          aria-label={effectiveAdvanceMode === 'auto' ? 'Advance: Auto' : 'Advance: Manual'}
-                          title={advanceAutoDisabledReason ?? undefined}
-                          // Single toggle: click flips Manual<->Auto when Auto is actually
-                          // available (timeline present); otherwise a no-op — the button
-                          // stays green, showing the forced Manual mode (see effectiveAdvanceMode).
-                          onClick={() => {
-                            if (autoAdvanceAvailable) {
-                              setSelectedAdvanceMode(effectiveAdvanceMode === 'auto' ? 'manual' : 'auto')
-                            }
-                          }}
-                        >
-                          {effectiveAdvanceMode === 'manual' ? 'Manual' : 'Auto'}
-                        </button>
+                        <div className="ctrl-segmented" role="group" aria-label="Lyric advance mode">
+                          <button
+                            type="button"
+                            className={`ctrl-segment${effectiveAdvanceMode === 'manual' ? ' ctrl-segment--active' : ''}`}
+                            aria-pressed={effectiveAdvanceMode === 'manual'}
+                            onClick={() => setSelectedAdvanceMode('manual')}
+                          >
+                            Manual
+                          </button>
+                          <button
+                            type="button"
+                            className={`ctrl-segment${effectiveAdvanceMode === 'auto' ? ' ctrl-segment--active' : ''}${!autoAdvanceAvailable ? ' ctrl-segment--disabled' : ''}`}
+                            aria-pressed={effectiveAdvanceMode === 'auto'}
+                            disabled={!autoAdvanceAvailable}
+                            title={advanceAutoDisabledReason ?? undefined}
+                            onClick={() => {
+                              if (autoAdvanceAvailable) {
+                                setSelectedAdvanceMode('auto')
+                              }
+                            }}
+                          >
+                            Auto
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -844,24 +844,35 @@ function ControlView() {
                       <div className="control-setup-toggle-area">
                         <div className="ctrl-toggle-group">
                           <span className="ctrl-toggle-label">Videoclip</span>
-                          <button
-                            type="button"
-                            className={`ctrl-btn ctrl-display-mode-toggle-btn${effectiveDisplayMode !== 'none' ? ' ctrl-display-mode-toggle-btn--selected' : ''}`}
-                            aria-label={
-                              effectiveDisplayMode === 'small'
-                                ? 'Small screen'
-                                : effectiveDisplayMode === 'big'
-                                ? 'Big screen'
-                                : 'None'
-                            }
-                            onClick={() => handleSelectDisplayMode(getNextDisplayMode(effectiveDisplayMode))}
-                          >
-                            {effectiveDisplayMode === 'small'
-                              ? 'Small screen'
-                              : effectiveDisplayMode === 'big'
-                              ? 'Big screen'
-                              : 'None'}
-                          </button>
+                          <div className="ctrl-segmented" role="group" aria-label="Videoclip display mode">
+                            <button
+                              type="button"
+                              className={`ctrl-segment${effectiveDisplayMode === 'none' ? ' ctrl-segment--active' : ''}`}
+                              aria-label="No video"
+                              aria-pressed={effectiveDisplayMode === 'none'}
+                              onClick={() => handleSelectDisplayMode('none')}
+                            >
+                              None
+                            </button>
+                            <button
+                              type="button"
+                              className={`ctrl-segment${effectiveDisplayMode === 'small' ? ' ctrl-segment--active' : ''}`}
+                              aria-label="Small screen"
+                              aria-pressed={effectiveDisplayMode === 'small'}
+                              onClick={() => handleSelectDisplayMode('small')}
+                            >
+                              Small
+                            </button>
+                            <button
+                              type="button"
+                              className={`ctrl-segment${effectiveDisplayMode === 'big' ? ' ctrl-segment--active' : ''}`}
+                              aria-label="Big screen"
+                              aria-pressed={effectiveDisplayMode === 'big'}
+                              onClick={() => handleSelectDisplayMode('big')}
+                            >
+                              Big
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
