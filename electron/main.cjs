@@ -148,8 +148,13 @@ function createProjectionWindow(loadWindow) {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    // Open at iPad Pro 13" (M4) landscape logical size. useContentSize makes these
+    // the web-content dimensions (excluding the Mac title bar), so the control layout
+    // gets the exact iPad viewport it's designed against, even on the Mac mini.
+    width: 1376,
+    height: 1032,
+    useContentSize: true,
+    center: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
