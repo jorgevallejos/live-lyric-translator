@@ -11,9 +11,12 @@ You are the **coordinator** for this piece of work. Read and decide, then delega
 
 ## Context — read before doing anything
 
-1. `projects/timeline-extractor/docs/bombista-product-backlog.md` — **§2 "Timing model — lead-in separated from line timings" is the whole reason this work exists.** Read it properly before touching code.
-2. `projects/live-lyric-translator/CLAUDE.md` and `project-context.md`.
-3. `CLAUDE.md` at the vault root — standing rules.
+1. `projects/live-lyric-translator/docs/timeline-v2-contract.md` — **the shared contract with Bombista, which is being built in a parallel session right now.** Read this first. It fixes the envelope, the rounding rule, and a golden fixture you must accept exactly. Do not invent your own shape; if something there is wrong or insufficient, stop and raise it with Jorge rather than diverging.
+2. `projects/timeline-extractor/docs/bombista-product-backlog.md` — **§2 "Timing model — lead-in separated from line timings" is the whole reason this work exists.** Read it properly before touching code.
+3. `projects/live-lyric-translator/CLAUDE.md` and `project-context.md`.
+4. `CLAUDE.md` at the vault root — standing rules.
+
+**Two rules while both streams are in flight:** test against the golden fixture in the contract, **not** against the real song files — `songs/*.json` are still v1 on disk and stay that way until Bombista's migration runs. And **do not bump the vault-root submodule pointer**; commit and push inside `projects/live-lyric-translator` only, or the two sessions will collide at the umbrella repo.
 
 Repo: `projects/live-lyric-translator` (its own repo, a submodule). Electron 41 + React 18 + TypeScript strict + Vite, Vitest. **656 tests currently pass — they must all still pass.**
 
@@ -65,7 +68,6 @@ Bombista items (`projects/timeline-extractor`) — separate kickoff.
 Signed/notarized build, Windows support, chords toggle, native iPad — unrelated backlog.
 
 ## Finishing
-Commit inside `projects/live-lyric-translator` and push. Then from the vault root:
-`git add projects/live-lyric-translator && git commit -m "Update live-lyric-translator (timeline v2)" && git push`
+Commit inside `projects/live-lyric-translator` and push. **Stop there** — do not touch the vault root. Jorge bumps the umbrella pointer himself once both parallel streams are merged.
 
 No need to rebuild the `.dmg` for this round — I'll test from dev.
