@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { getLyricText, isSection, isLyricLine, type SongItem, type MediaFile, type TimelineEntry } from './songState'
+import { getLyricText, isSection, isLyricLine, type SongItem, type MediaFile, type TimelineEntry, type TimelineLeadIn } from './songState'
 import { type ProjectionLayout } from './displayProfile'
-import { videoCueLookup } from './videoCueLookup'
+import { resolveVideoCueIndex } from './videoCueLookup'
 import { absolutePathToMediaUrl } from './mediaPathStore'
 
 export const VIDEO_SEEK_TARGET_KEY = 'videoSeekTarget'
@@ -34,6 +34,8 @@ interface Props {
   absolutePath: string
   media: MediaFile
   timeline: TimelineEntry[]
+  /** Lead-in metadata for a v2 timeline. Undefined for legacy timelines — no offset applied. */
+  leadIn?: TimelineLeadIn
   lines: SongItem[]
   effectiveLang: string
   layout: ProjectionLayout
@@ -55,6 +57,7 @@ export function VideoProjectionRegion({
   absolutePath,
   media,
   timeline,
+  leadIn,
   lines,
   effectiveLang,
   layout,
@@ -75,15 +78,15 @@ export function VideoProjectionRegion({
     video.currentTime = media.trimStart ?? 0
   }, [absolutePath, media.trimStart])
 
-  // Derive subtitle from video.currentTime via the timeline
+  // Derive subtitle from video.currentTime via the timeline (composing leadIn — see
+  // resolveVideoCueIndex in videoCueLookup.ts for the leadIn/offset composition rules).
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
     const offset = media.offset ?? 0
 
     const onTimeUpdate = () => {
-      const songTime = video.currentTime + offset
-      const idx = videoCueLookup(timeline, songTime)
+      const idx = resolveVideoCueIndex(timeline, video.currentTime, offset, leadIn)
       if (idx < 0 || idx >= lines.length) {
         setSubtitleVisible(false)
         return
@@ -104,7 +107,10 @@ export function VideoProjectionRegion({
 
     video.addEventListener('timeupdate', onTimeUpdate)
     return () => video.removeEventListener('timeupdate', onTimeUpdate)
-  }, [timeline, lines, effectiveLang, media.offset])
+    // Depend on leadIn's primitive fields, not the object itself — `leadIn` is derived from the
+    // library song and may be a fresh object every render (see the "Hook stability gotcha" in
+    // CLAUDE.md).
+  }, [timeline, lines, effectiveLang, media.offset, leadIn?.apply, leadIn?.durationSec])
 
   // Receive seek commands from the legacy seek channel (used by VideoControlPanel)
   useEffect(() => {

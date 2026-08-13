@@ -904,6 +904,7 @@ function ControlView() {
             absolutePath={resolvedVideoPath}
             media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
+            leadIn={currentLibrarySong!.leadIn}
             lines={lines}
             singingLang={effectiveSingingLang}
             tempo={songTempo}
@@ -1604,6 +1605,7 @@ function ProjectionView() {
           absolutePath={resolvedVideoPath}
           media={activeMedia!}
           timeline={currentLibrarySong!.timeline ?? []}
+          leadIn={currentLibrarySong!.leadIn}
           lines={lines}
           effectiveLang={effectiveLang}
           layout={layout}
