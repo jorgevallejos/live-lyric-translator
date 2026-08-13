@@ -850,33 +850,103 @@ describe('parseSongFile — timeline field', () => {
     expect(() => parseSongFile(json)).toThrow()
   })
 
-  it('timeline that is not an array throws an error', () => {
-    const json = JSON.stringify({
-      title: 'S',
-      lyrics: [{ es: 'A', en: 'B' }],
-      timelineVersion: 2,
-      leadIn: GOLDEN_LEAD_IN,
-      timeline: 'not-an-array',
-    })
-    expect(() => parseSongFile(json)).toThrow(/must be an array/)
-  })
-
-  it('empty timeline is valid for a song with no lyrics', () => {
-    const json = JSON.stringify({
-      title: 'S',
-      lyrics: [],
-      timelineVersion: 2,
-      leadIn: GOLDEN_LEAD_IN,
-      timeline: [],
-    })
-    const result = parseSongFile(json)
-    expect(result.timeline).toEqual([])
-  })
-
   it('a song file with a section marker is rejected before the timeline is even considered (P4)', () => {
     expect(() => parseSongFile(JSON.stringify(SONG_JSON_WITH_SECTION_MARKER))).toThrow(
       /section markers are no longer supported/
     )
+  })
+
+  describe('incomplete v2 envelope (declares version 2, no usable timeline) — rejected', () => {
+    // Updated 2026-08-13: this used to be a silent no-op (see contract amendment). A file
+    // declaring timelineVersion: 2 with no usable timeline is now a hard rejection — it reads
+    // as truncated/half-written, not "this song has no timings".
+    const INCOMPLETE_MESSAGE =
+      'This timeline file is incomplete — it declares version 2 but contains no timeline.'
+
+    it('timeline key entirely absent, with a valid leadIn, is rejected', () => {
+      const json = JSON.stringify({
+        title: 'S',
+        lyrics: [{ es: 'A', en: 'B' }],
+        timelineVersion: 2,
+        leadIn: GOLDEN_LEAD_IN,
+      })
+      expect(() => parseSongFile(json)).toThrow(INCOMPLETE_MESSAGE)
+    })
+
+    it('timeline is null is rejected', () => {
+      const json = JSON.stringify({
+        title: 'S',
+        lyrics: [{ es: 'A', en: 'B' }],
+        timelineVersion: 2,
+        leadIn: GOLDEN_LEAD_IN,
+        timeline: null,
+      })
+      expect(() => parseSongFile(json)).toThrow(INCOMPLETE_MESSAGE)
+    })
+
+    it('timeline that is not an array is rejected (previously "must be an array" — now the incomplete message)', () => {
+      const json = JSON.stringify({
+        title: 'S',
+        lyrics: [{ es: 'A', en: 'B' }],
+        timelineVersion: 2,
+        leadIn: GOLDEN_LEAD_IN,
+        timeline: 'not-an-array',
+      })
+      expect(() => parseSongFile(json)).toThrow(INCOMPLETE_MESSAGE)
+    })
+
+    it('empty timeline array is rejected, even for a song with no lyrics (previously accepted as valid — now rejected)', () => {
+      const json = JSON.stringify({
+        title: 'S',
+        lyrics: [],
+        timelineVersion: 2,
+        leadIn: GOLDEN_LEAD_IN,
+        timeline: [],
+      })
+      expect(() => parseSongFile(json)).toThrow(INCOMPLETE_MESSAGE)
+    })
+  })
+
+  describe('timelineVersion check order (2026-08-13 amendment)', () => {
+    it('timelineVersion: 1 and no timeline gets the older-Bombista message, not the incomplete message', () => {
+      const json = JSON.stringify({
+        title: 'S',
+        lyrics: [{ es: 'A', en: 'B' }],
+        timelineVersion: 1,
+      })
+      expect(() => parseSongFile(json)).toThrow(
+        /This timeline was made by an older Bombista — re-run the extractor\./
+      )
+    })
+  })
+
+  describe('un-timed song (no timeline key, no timelineVersion key) — must keep loading untouched', () => {
+    // The 11-song regression case: most of the catalogue has no timeline at all. Locked in with
+    // an explicit test per docs/timeline-v2-contract.md.
+    it('loads normally with no timeline/timelineVersion/leadIn set', () => {
+      const json = JSON.stringify({
+        title: 'S',
+        lyrics: [{ es: 'A', en: 'B' }],
+      })
+      const result = parseSongFile(json)
+      expect(result.timeline).toBeUndefined()
+      expect(result.timelineVersion).toBeUndefined()
+      expect(result.leadIn).toBeUndefined()
+    })
+  })
+
+  describe('unknown top-level keys are ignored, not rejected (forward-compatibility guarantee)', () => {
+    it('a valid v2 envelope with an extra unknown top-level key parses successfully, ignoring the key', () => {
+      const json = JSON.stringify({
+        ...GOLDEN_SONG_JSON_V2,
+        provenance: { model: 'faster-whisper', extractedAt: '2026-08-11T00:00:00Z' },
+        linesHash: 'sha256:abc',
+      })
+      const result = parseSongFile(json)
+      expect(result.timeline).toEqual(GOLDEN_TIMELINE_ENTRIES)
+      expect(result.timelineVersion).toBe(2)
+      expect(result.leadIn).toEqual(GOLDEN_LEAD_IN)
+    })
   })
 })
 

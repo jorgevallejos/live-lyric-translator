@@ -10,6 +10,7 @@ import {
   resetLoadedSongState,
   tryParsePersistedSongItemsArray,
   timelineVersionRejectionMessage,
+  TIMELINE_INCOMPLETE_MESSAGE,
   validateTimelineLeadIn,
   type ParsedSongFile,
   type SongItem,
@@ -849,16 +850,30 @@ export function parseTimelineFromJsonText(text: string): {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('Timeline file must be a JSON object with a "timeline" key')
   }
+  // Unknown top-level keys are deliberately ignored, never rejected — a forward-compatibility
+  // guarantee from docs/timeline-v2-contract.md ("Producer vs consumer strictness"), not an
+  // oversight. Only timelineVersion/leadIn/timeline are consulted below.
   const obj = raw as Record<string, unknown>
-  // timelineVersion guard (P3): never coerce — a missing/older field is a hard rejection.
+  // timelineVersion guard (P3): never coerce — a missing/older field is a hard rejection. This
+  // check comes first: an older/other version is always "an older Bombista" (below), never
+  // "incomplete" — only a file correctly declaring 2 can be that.
   if (obj.timelineVersion !== 2) {
     throw new Error(timelineVersionRejectionMessage(obj.timelineVersion))
   }
   const leadIn = validateTimelineLeadIn(obj.leadIn, 'Timeline file')
-  if (!Object.prototype.hasOwnProperty.call(obj, 'timeline') || !Array.isArray(obj.timeline)) {
-    throw new Error('Timeline file must contain a "timeline" array')
+  // A file that declares v2 but has no usable timeline — absent, null, not an array, or empty
+  // — is truncated/half-written; reject loudly rather than silently importing zero cues
+  // (docs/timeline-v2-contract.md).
+  const tlValue = obj.timeline
+  const noUsableTimeline =
+    !Object.prototype.hasOwnProperty.call(obj, 'timeline') ||
+    tlValue === null ||
+    !Array.isArray(tlValue) ||
+    tlValue.length === 0
+  if (noUsableTimeline) {
+    throw new Error(TIMELINE_INCOMPLETE_MESSAGE)
   }
-  const arr = obj.timeline as unknown[]
+  const arr = tlValue as unknown[]
   const entries: TimelineEntry[] = []
   let previousEnd = -Infinity
   for (let i = 0; i < arr.length; i++) {

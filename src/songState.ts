@@ -155,6 +155,16 @@ const TIMELINE_VERSION_REJECT_MESSAGE =
   'This timeline was made by an older Bombista — re-run the extractor.'
 
 /**
+ * Shared, exact rejection message for a file that declares `timelineVersion: 2` and a valid
+ * `leadIn` but carries no usable `timeline` (absent, null, not an array, or empty). Such a file
+ * is truncated or half-written; loading it as a no-op would make the song look merely un-timed —
+ * the exact silent-failure class this format exists to eliminate. See
+ * "Producer vs consumer strictness" in docs/timeline-v2-contract.md.
+ */
+export const TIMELINE_INCOMPLETE_MESSAGE =
+  'This timeline file is incomplete — it declares version 2 but contains no timeline.'
+
+/**
  * Builds the (shared, exact) rejection message for a missing/mismatched `timelineVersion`.
  * `found` is the offending value (or `undefined` when the field is simply absent).
  */
@@ -418,19 +428,34 @@ export function parseSongRecordFromUnknown(raw: Record<string, unknown>): Parsed
       if (Object.keys(map).length > 0) out.intro = map
     }
   }
-  if (Object.prototype.hasOwnProperty.call(raw, 'timeline')) {
-    const tl = raw.timeline
-    if (tl !== null && tl !== undefined) {
-      // timelineVersion guard (P3): a timeline is only accepted when the enclosing object
-      // carries timelineVersion: 2. Never coerce — a missing/older field is a hard rejection.
-      if (raw.timelineVersion !== 2) {
-        throw new Error(timelineVersionRejectionMessage(raw.timelineVersion))
-      }
-      const leadIn = validateTimelineLeadIn(raw.leadIn, 'Song file')
-      out.timeline = validateTimeline(tl, items.length)
-      out.timelineVersion = 2
-      out.leadIn = leadIn
+  // Unknown top-level keys (e.g. a future "provenance" or "linesHash" envelope field) are
+  // deliberately ignored, never rejected — this is a forward-compatibility guarantee from
+  // docs/timeline-v2-contract.md ("Producer vs consumer strictness"), not an oversight. Only
+  // the keys read below are consulted; everything else in `raw` is left untouched.
+  const hasTimelineVersionKey = Object.prototype.hasOwnProperty.call(raw, 'timelineVersion')
+  const hasTimelineKey = Object.prototype.hasOwnProperty.call(raw, 'timeline')
+  const tl = raw.timeline
+  // A song with neither key is a perfectly normal un-timed song (the 11-song regression case)
+  // and must keep loading untouched — this branch is skipped entirely for it.
+  if (hasTimelineVersionKey || (hasTimelineKey && tl !== null && tl !== undefined)) {
+    // timelineVersion guard (P3): a timeline is only accepted when the enclosing object
+    // carries timelineVersion: 2. Never coerce — a missing/older field is a hard rejection.
+    // This check comes first: a file declaring an older/other version is always "an older
+    // Bombista" (below), never "incomplete" — only a file correctly declaring 2 can be that.
+    if (raw.timelineVersion !== 2) {
+      throw new Error(timelineVersionRejectionMessage(raw.timelineVersion))
     }
+    // A file that declares v2 but has no usable timeline — absent, null, not an array, or
+    // empty — is truncated/half-written; reject loudly rather than silently loading it as if
+    // the song simply has no timings (docs/timeline-v2-contract.md).
+    const noUsableTimeline = !hasTimelineKey || tl === null || !Array.isArray(tl) || tl.length === 0
+    if (noUsableTimeline) {
+      throw new Error(TIMELINE_INCOMPLETE_MESSAGE)
+    }
+    const leadIn = validateTimelineLeadIn(raw.leadIn, 'Song file')
+    out.timeline = validateTimeline(tl, items.length)
+    out.timelineVersion = 2
+    out.leadIn = leadIn
   }
   if (Object.prototype.hasOwnProperty.call(raw, 'media')) {
     const m = raw.media

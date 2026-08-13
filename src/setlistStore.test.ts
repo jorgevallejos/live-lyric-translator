@@ -1607,11 +1607,6 @@ describe('setlistStore', () => {
       expect(result.entries).toEqual(GOLDEN_TIMELINE_ENTRIES)
     })
 
-    it('accepts an empty timeline array', () => {
-      const text = JSON.stringify({ timelineVersion: 2, leadIn: GOLDEN_LEAD_IN, timeline: [] })
-      expect(parseTimelineFromJsonText(text).entries).toEqual([])
-    })
-
     it('throws on non-JSON input', () => {
       expect(() => parseTimelineFromJsonText('not json')).toThrow(/JSON/i)
     })
@@ -1691,6 +1686,56 @@ describe('setlistStore', () => {
         timeline: [{ start: 0, end: 2 }, { start: 1, end: 3 }],
       })
       expect(() => parseTimelineFromJsonText(text)).toThrow(/monotonic/i)
+    })
+
+    describe('incomplete v2 envelope (declares version 2, no usable timeline) — rejected', () => {
+      // Updated 2026-08-13: an empty timeline array used to be accepted (see the removed
+      // "accepts an empty timeline array" test). It is now a hard rejection along with
+      // absent/null/non-array timelines — see contract amendment "Producer vs consumer
+      // strictness".
+      const INCOMPLETE_MESSAGE =
+        'This timeline file is incomplete — it declares version 2 but contains no timeline.'
+
+      it('empty timeline array is rejected', () => {
+        const text = JSON.stringify({ timelineVersion: 2, leadIn: GOLDEN_LEAD_IN, timeline: [] })
+        expect(() => parseTimelineFromJsonText(text)).toThrow(INCOMPLETE_MESSAGE)
+      })
+
+      it('timeline key entirely absent, with a valid leadIn, is rejected', () => {
+        const text = JSON.stringify({ timelineVersion: 2, leadIn: GOLDEN_LEAD_IN })
+        expect(() => parseTimelineFromJsonText(text)).toThrow(INCOMPLETE_MESSAGE)
+      })
+
+      it('timeline is null is rejected', () => {
+        const text = JSON.stringify({ timelineVersion: 2, leadIn: GOLDEN_LEAD_IN, timeline: null })
+        expect(() => parseTimelineFromJsonText(text)).toThrow(INCOMPLETE_MESSAGE)
+      })
+
+      it('timeline that is not an array is rejected', () => {
+        const text = JSON.stringify({ timelineVersion: 2, leadIn: GOLDEN_LEAD_IN, timeline: 42 })
+        expect(() => parseTimelineFromJsonText(text)).toThrow(INCOMPLETE_MESSAGE)
+      })
+    })
+
+    it('a timelineVersion other than 2 is rejected with the older-Bombista message even with no timeline at all (check order)', () => {
+      const text = JSON.stringify({ timelineVersion: 1, leadIn: GOLDEN_LEAD_IN })
+      expect(() => parseTimelineFromJsonText(text)).toThrow(
+        /This timeline was made by an older Bombista — re-run the extractor\./
+      )
+    })
+
+    describe('unknown top-level keys are ignored, not rejected (forward-compatibility guarantee)', () => {
+      it('a valid v2 envelope with an extra unknown top-level key parses successfully, ignoring the key', () => {
+        const text = JSON.stringify({
+          ...GOLDEN_TIMELINE_IMPORT_ENVELOPE,
+          provenance: { model: 'faster-whisper', extractedAt: '2026-08-11T00:00:00Z' },
+          linesHash: 'sha256:abc',
+        })
+        const result = parseTimelineFromJsonText(text)
+        expect(result.timelineVersion).toBe(2)
+        expect(result.leadIn).toEqual(GOLDEN_LEAD_IN)
+        expect(result.entries).toEqual(GOLDEN_TIMELINE_ENTRIES)
+      })
     })
   })
 })
