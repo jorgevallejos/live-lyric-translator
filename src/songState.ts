@@ -58,15 +58,19 @@ function validateLyricLine(obj: Record<string, unknown>, index: number): LyricLi
   return { languages }
 }
 
+/**
+ * The CP song format carries sung lines only — no section markers, no meta entries (P4).
+ * This is a file-load / import boundary rule only: `SectionMarker`, `isSection`, and section
+ * rendering elsewhere in the app are unaffected, as is the persisted-store path
+ * (`tryParsePersistedSongItemsArray`), which must keep accepting a library already on disk.
+ */
 function validateLyricsItem(item: unknown, index: number): SongItem {
   if (item !== null && typeof item === 'object') {
     const obj = item as Record<string, unknown>
     if (obj.type === 'section') {
-      const label = obj.label
-      if (typeof label !== 'string') {
-        throw new Error(`Item ${index}: section must have a string "label"`)
-      }
-      return { type: 'section', label }
+      throw new Error(
+        `Item ${index}: section markers are no longer supported — lyrics must contain sung lines only.`
+      )
     }
     return validateLyricLine(obj, index)
   }
@@ -132,6 +136,54 @@ export interface TimelineEntry {
   end: number
 }
 
+/**
+ * Lead-in metadata accompanying a v2 timeline (see `docs/timeline-v2-contract.md`).
+ * Required whenever `timelineVersion: 2` is present.
+ */
+export interface TimelineLeadIn {
+  /** Seconds of audio before the first sung word. */
+  durationSec: number
+  /** `measured` = Bombista computed it; `manual` = a human overrode it. */
+  source: 'measured' | 'manual' | 'none'
+  /** Always `low` when `measured` — faster-whisper clamps the first sung word toward 0. */
+  confidence: 'low' | 'high'
+  /** `true` when the song has `media.type == "video"`, else `false`. */
+  apply: boolean
+}
+
+const TIMELINE_VERSION_REJECT_MESSAGE =
+  'This timeline was made by an older Bombista — re-run the extractor.'
+
+/**
+ * Builds the (shared, exact) rejection message for a missing/mismatched `timelineVersion`.
+ * `found` is the offending value (or `undefined` when the field is simply absent).
+ */
+export function timelineVersionRejectionMessage(found: unknown): string {
+  if (found === undefined) return TIMELINE_VERSION_REJECT_MESSAGE
+  return `${TIMELINE_VERSION_REJECT_MESSAGE} (found timelineVersion ${JSON.stringify(found)})`
+}
+
+/** Validates a `leadIn` block per the timeline v2 contract. `context` prefixes error messages. */
+export function validateTimelineLeadIn(leadIn: unknown, context: string): TimelineLeadIn {
+  if (leadIn === null || typeof leadIn !== 'object' || Array.isArray(leadIn)) {
+    throw new Error(`${context} "leadIn" must be an object`)
+  }
+  const obj = leadIn as Record<string, unknown>
+  if (typeof obj.durationSec !== 'number' || obj.durationSec < 0) {
+    throw new Error(`${context} "leadIn.durationSec" must be a non-negative number`)
+  }
+  if (obj.source !== 'measured' && obj.source !== 'manual' && obj.source !== 'none') {
+    throw new Error(`${context} "leadIn.source" must be "measured", "manual", or "none"`)
+  }
+  if (obj.confidence !== 'low' && obj.confidence !== 'high') {
+    throw new Error(`${context} "leadIn.confidence" must be "low" or "high"`)
+  }
+  if (typeof obj.apply !== 'boolean') {
+    throw new Error(`${context} "leadIn.apply" must be a boolean`)
+  }
+  return { durationSec: obj.durationSec, source: obj.source, confidence: obj.confidence, apply: obj.apply }
+}
+
 export interface MediaFile {
   type: 'video' | 'audio'
   src: string
@@ -171,8 +223,12 @@ export interface ParsedSongFile {
   title_translations?: Record<string, string>
   /** One-line intro tagline per language shown on the intro screen. Omitted when not present. */
   intro?: Record<string, string>
-  /** Timing entries in seconds, one per lyrics array item (including sections). Omitted when not present. */
+  /** Timing entries in seconds, one per lyrics array item. Omitted when not present. */
   timeline?: TimelineEntry[]
+  /** Timeline schema version. Only ever `2` — present iff `timeline` is present. */
+  timelineVersion?: number
+  /** Lead-in metadata accompanying a v2 timeline. Present iff `timelineVersion` is present. */
+  leadIn?: TimelineLeadIn
   /** Optional media file (video or audio). Omitted when not present. */
   media?: MediaFile
   /** Optional tempo for count-in and beat-pulse display. Omitted when not present. */
@@ -365,7 +421,15 @@ export function parseSongRecordFromUnknown(raw: Record<string, unknown>): Parsed
   if (Object.prototype.hasOwnProperty.call(raw, 'timeline')) {
     const tl = raw.timeline
     if (tl !== null && tl !== undefined) {
+      // timelineVersion guard (P3): a timeline is only accepted when the enclosing object
+      // carries timelineVersion: 2. Never coerce — a missing/older field is a hard rejection.
+      if (raw.timelineVersion !== 2) {
+        throw new Error(timelineVersionRejectionMessage(raw.timelineVersion))
+      }
+      const leadIn = validateTimelineLeadIn(raw.leadIn, 'Song file')
       out.timeline = validateTimeline(tl, items.length)
+      out.timelineVersion = 2
+      out.leadIn = leadIn
     }
   }
   if (Object.prototype.hasOwnProperty.call(raw, 'media')) {

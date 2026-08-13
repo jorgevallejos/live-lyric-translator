@@ -4637,7 +4637,7 @@ describe('ControlView performer state flow', () => {
       function seedSetlistWithSong() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         const snap = {
-          version: 6 as const,
+          version: 7 as const,
           setlists: [{ id: 'sl-1', name: 'Tonight', songIds: ['duelo'] }],
           activeSetlistId: 'sl-1',
           songLibrary: {
@@ -4746,7 +4746,7 @@ describe('ControlView performer state flow', () => {
         clearStorage()
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [{ id: 'sl-1', name: 'Tonight', songIds: ['duelo'] }],
           activeSetlistId: 'sl-1',
           songLibrary: {
@@ -4786,7 +4786,7 @@ describe('ControlView performer state flow', () => {
       function seedLibraryOnly() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [],
           activeSetlistId: '',
           songLibrary: { songs: [{ id: 'duelo', title: 'Duelo', items: [line] }] },
@@ -4796,7 +4796,7 @@ describe('ControlView performer state flow', () => {
       function seedLibraryOnlyWithMedia() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [],
           activeSetlistId: '',
           songLibrary: {
@@ -4808,7 +4808,7 @@ describe('ControlView performer state flow', () => {
       function seedSetlistWithMediaSong() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [{ id: 'sl-1', name: 'Tonight', songIds: ['duelo'] }],
           activeSetlistId: 'sl-1',
           songLibrary: {
@@ -4820,7 +4820,7 @@ describe('ControlView performer state flow', () => {
       function seedSetlistWithNoMediaSong() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [{ id: 'sl-1', name: 'Tonight', songIds: ['duelo'] }],
           activeSetlistId: 'sl-1',
           songLibrary: { songs: [{ id: 'duelo', title: 'Duelo', items: [line] }] },
@@ -4963,7 +4963,7 @@ describe('ControlView performer state flow', () => {
       function seedSetlistSongNoTimeline() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [{ id: 'sl-1', name: 'Tonight', songIds: ['duelo'] }],
           activeSetlistId: 'sl-1',
           songLibrary: { songs: [{ id: 'duelo', title: 'Duelo', items: [line] }] },
@@ -4973,7 +4973,7 @@ describe('ControlView performer state flow', () => {
       function seedSetlistSongWithTimeline() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [{ id: 'sl-1', name: 'Tonight', songIds: ['duelo'] }],
           activeSetlistId: 'sl-1',
           songLibrary: {
@@ -4985,7 +4985,7 @@ describe('ControlView performer state flow', () => {
       function seedLibrarySongNoTimeline() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [],
           activeSetlistId: '',
           songLibrary: { songs: [{ id: 'duelo', title: 'Duelo', items: [line] }] },
@@ -4995,7 +4995,7 @@ describe('ControlView performer state flow', () => {
       function seedLibrarySongWithTimeline() {
         const line: SongItem = { languages: { es: 'a', en: 'b' } }
         saveSetlistStore({
-          version: 6 as const,
+          version: 7 as const,
           setlists: [],
           activeSetlistId: '',
           songLibrary: {
@@ -5108,7 +5108,13 @@ describe('ControlView performer state flow', () => {
           fireEvent.click(within(row).getByRole('button', { name: /Import timeline for Duelo/i }))
         })
 
-        const jsonText = JSON.stringify({ timeline: [{ start: 0, end: 1 }] })
+        // P3: the import file must be a valid timeline v2 envelope (timelineVersion + leadIn +
+        // timeline) — a bare { timeline: [...] } (v1-shaped) is now rejected by the guard.
+        const jsonText = JSON.stringify({
+          timelineVersion: 2,
+          leadIn: { durationSec: 0, source: 'none', confidence: 'low', apply: false },
+          timeline: [{ start: 0, end: 1 }],
+        })
         const mockFile = new File([jsonText], 'timeline.json', { type: 'application/json' })
         const input = document.querySelector<HTMLInputElement>('[data-testid="import-timeline-input"]')!
         await act(async () => {
@@ -5119,6 +5125,8 @@ describe('ControlView performer state flow', () => {
           const store = loadSetlistStore()!
           const song = store.songLibrary.songs.find((s) => s.id === 'duelo')!
           expect(song.timeline).toEqual([{ start: 0, end: 1 }])
+          expect(song.timelineVersion).toBe(2)
+          expect(song.leadIn).toEqual({ durationSec: 0, source: 'none', confidence: 'low', apply: false })
         })
       })
 
@@ -5132,7 +5140,11 @@ describe('ControlView performer state flow', () => {
           fireEvent.click(within(libraryPanel).getByRole('button', { name: /Import timeline for Duelo/i }))
         })
 
-        const jsonText = JSON.stringify({ timeline: [{ start: 0, end: 2 }, { start: 2, end: 4 }] })
+        const jsonText = JSON.stringify({
+          timelineVersion: 2,
+          leadIn: { durationSec: 0, source: 'none', confidence: 'low', apply: false },
+          timeline: [{ start: 0, end: 2 }, { start: 2, end: 4 }],
+        })
         const mockFile = new File([jsonText], 'timeline.json', { type: 'application/json' })
         const input = document.querySelector<HTMLInputElement>('[data-testid="import-timeline-input"]')!
         await act(async () => {
@@ -5143,7 +5155,40 @@ describe('ControlView performer state flow', () => {
           const store = loadSetlistStore()!
           const song = store.songLibrary.songs.find((s) => s.id === 'duelo')!
           expect(song.timeline).toEqual([{ start: 0, end: 2 }, { start: 2, end: 4 }])
+          expect(song.timelineVersion).toBe(2)
         })
+      })
+
+      it('P3: importing a v1-shaped timeline file (no timelineVersion) is rejected with the older-Bombista message', async () => {
+        clearStorage()
+        seedSetlistSongNoTimeline()
+        const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => undefined)
+        renderManageSetlists16()
+
+        await waitFor(() => {
+          expect(screen.getByTestId('manage-setlist-song-row-duelo')).toBeTruthy()
+        })
+        const row = screen.getByTestId('manage-setlist-song-row-duelo')
+        await act(async () => {
+          fireEvent.click(within(row).getByRole('button', { name: /Import timeline for Duelo/i }))
+        })
+
+        const jsonText = JSON.stringify({ timeline: [{ start: 0, end: 1 }] })
+        const mockFile = new File([jsonText], 'timeline.json', { type: 'application/json' })
+        const input = document.querySelector<HTMLInputElement>('[data-testid="import-timeline-input"]')!
+        await act(async () => {
+          fireEvent.change(input, { target: { files: [mockFile] } })
+        })
+
+        await waitFor(() => {
+          expect(alertMock).toHaveBeenCalledWith(
+            expect.stringMatching(/This timeline was made by an older Bombista — re-run the extractor\./)
+          )
+        })
+        const store = loadSetlistStore()!
+        const song = store.songLibrary.songs.find((s) => s.id === 'duelo')!
+        expect(song.timeline).toBeUndefined()
+        alertMock.mockRestore()
       })
 
       it('importing an invalid JSON file shows an alert and does not change the song', async () => {
