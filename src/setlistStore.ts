@@ -377,7 +377,6 @@ function migrateV5ToV6(snap: SetlistStoreSnapshot): SetlistStoreSnapshot {
     const m = song.media as unknown as Record<string, unknown>
     const collapsed = collapseSongMediaToMediaFile(m)
     if (collapsed === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { media: _m, ...rest } = song
       return rest
     }
@@ -787,7 +786,6 @@ export function patchSongMediaInSnapshot(
   if (!snap.songLibrary.songs.some((s) => s.id === songId)) return null
   const songs = snap.songLibrary.songs.map((s) => {
     if (s.id !== songId) return s
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { media: _, ...rest } = s
     return media !== undefined ? { ...rest, media } : rest
   })
@@ -813,7 +811,6 @@ export function patchSongTimelineInSnapshot(
   if (!snap.songLibrary.songs.some((s) => s.id === songId)) return null
   const songs = snap.songLibrary.songs.map((s) => {
     if (s.id !== songId) return s
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { timeline: _, timelineVersion: _v, leadIn: _l, ...rest } = s
     if (timeline === undefined) return rest
     const withTimeline = { ...rest, timeline }
