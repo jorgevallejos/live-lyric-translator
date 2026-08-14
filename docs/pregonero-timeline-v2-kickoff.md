@@ -1,6 +1,6 @@
 # Claude Code kickoff — Pregonero timeline v2 (live-lyric-translator)
 
-**Created:** 2026-08-13 · **Spec:** `projects/timeline-extractor/docs/bombista-product-backlog.md` §2 and §4
+**Created:** 2026-08-13 · **Spec:** `projects/bombista/docs/bombista-product-backlog.md` §2 and §4
 **Paste everything below the line into a fresh Claude Code session opened at the vault root.**
 
 > **This workstream is the critical path.** Bombista is about to emit v2 timelines for the rest of the catalogue. Until these items land, no v2 timeline can be loaded into the app safely. Do this before, or alongside, the Bombista work — not after.
@@ -11,8 +11,8 @@ You are the **coordinator** for this piece of work. Read and decide, then delega
 
 ## Context — read before doing anything
 
-1. `projects/live-lyric-translator/docs/timeline-v2-contract.md` — **the shared contract with Bombista, which is being built in a parallel session right now.** Read this first. It fixes the envelope, the rounding rule, and a golden fixture you must accept exactly. Do not invent your own shape; if something there is wrong or insufficient, stop and raise it with Jorge rather than diverging.
-2. `projects/timeline-extractor/docs/bombista-product-backlog.md` — **§2 "Timing model — lead-in separated from line timings" is the whole reason this work exists.** Read it properly before touching code.
+1. `projects/pregonero/docs/timeline-v2-contract.md` — **the shared contract with Bombista, which is being built in a parallel session right now.** Read this first. It fixes the envelope, the rounding rule, and a golden fixture you must accept exactly. Do not invent your own shape; if something there is wrong or insufficient, stop and raise it with Jorge rather than diverging.
+2. `projects/bombista/docs/bombista-product-backlog.md` — **§2 "Timing model — lead-in separated from line timings" is the whole reason this work exists.** Read it properly before touching code.
 3. `projects/live-lyric-translator/CLAUDE.md` and `project-context.md`.
 4. `CLAUDE.md` at the vault root — standing rules.
 
@@ -64,7 +64,7 @@ This changes where the timeline *starts*, not tempo drift within the song. Auto 
 4. After P1: I want to test Libertad with the pedal myself.
 
 ## Out of scope
-Bombista items (`projects/timeline-extractor`) — separate kickoff.
+Bombista items (`projects/bombista`) — separate kickoff.
 Signed/notarized build, Windows support, chords toggle, native iPad — unrelated backlog.
 
 ## Finishing

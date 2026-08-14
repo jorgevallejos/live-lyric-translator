@@ -2,7 +2,7 @@
 
 **Written 2026-08-14 by the Cowork PM session.** This is **step 4b** of the plan in `context/current-priorities.md` — pulled forward from step 10 because it is **deadline-critical for the 21 Aug solo-ready date**, not polish.
 
-Read `../../timeline-extractor/docs/bombista-product-backlog.md` — the P5/P6 rows, the new **P9** section, and the three **Rules established 2026-08-14** — before touching anything.
+Read `../../bombista/docs/bombista-product-backlog.md` — the P5/P6 rows, the new **P9** section, and the three **Rules established 2026-08-14** — before touching anything.
 
 ## Runs in parallel with B13
 
@@ -89,7 +89,7 @@ The pulse also runs at `performedBpm`. **Both derive from the same number**, so 
 
 ## Found during implementation — P10 candidate: the pulse is silent
 
-**Claude Code, 2026-08-14. Not built, by Jorge's explicit call: out of scope for this round, and a separate decision he wants to make away from this work. Logged here because the backlog lives in the other repo (`projects/timeline-extractor`), which the B13 agent was holding — the backlog row is Jorge's or Cowork's to add.**
+**Claude Code, 2026-08-14. Not built, by Jorge's explicit call: out of scope for this round, and a separate decision he wants to make away from this work. Logged here because the backlog lives in the other repo (`projects/bombista`), which the B13 agent was holding — the backlog row is Jorge's or Cowork's to add.**
 
 P5 is specified and reasoned about throughout as a **click track Jorge plays to**. The app does not produce a click. The pulse is **visual only**:
 
