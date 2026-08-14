@@ -10,6 +10,7 @@
  *   - Ignores unrelated storage keys.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { Mock } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import type { MediaFile, TimelineEntry, SongItem } from './songState'
 import type { ProjectionLayout } from './displayProfile'
@@ -48,14 +49,14 @@ const SMALL_LAYOUT: ProjectionLayout = {
   subtitleBottomMarginPx: 0,
 }
 
-let playSpy: ReturnType<typeof vi.fn>
-let pauseSpy: ReturnType<typeof vi.fn>
-let currentTimeSetter: ReturnType<typeof vi.fn>
+let playSpy: Mock<() => Promise<void>>
+let pauseSpy: Mock<() => void>
+let currentTimeSetter: Mock<(value: number) => void>
 
 beforeEach(() => {
-  playSpy = vi.fn(() => Promise.resolve())
-  pauseSpy = vi.fn()
-  currentTimeSetter = vi.fn()
+  playSpy = vi.fn<() => Promise<void>>(() => Promise.resolve())
+  pauseSpy = vi.fn<() => void>()
+  currentTimeSetter = vi.fn<(value: number) => void>()
   HTMLVideoElement.prototype.play = playSpy
   HTMLVideoElement.prototype.pause = pauseSpy
   Object.defineProperty(HTMLVideoElement.prototype, 'currentTime', {

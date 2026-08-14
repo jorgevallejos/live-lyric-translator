@@ -162,12 +162,16 @@ Normally the projection window ignores keyboard arrows, so that a stray keypress
 For rehearsal on a single screen, start the app with the single-screen flag set:
 
 ```bash
+npm run dev:single
+```
+
+That script is a thin wrapper over the actual mechanism — the `VITE_SINGLE_SCREEN` environment variable, read in `App.tsx` — so this is equivalent:
+
+```bash
 VITE_SINGLE_SCREEN=1 npm run dev
 ```
 
 In this mode the projection window also responds to `←` / `→`.
-
-> **Note:** earlier versions of this document gave the command as `npm run dev:single`. There is no such script in `package.json` — the environment variable above is the actual mechanism (`VITE_SINGLE_SCREEN`, read in `App.tsx`). Adding a `dev:single` script would be a reasonable convenience; it does not exist today.
 
 ## Live performance setup (current configuration)
 
