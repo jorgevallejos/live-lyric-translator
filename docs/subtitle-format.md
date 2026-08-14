@@ -39,22 +39,42 @@ Songs may carry an optional `tempo` block used for the count-in and beat indicat
 
 **Old `meter` field (pre-v4):** Song JSON files that still carry `meter: N` are accepted at import time and defaulted to `numerator: N, denominator: 4`. Stored snapshots at schema v3 are migrated automatically on first load.
 
-## Media schema (v5)
+## Media schema (v6 — one video per song)
 
-Songs may carry an optional `media` block with separate big-screen and small-screen video slots:
+Songs may carry an optional `media` block: **exactly one file, not a slot per screen.**
 
 ```json
-"media": {
-  "small": { "type": "video", "src": "song-small.mp4", "trimStart": 0, "offset": 0 },
-  "big":   { "type": "video", "src": "song-big.mp4" }
-}
+"media": { "type": "video", "src": "pimiento.mp4", "trimStart": 0, "offset": 0 }
 ```
 
-Both slots are optional; a song may have neither, one, or both. Each slot has `type` (`"video"` or `"audio"`), `src` (logical filename — resolved to an absolute path per-machine via `mediaPathStore`), and optional `trimStart` (seconds to skip at the start) and `offset` (subtitle time alignment offset in seconds).
+| field | meaning |
+|---|---|
+| `type` | `"video"` or `"audio"` |
+| `src` | **A logical filename only** — the actual file is linked once per machine and remembered locally (`mediaPathStore`; see [media-assets.md](media-assets.md)) |
+| `trimStart` *(optional)* | seconds to skip at the start of the file (blank lead-in) |
+| `offset` *(optional)* | subtitle time-alignment offset in seconds |
 
-The active slot for performance is selected in the Projection column of the setup/arming view (§4 of the rework). The default is `small` when present, otherwise `big`. Both video files share a single `timeline`; per-slot `offset` handles alignment if they differ slightly.
+**One clean export per song.** "Big" and "Small" are a **projection display-format toggle**, not two files — they map to the `big-screen` / `small-canvas` display profiles described above, and the app composites the band itself. A single clean master therefore serves every screen and every language.
 
-**Old flat `media` format (pre-v5):** Song JSON files that still carry a single flat `media: { "type": "video", "src": "..." }` object are auto-migrated to `{ "small": { ... } }` at import time. Stored snapshots at schema v4 are migrated automatically on first load.
+Feed the app **web-playable MP4s** (H.264, ≤1080p). ProRes masters are a mastering format and will not play.
+
+**Migration history.** Pre-v5 song files carried a flat `media: { type, src }`, which v5 wrapped into `{ small: { … } }`; **v6 collapsed that back to a single `MediaFile`**, which is the shape above. `SongMedia { big?, small? }` survives in `songState.ts` only as a `@deprecated` type feeding the migration path. Stored snapshots migrate forward automatically on load — the store is at **v7** (`SETLIST_STORE_VERSION`), which added optional `timelineVersion` / `leadIn`.
+
+## Song-level fields
+
+The rest of the song JSON, for reference. The timeline fields — `timelineVersion`, `leadIn`, `timeline` — are **not** listed here: they are owned by [timeline-v2-contract.md](timeline-v2-contract.md), the shared contract with Bombista, and that file is the only place they may be specified.
+
+| field | meaning |
+|---|---|
+| `title` | song name |
+| `title_translations` *(optional)* | translated titles for the intro/title screen, indexed by language code |
+| `intro` *(optional)* | translatable spoken introduction shown on the intro screen |
+| `notes` *(optional)* | performer notes — capo, key, reminders. Shown to the performer only, never projected |
+| `tempo` *(optional)* | see **Tempo schema** above |
+| `media` *(optional)* | see **Media schema** above |
+| `lyrics` | ordered list of lyric lines |
+
+Each lyric line holds its translations indexed by language code (`es`, `en`, `fr`, `nl`, …). **Missing translations are allowed** — the line simply stays blank in projection rather than failing. A song carrying none of the optional blocks behaves exactly as it always has, in Manual mode.
 
 ## What the app owns vs the video
 
