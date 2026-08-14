@@ -57,7 +57,7 @@ import {
   type DisplayMode,
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
-import { getDefaultAdvanceMode, computeAutoAdvanceIndex, isCueStartMode, type AdvanceMode } from './autoAdvanceState'
+import { computeAutoAdvanceIndex, isCueStartMode, resolveAdvanceMode, type AdvanceMode } from './autoAdvanceState'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -264,11 +264,16 @@ function ControlView() {
   // manual otherwise. Resets to null (defer to the per-song default) whenever the song changes,
   // so switching songs doesn't carry over an explicit choice made for a previous song.
   const [selectedAdvanceMode, setSelectedAdvanceMode] = useState<AdvanceMode | null>(null)
+  // P6: set when the performer presses Next/Previous during Auto playback, dropping the song
+  // into Manual for the REMAINDER of the song. Reset on the next song and the next arm (below),
+  // and by the Restart handlers — never sticky across songs.
+  const [manualOverrideTaken, setManualOverrideTaken] = useState(false)
   const prevAdvanceModeSongIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (prevAdvanceModeSongIdRef.current !== currentSongId) {
       prevAdvanceModeSongIdRef.current = currentSongId
       setSelectedAdvanceMode(null)
+      setManualOverrideTaken(false)
     }
   }, [currentSongId])
 
@@ -293,7 +298,11 @@ function ControlView() {
   const songTimeline = currentLibrarySong?.timeline ?? []
   const hasTimeline = songTimeline.length > 0
   const autoAdvanceAvailable = hasTimeline
-  const effectiveAdvanceMode: AdvanceMode = selectedAdvanceMode ?? getDefaultAdvanceMode(hasTimeline)
+  const effectiveAdvanceMode: AdvanceMode = resolveAdvanceMode({
+    selected: selectedAdvanceMode,
+    hasTimeline,
+    manualOverrideTaken,
+  })
   // The performer only gets the video panel when the song has a video AND it's actually
   // being shown (display mode isn't 'none'). In 'none' mode a video song behaves exactly
   // like a non-video song for the performer (manual Next/Previous/Restart).
@@ -396,6 +405,12 @@ function ControlView() {
     // called from a later click, after the full render — the same pattern this function
     // already relies on for startBeatClock, destructured from useBeatClock() below it).
     const wasNotStarted = getSongIndex() === -1
+    // P6: a Next pressed while Auto is actually driving the song takes the wheel for the rest
+    // of the song. The cue press itself (wasNotStarted) is excluded — that press STARTS Auto,
+    // it doesn't override it.
+    if (isAutoArmed && !wasNotStarted) {
+      setManualOverrideTaken(true)
+    }
     goNext()
     const newIndex = getSongIndex()
     if (wasNotStarted) {
@@ -411,6 +426,11 @@ function ControlView() {
     })
   }
   const handlePrev = () => {
+    // P6: Previous takes the wheel exactly as Next does. Previous is disabled before the cue,
+    // so the index check is belt-and-braces against a pedal/keyboard path reaching it early.
+    if (isAutoArmed && getSongIndex() >= 0) {
+      setManualOverrideTaken(true)
+    }
     goPrev()
     const prevIdx = getSongIndex()
     sendCommandWithState('prev', undefined, { currentIndex: prevIdx, blank: getBlank() })
@@ -419,6 +439,8 @@ function ControlView() {
     goRestart()
     // Restart also restarts the non-video beat clock (no-op when there is no tempo).
     restartBeatClock()
+    // P6: back to the top of the song means the song drives itself again.
+    setManualOverrideTaken(false)
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
 
@@ -427,6 +449,7 @@ function ControlView() {
   const handleManualStartRestart = () => {
     goRestart()
     resetBeatClock()
+    setManualOverrideTaken(false)
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
 
@@ -447,6 +470,8 @@ function ControlView() {
     resetBeatClock()
     setAutoBlackout(false)
     goRestart()
+    // P6: back to the top of the song means the song drives itself again.
+    setManualOverrideTaken(false)
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
   const handleToggleProjection = () => {
@@ -673,6 +698,12 @@ function ControlView() {
   // the autoBlackout comments on handleAutoPlay: legacy Auto blacks the audience out on Play,
   // cue-start Auto never does, so the audience keeps showing the title/intro until the cue.)
   const autoPerformanceStarted = isAutoArmed && beatPlayState !== 'idle'
+
+  // P6: the override resets on the next arm as well as the next song, so a song taken manual
+  // one night starts the next arm driving itself again.
+  useEffect(() => {
+    setManualOverrideTaken(false)
+  }, [armed])
 
   // R2: Manual mode gets an explicit Start step so the count-in runs a full bar BEFORE the
   // first lyric — the performer can catch the tempo before singing, instead of the beat
@@ -958,6 +989,17 @@ function ControlView() {
                   }}
                 >
                   <BeatCircle tempo={songTempo} phase={beatPhase} />
+                </div>
+              )}
+              {/* P6: the song is no longer driving itself — the performer has taken the wheel.
+                  Must be readable at a glance, mid-song, under stage light. */}
+              {manualOverrideTaken && (
+                <div
+                  className="control-manual-override-badge"
+                  data-testid="manual-override-badge"
+                  style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem' }}
+                >
+                  MANUAL
                 </div>
               )}
               <div className="control-performing-stage-stack">
