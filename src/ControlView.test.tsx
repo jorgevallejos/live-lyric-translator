@@ -377,24 +377,17 @@ describe('v0.5 control screen state machine integration', () => {
     expect(screen.queryByRole('button', { name: 'Translation' })).toBeNull()
   })
 
-  // KNOWN-RED, and deliberately left that way (2026-08-13). This test is wrong, not the app.
-  //
-  // Its premise is that "no languages set yet" means the value area renders nothing. But
+  // Nothing is *stored* for either language here, but that does not mean nothing is shown:
   // getEffectiveProjectionLanguage has, since the original multilingual work, defaulted to 'en'
-  // when nothing is stored and the song offers 'en' — behaviour with its own passing unit test
-  // in songState.test.ts ("when no stored language exists and 'en' is available → return 'en'").
-  // VALID_LINES carries an 'en' translation, so effectiveLang resolves to 'en' and the span
-  // correctly renders "EN". The assertion below expects the element to be absent entirely.
+  // when nothing is stored and the song offers it — behaviour with its own unit test in
+  // songState.test.ts ("when no stored language exists and 'en' is available → return 'en'").
+  // VALID_LINES carries an 'en' translation, so the projection language resolves to 'en' and the
+  // value area correctly reads "EN". No singing language is stored and none is defaulted, so the
+  // display is the bare target language rather than the "ES → EN" pair form.
   //
-  // (The failure message reads `expected <span class="control-setup-value"></span> to be null`,
-  // which looks like an empty span — that is Testing Library eliding the text content. The span
-  // really does contain "EN"; verified by printing outerHTML.)
-  //
-  // Fixing it means deciding the intended product behaviour, not editing the assertion: either
-  // the 'en' default is right and this test should assert "EN", or setup should use lines with
-  // no 'en' key to genuinely exercise the no-language case. That is a design call for Jorge,
-  // deliberately not made while landing timeline v2.
-  it('2g. Lyrics display: value area is empty when no languages are set yet, button still reads Languages', async () => {
+  // This test previously asserted the value area was absent entirely, which contradicted that
+  // default; corrected 2026-08-14 once Jorge confirmed the default is intended.
+  it('2g. Lyrics display: shows the defaulted projection language when none is stored, button still reads Languages', async () => {
     setupControlViewInitial()
     setSongLines(VALID_LINES)
     setCurrentSongId('duelo')
@@ -414,7 +407,7 @@ describe('v0.5 control screen state machine integration', () => {
     const lyricsSection = Array.from(sections).find(
       (s) => s.querySelector('.control-setup-label')?.textContent === 'Lyrics display'
     )
-    expect(lyricsSection?.querySelector('.control-setup-value')).toBeNull()
+    expect(lyricsSection?.querySelector('.control-setup-value')?.textContent).toBe('EN')
     expect(screen.getByRole('button', { name: 'Languages' })).toBeTruthy()
   })
 
