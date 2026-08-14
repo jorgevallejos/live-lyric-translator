@@ -58,6 +58,14 @@ import {
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
 import { computeAutoAdvanceIndex, isCueStartMode, resolveAdvanceMode, type AdvanceMode } from './autoAdvanceState'
+import {
+  getStoredPerformedBpm,
+  setStoredPerformedBpm,
+  resolvePerformedBpm,
+  getTempoScale,
+  scaleTimeline,
+  isUsableBpm,
+} from './performedTempo'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -659,6 +667,35 @@ function ControlView() {
   const advanceAutoDisabledReason: string | null = !hasTimeline
     ? 'Auto needs a timeline.'
     : null
+
+  // ── P9: performed-tempo scaling ──────────────────────────────────────────────────────────
+  // tempo.bpm is a fact about the RECORDING and the anchor the whole scale depends on — it is
+  // read here and never written. The performed tempo lives in its own store (performedTempo.ts).
+  const declaredBpm = songTempo?.bpm
+  const [performedBpmField, setPerformedBpmField] = useState<string>('')
+  const [storedPerformedBpm, setStoredPerformedBpmState] = useState<number | null>(null)
+  useEffect(() => {
+    const stored = currentSongId ? getStoredPerformedBpm(currentSongId) : null
+    setStoredPerformedBpmState(stored)
+    setPerformedBpmField(stored === null ? '' : String(stored))
+  }, [currentSongId])
+  // Defaults to the declared tempo → scale exactly 1.0 → today's behaviour, byte-identical.
+  const performedBpm = resolvePerformedBpm(declaredBpm, storedPerformedBpm)
+  const tempoScale = getTempoScale(declaredBpm, performedBpm)
+  // The pulse runs at the performed tempo. Both the pulse and the cue times derive from this
+  // same number, so they cannot drift apart. A new object each render is safe: useBeatClock
+  // keys its effects on primitive tempo fields, never on object identity (see CLAUDE.md).
+  const pulseTempo = songTempo && performedBpm !== undefined
+    ? { ...songTempo, bpm: performedBpm }
+    : songTempo
+  const handlePerformedBpmChange = (raw: string) => {
+    setPerformedBpmField(raw)
+    const parsed = Number(raw)
+    const next = raw.trim() === '' || !isUsableBpm(parsed) ? null : parsed
+    if (currentSongId) setStoredPerformedBpm(currentSongId, next)
+    setStoredPerformedBpmState(next)
+  }
+
   const {
     phase: beatPhase,
     songElapsedMs,
@@ -669,7 +706,7 @@ function ControlView() {
     restart: restartBeatClock,
     reset: resetBeatClock,
   } = useBeatClock(
-    songTempo,
+    pulseTempo,
     showArmedShell && !showVideoPerformance
   )
 
@@ -730,6 +767,11 @@ function ControlView() {
   // must not re-run on every render just because a callback reference changed.
   const timelineRef = useRef(songTimeline)
   timelineRef.current = songTimeline
+  // P9: read through a ref, not an effect dep — the scale is frozen for the duration of a
+  // performance (the control is only reachable before arming), so a change must never re-target
+  // the current line mid-song.
+  const tempoScaleRef = useRef(tempoScale)
+  tempoScaleRef.current = tempoScale
   const applyRemoteStateRef = useRef(applyRemoteState)
   applyRemoteStateRef.current = applyRemoteState
   const sendCommandWithStateRef = useRef(sendCommandWithState)
@@ -738,7 +780,11 @@ function ControlView() {
     if (showVideoPerformance) return
     if (effectiveAdvanceMode !== 'auto' || !hasTimeline) return
     if (songElapsedMs <= 0) return
-    const targetIndex = computeAutoAdvanceIndex(timelineRef.current, songElapsedMs)
+    // P9: cue times are the recording's timings scaled by declaredBpm / performedBpm. At the
+    // default (performedBpm == tempo.bpm) the scale is exactly 1 and scaleTimeline returns the
+    // original array untouched.
+    const cueTimeline = scaleTimeline(timelineRef.current, tempoScaleRef.current)
+    const targetIndex = computeAutoAdvanceIndex(cueTimeline, songElapsedMs)
     if (targetIndex === index) return
     // A real cue (index >= 0) un-blanks; before the first cue / in gaps (index -1) stays blank.
     const targetBlank = targetIndex < 0
@@ -884,6 +930,34 @@ function ControlView() {
                           >
                             Auto
                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* P9: performed tempo. Only meaningful for a song that declares a tempo —
+                      no tempo block means no pulse and no scaling, and no fallback BPM is
+                      invented. This lives in the setup panel, which is not rendered once the
+                      song is armed: that IS the "frozen once armed" guarantee, since changing
+                      the scale mid-song would jump the current line under the performer. */}
+                  {!showVideoPerformance && songTempo && (
+                    <div className="control-setup-toggle-area">
+                      <div className="ctrl-toggle-group">
+                        <span className="ctrl-toggle-label">Performed tempo</span>
+                        <div className="ctrl-performed-bpm">
+                          <input
+                            type="number"
+                            className="ctrl-performed-bpm-input"
+                            data-testid="performed-bpm-input"
+                            aria-label="Performed tempo in BPM"
+                            min="1"
+                            step="0.01"
+                            value={performedBpmField}
+                            placeholder={declaredBpm !== undefined ? String(declaredBpm) : ''}
+                            onChange={(e) => handlePerformedBpmChange(e.target.value)}
+                          />
+                          <span className="ctrl-performed-bpm-declared" data-testid="declared-bpm-label">
+                            recorded at {declaredBpm}
+                          </span>
                         </div>
                       </div>
                     </div>
