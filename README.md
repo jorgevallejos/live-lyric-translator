@@ -47,13 +47,62 @@ Verify:
 npm test
 ```
 
-## Quick start
+## A worked example
+
+Getting one song onto the projection screen. The song below is *Pimiento* — nineteen lines, sung in Spanish, projected in English.
+
+<!-- control-setup.png and control-performing.png are from April 2026 and still show the
+     pre-rename window title. Replace on the next real session; projection-screen.png is fine. -->
+
+### 1. Start the app
 
 ```bash
 npm run dev
 ```
 
-That starts the Vite dev server and Electron together, and opens the two windows — Control for you, Projection for the audience. In **Manage Setlists**, import your song JSONs and order them into a setlist (that screen is also where a song's video file and its Bombista timeline are linked). Then, on the control screen: pick your singing and projection languages, open the projection, and arm.
+Vite and Electron come up together and two windows open: **Control**, which only you see, and **Projection**, for the audience. Rehearsing on one screen, without a projector attached?
+
+```bash
+npm run dev:single
+```
+
+### 2. Import the song and build a setlist
+
+**Setlist → Manage setlists → New song**, and pick one or more song JSONs. Songs land in the **Song Library**; **New setlist**, then add the songs you want and order them. This screen is also where a song's video file is linked and where a Bombista timeline is imported onto an existing song.
+
+Nothing is uploaded anywhere. The library lives in the app's local storage, and the JSON files stay where they are on disk.
+
+### 3. Choose the two languages
+
+**Languages** — the one you *sing* in on the left, the one the audience *reads* on the right.
+
+They are separate on purpose: the performer view shows you the Spanish you are actually singing, while the projection shows the audience their English. You are never reading a translation of your own lyric to find your place.
+
+### 4. Open the projection, then arm
+
+<p align="center">
+<img src="docs/images/control-setup.png" width="700">
+</p>
+
+Four columns, and arming is blocked until all four are satisfied: a **song** is selected, both **languages** are chosen, the **projection** window is open. Only then does **Arm** light up.
+
+That gate exists because the failure it prevents is a public one — hitting the pedal on a dark night and discovering the projection window was never opened.
+
+Songs carrying a timeline also show a **Transitions** toggle here (Manual / Auto) and a **performed tempo** field, for when tonight's tempo isn't the recorded one.
+
+### 5. Perform
+
+<p align="center">
+<img src="docs/images/control-performing.png" width="700">
+</p>
+
+Arrow keys or a foot pedal advance the line. The performer view shows you where you are; the audience sees only the current line, in their language:
+
+<p align="center">
+<img src="docs/images/projection-screen.png" width="700">
+</p>
+
+In **Auto**, the timeline advances the lines for you and the pulse runs from the moment you arm. **A single pedal press takes it back**, mid-song, mid-video, and drops that song to Manual for the rest of it. There is no mode to exit and no dialog to dismiss — the manual path is always underneath, and it always wins.
 
 To build a distributable `.dmg`:
 
@@ -65,57 +114,9 @@ npm run pack
 
 - **[docs/performance-runbook.md](docs/performance-runbook.md)** — running a show: the workflow and its states, setlists, the concert timer, keyboard and pedal controls, language selection, single-screen rehearsal, and the current live rig.
 - **[docs/architecture.md](docs/architecture.md)** — how it is built: the two-window design, the three playback modes, the technology stack.
+- **[docs/subtitle-format.md](docs/subtitle-format.md)** — the song JSON: tempo, media, and the song-level fields, plus how the audience subtitle is rendered.
 - **[docs/timeline-v2-contract.md](docs/timeline-v2-contract.md)** — the timeline format shared with Bombista.
 - **[docs/media-assets.md](docs/media-assets.md)** — how a song's video file is linked per machine.
-
-## Song format
-
-Songs are imported as JSON files and stored in the app's persistence layer, then organized into setlists for live performance.
-
-```json
-{
-  "title": "Pimiento",
-  "notes": "Capo 3, Acordes de DO",
-  "title_translations": { "en": "Pepper Tree", "fr": "Le pimentier", "nl": "Peperboom" },
-  "intro": { "es": "...", "en": "..." },
-  "tempo": { "bpm": 96, "numerator": 4, "denominator": 4, "countInBars": 1 },
-  "media": { "type": "video", "src": "pimiento.mp4", "offset": 0, "trimStart": 0 },
-  "timelineVersion": 2,
-  "leadIn": { "durationSec": 7.26, "source": "measured", "confidence": "low", "apply": false },
-  "timeline": [ { "start": 0.0, "end": 3.2 }, { "start": 3.2, "end": 7.5 } ],
-  "lyrics": [
-    {
-      "es": "Viejo pimiento,\nhoy vuelvo a visitarte",
-      "en": "Old pepper tree,\ntoday I come back to see you,",
-      "fr": "Vieux pimentier,\naujourd'hui je reviens te voir,",
-      "nl": "Oude peperboom,\nvandaag kom ik je weer bezoeken,"
-    }
-  ]
-}
-```
-
-**Fields**
-
-- `title` — song name.
-- `title_translations` *(optional)* — translated titles for the intro/title screen, indexed by language code.
-- `intro` *(optional)* — translatable spoken intro shown on the intro screen.
-- `notes` *(optional)* — performer notes such as capo, key, or reminders.
-- `tempo` *(optional)* — `{ bpm, numerator, denominator, countInBars }`. Drives the count-in and the beat pulse, and is the prerequisite for Auto mode. `bpm` is the felt pulse (in 6/8, the dotted-quarter rate); compound meters (6/8, 9/8, 12/8) are grouped into dotted-quarter beats.
-- `media` *(optional)* — one video/audio file, `{ type: "video" | "audio", src, offset?, trimStart? }`, for Video mode. One clean export per song; Big/Small is a projection toggle, **not** a second file. `src` is a logical filename — the actual file is linked once per machine and remembered locally (see [docs/media-assets.md](docs/media-assets.md)). Feed the app web-playable MP4s (H.264, ≤1080p), not ProRes masters.
-- `timeline` *(optional)* — per-item `{ start, end }` in seconds, parallel to the lyrics array, driving both Auto and Video advancement. Entry 0 starts at `0.00`: the timeline is relative to a start cue, not to the audio file.
-- `timelineVersion` — **required whenever `timeline` is present, and its only valid value is `2`.** A timeline without it is rejected on import rather than loaded, because a pre-v2 file would fire every line early with no visible error.
-- `leadIn` — required alongside `timelineVersion`: `{ durationSec, source, confidence, apply }`. The seconds of audio before the first sung word, banked separately instead of folded into every timestamp. `apply` is the consumer's switch — `true` for a video, where the lead-in is fixed, `false` when you cue the first line yourself.
-- `lyrics` — ordered list of lyric lines.
-
-Each lyric line holds translations indexed by language code (`es`, `en`, `fr`, `nl`, …). Missing translations are allowed — the line simply stays blank in projection. Songs without the optional blocks behave exactly as before, in Manual mode.
-
-## About the artist
-
-This project is part of the preparation for the live performances of **Chango Pepper**.
-
-Chango Pepper blends Latin American roots, storytelling, and contemporary arrangements. The songs are primarily written in Spanish and performed for international audiences, hence the need for Pregonero.
-
-More about the project and the music: [changopepper.com](https://changopepper.com)
 
 ## License
 
@@ -123,4 +124,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-*Pregonero is part of **Tramoya**, the stage machinery behind [Chango Pepper](https://changopepper.com). The repository was called `live-lyric-translator` until August 2026.*
+*Pregonero is part of **Tramoya**, the stage machinery behind [Chango Pepper](https://changopepper.com) — Latin American roots, storytelling and contemporary arrangements, written in Spanish and played to audiences that mostly aren't, which is the whole reason this tool exists. The repository was called `live-lyric-translator` until August 2026.*
