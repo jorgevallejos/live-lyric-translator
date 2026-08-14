@@ -8060,4 +8060,218 @@ describe('§P14 Manual/Auto lyric-advance toggle', () => {
     act(() => { vi.advanceTimersByTime(1000) })
     expect(getSongIndex()).toBe(-1)
   })
+
+  describe('§P1 Auto start-on-cue (v2 timeline, no video)', () => {
+    /** Libertad-shaped v2 timeline: leadIn.apply === false (Auto's cue is the pedal press, not
+     * the lead-in). No tempo — the realistic case for a v2 timeline with no BPM metadata. */
+    function setupWithTimelineV2Song() {
+      const songWithTimelineV2 = {
+        id: 'duelo',
+        title: 'Duelo',
+        items: VALID_LINES,
+        timelineVersion: 2,
+        leadIn: { durationSec: 7.26, source: 'measured' as const, confidence: 'low' as const, apply: false },
+        // Line 0 covers [0, 5.84)s of song time (matches the golden fixture's first entry —
+        // docs/timeline-v2-contract.md), line 1 covers [5.84, ...).
+        timeline: [{ start: 0, end: 5.84 }, { start: 5.84, end: 200 }],
+      }
+      saveSetlistStore(createInitialSnapshot([songWithTimelineV2]))
+      setupControlViewWithReadinessPassing()
+      setCurrentSongId('duelo')
+    }
+
+    it('1. armed but not cued: no lines shown, nothing advances, and time passing changes nothing', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+
+      // No Play button and no count-in for a cue-start song.
+      expect(screen.queryByRole('button', { name: /^play$/i })).toBeNull()
+      expect(getSongIndex()).toBe(-1)
+
+      act(() => { vi.advanceTimersByTime(20_000) })
+      expect(getSongIndex()).toBe(-1)
+    })
+
+    it('2. the first pedal press (Next) shows line 0 and starts the clock', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+
+      expect(getSongIndex()).toBe(0)
+      // The cross-window value the Projection reads: must be un-blanked.
+      expect(getBlank()).toBe(false)
+    })
+
+    it('3. line 1 appears 5.84s after the cue with no further input', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getSongIndex()).toBe(0)
+
+      act(() => { vi.advanceTimersByTime(5_840 + 100) })
+      expect(getSongIndex()).toBe(1)
+    })
+
+    it('4. manual Next/Previous remain available and work both before and after the cue', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+
+      // Before the cue: Previous is disabled (nothing to go back to), Next is the cue trigger.
+      expect((screen.getByRole('button', { name: /^previous$/i }) as HTMLButtonElement).disabled).toBe(true)
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getSongIndex()).toBe(0)
+
+      // After the cue: Next still works as a manual override.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getSongIndex()).toBe(1)
+
+      // After the cue: Previous still works as a manual override.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^previous$/i }))
+      })
+      expect(getSongIndex()).toBe(0)
+    })
+
+    it('Pause and Restart are absent before the cue and appear only after it', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+
+      expect(screen.queryByRole('button', { name: /^pause$/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^restart$/i })).toBeNull()
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+
+      expect(screen.getByRole('button', { name: /^pause$/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /^restart$/i })).toBeTruthy()
+    })
+
+    it('does not black out the audience while waiting for the cue (title/intro card shows, uncapped intro length)', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+
+      expect(getAutoBlackout()).toBe(false)
+      act(() => { vi.advanceTimersByTime(120_000) }) // a long live intro
+      expect(getAutoBlackout()).toBe(false)
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getAutoBlackout()).toBe(false)
+    })
+
+    it('Restart returns to the pre-cue waiting state, and re-cueing works again', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineV2Song()
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getSongIndex()).toBe(0)
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^restart$/i }))
+      })
+      expect(getSongIndex()).toBe(-1)
+      expect(screen.queryByRole('button', { name: /^pause$/i })).toBeNull()
+
+      // Re-cue: the timeline drives again from 0.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getSongIndex()).toBe(0)
+      act(() => { vi.advanceTimersByTime(5_840 + 100) })
+      expect(getSongIndex()).toBe(1)
+    })
+
+    it('cue state resets cleanly when the song changes while armed and cued — a second song does not inherit the first song\'s cue', async () => {
+      const v2Timeline = [{ start: 0, end: 5.84 }, { start: 5.84, end: 200 }]
+      const v2LeadIn = { durationSec: 7.26, source: 'measured' as const, confidence: 'low' as const, apply: false }
+      const songs = [
+        { id: 'duelo', title: 'Duelo', items: VALID_LINES, timelineVersion: 2, leadIn: v2LeadIn, timeline: v2Timeline },
+        { id: 'otra', title: 'Otra', items: OTHER_LINES, timelineVersion: 2, leadIn: v2LeadIn, timeline: v2Timeline },
+      ]
+      saveSetlistStore(createInitialSnapshot(songs))
+      setupControlViewWithReadinessPassing()
+      setCurrentSongId('duelo')
+      await armAndReachSetup()
+
+      await act(async () => { fireEvent.click(getArmButton()) })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^next$/i }))
+      })
+      expect(getSongIndex()).toBe(0)
+      expect(screen.getByRole('button', { name: /^pause$/i })).toBeTruthy()
+
+      // The song changes underneath while armed — the app auto-unarms (existing behavior).
+      setCurrentSongId('otra')
+      setSongLines(OTHER_LINES)
+      setSongIndex(-1)
+      setBlank(true)
+      await act(async () => { dispatchStorageEvent() })
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/Ready to Arm/).length).toBeGreaterThan(0)
+      })
+
+      // Re-arm for the new song: must NOT inherit the first song's cue.
+      await act(async () => { fireEvent.click(getArmButton()) })
+      expect(getSongIndex()).toBe(-1)
+      expect(screen.queryByRole('button', { name: /^pause$/i })).toBeNull()
+    })
+
+    it('5. legacy timeline (no timelineVersion) keeps today\'s exact Auto behavior: Play button, count-in, no Next/Previous', async () => {
+      vi.useFakeTimers()
+      setupWithTimelineSong() // legacy helper: tempo w/ countInBars, no timelineVersion
+      await armAndReachSetupFakeTimers()
+      await act(async () => { fireEvent.click(getArmButton()) })
+
+      // No cue-start affordance: Next/Previous are absent, Play/Pause/Restart are present.
+      expect(screen.queryByRole('button', { name: /^next$/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^previous$/i })).toBeNull()
+      expect(screen.getByRole('button', { name: /^play$/i })).toBeTruthy()
+
+      // Time passing alone never advances without Play.
+      act(() => { vi.advanceTimersByTime(10_000) })
+      expect(getSongIndex()).toBe(-1)
+
+      // Play starts the count-in; line 0 only appears once the count-in completes.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^play$/i }))
+      })
+      act(() => { vi.advanceTimersByTime(1999) })
+      expect(getSongIndex()).toBe(-1)
+      // A tick past the exact count-in boundary — songElapsedMs must be > 0 for the auto-drive
+      // effect to compute a target index (matches the existing T2 Play test's own buffer).
+      act(() => { vi.advanceTimersByTime(101) })
+      expect(getSongIndex()).toBe(0)
+
+      // Audience blackout still applies for legacy Auto (unchanged behavior).
+      expect(getAutoBlackout()).toBe(true)
+    })
+  })
 })
