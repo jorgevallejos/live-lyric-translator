@@ -143,8 +143,11 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(screen.getByTestId('performance-state-label').textContent).toBe('Performance: Ready to Arm')
 
     await act(async () => { fireEvent.click(getArmButton()) })
-    // Arming alone must not start the clock — no beat circle yet.
-    expect(screen.queryByTestId('beat-circle')).toBeNull()
+    // P5 (amends the pre-P5 "no beat circle on arm" assertion): arming starts the free-running
+    // pulse — a plain click the performer plays an intro to — but not the count-in, and not the
+    // transport.
+    expect(screen.getByTestId('beat-circle-running')).toBeTruthy()
+    expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
 
     // R2: the count-in begins on the explicit Start step, before any lyric.
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })

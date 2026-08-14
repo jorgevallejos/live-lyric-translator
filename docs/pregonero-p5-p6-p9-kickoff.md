@@ -85,6 +85,23 @@ The pulse also runs at `performedBpm`. **Both derive from the same number**, so 
 - **B13, B15** — the other repo, other agent.
 - **The rename (step 11).** Do not touch names, the bundle identifier, or `package.json` product fields.
 
+---
+
+## Found during implementation — P10 candidate: the pulse is silent
+
+**Claude Code, 2026-08-14. Not built, by Jorge's explicit call: out of scope for this round, and a separate decision he wants to make away from this work. Logged here because the backlog lives in the other repo (`projects/timeline-extractor`), which the B13 agent was holding — the backlog row is Jorge's or Cowork's to add.**
+
+P5 is specified and reasoned about throughout as a **click track Jorge plays to**. The app does not produce a click. The pulse is **visual only**:
+
+- `BeatCircle.tsx` renders a beat number and a dot row. That is the entire output.
+- There is **no `AudioContext`, no `new Audio`, no oscillator and no audio asset anywhere in `src/`** — verified by grep across the renderer.
+
+So what P5 delivers is a *visible* pulse that free-runs from Arm and does not re-phase on the cue. Every phase guarantee in P5 holds; the performer just has to **look at the screen** to use it. Playing a 2-bar intro to a click he cannot hear, while talking to an audience, is a materially different act from playing to one he can.
+
+This does not weaken P5 — the phase behaviour is the same either way, and an audible click added later would inherit it for free, since it would derive from the same `phase`/epoch the circle already uses. It does mean the P5 acceptance ("the click must not **audibly** or visually shift") can only be verified visually today.
+
+If it is built later, the natural shape is a short WebAudio blip fired on `absoluteBeat` change, accented on `beatInBar === 1`, with an on/off control and an output-device question worth thinking about (laptop speaker is useless on stage; it likely wants to go to an in-ear/monitor path).
+
 ## Stop and report when
 
 P5, P6 and P9 are implemented, tested, committed and pushed on a branch in this repo. Then tell Jorge: the PR is ready, the submodule pointer bump is his, and **the `.dmg` must be rebuilt (`npm run pack`) before any of this can be tested** — the installed build is from 1 July.
