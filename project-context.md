@@ -1,6 +1,6 @@
 # Project Context — Pregonero
 
-Project-specific Cowork context. Read this **after** `~/Chango Pepper/personal-context.md` (and any relevant `~/Chango Pepper/disciplines/<topic>.md`). Acknowledge briefly ("Context loaded. Ready.") and wait for the user to describe what's on their plate. At the end of the session, propose updates if anything important changed.
+Project-specific Cowork context. Read this **after** `context/personal-context.md` (and any relevant `context/disciplines/<topic>.md`), relative to the vault root. Acknowledge briefly ("Context loaded. Ready.") and wait for the user to describe what's on their plate. At the end of the session, propose updates if anything important changed.
 
 The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo root (`~/Chango Pepper/projects/pregonero/CLAUDE.md`). That file and this one are the two persistent memories for this project.
 
@@ -90,6 +90,20 @@ Derived from what the P1–P4 round surfaced. None are started; none block the m
 
 Done 2026-08-14: the four stale worktrees under the old `live-lyric-translator-dev` path were
 pruned and their leftover directories removed, along with the four branches they held.
+
+**Three of those four branches were unmerged**, so deleting them dropped real commits from
+3–4 July. Branch deletion is one-way and the SHAs otherwise survive only in a chat transcript,
+so they are recorded here. All three are almost certainly superseded — `main` was 17+ commits
+ahead when they went — but "almost certainly" is why the SHAs are written down. Recover with
+`git checkout -b <name> <sha>` while the objects remain in the local repo.
+
+| branch | tip | what it was |
+|---|---|---|
+| `fix/projection-column-c1-c2` | `6d51a0e` | Non-video Projection label dropping a stale size, plus the Transitions toggle shown for tempo-only songs (C1/C2). Touched `App.tsx` and `ControlView.test.tsx`. **Still on `origin`**, so this one is recoverable from GitHub regardless. |
+| `integration-check` | `3d6f748` | An integration branch merging `fix/performer-panel-lyric-layout`: performer's singing-language lyric over video, transport bar kept reachable. Touched `App.tsx`, `VideoPerformancePanel.tsx`, `control.css` and their tests. Local only. |
+| `worktree-agent-a972d5e0e5b143760` | `1cb72ce` | Projection resyncing the display-mode broadcast to Control's effective value — the A1 fix area. Touched `CLAUDE.md`, `App.tsx`, `ControlView.test.tsx`. Local only. |
+
+The fourth, `claude/zen-hypatia-98259a` (`717daab`), was already merged into `main` — nothing lost.
 
 ## Current build state (2026-08-11)
 
