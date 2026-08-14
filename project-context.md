@@ -1,4 +1,4 @@
-# Project Context — Live Lyric Translator
+# Project Context — Pregonero
 
 Project-specific Cowork context. Read this **after** `~/Chango Pepper/personal-context.md` (and any relevant `~/Chango Pepper/disciplines/<topic>.md`). Acknowledge briefly ("Context loaded. Ready.") and wait for the user to describe what's on their plate. At the end of the session, propose updates if anything important changed.
 
@@ -8,7 +8,7 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 
 ## What this project is
 
-- **Live Lyric Translator** — macOS Electron app for live concert subtitle projection.
+- **Pregonero** (renamed from Live Lyric Translator, 2026-08-14) — macOS Electron app for live concert subtitle projection.
 - Part of the live setup for the artist **Chango Pepper** (Latin American roots / Spanish lyrics, performed for international audiences).
 - Solo build; used as a real testbed for AI-assisted PM techniques.
 
@@ -28,7 +28,7 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 
 ## Links
 
-- Repo: https://github.com/jorgevallejos/live-lyric-translator
+- Repo: https://github.com/jorgevallejos/pregonero
 - Artist site: https://sites.google.com/view/changopepper/home
 
 ## Project-specific model picks
@@ -114,7 +114,7 @@ The app is **feature-complete for performing** and now packages into a local ins
 - **Beat↔Auto dependency:** beat OFF disables Auto and forces Manual (one-directional, with a hint).
 - **Video big/small formats** now share one full-frame layout (single **3:2** frame; both Big and Small = full-frame `contain` + superimposed subtitle at the bottom; EB Garamond SemiBold). **The only per-format difference is subtitle font size** — Small keeps the larger font (`160/3168` of frame height). Non-video songs render centered. *(PR #50, 2026-07-02 — simplified from the old Small = 75.8% scaled + bottom-band geometry, which matched a now-superseded Premiere reference still. The Small font was carried over unvalidated for the overlay context; **needs a live projector eyeball** and may be re-tuned.)*
 
-**Packaging — P1 DONE (PR #48):** `npm run pack` = `npm run build && electron-builder --mac`; mac targets `dmg` + `zip`; `build.files` = dist + electron + package.json; app icon from `assets/logo/`; unsigned (`identity: null`). Produces **`release/Live-Lyric-Translator-<version>.dmg`** (arm64), where `<version>` is `package.json`'s `version` field via `artifactName` — **0.9.0** as of 2026-08-14. (It sat at `0.1.0` from PR #48 until then, which made every build's filename identical and indistinguishable; the git tags had meanwhile reached `v0.8.4`. Bump `package.json` when cutting a build you need to tell apart from the last one.) Runs on Jorge's Macs via right-click → Open (Gatekeeper). Songs/animations stay on disk, resolved via the `media://` protocol (confirmed working packaged).
+**Packaging — P1 DONE (PR #48):** `npm run pack` = `npm run build && electron-builder --mac`; mac targets `dmg` + `zip`; `build.files` = dist + electron + package.json; app icon from `assets/logo/`; unsigned (`identity: null`). Produces **`release/Pregonero-<version>.dmg`** (arm64), where `<version>` is `package.json`'s `version` field via `artifactName` — **0.9.0** as of 2026-08-14. (It sat at `0.1.0` from PR #48 until then, which made every build's filename identical and indistinguishable; the git tags had meanwhile reached `v0.8.4`. Bump `package.json` when cutting a build you need to tell apart from the last one.) Runs on Jorge's Macs via right-click → Open (Gatekeeper). Songs/animations stay on disk, resolved via the `media://` protocol (confirmed working packaged).
 
 **Prompt 15 — CLOSED as obsolete.** Its two-row control layout was effectively built by the T1 toggle redesign; its "icons-only, no text labels" rule was **intentionally reversed** when Jorge asked for the tiny "Display format / Transitions / Beat indicator" labels. Nothing to do.
 

@@ -8,7 +8,7 @@ Read `../../bombista/docs/bombista-product-backlog.md` — the P5/P6 rows, the n
 
 Bombista is on `feat/b13-migration` in the other submodule right now. Different repo, no shared files.
 
-- Work in `projects/live-lyric-translator` only.
+- Work in `projects/pregonero` only.
 - Commit and push **inside this repo only**.
 - **Do not bump the vault-root submodule pointer.** Jorge does that once, at the end.
 
