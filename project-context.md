@@ -52,6 +52,45 @@ General model rule lives in `personal-context.md`. Picks specific to this projec
 - `.claude/settings.json` in this repo pre-approves the standard release commands for this project and denies destructive ones (matches the universal policy in `personal-context.md`).
 - GitHub MCP is not currently available in Cowork's connector registry; may be addable in Claude Code later.
 
+## Timeline v2 — P1–P4 landed (2026-08-14)
+
+Branch `feat/timeline-v2`. The shared contract with Bombista (the timeline extractor) is
+`docs/timeline-v2-contract.md` — an identical copy lives in `projects/timeline-extractor/docs/`.
+**That file is authoritative for the interchange shape; read it before touching timeline code.**
+
+A timeline is no longer absolute against an audio file. It is **relative to a start cue**: line 0
+always starts at `0.000`, and the seconds before the first sung word are banked in a separate
+`leadIn` block. What provides the cue differs by mode — the video for an animation song, Jorge's
+first pedal press for everything else — but the file is identical either way.
+
+What shipped:
+
+- **P3** — both load paths (`songState.ts::parseSongRecordFromUnknown`, `setlistStore.ts::parseTimelineFromJsonText`) reject any timeline without `timelineVersion: 2`, never coercing. A file declaring v2 but carrying no timeline is rejected as incomplete rather than loaded as a no-op. Unknown top-level keys are **deliberately ignored, never rejected** — a forward-compatibility guarantee pinned by regression tests so it does not get "tightened" later.
+- **P4** — lyrics arrays carry sung lines only; section markers are rejected at the load boundary, naming the index.
+- **P2** — `leadIn` applied in Video mode, as one tested pure function: `songTime = video.currentTime + offset − (leadIn.apply ? durationSec : 0)`. `media.trimStart` is deliberately excluded (already reflected in `currentTime`; including it would shift twice). Losslessness proven as a property against the golden fixture within 0.005.
+- **P1** — start-on-cue for Auto mode. Armed + Auto + v2 timeline + no video means no Play button and no count-in; the first pedal press shows line 0 and starts the clock at `0.000`; lines then advance alone. Pause/Restart appear only once cued; manual Next/Prev stay live throughout; the audience keeps the title/intro card until the cue. **Gate 4 passed — Jorge tested Libertad with the pedal on 2026-08-14.**
+
+Persisted schema went **v6 → v7** (`LibrarySong` gained `timelineVersion`/`leadIn`). The migration
+keeps legacy timelines exactly as they were and never invents a version — a song becomes v2 only
+by passing through the guarded load path.
+
+**Known behaviour change outside P1's scope, deliberately kept:** the beat clock's tick effect used
+to refuse to run without a BPM, so a song with a timeline but no tempo froze at 0 and never
+advanced. Fixed — but that also means a *legacy* tempo-less Auto song now advances on Play where it
+previously did nothing. A latent bug fixed, not a regression, but it is a real change. See P8.
+
+### Follow-ups P5–P8 — recorded 2026-08-14, NOT implemented
+
+Derived from what the P1–P4 round surfaced. None are started; none block the merge.
+
+- **P5 — finish removing section markers.** P4 tightened only the file-load/import boundary. The `SectionMarker` type, `isSection`, the section rendering paths, and `tryParsePersistedSongItemsArray` (which still accepts sections) are all untouched. Tightening the *persisted* path was refused on purpose: a rejection there fails the whole snapshot load and would wipe the local library. Do this as a deliberate deletion with the store path handled last. **Deletes code.**
+- **P6 — close the v1-timeline grandfathering gap.** Only the load paths are guarded. Timelines already sitting in localStorage from earlier imports keep their v1 (absolute) values and still drive playback, so a v1 timeline can currently *play* even though it can no longer be *loaded*. Least-destructive choice at the time, and it self-closes once both songs are re-imported post-B13 — but until then the gap is real. Options: ignore non-v2 stored timelines at playback with a visible "re-import needed" state, or drop them on migration.
+- **P7 — resolve `ControlView.test.tsx` "2g. Lyrics display".** Known-red on purpose, with the reasoning in a comment above the test. It asserts the Lyrics-display value area renders nothing when no language is set, but `getEffectiveProjectionLanguage` has always defaulted to `'en'` when the song offers it, so the span correctly reads "EN". That default has its own passing unit test. **This is a product decision, not a test edit:** either the `'en'` default is right and 2g should assert "EN", or the test should use lines with no `en` key to genuinely exercise the no-language case.
+- **P8 — decide what legacy tempo-less Auto should do.** Per the note above, such songs now advance on Play against their legacy absolute timings. Probably fine and probably wanted, but it was never an explicit decision. Resolving P6 may make it moot.
+
+Also outstanding, not P-numbered: `git worktree prune` — four stale worktrees under the old
+`live-lyric-translator-dev` path, left by earlier sessions.
+
 ## Current build state (2026-08-11)
 
 The **2026-07-04 projector-test fixes are all merged to `main`** (round complete):
