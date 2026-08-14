@@ -1,9 +1,5 @@
 # Pregonero
 
-<p align="center">
-<img src="docs/images/chango-pepper-banner-logo.png" width="600">
-</p>
-
 **A Spanish song performed for an audience that doesn't speak Spanish is a song they can hear but not be inside. Pregonero puts them inside it — the right line, in their language, on the screen behind you, at the moment you sing it.**
 
 The name is the town crier: the one who makes the words reach everyone.
