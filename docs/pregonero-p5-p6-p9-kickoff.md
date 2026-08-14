@@ -14,7 +14,7 @@ Bombista is on `feat/b13-migration` in the other submodule right now. Different 
 
 ## Why this is deadline work
 
-Jorge plays **to the click**. The beat pulse is a click track he performs against, not a drift reference. Everything below follows from that one fact.
+Jorge plays **to the pulse** — a visual beat he performs against, not a drift reference. The pulse is **silent**; the app has never produced a click, and one is not planned (see the P10 candidate below). Everything below follows from that one fact.
 
 ---
 
@@ -22,7 +22,7 @@ Jorge plays **to the click**. The beat pulse is a click track he performs agains
 
 **The real scenario:** Jorge talks to the audience while arming. The pulse starts. He picks the tempo up on guitar and plays a **2-bar intro to the pulse**, then cues the lyrics with the pedal when he is settled. The lyrics do not always start on the first pulse of a bar — **the performer owns the relationship between beat and first word.**
 
-**The bug:** `startAtCue` currently calls `setPhase(getBeatPhase(tempo, 0))`, which forces the pedal press to become a downbeat. Live, that means the click **jumps under his fingers at the exact moment he starts singing.**
+**The bug:** `startAtCue` currently calls `setPhase(getBeatPhase(tempo, 0))`, which forces the pedal press to become a downbeat. Live, that means the pulse **jumps at the exact moment he starts singing.**
 
 **The fix:**
 
@@ -30,7 +30,7 @@ Jorge plays **to the click**. The beat pulse is a click track he performs agains
 - The cue starts `songElapsedMs` and **nothing else**. Remove the `setPhase` call — do not replace it with a smarter re-phase.
 - Two independent clocks: the pulse (from Arm) and the song timeline (from the cue). A constant offset between them is correct and expected.
 
-**Acceptance:** arm a song, let the pulse run for an arbitrary time, press the pedal mid-bar. The click must not audibly or visually shift. Line 0 appears; the song advances.
+**Acceptance:** arm a song, let the pulse run for an arbitrary time, press the pedal mid-bar. The pulse must not visually shift. Line 0 appears; the song advances.
 
 ---
 
@@ -91,14 +91,16 @@ The pulse also runs at `performedBpm`. **Both derive from the same number**, so 
 
 **Claude Code, 2026-08-14. Not built, by Jorge's explicit call: out of scope for this round, and a separate decision he wants to make away from this work. Logged here because the backlog lives in the other repo (`projects/bombista`), which the B13 agent was holding — the backlog row is Jorge's or Cowork's to add.**
 
-P5 is specified and reasoned about throughout as a **click track Jorge plays to**. The app does not produce a click. The pulse is **visual only**:
+P5 was originally specified and reasoned about throughout as a **click track Jorge plays to**. That wording has since been corrected above — it was loose, not a missing feature. The app does not produce a click. The pulse is **visual only**:
 
 - `BeatCircle.tsx` renders a beat number and a dot row. That is the entire output.
 - There is **no `AudioContext`, no `new Audio`, no oscillator and no audio asset anywhere in `src/`** — verified by grep across the renderer.
 
 So what P5 delivers is a *visible* pulse that free-runs from Arm and does not re-phase on the cue. Every phase guarantee in P5 holds; the performer just has to **look at the screen** to use it. Playing a 2-bar intro to a click he cannot hear, while talking to an audience, is a materially different act from playing to one he can.
 
-This does not weaken P5 — the phase behaviour is the same either way, and an audible click added later would inherit it for free, since it would derive from the same `phase`/epoch the circle already uses. It does mean the P5 acceptance ("the click must not **audibly** or visually shift") can only be verified visually today.
+This does not weaken P5 — the phase behaviour is unchanged. **The P5 acceptance is visual because the pulse is visual, full stop:** the circle must not shift when the cue lands, and that is the whole test. It is not a visual stand-in for an audible check that is missing.
+
+**Decided by Jorge, 2026-08-14: an audible click is out of scope and is not planned.** The shape below is kept as a record of what it would take, not as queued work. Were it ever built, it would inherit P5's phase behaviour for free, deriving from the same `phase`/epoch the circle already uses.
 
 If it is built later, the natural shape is a short WebAudio blip fired on `absoluteBeat` change, accented on `beatInBar === 1`, with an on/off control and an output-device question worth thinking about (laptop speaker is useless on stage; it likely wants to go to an in-ear/monitor path).
 
