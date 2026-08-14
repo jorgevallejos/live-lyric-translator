@@ -42,15 +42,8 @@
       "Bash(pkill -f \"node .*vite\")",
       "Bash(lsof -ti:5174)",
       "Bash(xargs kill)",
-      "Bash(rm \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/.git/index.lock\" && cd \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev\" && git add CLAUDE.md project-context.md docs/d-wire-triage-and-prompts.md && git status)",
       "Bash(npx eslint *)",
-      "Bash(git -C \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev\" checkout -b feat/projection-format-toggle)",
-      "Bash(git -C \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev\" stash)",
-      "Bash(git -C \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev\" stash pop)",
-      "Bash(git -C \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev\" add src/screenSizeState.ts src/screenSizeState.test.ts src/ControlView.test.tsx src/App.tsx)",
-      "Bash(git -C '/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev' commit -m ' *)",
       "Bash(xargs cat -n)",
-      "Bash(cd \"/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev\" && rm -f .git/index.lock && git status)",
       "Bash(diffstat)",
       "Bash(ls ~/Downloads/llt-patches/ 2>/dev/null || echo \"Directory not found\")",
       "Read(//Users/jorgevallejos/Downloads/llt-patches/**)",
@@ -93,14 +86,12 @@
       "Bash(git reflog:*)",
       "Bash(git cherry:*)",
       "Bash(git apply:*)",
-      "Edit(//Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/**)",
-      "Write(//Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/**)",
+      "Edit(//Users/jorgevallejos/Chango Pepper/projects/pregonero/**)",
+      "Write(//Users/jorgevallejos/Chango Pepper/projects/pregonero/**)",
       "Bash(tee /tmp/tsc_main.txt)",
       "Read(//tmp/**)",
       "Bash(gh pr *)",
-      "Bash(tee /tmp/tsc_new.txt)",
-      "Bash(tee /private/tmp/claude-501/-Users-jorgevallejos-Chango-Pepper-projects-live-lyric-translator-dev/03f3aad9-75c8-4ff0-8ba7-f23a1698fb1b/scratchpad/tsc_after.txt)",
-      "Bash(tee /private/tmp/claude-501/-Users-jorgevallejos-Chango-Pepper-projects-live-lyric-translator-dev/03f3aad9-75c8-4ff0-8ba7-f23a1698fb1b/scratchpad/tsc_before.txt)"
+      "Bash(tee /tmp/tsc_new.txt)"
     ],
     "deny": [
       "Bash(git push --force*)",
@@ -113,7 +104,7 @@
       "Bash(sudo:*)"
     ],
     "additionalDirectories": [
-      "/Users/jorgevallejos/Chango Pepper/projects/live-lyric-translator-dev/.git"
+      "/Users/jorgevallejos/Chango Pepper/projects/pregonero/.git"
     ]
   }
 }
