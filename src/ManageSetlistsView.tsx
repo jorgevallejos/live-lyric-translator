@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
-import type { TimelineEntry } from './songState'
+import type { TimelineEntry, TimelineLeadIn } from './songState'
 import {
   DndContext,
   KeyboardSensor,
@@ -611,15 +611,19 @@ export function ManageSetlistsView() {
         window.alert('Could not read the timeline file.')
         return
       }
-      let timeline: TimelineEntry[]
+      let parsed: { timelineVersion: number; leadIn: TimelineLeadIn; entries: TimelineEntry[] }
       try {
-        timeline = parseTimelineFromJsonText(r.text)
+        parsed = parseTimelineFromJsonText(r.text)
       } catch (err) {
         window.alert(`Invalid timeline file: ${err instanceof Error ? err.message : String(err)}`)
         return
       }
       setDraft((d) => {
-        const next = patchSongTimelineInSnapshot(d, songId, timeline) ?? d
+        const next =
+          patchSongTimelineInSnapshot(d, songId, parsed.entries, {
+            timelineVersion: parsed.timelineVersion,
+            leadIn: parsed.leadIn,
+          }) ?? d
         saveSetlistStore(next)
         return next
       })

@@ -57,7 +57,7 @@ import {
   type DisplayMode,
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
-import { getDefaultAdvanceMode, computeAutoAdvanceIndex, type AdvanceMode } from './autoAdvanceState'
+import { getDefaultAdvanceMode, computeAutoAdvanceIndex, isCueStartMode, type AdvanceMode } from './autoAdvanceState'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -387,10 +387,24 @@ function ControlView() {
     // The first Next (index -1 → 0) also starts the non-video beat clock — the beat
     // indicator is driven by the existing controls, not a separate Start button.
     // startBeatClock() is a no-op when already running or when there is no tempo.
+    //
+    // P1 (start-on-cue): for a cue-start Auto song (v2 timeline, no video — see
+    // isCueStartAuto below), this same first press IS the timeline's start cue — it fires
+    // startAtCue() instead, which begins the clock straight into 'playing' regardless of
+    // tempo.countInBars (no count-in). isCueStartAuto/startAtCue are declared further down
+    // this component but already assigned by the time this closure is ever invoked (it's only
+    // called from a later click, after the full render — the same pattern this function
+    // already relies on for startBeatClock, destructured from useBeatClock() below it).
     const wasNotStarted = getSongIndex() === -1
     goNext()
     const newIndex = getSongIndex()
-    if (wasNotStarted) startBeatClock()
+    if (wasNotStarted) {
+      if (isCueStartAuto) {
+        startAtCue()
+      } else {
+        startBeatClock()
+      }
+    }
     sendCommandWithState('next', undefined, {
       currentIndex: newIndex,
       blank: getBlank(),
@@ -625,6 +639,7 @@ function ControlView() {
     songElapsedMs,
     playState: beatPlayState,
     start: startBeatClock,
+    startAtCue,
     pause: pauseBeatClock,
     restart: restartBeatClock,
     reset: resetBeatClock,
@@ -639,8 +654,24 @@ function ControlView() {
   // (see handleAutoPlay / autoBlackout / the projection blackout listener).
   const isAutoArmed =
     showArmedShell && !showVideoPerformance && effectiveAdvanceMode === 'auto' && hasTimeline
-  // Once Play has been pressed (count-in or later), the pre-first-cue screens go black instead
-  // of showing the intro/notes; idle means we're still at the pre-Play intro.
+  // P1 (start-on-cue): a v2-timeline, no-video Auto song skips Play/count-in entirely — the
+  // performer's first pedal press/Next is the start cue itself (see handleNext, startAtCue in
+  // useBeatClock.ts). Keyed on primitives only (timelineVersion, isVideoMode — a boolean
+  // derived from media.type), never on currentLibrarySong/media object identity, per the hook-
+  // stability gotcha in CLAUDE.md. isVideoMode (not showVideoPerformance) is deliberate: a
+  // video song with display mode 'none' still has video media and must NOT get cue-start,
+  // matching "has no video media" in the P1 spec exactly.
+  const isCueStartAuto = isCueStartMode({
+    armed: isAutoArmed,
+    advanceMode: effectiveAdvanceMode,
+    timelineVersion: currentLibrarySong?.timelineVersion,
+    hasVideo: isVideoMode,
+  })
+  // Once Play (legacy Auto) or the cueing Next (cue-start Auto, P1) has fired, the performer's
+  // own screen stops showing the intro/notes; idle means we're still waiting to start/cue.
+  // (Whether the AUDIENCE goes black meanwhile is a separate concern — see isCueStartAuto and
+  // the autoBlackout comments on handleAutoPlay: legacy Auto blacks the audience out on Play,
+  // cue-start Auto never does, so the audience keeps showing the title/intro until the cue.)
   const autoPerformanceStarted = isAutoArmed && beatPlayState !== 'idle'
 
   // R2: Manual mode gets an explicit Start step so the count-in runs a full bar BEFORE the
@@ -904,6 +935,7 @@ function ControlView() {
             absolutePath={resolvedVideoPath}
             media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
+            leadIn={currentLibrarySong!.leadIn}
             lines={lines}
             singingLang={effectiveSingingLang}
             tempo={songTempo}
@@ -948,11 +980,13 @@ function ControlView() {
                   )}
                   {notStarted && !autoPerformanceStarted && (
                     <p className="control-state-instruction">
-                      {isAutoArmed
-                        ? 'Press Play to start'
-                        : manualPreStart
-                          ? 'Press Start to begin the count-in'
-                          : 'Press Next to reveal the first line'}
+                      {isCueStartAuto
+                        ? 'Press Next when ready to start the song'
+                        : isAutoArmed
+                          ? 'Press Play to start'
+                          : manualPreStart
+                            ? 'Press Start to begin the count-in'
+                            : 'Press Next to reveal the first line'}
                     </p>
                   )}
                 </div>
@@ -1022,7 +1056,68 @@ function ControlView() {
       {showArmedShell && !showVideoPerformance && (
         <footer className="control-bottom-bar">
           <div className="bottom-buttons">
-            {isAutoArmed ? (
+            {isCueStartAuto ? (
+              <>
+                {/* P1: cue-start Auto (v2 timeline, no video) — no Play button and no
+                    count-in; the first Next press (or a pedal press mapped to it) IS the
+                    timeline's start cue, handled inside handleNext via startAtCue(). Manual
+                    Next/Previous stay available throughout, before and after the cue, as the
+                    override they already are elsewhere. Pause/Restart only make sense — and
+                    only appear — once there is something to pause or restart. */}
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-prev"
+                  onClick={handlePrev}
+                  disabled={lines.length === 0 || index <= -1}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-next"
+                  onClick={handleNext}
+                  disabled={nextDisabled}
+                >
+                  Next
+                </button>
+                {autoPerformanceStarted && (
+                  <>
+                    {beatPlayState === 'paused' ? (
+                      /* Not itself in the P1 acceptance list, but Pause with no way back would
+                         be a dead end mid-performance — resuming reuses startBeatClock(),
+                         which already special-cases playState === 'paused' before its
+                         count-in branch, so it resumes correctly regardless of tempo. */
+                      <button
+                        type="button"
+                        className="ctrl-btn ctrl-auto-play ctrl-arm"
+                        onClick={startBeatClock}
+                        aria-label="Resume"
+                      >
+                        Resume
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ctrl-btn ctrl-auto-pause"
+                        onClick={handleAutoPause}
+                        disabled={beatPlayState !== 'playing'}
+                        aria-label="Pause"
+                      >
+                        Pause
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-auto-restart"
+                      onClick={handleAutoRestart}
+                      aria-label="Restart"
+                    >
+                      Restart
+                    </button>
+                  </>
+                )}
+              </>
+            ) : isAutoArmed ? (
               <>
                 {/* T2: Auto uses video-style transport — you don't reason in terms of
                     next/previous, the beat clock drives the cues. */}
@@ -1604,6 +1699,7 @@ function ProjectionView() {
           absolutePath={resolvedVideoPath}
           media={activeMedia!}
           timeline={currentLibrarySong!.timeline ?? []}
+          leadIn={currentLibrarySong!.leadIn}
           lines={lines}
           effectiveLang={effectiveLang}
           layout={layout}
