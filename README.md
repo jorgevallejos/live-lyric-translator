@@ -1,13 +1,34 @@
 
-# Live Lyric Translator
+# Pregonero
 
 <p align="center">
 <img src="docs/images/chango-pepper-banner-logo.png" width="600">
 </p>
 
-A live subtitle system for concerts.
+**A Spanish song performed for an audience that doesn't speak Spanish is a song they can hear but not be inside. Pregonero puts them inside it — the right line, in their language, on the screen behind you, at the moment you sing it.**
 
-This application allows a musician to project translated lyrics in real time during a live performance. The performer can advance each phrase manually (keyboard or foot pedal), or let the app follow a synchronized animation video — with manual override always available as the safety net.
+The name is the town crier: the one who makes the words reach everyone.
+
+## Why it isn't just subtitles
+
+A subtitle file assumes the performance will match the timing. Live, it won't — you hold a note, the audience laughs, you talk between verses, a string breaks.
+
+So in Pregonero the **performer drives the screen**. Every line advances on a keyboard press or a foot pedal. Songs that have a synchronized animation can ride the video's own clock instead — and even then, a single pedal press re-seizes manual control mid-song, mid-video, no exceptions.
+
+That override is the whole design, not a feature bullet. A live show does not get a second take, so every automatic path has a manual one underneath it that always wins.
+
+## Who it's for
+
+- musicians performing in one language to audiences in another
+- touring acts facing a different mix of languages each night
+- storytelling, theatre and spoken-word sets that want surtitles they can drive
+- anyone who needs a caption screen that follows a **person**, not a timecode
+
+## Runs offline
+
+No network, no accounts, no API keys. Songs are local JSON, the two windows talk to each other over `localhost`, and the projection keeps working in a venue with no wifi — which is most of them.
+
+Pregonero **displays** translations; it doesn't produce them. The translations are yours, written into the song JSON with whatever tools you like. Line *timings* for Video mode can be authored by hand or generated offline by [Bombista](https://github.com/jorgevallejos/bombista), its sibling tool, which Pregonero imports directly.
 
 **Note:** Currently available on **macOS only**.
 
@@ -52,7 +73,7 @@ This application allows a musician to project translated lyrics in real time dur
 
 ## ⚙️ How it works
 
-Live Lyric Translator is a desktop application with two synchronized windows:
+Pregonero is a desktop application with two synchronized windows:
 
 - a **Control window** (performer)
 - a **Projection window** (audience)
@@ -312,7 +333,7 @@ Pedal[Bluetooth Pedal] --> Control
 
 This project is part of the preparation for the live performances of **Chango Pepper**.
 
-Chango Pepper blends Latin American roots, storytelling, and contemporary arrangements. The songs are primarily written in Spanish and performed for international audiences, hence the need for the Live Lyric Translator.
+Chango Pepper blends Latin American roots, storytelling, and contemporary arrangements. The songs are primarily written in Spanish and performed for international audiences, hence the need for Pregonero.
 
 More about the project and the music:
 
