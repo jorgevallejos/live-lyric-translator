@@ -66,6 +66,7 @@ import {
   scaleTimeline,
   isUsableBpm,
 } from './performedTempo'
+import ThemeSwitcher from './ThemeSwitcher' // THROWAWAY: restyle prototype
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -2047,6 +2048,7 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     return (
       <>
         <ConcertSessionTimerRunner />
+        <ThemeSwitcher />{/* THROWAWAY: restyle prototype */}
         <ManageSetlistsView />
       </>
     )
@@ -2054,6 +2056,7 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     return (
       <>
         <ConcertSessionTimerRunner />
+        <ThemeSwitcher />{/* THROWAWAY: restyle prototype */}
         <SongsView />
       </>
     )
@@ -2061,12 +2064,14 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     return (
       <>
         <ConcertSessionTimerRunner />
+        <ThemeSwitcher />{/* THROWAWAY: restyle prototype */}
         <LanguagesView />
       </>
     )
   return (
     <>
       <ConcertSessionTimerRunner />
+      <ThemeSwitcher />{/* THROWAWAY: restyle prototype */}
       <ControlView />
     </>
   )
