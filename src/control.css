@@ -40,6 +40,153 @@
 :root {
   --control-ui-scale: 1.5;
   --beat-circle-size: 112px;
+
+  /* ---- Type -------------------------------------------------------------
+     Three roles, one face today. Chromium gives form controls their own UA
+     font rather than letting them inherit, and on this Chromium that UA font
+     is Arial — the same face --font-ui names — so routing buttons and inputs
+     through the token below is a no-op now and the only thing that makes
+     their type themeable at all. */
+  --font-ui: Arial, sans-serif;
+  --font-control: Arial, sans-serif;  /* buttons and fields (see below) */
+  --font-numeric: Arial, sans-serif;
+  --font-label: Arial, sans-serif;
+
+  /* ---- Shape ------------------------------------------------------------
+     Radii are not colour, but they are the other half of what makes a skin a
+     skin, and "no border-radius" is half of what brutalist means here. Named
+     with today's values so a theme can square the corners without a theme
+     needing to touch a single selector. */
+  --radius-control: 6px;    /* buttons, fields */
+  --radius-box: 6px;        /* small containers */
+  --radius-tile: 8px;       /* tiles, rows, the segmented control */
+  --radius-panel: 10px;     /* the setlist panel */
+  --radius-float: 12px;     /* the floating timer actions */
+  --radius-panel-sm: 0.5em;
+  --radius-dialog: 0.75em;
+  --radius-chip: 0.35em;
+  --radius-field: 0.4em;
+  --radius-round: 50%;      /* the beat circle, the timer, the dots */
+
+  /* ---- Grounds and surfaces --------------------------------------------- */
+  --app-bg: #1c1c1e;                 /* the screen itself */
+  --panel-bg: #1c1c1e;               /* panels and popovers sitting on it */
+  --input-bg: #1c1c1e;               /* text fields */
+  --surface-inset: #242427;          /* a well pressed into a panel */
+  --control-bg: #2c2c2e;             /* buttons, rows, tiles at rest */
+  --control-bg-raised: #3a3a3c;      /* a control that sits one step forward */
+  --control-bg-disabled: #252527;
+  --dialog-bg: #2c2c2e;              /* modal dialog body */
+  --surface-hover: #3a3a3c;
+  --surface-hover-strong: #48484a;
+  --surface-float: rgba(28, 28, 30, 0.95);   /* floating action cluster */
+
+  /* ---- Rules and borders ------------------------------------------------ */
+  --rule-faint: #262629;             /* the setup column separators */
+  --rule: #3a3a3c;                   /* container borders */
+  --rule-strong: #2c2c2e;            /* top/bottom bar divisions */
+  --control-border: #48484a;
+  --control-border-soft: #444;
+  --control-border-hover: #58585a;
+  --control-border-focus: #636366;
+  --control-border-disabled: #3a3a3c;
+
+  /* ---- Text ------------------------------------------------------------- */
+  --text-primary: #e5e5e5;
+  --text-lyric-current: #f2f2f2;     /* the line being sung, control side */
+  --text-secondary: #b0b0b2;
+  --text-status: #a0a0a5;            /* instructions and per-column status */
+  --text-muted: #8e8e93;
+  --text-label: #8e8e93;             /* the uppercase micro-labels */
+  --text-muted-2: #98989d;
+  --text-soft: #888;
+  --text-dim: #5c5c60;               /* next-line preview */
+  --text-faint: #636366;
+  --text-disabled: #48484a;
+  --text-numeric: #d0d0d2;
+  --text-played: #b8b8bc;
+  --control-text-soft: #c0c0c2;
+  --control-text-disabled: #8e8e93;
+  --segment-text: #9a9a9f;
+  --segment-text-hover: #d0d0d5;
+
+  /* ---- State: selected (green today, same values as armed) ---------------
+     Split from --state-armed-* because they are two different jobs wearing one
+     colour: --state-armed-* is the show being live (the Arm button, the confirm
+     action), --state-selected-* is a choice standing out in a list (the active
+     segment, the chosen language, the song queued in the setlist). A theme that
+     wants status colour reserved for liveness has to be able to move one
+     without the other. */
+  --state-selected-bg: #2d4a2d;
+  --state-selected-border: #3d5c3d;
+  --state-selected-bg-hover: #3a5a3a;
+  --state-selected-border-hover: #4a6c4a;
+  --state-selected-text: #e8f0e8;
+
+  /* ---- State: armed / live (green) -------------------------------------- */
+  --state-armed-bg: #2d4a2d;
+  --state-armed-border: #3d5c3d;
+  --state-armed-bg-hover: #3a5a3a;
+  --state-armed-border-hover: #4a6c4a;
+  --state-armed-text: #e8f0e8;
+  --state-armed-bg-off: #1e2e1e;
+  --state-armed-border-off: #2a3a2a;
+  --state-armed-text-off: #6a7a6a;
+  --state-confirm-bg-off: #1e261e;
+  --state-confirm-border-off: #2a352a;
+  --state-confirm-text-off: #6e7a6e;
+  --segment-active-text: #eaf3ea;
+  --state-ok: #6a9d6a;               /* prereq check passed */
+  --state-live: #7bd88f;             /* played icon, cue accent, scrub bar */
+  --state-linked: #34c759;           /* media file linked */
+  --state-live-dim: #4d8c5a;
+  --state-live-bg: #1a2d1a;
+  --state-live-bg-hover: #223522;
+  --state-drop-border: #5d855d;      /* drag-and-drop target */
+  --state-drop-bg: #223022;
+
+  /* ---- State: paused / unarmed (amber-brown) ---------------------------- */
+  --state-paused-bg: #4a3d2d;
+  --state-paused-border: #5c4d3d;
+  --state-paused-bg-hover: #5a4a3a;
+  --state-paused-border-hover: #6c5a4a;
+  --state-paused-text: #f0ebe0;
+
+  /* ---- State: warn (amber) ---------------------------------------------- */
+  --state-warn: #f4a22b;             /* drift, warning */
+  --state-override: #ff9f0a;         /* manual override badge */
+  --state-override-bg: rgba(255, 159, 10, 0.15);
+  --state-warn-bg: #3a2a1a;
+  --state-warn-border: #7a4a1a;
+  --state-warn-text: #e0a060;
+
+  /* ---- State: fail / recording (red) ------------------------------------ */
+  --state-fail: #b55;                /* prereq check failed */
+  --state-alert: #e05252;            /* drift past the alert threshold */
+  --state-record-bg: #7c1d1d;
+  --state-record-border: #b34040;
+  --state-record-bg-hover: #9b2626;
+  --state-record-text: #ffc0c0;
+  --state-danger-border: #8b3a3a;    /* delete */
+  --state-danger-bg-hover: #5c2a2a;
+
+  /* ---- Beat indicator ---------------------------------------------------
+     Its own tokens rather than the text ones: these are state marks that
+     happen to share a value with body text today, and a theme re-points
+     them independently. */
+  --beat-accent: #e5e5e5;            /* downbeat number, active dot, downbeat pulse */
+  --beat-pulse-off: #b0b0b2;         /* off-beat pulse */
+  --beat-dot-idle: #48484a;
+  --count-in-dot-idle: #3c3c3e;
+  --beat-number-text: #a0a0a2;
+
+  /* ---- Scrims and overlays ---------------------------------------------- */
+  --scrim: rgba(0, 0, 0, 0.72);
+  --scrim-bar: rgba(0, 0, 0, 0.65);
+  --scrim-count-in: rgba(28, 28, 30, 0.92);
+  --overlay-text-shadow: rgba(0, 0, 0, 0.9);
+  --float-shadow: rgba(0, 0, 0, 0.35);
+  --video-letterbox: #000;
 }
 
 /* Base: no font-size on html so projection is independent; control screens set their own below */
@@ -52,8 +199,27 @@ html, body, #root {
 .control-screen,
 .songs-screen,
 .languages-screen {
-  font-family: Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: calc(16px * var(--control-ui-scale));
+}
+
+/* Form controls do not inherit font-family in Chromium; they get the UA font,
+   which is Arial here. Naming it changes nothing today and is what lets a theme
+   reach buttons and inputs. Scoped to the control-side screens so the
+   projection window is untouched. */
+.control-screen button,
+.control-screen input,
+.control-screen select,
+.control-screen textarea,
+.songs-screen button,
+.songs-screen input,
+.songs-screen select,
+.songs-screen textarea,
+.languages-screen button,
+.languages-screen input,
+.languages-screen select,
+.languages-screen textarea {
+  font-family: var(--font-control);
 }
 
 .control-screen {
@@ -70,8 +236,8 @@ html, body, #root {
      just overflows visually (same page-level scroll fallback as before). */
   height: 100vh;
   min-height: 100vh;
-  background: #1c1c1e;
-  color: #e5e5e5;
+  background: var(--app-bg);
+  color: var(--text-primary);
 }
 
 .control-top-bar {
@@ -80,7 +246,7 @@ html, body, #root {
   justify-content: space-between;
   padding: 0.75em 1.25em;
   flex-shrink: 0;
-  border-bottom: 1px solid #2c2c2e;
+  border-bottom: 1px solid var(--rule-strong);
 }
 
 .top-bar-summary {
@@ -102,14 +268,14 @@ html, body, #root {
 
 .top-summary-line {
   font-size: 0.9em;
-  color: #b0b0b2;
+  color: var(--text-secondary);
 }
 
 .top-title-state {
   order: -1;
   font-size: 1.15em;
   font-weight: 700;
-  color: #e5e5e5;
+  color: var(--text-primary);
 }
 
 .top-title {
@@ -171,7 +337,7 @@ html, body, #root {
 .performing-next-song-helper-label {
   font-size: 0.75em;
   font-weight: 400;
-  color: #8e8e93;
+  color: var(--text-muted);
   line-height: 1.2;
   margin: 0;
 }
@@ -206,9 +372,9 @@ html, body, #root {
   --_gap: 2em;
   --_col: calc((100% - 3 * var(--_gap)) / 4);
   background-image:
-    linear-gradient(#262629, #262629),
-    linear-gradient(#262629, #262629),
-    linear-gradient(#262629, #262629);
+    linear-gradient(var(--rule-faint), var(--rule-faint)),
+    linear-gradient(var(--rule-faint), var(--rule-faint)),
+    linear-gradient(var(--rule-faint), var(--rule-faint));
   background-size: 1px 100%;
   background-repeat: no-repeat;
   background-position:
@@ -229,7 +395,7 @@ html, body, #root {
   line-height: 1.3;
   margin: 0;
   max-width: 90%;
-  color: #f2f2f2;
+  color: var(--text-lyric-current);
 }
 
 .control-next-preview {
@@ -238,14 +404,15 @@ html, body, #root {
   line-height: 1.25;
   margin: 0.25em 0 0;
   max-width: 90%;
-  color: #5c5c60;
+  color: var(--text-dim);
   min-height: 1.25em;
 }
 
 .control-position {
+  font-family: var(--font-numeric);
   margin-top: 1.5em;
   font-size: 1em;
-  color: #8e8e93;
+  color: var(--text-muted);
 }
 
 .control-ready,
@@ -254,7 +421,7 @@ html, body, #root {
   margin-bottom: 0;
   font-size: 1.25em;
   font-weight: 700;
-  color: #e5e5e5;
+  color: var(--text-primary);
 }
 
 .control-center-setup .control-state-label {
@@ -265,7 +432,7 @@ html, body, #root {
   margin: 0.25em 0 0;
   font-size: 1.05em;
   font-weight: 500;
-  color: #a0a0a5;
+  color: var(--text-status);
 }
 
 .control-song-intro {
@@ -274,7 +441,7 @@ html, body, #root {
   line-height: 1.3;
   margin: 0.25em 0 0;
   max-width: 90%;
-  color: #a0a0a5;
+  color: var(--text-status);
 }
 
 .control-performance-state {
@@ -309,9 +476,10 @@ html, body, #root {
 
 
 .control-setup-label {
+  font-family: var(--font-label);
   font-size: 0.75em;
   font-weight: 600;
-  color: #8e8e93;
+  color: var(--text-label);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   grid-row: 1;
@@ -338,7 +506,7 @@ html, body, #root {
 
 .control-setup-status {
   font-size: 0.8125em;
-  color: #a0a0a5;
+  color: var(--text-status);
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
@@ -399,9 +567,10 @@ html, body, #root {
 
 /* Tiny muted labels (same family as column headers, smaller) */
 .ctrl-toggle-label {
+  font-family: var(--font-label);
   font-size: 10px;
   font-weight: 600;
-  color: #8e8e93;
+  color: var(--text-label);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   line-height: 1;
@@ -429,7 +598,7 @@ html, body, #root {
 .control-setup-value {
   font-size: clamp(1.75em, 4vw, 2.75em);
   font-weight: 600;
-  color: #e5e5e5;
+  color: var(--text-primary);
   line-height: 1.25;
   overflow-wrap: break-word;
   word-wrap: break-word;
@@ -438,7 +607,7 @@ html, body, #root {
 
 .control-setup-hint {
   font-size: 0.9em;
-  color: #8e8e93;
+  color: var(--text-muted);
 }
 
 /* Single sizing for all setup/ready-to-arm bottom buttons (Song, Languages, Projection, Arm) */
@@ -466,8 +635,8 @@ html, body, #root {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  border: 0.5px solid #3a3a3c;
-  border-radius: 8px;
+  border: 0.5px solid var(--rule);
+  border-radius: var(--radius-tile);
   overflow: hidden;
   flex: 0 0 auto;
 }
@@ -476,9 +645,9 @@ html, body, #root {
   flex: 0 0 auto;
   appearance: none;
   border: none;
-  border-right: 0.5px solid #3a3a3c;
+  border-right: 0.5px solid var(--rule);
   background: transparent;
-  color: #9a9a9f;
+  color: var(--segment-text);
   font-size: 12.5px;
   font-weight: 600;
   padding: 7px 13px;
@@ -493,27 +662,27 @@ html, body, #root {
 }
 
 .ctrl-segment:hover:not(:disabled):not(.ctrl-segment--active) {
-  color: #d0d0d5;
+  color: var(--segment-text-hover);
 }
 
 .ctrl-segment--active {
-  background: #2d4a2d;
-  color: #eaf3ea;
+  background: var(--state-selected-bg);
+  color: var(--segment-active-text);
 }
 
 .ctrl-segment--active:hover:not(:disabled) {
-  background: #3a5a3a;
+  background: var(--state-selected-bg-hover);
 }
 
 .ctrl-segment:disabled,
 .ctrl-segment.ctrl-segment--disabled {
   cursor: not-allowed;
-  color: #48484a;
+  color: var(--text-disabled);
 }
 
 .ctrl-segment:disabled.ctrl-segment--active,
 .ctrl-segment.ctrl-segment--disabled.ctrl-segment--active {
-  color: #5c5c60;
+  color: var(--text-dim);
 }
 
 .ctrl-setup-link {
@@ -533,11 +702,11 @@ html, body, #root {
 }
 
 .control-checks .check-ok {
-  color: #6a9d6a;
+  color: var(--state-ok);
 }
 
 .control-checks .check-fail {
-  color: #b55;
+  color: var(--state-fail);
 }
 
 .ctrl-btn {
@@ -545,74 +714,74 @@ html, body, #root {
   padding: 0.5em 1em;
   min-height: 2.5em;
   min-width: 7.5em;
-  background: #2c2c2e;
-  color: #e5e5e5;
-  border: 1px solid #48484a;
-  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
   cursor: pointer;
   font-weight: 600;
   touch-action: manipulation;
 }
 
 .ctrl-btn:hover:not(:disabled) {
-  background: #3a3a3c;
-  border-color: #58585a;
+  background: var(--surface-hover);
+  border-color: var(--control-border-hover);
 }
 
 .ctrl-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  color: #8e8e93;
-  background: #252527;
-  border-color: #3a3a3c;
+  color: var(--control-text-disabled);
+  background: var(--control-bg-disabled);
+  border-color: var(--control-border-disabled);
 }
 
 /* Confirm button: clearly active when enabled, clearly disabled when disabled (Songs + Languages) */
 .ctrl-btn.languages-confirm:not(:disabled) {
-  background: #2d4a2d;
-  border-color: #3d5c3d;
-  color: #e8f0e8;
+  background: var(--state-armed-bg);
+  border-color: var(--state-armed-border);
+  color: var(--state-armed-text);
 }
 
 .ctrl-btn.languages-confirm:not(:disabled):hover {
-  background: #3a5a3a;
-  border-color: #4a6c4a;
+  background: var(--state-armed-bg-hover);
+  border-color: var(--state-armed-border-hover);
 }
 
 .ctrl-btn.languages-confirm:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  color: #6e7a6e;
-  background: #1e261e;
-  border-color: #2a352a;
+  color: var(--state-confirm-text-off);
+  background: var(--state-confirm-bg-off);
+  border-color: var(--state-confirm-border-off);
 }
 
 .ctrl-arm {
-  background: #2d4a2d;
-  border-color: #3d5c3d;
-  color: #e8f0e8;
+  background: var(--state-armed-bg);
+  border-color: var(--state-armed-border);
+  color: var(--state-armed-text);
 }
 
 .ctrl-arm:hover:not(:disabled) {
-  background: #3a5a3a;
-  border-color: #4a6c4a;
+  background: var(--state-armed-bg-hover);
+  border-color: var(--state-armed-border-hover);
 }
 
 .ctrl-arm:disabled {
-  background: #1e2e1e;
-  border-color: #2a3a2a;
-  color: #6a7a6a;
+  background: var(--state-armed-bg-off);
+  border-color: var(--state-armed-border-off);
+  color: var(--state-armed-text-off);
 }
 
 .ctrl-unarm {
-  background: #4a3d2d;
-  border-color: #5c4d3d;
-  color: #f0ebe0;
+  background: var(--state-paused-bg);
+  border-color: var(--state-paused-border);
+  color: var(--state-paused-text);
 }
 
 .ctrl-unarm:hover:not(:disabled) {
-  background: #5a4a3a;
-  border-color: #6c5a4a;
+  background: var(--state-paused-bg-hover);
+  border-color: var(--state-paused-border-hover);
 }
 
 .ctrl-projection {
@@ -632,7 +801,7 @@ html, body, #root {
 .control-bottom-bar {
   flex-shrink: 0;
   padding: 1em 1.25em;
-  border-top: 1px solid #2c2c2e;
+  border-top: 1px solid var(--rule-strong);
   display: flex;
   justify-content: center;
 }
@@ -645,6 +814,7 @@ html, body, #root {
 }
 
 .ctrl-timer-status {
+  font-family: var(--font-numeric);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -654,15 +824,15 @@ html, body, #root {
   min-height: var(--beat-circle-size);
   padding: 0;
   line-height: 1;
-  border-radius: 50%;
-  border: 1px solid #48484a;
-  background: #2c2c2e;
-  color: #e5e5e5;
+  border-radius: var(--radius-round);
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
 }
 
 .ctrl-timer-status:hover:not(:disabled) {
-  background: #3a3a3c;
-  border-color: #58585a;
+  background: var(--surface-hover);
+  border-color: var(--control-border-hover);
 }
 
 .ctrl-timer-status-circle {
@@ -677,14 +847,14 @@ html, body, #root {
 }
 
 .ctrl-timer-status-paused {
-  background: #4a3d2d;
-  border-color: #5c4d3d;
-  color: #f0ebe0;
+  background: var(--state-paused-bg);
+  border-color: var(--state-paused-border);
+  color: var(--state-paused-text);
 }
 
 .ctrl-timer-status-paused:hover:not(:disabled) {
-  background: #5a4a3a;
-  border-color: #6c5a4a;
+  background: var(--state-paused-bg-hover);
+  border-color: var(--state-paused-border-hover);
 }
 
 .ctrl-timer-floating {
@@ -704,10 +874,10 @@ html, body, #root {
   align-items: stretch;
   gap: 0.35rem;
   padding: 0.35rem;
-  border: 1px solid #48484a;
-  border-radius: 12px;
-  background: rgba(28, 28, 30, 0.95);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-float);
+  background: var(--surface-float);
+  box-shadow: 0 8px 18px var(--float-shadow);
 }
 
 .ctrl-timer-action {
@@ -721,8 +891,8 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #1c1c1e;
-  color: #e5e5e5;
+  background: var(--app-bg);
+  color: var(--text-primary);
 }
 
 /* Setlist view: keep full-width grid with balanced screen-side spacing */
@@ -737,22 +907,22 @@ html, body, #root {
   align-items: center;
   gap: 1em;
   padding: 0.75em 1.25em;
-  border-bottom: 1px solid #2c2c2e;
+  border-bottom: 1px solid var(--rule-strong);
 }
 
 .songs-back {
-  background: #2c2c2e;
-  color: #e5e5e5;
-  border: 1px solid #48484a;
+  background: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
   padding: 0.5em 1em;
   font-size: 1em;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-tile);
   font-weight: 600;
 }
 
 .songs-back:hover {
-  background: #3a3a3c;
+  background: var(--surface-hover);
 }
 
 .songs-title {
@@ -764,7 +934,7 @@ html, body, #root {
   margin: 0;
   font-size: 1.5em;
   font-weight: 600;
-  color: #e5e5e5;
+  color: var(--text-primary);
 }
 
 .manage-setlists-top-actions {
@@ -794,18 +964,18 @@ html, body, #root {
 
 .songs-manage-setlists {
   z-index: 1;
-  background: #2c2c2e;
-  color: #e5e5e5;
-  border: 1px solid #48484a;
+  background: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
   padding: 0.45em 0.75em;
   font-size: 0.9em;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-tile);
   font-weight: 600;
 }
 
 .songs-manage-setlists:hover {
-  background: #3a3a3c;
+  background: var(--surface-hover);
 }
 
 /* Manage setlists: 3-column workspace */
@@ -863,9 +1033,9 @@ html, body, #root {
 
 .manage-setlists-panel {
   padding: 0.65rem 0.5rem;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
-  background: #1c1c1e;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  background: var(--panel-bg);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -906,18 +1076,18 @@ html, body, #root {
 }
 
 .manage-setlists-action-btn {
-  background: #3a3a3c;
-  color: #e5e5e5;
-  border: 1px solid #48484a;
+  background: var(--control-bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
   padding: 0.35em 0.65em;
   font-size: 0.85em;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font-weight: 500;
 }
 
 .manage-setlists-action-btn:hover:not(:disabled) {
-  background: #48484a;
+  background: var(--surface-hover-strong);
 }
 
 .manage-setlists-action-btn:disabled {
@@ -926,22 +1096,22 @@ html, body, #root {
 }
 
 .manage-setlists-delete-btn {
-  border-color: #8b3a3a;
+  border-color: var(--state-danger-border);
 }
 
 .manage-setlists-delete-btn:hover:not(:disabled) {
-  background: #5c2a2a;
+  background: var(--state-danger-bg-hover);
 }
 
 .manage-setlists-row {
   text-align: left;
-  background: #2c2c2e;
-  color: #e5e5e5;
-  border: 1px solid #48484a;
+  background: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
   padding: 0.65em 1em;
   font-size: 1em;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-tile);
   font-weight: 500;
 }
 
@@ -955,29 +1125,29 @@ html, body, #root {
 
 /* Selected setlist row: persistent green; must win over .manage-setlists-row base (same issue as .songs-song-btn) */
 .manage-setlists-row.ctrl-arm {
-  background: #2d4a2d;
-  border-color: #3d5c3d;
-  color: #e8f0e8;
+  background: var(--state-selected-bg);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-text);
 }
 
 .manage-setlists-row.ctrl-arm:hover:not(:disabled) {
-  background: #3a5a3a;
-  border-color: #4a6c4a;
+  background: var(--state-selected-bg-hover);
+  border-color: var(--state-selected-border-hover);
 }
 
 /* Only apply neutral hover to non-selected row buttons */
 .manage-setlists-row:not(.ctrl-arm):hover {
-  background: #3a3a3c;
+  background: var(--surface-hover);
 }
 
 .manage-setlists-rename-input {
   box-sizing: border-box;
   padding: 0.55em 0.75em;
   font-size: 1em;
-  border-radius: 8px;
-  border: 1px solid #48484a;
-  background: #1c1c1e;
-  color: #e5e5e5;
+  border-radius: var(--radius-tile);
+  border: 1px solid var(--control-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .manage-setlists-rename-input-inline {
@@ -1004,24 +1174,24 @@ html, body, #root {
 }
 
 .manage-setlists-song-editor-active {
-  border-color: #3d5c3d;
+  border-color: var(--state-selected-border);
 }
 
 .manage-setlists-song-editor-inactive {
-  border-color: #48484a;
-  background: #242427;
+  border-color: var(--control-border);
+  background: var(--surface-inset);
 }
 
 .manage-setlists-song-editor-over {
-  border-color: #5d855d;
-  background: #223022;
+  border-color: var(--state-drop-border);
+  background: var(--state-drop-bg);
 }
 
 .manage-setlists-song-editor-title {
   margin: 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #98989d;
+  color: var(--text-muted-2);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -1048,10 +1218,10 @@ html, body, #root {
   flex-shrink: 0;
   width: 2rem;
   padding: 0.2rem 0.15rem;
-  border: 1px solid #3a3a3c;
-  border-radius: 6px;
-  background: #2c2c2e;
-  color: #98989d;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  color: var(--text-muted-2);
   font-size: 0.85em;
   line-height: 1.2;
   cursor: grab;
@@ -1059,8 +1229,8 @@ html, body, #root {
 }
 
 .manage-setlists-drag-handle:hover {
-  color: #e5e5e5;
-  border-color: #48484a;
+  color: var(--text-primary);
+  border-color: var(--control-border);
 }
 
 .manage-setlists-drag-handle:active {
@@ -1068,7 +1238,7 @@ html, body, #root {
 }
 
 .manage-setlists-song-title {
-  color: #e5e5e5;
+  color: var(--text-primary);
   font-size: 0.95em;
   min-width: 0;
   flex: 1;
@@ -1100,7 +1270,7 @@ html, body, #root {
 }
 
 .manage-setlists-icon-btn--linked {
-  color: #34c759;
+  color: var(--state-linked);
 }
 
 .manage-setlists-icon-btn--add .video-link-btn-badge,
@@ -1120,7 +1290,7 @@ html, body, #root {
 }
 
 .manage-setlists-song-empty {
-  color: #8e8e93;
+  color: var(--text-muted);
   font-size: 0.9em;
   margin: 0;
   padding: 0.15rem 0;
@@ -1155,7 +1325,7 @@ html, body, #root {
 .setlist-prompt {
   grid-column: 1 / -1;
   text-align: center;
-  color: #8e8e93;
+  color: var(--text-muted);
   font-size: 1.05em;
   line-height: 1.4;
   margin: 0.5rem 0 1rem;
@@ -1166,10 +1336,10 @@ html, body, #root {
   height: 130px;
   font-size: clamp(1.1em, 3vw, 1.35em);
   padding: 1em 1.25em;
-  background: #2c2c2e;
-  color: #e5e5e5;
-  border: 1px solid #48484a;
-  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-tile);
   cursor: pointer;
   font-weight: 600;
   display: flex;
@@ -1195,29 +1365,29 @@ html, body, #root {
 }
 
 .songs-song-btn:hover {
-  background: #3a3a3c;
+  background: var(--surface-hover);
 }
 
 /* Selected song: persistent green (same as Arm), must win over base/hover above */
 .songs-song-btn.ctrl-arm {
-  background: #2d4a2d;
-  border-color: #3d5c3d;
-  color: #e8f0e8;
+  background: var(--state-selected-bg);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-text);
 }
 
 .songs-song-btn.ctrl-arm:hover:not(:disabled) {
-  background: #3a5a3a;
-  border-color: #4a6c4a;
+  background: var(--state-selected-bg-hover);
+  border-color: var(--state-selected-border-hover);
 }
 
 /* Only apply neutral hover to non-selected song buttons */
 .songs-song-btn:not(.ctrl-arm):hover {
-  background: #3a3a3c;
+  background: var(--surface-hover);
 }
 
 /* Played song: darker text and checkmark only; do not change background. Selected (ctrl-arm) overrides. */
 .songs-song-btn-played {
-  color: #b8b8bc;
+  color: var(--text-played);
 }
 
 /* Styled checkmark icon (no emoji); vertically aligned with title. */
@@ -1226,7 +1396,7 @@ html, body, #root {
   margin-right: 10px;
   vertical-align: middle;
   font-size: 0.9em;
-  color: #7bd88f;
+  color: var(--state-live);
   line-height: 1;
 }
 
@@ -1236,19 +1406,19 @@ html, body, #root {
 }
 
 .songs-song-btn-played.ctrl-arm .song-played-icon {
-  color: #7bd88f;
+  color: var(--state-live);
 }
 
 /* Selected played song: same green as any selected song (selected takes priority) */
 .songs-song-btn-played.ctrl-arm {
-  background: #2d4a2d;
-  border-color: #3d5c3d;
-  color: #e8f0e8;
+  background: var(--state-selected-bg);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-text);
 }
 
 .songs-song-btn-played.ctrl-arm:hover:not(:disabled) {
-  background: #3a5a3a;
-  border-color: #4a6c4a;
+  background: var(--state-selected-bg-hover);
+  border-color: var(--state-selected-border-hover);
 }
 
 /* Confirm at bottom, same pattern as Languages screen */
@@ -1274,7 +1444,7 @@ html, body, #root {
 /* ---- Languages screen ---- */
 .languages-screen .languages-empty {
   margin: 0;
-  color: #8e8e93;
+  color: var(--text-muted);
   font-size: 1em;
   line-height: 1.5;
 }
@@ -1312,7 +1482,7 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   font-size: 1.5em;
-  color: #8e8e93;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -1328,10 +1498,11 @@ html, body, #root {
 }
 
 .languages-screen .languages-section-title {
+  font-family: var(--font-label);
   font-size: 0.95em;
   font-weight: 600;
   margin: 0 0 2rem 0;
-  color: #8e8e93;
+  color: var(--text-label);
   text-align: center;
   justify-self: center;
 }
@@ -1354,17 +1525,17 @@ html, body, #root {
   font-size: clamp(1.25em, 4vw, 1.5em);
   letter-spacing: 0.05em;
   padding: 0.4em 0.75em;
-  border-radius: 0.35em;
-  border: 1px solid #3a3a3c;
-  background: #2c2c2e;
-  color: #e5e5e5;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--rule);
+  background: var(--control-bg);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .languages-lang-btn-selected {
-  background: #2d4a2d;
-  color: #e8f0e8;
-  border-color: #3d5c3d;
+  background: var(--state-selected-bg);
+  color: var(--state-selected-text);
+  border-color: var(--state-selected-border);
 }
 
 .languages-screen .languages-confirm-wrap {
@@ -1378,7 +1549,10 @@ html, body, #root {
   min-width: 8em;
 }
 
-/* ---- Projection screen (independent from control UI) ---- */
+/* ---- Projection screen (independent from control UI) ----
+   Deliberately NOT tokenised. The projection window is audience-facing, read
+   from the back of a dark room, and it is out of scope for the control-side
+   restyle: leaving its colours as literals means no theme can reach it. */
 .projection-screen {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 16px;
@@ -1447,35 +1621,35 @@ html, body, #root {
 }
 
 .ctrl-record {
-  background: #2c2c2e;
-  color: #b0b0b2;
-  border: 1px solid #444;
+  background: var(--control-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--control-border-soft);
 }
 
 .ctrl-record:hover {
-  background: #3a3a3c;
-  color: #e5e5e5;
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .ctrl-record-active {
-  background: #7c1d1d;
-  color: #ffc0c0;
-  border: 1px solid #b34040;
+  background: var(--state-record-bg);
+  color: var(--state-record-text);
+  border: 1px solid var(--state-record-border);
 }
 
 .ctrl-record-active:hover {
-  background: #9b2626;
+  background: var(--state-record-bg-hover);
 }
 
 .ctrl-record-indicator {
   font-size: 0.85em;
-  color: #b0b0b2;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   min-width: 8em;
 }
 
 .ctrl-record-indicator-active {
-  color: #ffc0c0;
+  color: var(--state-record-text);
   font-weight: 600;
 }
 
@@ -1486,9 +1660,9 @@ html, body, #root {
   flex-direction: column;
   gap: 0.35em;
   padding: 0.5em 0.75em;
-  border: 1px solid #3a3a3c;
-  border-radius: 0.5em;
-  background: #1c1c1e;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel-sm);
+  background: var(--panel-bg);
   flex-shrink: 0;
   margin: 0.25em 0;
 }
@@ -1501,56 +1675,59 @@ html, body, #root {
 }
 
 .ctrl-timed-label {
+  font-family: var(--font-label);
   font-size: 0.75em;
   font-weight: 600;
-  color: #888;
+  color: var(--text-soft);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   flex-shrink: 0;
 }
 
 .ctrl-timed-time {
+  font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-size: 0.9em;
-  color: #d0d0d2;
+  color: var(--text-numeric);
   min-width: 4em;
   flex-shrink: 0;
 }
 
 .ctrl-timed-line {
   font-size: 0.85em;
-  color: #888;
+  color: var(--text-soft);
   flex-shrink: 0;
 }
 
 .ctrl-timed-drift {
+  font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-size: 0.85em;
-  color: #888;
+  color: var(--text-soft);
   min-width: 5em;
   flex-shrink: 0;
 }
 
 .ctrl-timed-drift-warn {
-  color: #f4a22b;
+  color: var(--state-warn);
 }
 
 .ctrl-timed-drift-alert {
-  color: #e05252;
+  color: var(--state-alert);
 }
 
 .ctrl-timed-nudge {
-  background: #2c2c2e;
-  color: #c0c0c2;
-  border: 1px solid #444;
+  background: var(--control-bg);
+  color: var(--control-text-soft);
+  border: 1px solid var(--control-border-soft);
   font-size: 0.78em;
   padding: 0.25em 0.5em;
   min-width: 3.5em;
 }
 
 .ctrl-timed-nudge:hover:not(:disabled) {
-  background: #3a3a3c;
-  color: #e5e5e5;
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 /* ---- Timeline save dialog overlay ---- */
@@ -1558,7 +1735,7 @@ html, body, #root {
 .ctrl-timeline-save-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1566,9 +1743,9 @@ html, body, #root {
 }
 
 .ctrl-timeline-save-dialog {
-  background: #2c2c2e;
-  border: 1px solid #444;
-  border-radius: 0.75em;
+  background: var(--dialog-bg);
+  border: 1px solid var(--control-border-soft);
+  border-radius: var(--radius-dialog);
   padding: 1.5em 2em;
   display: flex;
   flex-direction: column;
@@ -1582,7 +1759,7 @@ html, body, #root {
 .ctrl-timeline-save-message {
   margin: 0;
   font-size: 1em;
-  color: #e5e5e5;
+  color: var(--text-primary);
 }
 
 .ctrl-timeline-save-actions {
@@ -1599,13 +1776,14 @@ html, body, #root {
   align-items: center;
   gap: 0.6em;
   padding-top: 0.75em;
-  border-top: 1px solid #2c2c2e;
+  border-top: 1px solid var(--rule-strong);
 }
 
 .ctrl-display-label {
+  font-family: var(--font-label);
   font-size: 0.75em;
   font-weight: 600;
-  color: #8e8e93;
+  color: var(--text-label);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -1632,23 +1810,23 @@ html, body, #root {
   align-items: center;
   gap: 0.4em;
   font-size: 0.9em;
-  color: #a0a0a5;
+  color: var(--text-status);
 }
 
 .ctrl-custom-profile-input {
   width: 4.5em;
   padding: 0.3em 0.5em;
-  background: #2c2c2e;
-  color: #e5e5e5;
-  border: 1px solid #444;
-  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border-soft);
+  border-radius: var(--radius-control);
   font-size: 1em;
   text-align: center;
 }
 
 .ctrl-custom-profile-input:focus {
   outline: none;
-  border-color: #636366;
+  border-color: var(--control-border-focus);
 }
 
 /* ---- Video control panel (armed view, video-mode song) ---- */
@@ -1671,7 +1849,7 @@ html, body, #root {
 .ctrl-video-nopath-msg {
   margin: 0 0 1em;
   font-size: 1em;
-  color: #a0a0a5;
+  color: var(--text-status);
 }
 
 /* Top row: video preview (left) + lyric column (right) */
@@ -1688,8 +1866,8 @@ html, body, #root {
   flex-shrink: 0;
   width: clamp(200px, 35%, 360px);
   aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: 6px;
+  background: var(--video-letterbox);
+  border-radius: var(--radius-box);
   overflow: hidden;
 }
 
@@ -1707,14 +1885,14 @@ html, body, #root {
   left: 0;
   right: 0;
   padding: 0.25em 0.5em;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  background: linear-gradient(transparent, var(--scrim-bar));
 }
 
 .ctrl-video-position-bar {
   width: 100%;
   height: 4px;
   cursor: pointer;
-  accent-color: #7bd88f;
+  accent-color: var(--state-live);
 }
 
 /* Lyric column next to the preview */
@@ -1727,8 +1905,9 @@ html, body, #root {
 }
 
 .ctrl-video-time {
+  font-family: var(--font-numeric);
   font-size: 0.8em;
-  color: #8e8e93;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1736,7 +1915,7 @@ html, body, #root {
   margin: 0;
   font-size: clamp(1.25em, 3.5vw, 1.8em);
   font-weight: 700;
-  color: #f2f2f2;
+  color: var(--text-lyric-current);
   line-height: 1.3;
   overflow-wrap: break-word;
 }
@@ -1745,7 +1924,7 @@ html, body, #root {
   margin: 0;
   font-size: clamp(0.9em, 2.5vw, 1.25em);
   font-weight: 500;
-  color: #5c5c60;
+  color: var(--text-dim);
   line-height: 1.25;
   min-height: 1.25em;
   overflow-wrap: break-word;
@@ -1762,15 +1941,15 @@ html, body, #root {
 /* Format warnings */
 .ctrl-video-warnings {
   padding: 0.5em 0.75em;
-  background: #3a2a1a;
-  border: 1px solid #7a4a1a;
-  border-radius: 6px;
+  background: var(--state-warn-bg);
+  border: 1px solid var(--state-warn-border);
+  border-radius: var(--radius-box);
 }
 
 .ctrl-video-warning {
   margin: 0.2em 0;
   font-size: 0.85em;
-  color: #e0a060;
+  color: var(--state-warn-text);
 }
 
 /* Cue strip: scrollable list of timeline markers */
@@ -1780,10 +1959,10 @@ html, body, #root {
   gap: 0.2em;
   max-height: 260px;
   overflow-y: auto;
-  border: 1px solid #3a3a3c;
-  border-radius: 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-box);
   padding: 0.4em 0;
-  background: #1c1c1e;
+  background: var(--panel-bg);
 }
 
 .ctrl-video-cue-marker {
@@ -1795,7 +1974,7 @@ html, body, #root {
   background: none;
   border: none;
   border-radius: 0;
-  color: #a0a0a5;
+  color: var(--text-status);
   font-size: 0.85em;
   text-align: left;
   cursor: pointer;
@@ -1805,29 +1984,30 @@ html, body, #root {
 }
 
 .ctrl-video-cue-marker:hover {
-  background: #2c2c2e;
-  color: #e5e5e5;
+  background: var(--control-bg);
+  color: var(--text-primary);
 }
 
 .ctrl-video-cue-marker-active {
-  background: #1a2d1a;
-  color: #7bd88f;
+  background: var(--state-live-bg);
+  color: var(--state-live);
 }
 
 .ctrl-video-cue-marker-active:hover {
-  background: #223522;
-  color: #7bd88f;
+  background: var(--state-live-bg-hover);
+  color: var(--state-live);
 }
 
 .ctrl-video-cue-time {
+  font-family: var(--font-numeric);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  color: #636366;
+  color: var(--text-faint);
   font-size: 0.9em;
 }
 
 .ctrl-video-cue-marker-active .ctrl-video-cue-time {
-  color: #4d8c5a;
+  color: var(--state-live-dim);
 }
 
 .ctrl-video-cue-line {
@@ -1845,14 +2025,14 @@ html, body, #root {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #636366;
+  color: var(--text-faint);
   font-size: 0.85em;
 }
 
 .ctrl-video-cue-empty {
   margin: 0.5em 0.75em;
   font-size: 0.9em;
-  color: #636366;
+  color: var(--text-faint);
 }
 
 /* ---- End Card (control) ---- */
@@ -1891,15 +2071,16 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   gap: 0.5em;
-  background: rgba(28, 28, 30, 0.92);
+  background: var(--scrim-count-in);
   z-index: 10;
   pointer-events: none;
 }
 
 .beat-count-in-number {
+  font-family: var(--font-numeric);
   font-size: clamp(5rem, 20vw, 14rem);
   font-weight: 300;
-  color: #b0b0b2;
+  color: var(--text-secondary);
   line-height: 1;
   transition: transform 80ms ease-out, color 80ms ease-out;
 }
@@ -1907,7 +2088,7 @@ html, body, #root {
 /* Downbeat: larger and brighter to guide the performer's eye */
 .beat-count-in-downbeat {
   transform: scale(1.15);
-  color: #e5e5e5;
+  color: var(--beat-accent);
   font-weight: 600;
 }
 
@@ -1920,13 +2101,13 @@ html, body, #root {
   display: inline-block;
   width: 0.6em;
   height: 0.6em;
-  border-radius: 50%;
-  background: #3c3c3e;
+  border-radius: var(--radius-round);
+  background: var(--count-in-dot-idle);
   transition: background 80ms ease-out;
 }
 
 .beat-count-in-dot-active {
-  background: #e5e5e5;
+  background: var(--beat-accent);
 }
 
 /* Persistent small beat pulse shown during the song */
@@ -1950,14 +2131,14 @@ html, body, #root {
   display: inline-block;
   width: 0.55em;
   height: 0.55em;
-  border-radius: 50%;
-  background: #b0b0b2;
+  border-radius: var(--radius-round);
+  background: var(--beat-pulse-off);
   animation: beat-pulse-anim 0.35s ease-out forwards;
 }
 
 /* Downbeat pulse is brighter */
 .beat-pulse-down {
-  background: #e5e5e5;
+  background: var(--beat-accent);
 }
 
 .beat-pulse-toggle {
@@ -2008,8 +2189,8 @@ html, body, #root {
   max-width: 92%;
   text-align: center;
   text-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.9),
-    0 0 4px rgba(0, 0, 0, 0.9);
+    0 2px 12px var(--overlay-text-shadow),
+    0 0 4px var(--overlay-text-shadow);
   pointer-events: none;
   z-index: 4;
 }
@@ -2036,12 +2217,13 @@ html, body, #root {
 }
 
 .ctrl-performed-bpm-input {
+  font-family: var(--font-numeric);
   width: 5.5em;
   padding: 0.3em 0.4em;
-  border-radius: 0.4em;
-  border: 1px solid #48484a;
-  background: #2c2c2e;
-  color: #e5e5e5;
+  border-radius: var(--radius-field);
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
   font-size: 1em;
   font-variant-numeric: tabular-nums;
 }
@@ -2056,10 +2238,10 @@ html, body, #root {
    the performer has to register "this is not driving itself any more" at a glance, mid-song. */
 .control-manual-override-badge {
   padding: 0.3em 0.7em;
-  border-radius: 0.4em;
-  border: 1px solid #ff9f0a;
-  background: rgba(255, 159, 10, 0.15);
-  color: #ff9f0a;
+  border-radius: var(--radius-field);
+  border: 1px solid var(--state-override);
+  background: var(--state-override-bg);
+  color: var(--state-override);
   font-size: 0.85em;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2067,6 +2249,7 @@ html, body, #root {
 }
 
 .beat-circle {
+  font-family: var(--font-numeric);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2074,10 +2257,10 @@ html, body, #root {
   height: var(--beat-circle-size);
   min-width: var(--beat-circle-size);
   min-height: var(--beat-circle-size);
-  border-radius: 50%;
-  border: 1px solid #48484a;
-  background: #2c2c2e;
-  color: #e5e5e5;
+  border-radius: var(--radius-round);
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
   flex-direction: column;
   gap: 0.25em;
   user-select: none;
@@ -2092,16 +2275,17 @@ html, body, #root {
 }
 
 .beat-circle-beat-number {
+  font-family: var(--font-numeric);
   font-size: clamp(2.4em, 5vw, 2.9em);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: #a0a0a2;
+  color: var(--beat-number-text);
   transition: color 0.08s ease-out;
 }
 
 .beat-circle-downbeat {
-  color: #e5e5e5;
+  color: var(--beat-accent);
   transform: scale(1.12);
   display: inline-block;
   transform-origin: center;
@@ -2115,10 +2299,10 @@ html, body, #root {
 .beat-circle-dot {
   width: 0.35em;
   height: 0.35em;
-  border-radius: 50%;
-  background: #48484a;
+  border-radius: var(--radius-round);
+  background: var(--beat-dot-idle);
 }
 
 .beat-circle-dot-active {
-  background: #e5e5e5;
+  background: var(--beat-accent);
 }
