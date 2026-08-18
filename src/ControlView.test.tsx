@@ -6202,10 +6202,10 @@ describe('Control performance timer/status button', () => {
     expect(timerRule).toMatch(/width:\s*var\(--beat-circle-size\)/)
     expect(timerRule).toMatch(/height:\s*var\(--beat-circle-size\)/)
     expect(timerRule).toMatch(/padding:\s*0/)
-    expect(timerRule).toMatch(/border-radius:\s*50%/)
-    expect(timerRule).toMatch(/border:\s*1px\s+solid\s+#48484a/)
-    expect(timerRule).toMatch(/background:\s*#2c2c2e/)
-    expect(timerRule).toMatch(/color:\s*#e5e5e5/)
+    expect(timerRule).toMatch(/border-radius:\s*var\(--radius-round\)/)
+    expect(timerRule).toMatch(/border:\s*1px\s+solid\s+var\(--control-border\)/)
+    expect(timerRule).toMatch(/background:\s*var\(--control-bg\)/)
+    expect(timerRule).toMatch(/color:\s*var\(--text-primary\)/)
   })
 
   it('keeps minute text dominant and removes icon styling complexity', () => {
@@ -6225,9 +6225,9 @@ describe('Control performance timer/status button', () => {
     expect(pausedBlock).toBeTruthy()
 
     const pausedRule = pausedBlock![1]
-    expect(pausedRule).toMatch(/background:\s*#4a3d2d/)
-    expect(pausedRule).toMatch(/border-color:\s*#5c4d3d/)
-    expect(pausedRule).toMatch(/color:\s*#f0ebe0/)
+    expect(pausedRule).toMatch(/background:\s*var\(--state-paused-bg\)/)
+    expect(pausedRule).toMatch(/border-color:\s*var\(--state-paused-border\)/)
+    expect(pausedRule).toMatch(/color:\s*var\(--state-paused-text\)/)
   })
 
   it('positions floating actions vertically under the timer circle', () => {
