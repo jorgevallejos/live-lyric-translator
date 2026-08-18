@@ -2448,3 +2448,145 @@ html, body, #root {
   --float-shadow:         rgba(0, 0, 0, 0.5);
   --video-letterbox:      #000;
 }
+
+
+/* ===================================================================
+   VARIANT B — warmer.
+   Token re-points only. No selector below this line, no new rule, nothing
+   that could move a box. Delete the block and the app is itself again.
+   =================================================================== */
+[data-theme="b"] {
+  /* ---- Type — one instrument voice for controls, labels and numerics; the sung
+     line stays sans, because monospace at 2.6em is harder to read, not easier */
+  --font-ui:       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-control:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-numeric:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-label:    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---- Shape — no radii. Squaring the beat circle and its dots is the loudest
+     single move in either variant; it is one token if you want it back. */
+  --radius-control:   0;
+  --radius-box:       0;
+  --radius-tile:      0;
+  --radius-panel:     0;
+  --radius-float:     0;
+  --radius-panel-sm:  0;
+  --radius-dialog:    0;
+  --radius-chip:      0;
+  --radius-field:     0;
+  --radius-round:     0;
+
+  /* ---- Grounds and surfaces — ink ground, one step per level, no gradients */
+  --app-bg:                #121211;
+  --panel-bg:              #1a1a18;
+  --input-bg:              #1a1a18;
+  --surface-inset:         #121211;
+  --control-bg:            #1a1a18;
+  --control-bg-raised:     #232320;
+  --control-bg-disabled:   #161615;
+  --dialog-bg:             #1a1a18;
+  --surface-hover:         #232320;
+  --surface-hover-strong:  #2c2a26;
+  --surface-float:         rgba(26, 26, 24, 0.97);
+
+  /* ---- Rules — hairlines, not slabs */
+  --rule-faint:               #2c2a26;
+  --rule:                     #423e37;
+  --rule-strong:              #423e37;
+  --control-border:           #423e37;
+  --control-border-soft:      #2c2a26;
+  --control-border-hover:     #e6dfd1;
+  --control-border-focus:     #d98b7a;
+  --control-border-disabled:  #2c2a26;
+
+  /* ---- Text — paper on ink, one dim, one dimmer. No new greys. */
+  --text-primary:           #e6dfd1;
+  --text-lyric-current:     #e6dfd1;
+  --text-secondary:         #8b8478;
+  --text-status:            #8b8478;
+  --text-muted:             #8b8478;
+  --text-label:             #8b8478;
+  --text-muted-2:           #8b8478;
+  --text-soft:              #8b8478;
+  --text-dim:               #635d54;
+  --text-faint:             #635d54;
+  --text-disabled:          #423e37;
+  --text-numeric:           #e6dfd1;
+  --text-played:            #8b8478;
+  --control-text-soft:      #8b8478;
+  --control-text-disabled:  #635d54;
+  --segment-text:           #8b8478;
+  --segment-text-hover:     #e6dfd1;
+
+  /* ---- Selection — THE axis the two variants differ on.
+     A: a choice is a bright hairline box, no colour.
+     B: a choice is tinted with the live green, as today. */
+  --state-selected-bg:            #1d3129;
+  --state-selected-border:        #4f7d63;
+  --state-selected-bg-hover:      #243f32;
+  --state-selected-border-hover:  #5b9074;
+  --state-selected-text:          #e6dfd1;
+  --segment-active-text:          #e6dfd1;
+
+  /* ---- Armed / live — kept in both. This is the show being live. */
+  --state-armed-bg:            #1d3129;
+  --state-armed-border:        #4f7d63;
+  --state-armed-bg-hover:      #243f32;
+  --state-armed-border-hover:  #5b9074;
+  --state-armed-text:          #e6dfd1;
+  --state-armed-bg-off:        #141d19;
+  --state-armed-border-off:    #25342c;
+  --state-armed-text-off:      #4c6157;
+  --state-confirm-bg-off:      #141d19;
+  --state-confirm-border-off:  #25342c;
+  --state-confirm-text-off:    #4c6157;
+  --state-ok:                  #5b9074;
+  --state-live:                #7cbb97;
+  --state-linked:              #7cbb97;
+  --state-live-dim:            #5b9074;
+  --state-live-bg:             #1d3129;
+  --state-live-bg-hover:       #243f32;
+  --state-drop-border:         #5b9074;
+  --state-drop-bg:             #16221c;
+
+  /* ---- Paused / unarmed — A neutralises it, B tints it review */
+  --state-paused-bg:            #241d11;
+  --state-paused-border:        #6b5326;
+  --state-paused-bg-hover:      #33290f;
+  --state-paused-border-hover:  #e0a437;
+  --state-paused-text:          #e0a437;
+
+  /* ---- Warn — the mark is review in both; only the panel treatment differs */
+  --state-warn:         #e0a437;
+  --state-override:     #e0a437;
+  --state-override-bg:  rgba(224, 164, 55, 0.14);
+  --state-warn-bg:      #241d11;
+  --state-warn-border:  #e0a437;
+  --state-warn-text:    #e0a437;
+
+  /* ---- Fail / recording — A outlines it, B fills it */
+  --state-fail:             #ef7a70;
+  --state-alert:            #ef7a70;
+  --state-record-bg:        #251715;
+  --state-record-border:    #ef7a70;
+  --state-record-bg-hover:  #3a201c;
+  --state-record-text:      #ef7a70;
+  --state-danger-border:    #8a4b45;
+  --state-danger-bg-hover:  #251715;
+
+  /* ---- Beat indicator — identical in both. It is the one instrument that has to
+     be read in a glance, so it is not part of the experiment. */
+  --beat-accent:        #7cbb97;
+  --beat-pulse-off:     #8b8478;
+  --beat-dot-idle:      #423e37;
+  --count-in-dot-idle:  #2c2a26;
+  --beat-number-text:   #8b8478;
+
+  /* ---- Scrims */
+  --scrim:                rgba(0, 0, 0, 0.78);
+  --scrim-bar:            rgba(0, 0, 0, 0.68);
+  --scrim-count-in:       rgba(18, 18, 17, 0.94);
+  --overlay-text-shadow:  rgba(0, 0, 0, 0.9);
+  --float-shadow:         rgba(0, 0, 0, 0.5);
+  --video-letterbox:      #000;
+}
