@@ -8334,6 +8334,61 @@ describe('§P14 Manual/Auto lyric-advance toggle', () => {
   })
 
   /**
+   * Setup panel — the four columns share one line for their big value.
+   *
+   * Each column used to be its own independent grid, so the value row was only as tall as
+   * whatever was left after that column's own buttons. Lyrics display carries two extra
+   * controls, so its value floated ~100px above Song / Projection / Arm. Fixed by making the
+   * outer container own the rows and each column a subgrid of it: the value row is then one
+   * shared row, and the extras get a row of their own between value and buttons.
+   */
+  describe('Setup panel column alignment', () => {
+    const setupCss = () => readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+
+    it('lets the outer container own the four rows, so every column shares them', () => {
+      const outer = setupCss().match(
+        /\.control-center-setup \.control-performance-state \{([^}]*)\}/
+      )
+      expect(outer).toBeTruthy()
+      expect(outer![1]).toMatch(/grid-template-rows:\s*auto\s+minmax\(min-content,\s*1fr\)\s+auto\s+auto/)
+    })
+
+    it('makes each setup column a subgrid spanning those four rows', () => {
+      const section = setupCss().match(
+        /\.control-center-setup \.control-setup-section \{([^}]*)\}/
+      )
+      expect(section).toBeTruthy()
+      expect(section![1]).toMatch(/grid-template-rows:\s*subgrid/)
+      expect(section![1]).toMatch(/grid-row:\s*span\s+4/)
+    })
+
+    it('gives every column the same four children in the same order', async () => {
+      setupControlViewWithReadinessPassing()
+      await armAndReachSetup()
+      const sections = document.querySelectorAll('.control-setup-section')
+      expect(sections.length).toBeGreaterThan(1)
+      sections.forEach((section) => {
+        const classes = Array.from(section.children).map((c) => c.className)
+        expect(classes).toEqual([
+          'control-setup-label',
+          'control-setup-content',
+          'control-setup-extras',
+          'control-setup-buttons',
+        ])
+      })
+    })
+
+    it('puts the transitions toggle in the extras row, not in the button row', async () => {
+      setupWithTimelineSong() // a v2 timeline is what makes the Transitions toggle appear
+      await armAndReachSetup()
+      const toggle = document.querySelector('.control-setup-toggle-area')
+      expect(toggle).toBeTruthy()
+      expect(toggle!.closest('.control-setup-extras')).toBeTruthy()
+      expect(toggle!.closest('.control-setup-buttons')).toBeNull()
+    })
+  })
+
+  /**
    * §P9 — performed-tempo scaling, at the app level.
    *
    * The pure maths lives in performedTempo.test.ts (including the golden-fixture acceptance).

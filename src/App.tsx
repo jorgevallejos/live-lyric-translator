@@ -887,6 +887,7 @@ function ControlView() {
                     <span className="control-setup-value">{currentSongTitle}</span>
                   ) : null}
                 </div>
+                <div className="control-setup-extras" />
                 <div className="control-setup-buttons">
                   <div className="control-setup-button-row">
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
@@ -902,7 +903,7 @@ function ControlView() {
                     <span className="control-setup-value">{languagesDisplay}</span>
                   ) : null}
                 </div>
-                <div className="control-setup-buttons">
+                <div className="control-setup-extras">
                   {!showVideoPerformance && showAdvanceModeToggle && (
                     <div className="control-setup-toggle-area">
                       <div className="ctrl-toggle-group">
@@ -962,6 +963,8 @@ function ControlView() {
                       </div>
                     </div>
                   )}
+                </div>
+                <div className="control-setup-buttons">
                   <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
                     Languages
                   </button>
@@ -975,7 +978,7 @@ function ControlView() {
                       {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
                     </span>
                   </div>
-                  <div className="control-setup-buttons">
+                  <div className="control-setup-extras">
                     {isVideoMode && (
                       <div className="control-setup-toggle-area">
                         <div className="ctrl-toggle-group">
@@ -1012,6 +1015,8 @@ function ControlView() {
                         </div>
                       </div>
                     )}
+                  </div>
+                  <div className="control-setup-buttons">
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
@@ -1021,6 +1026,7 @@ function ControlView() {
                 <div className="control-setup-content">
                   <span className="control-setup-value">Unarmed</span>
                 </div>
+                <div className="control-setup-extras" />
                 <div className="control-setup-buttons">
                   <button
                     type="button"

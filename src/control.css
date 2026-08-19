@@ -374,6 +374,16 @@ html, body, #root {
   /* Song / Language / Projection / Arm — four EQUAL columns (T1: reverted from the
      1fr 1fr 1.15fr 0.85fr weighting now the Projection toggle cluster is compact). */
   grid-template-columns: 1fr 1fr 1fr 1fr;
+  /* The CONTAINER owns the rows — label / value / extras / buttons — and each column is a
+     subgrid of them. Before this, every column was its own independent grid, so the value row
+     was only as tall as whatever that column's own buttons left over: Lyrics display carries
+     two extra controls, which floated its value ~100px above Song, Projection and Arm. One
+     shared row is the only way four big values sit on one line without hard-coding a height.
+     min-content, not 0, as the row's floor: the extras and button rows are auto-sized and take
+     their height first, so on a short window (iPad Sidecar) a 0-floor row collapses and the
+     column's overflow:hidden clips the song title. Overflowing the panel is the existing
+     fallback and is the better failure. */
+  grid-template-rows: auto minmax(min-content, 1fr) auto auto;
   gap: 1.5em 2em;
   align-items: stretch;
   padding: 1.5em 1.5em 2em;
@@ -391,6 +401,11 @@ html, body, #root {
     calc(1 * var(--_col) + 0.5 * var(--_gap) - 0.5px) 0,
     calc(2 * var(--_col) + 1.5 * var(--_gap) - 0.5px) 0,
     calc(3 * var(--_col) + 2.5 * var(--_gap) - 0.5px) 0;
+}
+
+.control-center-setup .control-setup-section {
+  grid-row: span 4;
+  grid-template-rows: subgrid;
 }
 
 /* Allow grid columns to shrink below content size; prevent overlap into adjacent columns */
@@ -474,7 +489,7 @@ html, body, #root {
 
 .control-setup-section {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr auto auto;
   justify-items: center;
   align-items: stretch;
   width: 100%;
@@ -527,9 +542,23 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-/* Bottom zone: button stack per column (row 3); min-height so row 3 aligns across columns */
-.control-setup-buttons {
+/* Extras zone (row 3): the per-column controls that are not the value and not the action —
+   Transitions, Performed tempo, Videoclip. Its own row so they cannot push the value up. */
+.control-setup-extras {
   grid-row: 3;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: center;
+  gap: 0.75em;
+  min-width: 0;
+}
+
+/* Bottom zone: button stack per column (row 4); min-height so the row aligns across columns */
+.control-setup-buttons {
+  grid-row: 4;
   width: 100%;
   display: flex;
   flex-direction: column;
