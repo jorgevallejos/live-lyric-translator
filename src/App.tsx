@@ -66,6 +66,7 @@ import {
   scaleTimeline,
   isUsableBpm,
 } from './performedTempo'
+import { APP_VERSION } from './appVersion'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -873,6 +874,24 @@ function ControlView() {
 
   return (
     <div className="control-screen">
+      {showSetupPanel && (
+        <header className="control-masthead" role="banner">
+          <span className="control-masthead-id">
+            <span className="control-masthead-wordmark">Pregonero</span>
+            <span className="control-masthead-tagline">Live lyric translation</span>
+          </span>
+          <span className="control-masthead-by">
+            <span>v{APP_VERSION}</span>
+            <span>
+              A <span className="control-masthead-tramoya">Tramoya</span> tool
+            </span>
+            <span>
+              by <b>Chango Pepper</b>
+            </span>
+          </span>
+        </header>
+      )}
+
       {showArmedShell && (
         <header className="control-top-bar" role="banner">
           <div className="top-bar-summary">

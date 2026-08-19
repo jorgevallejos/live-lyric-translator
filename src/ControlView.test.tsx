@@ -44,6 +44,7 @@ import {
   getLibrarySongById,
   type SetlistStoreSnapshot,
 } from './setlistStore'
+import { APP_VERSION } from './appVersion'
 import { getStoredPerformedBpm } from './performedTempo'
 import { MEDIA_PATH_STORE_KEY } from './mediaPathStore'
 import { DISPLAY_PROFILE_STORAGE_KEY } from './displayProfileStore'
@@ -328,7 +329,9 @@ describe('v0.5 control screen state machine integration', () => {
       { timeout: WAIT_TIMEOUT }
     )
 
-    expect(screen.queryByRole('banner')).toBeNull()
+    // The old shell specifically — the setup masthead is also a banner, and is expected.
+    expect(document.querySelector('.control-top-bar')).toBeNull()
+    expect(document.querySelector('.control-masthead')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /previous/i })).toBeNull()
     expect(queryArmedTransportNextButton()).toBeNull()
     expect(screen.queryByRole('button', { name: /restart/i })).toBeNull()
@@ -345,7 +348,9 @@ describe('v0.5 control screen state machine integration', () => {
       { timeout: WAIT_TIMEOUT }
     )
 
-    expect(screen.queryByRole('banner')).toBeNull()
+    // The old shell specifically — the setup masthead is also a banner, and is expected.
+    expect(document.querySelector('.control-top-bar')).toBeNull()
+    expect(document.querySelector('.control-masthead')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /previous/i })).toBeNull()
     expect(queryArmedTransportNextButton()).toBeNull()
     expect(screen.queryByRole('button', { name: /restart/i })).toBeNull()
@@ -8385,6 +8390,33 @@ describe('§P14 Manual/Auto lyric-advance toggle', () => {
       expect(toggle).toBeTruthy()
       expect(toggle!.closest('.control-setup-extras')).toBeTruthy()
       expect(toggle!.closest('.control-setup-buttons')).toBeNull()
+    })
+  })
+
+  /**
+   * The setup screen carries the masthead — the only place in the app that says what this is.
+   * Modelled on `bombista serve`'s, because the two are one suite and should look it.
+   */
+  describe('Setup screen masthead', () => {
+    it('names the app, the suite and the maker', async () => {
+      setupControlViewWithReadinessPassing()
+      await armAndReachSetup()
+      const mast = document.querySelector('.control-masthead')
+      expect(mast).toBeTruthy()
+      expect(mast!.textContent).toContain('Pregonero')
+      expect(mast!.textContent).toContain('Tramoya')
+      expect(mast!.textContent).toContain('Chango Pepper')
+      expect(mast!.textContent).toContain(APP_VERSION)
+    })
+
+    it('is gone once the song is armed — the stage view carries no branding', async () => {
+      setupControlViewWithReadinessPassing()
+      await armAndReachSetup()
+      expect(document.querySelector('.control-masthead')).toBeTruthy()
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^arm$/i }))
+      })
+      expect(document.querySelector('.control-masthead')).toBeNull()
     })
   })
 

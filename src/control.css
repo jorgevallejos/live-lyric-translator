@@ -89,8 +89,15 @@
   --control-border:           #423e37;
   --control-border-soft:      #2c2a26;
   --control-border-hover:     #e6dfd1;
-  --control-border-focus:     #d98b7a;
+  --control-border-focus:     var(--accent);
   --control-border-disabled:  #2c2a26;
+
+  /* ---- Accent -------------------------------------------------------------
+     Clay. Bombista's one accent, and it stays one: the focus ring and the
+     suite's name in the masthead. Everything else that could take an accent
+     here already carries a status colour that means something more specific. */
+  --accent:      #d98b7a;
+  --accent-dim:  #8f5a4e;
 
   /* ---- Text --------------------------------------------------------------
      Paper on ink, one dim, one dimmer, and nothing in between. Contrast is a
@@ -203,6 +210,72 @@
 html, body, #root {
   margin: 0;
   height: 100%;
+}
+
+/* ---- Masthead — setup screen only ----
+   The one place the app says what it is. Modelled on `bombista serve`'s masthead
+   because the two are one suite and should look it. Deliberately absent once the
+   song is armed: the stage view is an instrument, and an instrument does not
+   spend a line of a dark-room screen on its own name. */
+.control-masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5em;
+  flex-wrap: wrap;
+  padding: 0.9em 1.25em 0.7em;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.control-masthead-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.control-masthead-wordmark {
+  font-family: var(--font-ui);
+  font-size: 0.95em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.control-masthead-tagline {
+  margin-top: 0.3em;
+  font-family: var(--font-label);
+  font-size: 0.55em;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  color: var(--text-faint);
+}
+
+.control-masthead-by {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  font-family: var(--font-label);
+  font-size: 0.5em;
+  font-weight: 400;
+  line-height: 1.7;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.control-masthead-by b {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.control-masthead-tramoya {
+  color: var(--accent-dim);
 }
 
 /* ---- Main control screen ---- */
