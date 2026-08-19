@@ -66,6 +66,7 @@ import {
   scaleTimeline,
   isUsableBpm,
 } from './performedTempo'
+import { APP_VERSION } from './appVersion'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -674,11 +675,18 @@ function ControlView() {
   const declaredBpm = songTempo?.bpm
   const [performedBpmField, setPerformedBpmField] = useState<string>('')
   const [storedPerformedBpm, setStoredPerformedBpmState] = useState<number | null>(null)
+  // The box always carries a number — the stored performed tempo if there is one, otherwise the
+  // recording's own. That is what removed the second "recorded at N" label: the recorded tempo
+  // IS the box's contents until it is nudged. It also gives the spinner arrows somewhere to step
+  // from; from an empty field they would start at `min`. Keyed on the primitive bpm, never on
+  // the song object, which is a fresh reference every render (see CLAUDE.md).
   useEffect(() => {
     const stored = currentSongId ? getStoredPerformedBpm(currentSongId) : null
     setStoredPerformedBpmState(stored)
-    setPerformedBpmField(stored === null ? '' : String(stored))
-  }, [currentSongId])
+    setPerformedBpmField(
+      stored !== null ? String(stored) : declaredBpm !== undefined ? String(declaredBpm) : ''
+    )
+  }, [currentSongId, declaredBpm])
   // Defaults to the declared tempo → scale exactly 1.0 → today's behaviour, byte-identical.
   const performedBpm = resolvePerformedBpm(declaredBpm, storedPerformedBpm)
   const tempoScale = getTempoScale(declaredBpm, performedBpm)
@@ -694,6 +702,28 @@ function ControlView() {
     const next = raw.trim() === '' || !isUsableBpm(parsed) ? null : parsed
     if (currentSongId) setStoredPerformedBpm(currentSongId, next)
     setStoredPerformedBpmState(next)
+  }
+  // Half a BPM is the finest tempo Jorge can actually mean, so that is the grid the arrows step
+  // on and the grid a typed value lands on. Snapping happens on blur rather than per keystroke —
+  // snapping "90.3" the moment the 3 is typed makes the field unusable.
+  //
+  // The one value exempt from the grid is the recording's own tempo. A song measured at 66.67
+  // must be allowed to sit at 66.67: rounding it to 66.5 would silently retime every cue against
+  // the recording, which is exactly the failure performedTempo.ts exists to prevent.
+  const handlePerformedBpmBlur = () => {
+    const raw = performedBpmField.trim()
+    if (raw === '') {
+      if (declaredBpm !== undefined) setPerformedBpmField(String(declaredBpm))
+      return
+    }
+    const parsed = Number(raw)
+    if (!isUsableBpm(parsed)) return
+    if (parsed === declaredBpm) return
+    const snapped = Math.round(parsed * 2) / 2
+    if (snapped === parsed) return
+    setPerformedBpmField(String(snapped))
+    if (currentSongId) setStoredPerformedBpm(currentSongId, snapped)
+    setStoredPerformedBpmState(snapped)
   }
 
   const {
@@ -844,6 +874,24 @@ function ControlView() {
 
   return (
     <div className="control-screen">
+      {showSetupPanel && (
+        <header className="control-masthead" role="banner">
+          <span className="control-masthead-id">
+            <span className="control-masthead-wordmark">Pregonero</span>
+            <span className="control-masthead-tagline">Live lyric translation</span>
+          </span>
+          <span className="control-masthead-by">
+            <span>v{APP_VERSION}</span>
+            <span>
+              A <span className="control-masthead-tramoya">Tramoya</span> tool
+            </span>
+            <span>
+              by <b>Chango Pepper</b>
+            </span>
+          </span>
+        </header>
+      )}
+
       {showArmedShell && (
         <header className="control-top-bar" role="banner">
           <div className="top-bar-summary">
@@ -887,6 +935,7 @@ function ControlView() {
                     <span className="control-setup-value">{currentSongTitle}</span>
                   ) : null}
                 </div>
+                <div className="control-setup-extras" />
                 <div className="control-setup-buttons">
                   <div className="control-setup-button-row">
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSongs}>
@@ -902,7 +951,7 @@ function ControlView() {
                     <span className="control-setup-value">{languagesDisplay}</span>
                   ) : null}
                 </div>
-                <div className="control-setup-buttons">
+                <div className="control-setup-extras">
                   {!showVideoPerformance && showAdvanceModeToggle && (
                     <div className="control-setup-toggle-area">
                       <div className="ctrl-toggle-group">
@@ -950,18 +999,17 @@ function ControlView() {
                             data-testid="performed-bpm-input"
                             aria-label="Performed tempo in BPM"
                             min="1"
-                            step="0.01"
+                            step="0.5"
                             value={performedBpmField}
-                            placeholder={declaredBpm !== undefined ? String(declaredBpm) : ''}
                             onChange={(e) => handlePerformedBpmChange(e.target.value)}
+                            onBlur={handlePerformedBpmBlur}
                           />
-                          <span className="ctrl-performed-bpm-declared" data-testid="declared-bpm-label">
-                            recorded at {declaredBpm}
-                          </span>
                         </div>
                       </div>
                     </div>
                   )}
+                </div>
+                <div className="control-setup-buttons">
                   <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
                     Languages
                   </button>
@@ -975,7 +1023,7 @@ function ControlView() {
                       {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
                     </span>
                   </div>
-                  <div className="control-setup-buttons">
+                  <div className="control-setup-extras">
                     {isVideoMode && (
                       <div className="control-setup-toggle-area">
                         <div className="ctrl-toggle-group">
@@ -1012,6 +1060,8 @@ function ControlView() {
                         </div>
                       </div>
                     )}
+                  </div>
+                  <div className="control-setup-buttons">
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
                 </div>
@@ -1021,6 +1071,7 @@ function ControlView() {
                 <div className="control-setup-content">
                   <span className="control-setup-value">Unarmed</span>
                 </div>
+                <div className="control-setup-extras" />
                 <div className="control-setup-buttons">
                   <button
                     type="button"
