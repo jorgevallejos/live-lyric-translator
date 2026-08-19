@@ -42,151 +42,161 @@
   --beat-circle-size: 112px;
 
   /* ---- Type -------------------------------------------------------------
-     Three roles, one face today. Chromium gives form controls their own UA
-     font rather than letting them inherit, and on this Chromium that UA font
-     is Arial — the same face --font-ui names — so routing buttons and inputs
-     through the token below is a no-op now and the only thing that makes
-     their type themeable at all. */
-  --font-ui: Arial, sans-serif;
-  --font-control: Arial, sans-serif;  /* buttons and fields (see below) */
-  --font-numeric: Arial, sans-serif;
-  --font-label: Arial, sans-serif;
+     A monospace instrument voice for anything you operate or read as data —
+     controls, micro-labels, numerics. The sung line stays sans: monospace at
+     2.6em is harder to read, not easier, and this is read on stage. Chromium
+     does not let form controls inherit font-family, so --font-control is the
+     only thing that reaches a button at all. No webfont: the control window
+     does not phone a font CDN. */
+  --font-ui:       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-control:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-numeric:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-label:    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   /* ---- Shape ------------------------------------------------------------
-     Radii are not colour, but they are the other half of what makes a skin a
-     skin, and "no border-radius" is half of what brutalist means here. Named
-     with today's values so a theme can square the corners without a theme
-     needing to touch a single selector. */
-  --radius-control: 6px;    /* buttons, fields */
-  --radius-box: 6px;        /* small containers */
-  --radius-tile: 8px;       /* tiles, rows, the segmented control */
-  --radius-panel: 10px;     /* the setlist panel */
-  --radius-float: 12px;     /* the floating timer actions */
-  --radius-panel-sm: 0.5em;
-  --radius-dialog: 0.75em;
-  --radius-chip: 0.35em;
-  --radius-field: 0.4em;
-  --radius-round: 50%;      /* the beat circle, the timer, the dots */
+     No radii. The beat circle, the timer and the pulse dots are squares. */
+  --radius-control:   0;
+  --radius-box:       0;
+  --radius-tile:      0;
+  --radius-panel:     0;
+  --radius-float:     0;
+  --radius-panel-sm:  0;
+  --radius-dialog:    0;
+  --radius-chip:      0;
+  --radius-field:     0;
+  --radius-round:     0;
 
-  /* ---- Grounds and surfaces --------------------------------------------- */
-  --app-bg: #1c1c1e;                 /* the screen itself */
-  --panel-bg: #1c1c1e;               /* panels and popovers sitting on it */
-  --input-bg: #1c1c1e;               /* text fields */
-  --surface-inset: #242427;          /* a well pressed into a panel */
-  --control-bg: #2c2c2e;             /* buttons, rows, tiles at rest */
-  --control-bg-raised: #3a3a3c;      /* a control that sits one step forward */
-  --control-bg-disabled: #252527;
-  --dialog-bg: #2c2c2e;              /* modal dialog body */
-  --surface-hover: #3a3a3c;
-  --surface-hover-strong: #48484a;
-  --surface-float: rgba(28, 28, 30, 0.95);   /* floating action cluster */
+  /* ---- Grounds and surfaces ---------------------------------------------
+     Ink ground, one step per level. No gradients, no shadows worth the name. */
+  --app-bg:                #121211;
+  --panel-bg:              #1a1a18;
+  --input-bg:              #1a1a18;
+  --surface-inset:         #121211;
+  --control-bg:            #1a1a18;
+  --control-bg-raised:     #232320;
+  --control-bg-disabled:   #161615;
+  --dialog-bg:             #1a1a18;
+  --surface-hover:         #232320;
+  --surface-hover-strong:  #2c2a26;
+  --surface-float:         rgba(26, 26, 24, 0.97);
 
-  /* ---- Rules and borders ------------------------------------------------ */
-  --rule-faint: #262629;             /* the setup column separators */
-  --rule: #3a3a3c;                   /* container borders */
-  --rule-strong: #2c2c2e;            /* top/bottom bar divisions */
-  --control-border: #48484a;
-  --control-border-soft: #444;
-  --control-border-hover: #58585a;
-  --control-border-focus: #636366;
-  --control-border-disabled: #3a3a3c;
+  /* ---- Rules ------------------------------------------------------------
+     Hairlines, not slabs. A border you notice is a border spending contrast
+     it has not earned. */
+  --rule-faint:               #2c2a26;
+  --rule:                     #423e37;
+  --rule-strong:              #423e37;
+  --control-border:           #423e37;
+  --control-border-soft:      #2c2a26;
+  --control-border-hover:     #e6dfd1;
+  --control-border-focus:     #d98b7a;
+  --control-border-disabled:  #2c2a26;
 
-  /* ---- Text ------------------------------------------------------------- */
-  --text-primary: #e5e5e5;
-  --text-lyric-current: #f2f2f2;     /* the line being sung, control side */
-  --text-secondary: #b0b0b2;
-  --text-status: #a0a0a5;            /* instructions and per-column status */
-  --text-muted: #8e8e93;
-  --text-label: #8e8e93;             /* the uppercase micro-labels */
-  --text-muted-2: #98989d;
-  --text-soft: #888;
-  --text-dim: #5c5c60;               /* next-line preview */
-  --text-faint: #636366;
-  --text-disabled: #48484a;
-  --text-numeric: #d0d0d2;
-  --text-played: #b8b8bc;
-  --control-text-soft: #c0c0c2;
-  --control-text-disabled: #8e8e93;
-  --segment-text: #9a9a9f;
-  --segment-text-hover: #d0d0d5;
+  /* ---- Text --------------------------------------------------------------
+     Paper on ink, one dim, one dimmer, and nothing in between. Contrast is a
+     budget: it is spent on the line being sung and the control the hand is
+     going to. --text-dim is under the WCAG floor on purpose — it carries the
+     next-line preview, which is meant to be available, not competing. */
+  --text-primary:           #e6dfd1;
+  --text-lyric-current:     #e6dfd1;
+  --text-secondary:         #8b8478;
+  --text-status:            #8b8478;
+  --text-muted:             #8b8478;
+  --text-label:             #8b8478;
+  --text-muted-2:           #8b8478;
+  --text-soft:              #8b8478;
+  --text-dim:               #635d54;
+  --text-faint:             #635d54;
+  --text-disabled:          #423e37;
+  --text-numeric:           #e6dfd1;
+  --text-played:            #8b8478;
+  --control-text-soft:      #8b8478;
+  --control-text-disabled:  #635d54;
+  --segment-text:           #8b8478;
+  --segment-text-hover:     #e6dfd1;
 
-  /* ---- State: selected (green today, same values as armed) ---------------
-     Split from --state-armed-* because they are two different jobs wearing one
-     colour: --state-armed-* is the show being live (the Arm button, the confirm
-     action), --state-selected-* is a choice standing out in a list (the active
-     segment, the chosen language, the song queued in the setlist). A theme that
-     wants status colour reserved for liveness has to be able to move one
-     without the other. */
-  --state-selected-bg: #2d4a2d;
-  --state-selected-border: #3d5c3d;
-  --state-selected-bg-hover: #3a5a3a;
-  --state-selected-border-hover: #4a6c4a;
-  --state-selected-text: #e8f0e8;
+  /* ---- Selection ---------------------------------------------------------
+     A choice is a bright hairline box, not a colour. Status colour is
+     reserved for liveness; "you picked this" is a question you ask at the
+     desk with time to look, not on stage without it. */
+  --state-selected-bg:            #232320;
+  --state-selected-border:        #e6dfd1;
+  --state-selected-bg-hover:      #2c2a26;
+  --state-selected-border-hover:  #e6dfd1;
+  --state-selected-text:          #e6dfd1;
+  --segment-active-text:          #e6dfd1;
 
-  /* ---- State: armed / live (green) -------------------------------------- */
-  --state-armed-bg: #2d4a2d;
-  --state-armed-border: #3d5c3d;
-  --state-armed-bg-hover: #3a5a3a;
-  --state-armed-border-hover: #4a6c4a;
-  --state-armed-text: #e8f0e8;
-  --state-armed-bg-off: #1e2e1e;
-  --state-armed-border-off: #2a3a2a;
-  --state-armed-text-off: #6a7a6a;
-  --state-confirm-bg-off: #1e261e;
-  --state-confirm-border-off: #2a352a;
-  --state-confirm-text-off: #6e7a6e;
-  --segment-active-text: #eaf3ea;
-  --state-ok: #6a9d6a;               /* prereq check passed */
-  --state-live: #7bd88f;             /* played icon, cue accent, scrub bar */
-  --state-linked: #34c759;           /* media file linked */
-  --state-live-dim: #4d8c5a;
-  --state-live-bg: #1a2d1a;
-  --state-live-bg-hover: #223522;
-  --state-drop-border: #5d855d;      /* drag-and-drop target */
-  --state-drop-bg: #223022;
+  /* ---- Armed / live ------------------------------------------------------
+     Bombista mutes --high #4f7d63 on purpose — there, 18 rows of 19 are HIGH
+     and none of them need you. Here green means the show is live, which is
+     the one thing that does. It stays literal as a fill and a border, where
+     the label on top carries the contrast; marks that must be READ are the
+     same hue lifted until they clear 4.5:1 (#5b9074), and the beat — the
+     thing read fastest and least directly — is lifted furthest (#7cbb97). */
+  --state-armed-bg:            #1d3129;
+  --state-armed-border:        #4f7d63;
+  --state-armed-bg-hover:      #243f32;
+  --state-armed-border-hover:  #5b9074;
+  --state-armed-text:          #e6dfd1;
+  --state-armed-bg-off:        #141d19;
+  --state-armed-border-off:    #25342c;
+  --state-armed-text-off:      #4c6157;
+  --state-confirm-bg-off:      #141d19;
+  --state-confirm-border-off:  #25342c;
+  --state-confirm-text-off:    #4c6157;
+  --state-ok:                  #5b9074;
+  --state-live:                #7cbb97;
+  --state-linked:              #7cbb97;
+  --state-live-dim:            #5b9074;
+  --state-live-bg:             #16221c;
+  --state-live-bg-hover:       #1d3129;
+  --state-drop-border:         #d98b7a;
+  --state-drop-bg:             #241a17;
 
-  /* ---- State: paused / unarmed (amber-brown) ---------------------------- */
-  --state-paused-bg: #4a3d2d;
-  --state-paused-border: #5c4d3d;
-  --state-paused-bg-hover: #5a4a3a;
-  --state-paused-border-hover: #6c5a4a;
-  --state-paused-text: #f0ebe0;
+  /* ---- Paused / unarmed --------------------------------------------------- */
+  --state-paused-bg:            #232320;
+  --state-paused-border:        #423e37;
+  --state-paused-bg-hover:      #2c2a26;
+  --state-paused-border-hover:  #e6dfd1;
+  --state-paused-text:          #e6dfd1;
 
-  /* ---- State: warn (amber) ---------------------------------------------- */
-  --state-warn: #f4a22b;             /* drift, warning */
-  --state-override: #ff9f0a;         /* manual override badge */
-  --state-override-bg: rgba(255, 159, 10, 0.15);
-  --state-warn-bg: #3a2a1a;
-  --state-warn-border: #7a4a1a;
-  --state-warn-text: #e0a060;
+  /* ---- Warn ---------------------------------------------------------------
+     The panel is a hairline and dim text; only the left rule is review. */
+  --state-warn:         #e0a437;
+  --state-override:     #e0a437;
+  --state-override-bg:  transparent;
+  --state-warn-bg:      #121211;
+  --state-warn-border:  #e0a437;
+  --state-warn-text:    #8b8478;
 
-  /* ---- State: fail / recording (red) ------------------------------------ */
-  --state-fail: #b55;                /* prereq check failed */
-  --state-alert: #e05252;            /* drift past the alert threshold */
-  --state-record-bg: #7c1d1d;
-  --state-record-border: #b34040;
-  --state-record-bg-hover: #9b2626;
-  --state-record-text: #ffc0c0;
-  --state-danger-border: #8b3a3a;    /* delete */
-  --state-danger-bg-hover: #5c2a2a;
+  /* ---- Fail / recording ----------------------------------------------------
+     Outlined, not filled. Recording is a desk activity, not a live state. */
+  --state-fail:             #ef7a70;
+  --state-alert:            #ef7a70;
+  --state-record-bg:        #232320;
+  --state-record-border:    #ef7a70;
+  --state-record-bg-hover:  #2c2a26;
+  --state-record-text:      #ef7a70;
+  --state-danger-border:    #423e37;
+  --state-danger-bg-hover:  #2c2a26;
 
-  /* ---- Beat indicator ---------------------------------------------------
-     Its own tokens rather than the text ones: these are state marks that
-     happen to share a value with body text today, and a theme re-points
-     them independently. */
-  --beat-accent: #e5e5e5;            /* downbeat number, active dot, downbeat pulse */
-  --beat-pulse-off: #b0b0b2;         /* off-beat pulse */
-  --beat-dot-idle: #48484a;
-  --count-in-dot-idle: #3c3c3e;
-  --beat-number-text: #a0a0a2;
+  /* ---- Beat indicator ------------------------------------------------------
+     A metronome you read instead of hear, so it gets the highest contrast of
+     anything status-coloured. Its own tokens, not the text ones: these are
+     state marks that merely shared a value with body text before. */
+  --beat-accent:        #7cbb97;
+  --beat-pulse-off:     #8b8478;
+  --beat-dot-idle:      #423e37;
+  --count-in-dot-idle:  #2c2a26;
+  --beat-number-text:   #8b8478;
 
-  /* ---- Scrims and overlays ---------------------------------------------- */
-  --scrim: rgba(0, 0, 0, 0.72);
-  --scrim-bar: rgba(0, 0, 0, 0.65);
-  --scrim-count-in: rgba(28, 28, 30, 0.92);
-  --overlay-text-shadow: rgba(0, 0, 0, 0.9);
-  --float-shadow: rgba(0, 0, 0, 0.35);
-  --video-letterbox: #000;
+  /* ---- Scrims -------------------------------------------------------------- */
+  --scrim:                rgba(0, 0, 0, 0.78);
+  --scrim-bar:            rgba(0, 0, 0, 0.68);
+  --scrim-count-in:       rgba(18, 18, 17, 0.94);
+  --overlay-text-shadow:  rgba(0, 0, 0, 0.9);
+  --float-shadow:         rgba(0, 0, 0, 0.5);
+  --video-letterbox:      #000;
 }
 
 /* Base: no font-size on html so projection is independent; control screens set their own below */
