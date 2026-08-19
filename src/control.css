@@ -2267,10 +2267,12 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
 }
 
-.ctrl-performed-bpm-declared {
-  font-size: 0.8em;
-  opacity: 0.6;
-  white-space: nowrap;
+/* Chromium reveals the spinner only on hover or focus. This is a stage control set with a
+   fingertip on a tablet, where there is no hover and finding out the arrows exist by touching
+   the field is a bad way to learn it — so they are always up. */
+.ctrl-performed-bpm-input::-webkit-inner-spin-button,
+.ctrl-performed-bpm-input::-webkit-outer-spin-button {
+  opacity: 1;
 }
 
 /* P6: shown mid-song once Next/Previous has dropped the song into Manual. Deliberately loud —

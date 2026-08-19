@@ -674,11 +674,18 @@ function ControlView() {
   const declaredBpm = songTempo?.bpm
   const [performedBpmField, setPerformedBpmField] = useState<string>('')
   const [storedPerformedBpm, setStoredPerformedBpmState] = useState<number | null>(null)
+  // The box always carries a number — the stored performed tempo if there is one, otherwise the
+  // recording's own. That is what removed the second "recorded at N" label: the recorded tempo
+  // IS the box's contents until it is nudged. It also gives the spinner arrows somewhere to step
+  // from; from an empty field they would start at `min`. Keyed on the primitive bpm, never on
+  // the song object, which is a fresh reference every render (see CLAUDE.md).
   useEffect(() => {
     const stored = currentSongId ? getStoredPerformedBpm(currentSongId) : null
     setStoredPerformedBpmState(stored)
-    setPerformedBpmField(stored === null ? '' : String(stored))
-  }, [currentSongId])
+    setPerformedBpmField(
+      stored !== null ? String(stored) : declaredBpm !== undefined ? String(declaredBpm) : ''
+    )
+  }, [currentSongId, declaredBpm])
   // Defaults to the declared tempo → scale exactly 1.0 → today's behaviour, byte-identical.
   const performedBpm = resolvePerformedBpm(declaredBpm, storedPerformedBpm)
   const tempoScale = getTempoScale(declaredBpm, performedBpm)
@@ -694,6 +701,28 @@ function ControlView() {
     const next = raw.trim() === '' || !isUsableBpm(parsed) ? null : parsed
     if (currentSongId) setStoredPerformedBpm(currentSongId, next)
     setStoredPerformedBpmState(next)
+  }
+  // Half a BPM is the finest tempo Jorge can actually mean, so that is the grid the arrows step
+  // on and the grid a typed value lands on. Snapping happens on blur rather than per keystroke —
+  // snapping "90.3" the moment the 3 is typed makes the field unusable.
+  //
+  // The one value exempt from the grid is the recording's own tempo. A song measured at 66.67
+  // must be allowed to sit at 66.67: rounding it to 66.5 would silently retime every cue against
+  // the recording, which is exactly the failure performedTempo.ts exists to prevent.
+  const handlePerformedBpmBlur = () => {
+    const raw = performedBpmField.trim()
+    if (raw === '') {
+      if (declaredBpm !== undefined) setPerformedBpmField(String(declaredBpm))
+      return
+    }
+    const parsed = Number(raw)
+    if (!isUsableBpm(parsed)) return
+    if (parsed === declaredBpm) return
+    const snapped = Math.round(parsed * 2) / 2
+    if (snapped === parsed) return
+    setPerformedBpmField(String(snapped))
+    if (currentSongId) setStoredPerformedBpm(currentSongId, snapped)
+    setStoredPerformedBpmState(snapped)
   }
 
   const {
@@ -951,14 +980,11 @@ function ControlView() {
                             data-testid="performed-bpm-input"
                             aria-label="Performed tempo in BPM"
                             min="1"
-                            step="0.01"
+                            step="0.5"
                             value={performedBpmField}
-                            placeholder={declaredBpm !== undefined ? String(declaredBpm) : ''}
                             onChange={(e) => handlePerformedBpmChange(e.target.value)}
+                            onBlur={handlePerformedBpmBlur}
                           />
-                          <span className="ctrl-performed-bpm-declared" data-testid="declared-bpm-label">
-                            recorded at {declaredBpm}
-                          </span>
                         </div>
                       </div>
                     </div>

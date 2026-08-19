@@ -8417,9 +8417,9 @@ describe('§P14 Manual/Auto lyric-advance toggle', () => {
       vi.useFakeTimers()
       setupTempoSong()
       await armAndReachSetupFakeTimers()
-      // The field shows empty (defaulting), with the recording's tempo alongside it.
-      expect((screen.getByTestId('performed-bpm-input') as HTMLInputElement).value).toBe('')
-      expect(screen.getByTestId('declared-bpm-label').textContent).toContain(String(DECLARED))
+      // The box itself shows the recording's tempo — there is no second label saying it twice.
+      expect((screen.getByTestId('performed-bpm-input') as HTMLInputElement).value).toBe(String(DECLARED))
+      expect(screen.queryByTestId('declared-bpm-label')).toBeNull()
 
       await act(async () => { fireEvent.click(getArmButton()) })
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
@@ -8430,6 +8430,65 @@ describe('§P14 Manual/Auto lyric-advance toggle', () => {
       expect(getSongIndex()).toBe(0)
       act(() => { vi.advanceTimersByTime(200) })
       expect(getSongIndex()).toBe(1)
+    })
+
+    it('steps in halves and never finer', async () => {
+      vi.useFakeTimers()
+      setupTempoSong()
+      await armAndReachSetupFakeTimers()
+      const input = screen.getByTestId('performed-bpm-input') as HTMLInputElement
+      expect(input.getAttribute('step')).toBe('0.5')
+      expect(input.getAttribute('min')).toBe('1')
+    })
+
+    it('snaps a typed value to the nearest half on blur', async () => {
+      vi.useFakeTimers()
+      setupTempoSong()
+      await armAndReachSetupFakeTimers()
+      const input = screen.getByTestId('performed-bpm-input')
+      await act(async () => { fireEvent.change(input, { target: { value: '90.3' } }) })
+      await act(async () => { fireEvent.blur(input) })
+      expect((input as HTMLInputElement).value).toBe('90.5')
+      expect(getStoredPerformedBpm('duelo')).toBe(90.5)
+
+      await act(async () => { fireEvent.change(input, { target: { value: '90.2' } }) })
+      await act(async () => { fireEvent.blur(input) })
+      expect((input as HTMLInputElement).value).toBe('90')
+      expect(getStoredPerformedBpm('duelo')).toBe(90)
+    })
+
+    it("leaves the recording's own tempo alone on blur, however odd the number is", async () => {
+      vi.useFakeTimers()
+      const song = {
+        id: 'odd',
+        title: 'Odd',
+        items: VALID_LINES,
+        timelineVersion: 2,
+        leadIn: { durationSec: 7.26, source: 'measured' as const, confidence: 'low' as const, apply: false },
+        timeline: [{ start: 0, end: 6 }, { start: 6, end: 200 }],
+        tempo: { bpm: 66.67, numerator: 4, denominator: 4, countInBars: 1 },
+      }
+      saveSetlistStore(createInitialSnapshot([song]))
+      setupControlViewWithReadinessPassing()
+      setCurrentSongId('odd')
+      await armAndReachSetupFakeTimers()
+      const input = screen.getByTestId('performed-bpm-input') as HTMLInputElement
+      expect(input.value).toBe('66.67')
+      await act(async () => { fireEvent.blur(input) })
+      // Snapping this to 66.5 would silently retime the whole song against the recording.
+      expect(input.value).toBe('66.67')
+      expect(getStoredPerformedBpm('odd')).toBeNull()
+    })
+
+    it('an emptied box comes back to the recording tempo on blur', async () => {
+      vi.useFakeTimers()
+      setupTempoSong()
+      await armAndReachSetupFakeTimers()
+      const input = screen.getByTestId('performed-bpm-input')
+      await act(async () => { fireEvent.change(input, { target: { value: '' } }) })
+      await act(async () => { fireEvent.blur(input) })
+      expect((input as HTMLInputElement).value).toBe(String(DECLARED))
+      expect(getStoredPerformedBpm('duelo')).toBeNull()
     })
 
     it('ACCEPTANCE: at 1.5x the declared tempo the cue times scale by 2/3', async () => {
