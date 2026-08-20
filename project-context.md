@@ -155,6 +155,15 @@ Pulled forward from the general backlog because it was deadline-critical for the
 
 ## Open follow-ups / parked items
 
+- **Show chords in the app — first unsolicited external feature request (captured 2026-08-20).** A
+  friend who was shown Pregonero liked it and asked to see the chords alongside the lyrics. Not
+  actioned, deliberately: it is captured here so it survives, not scheduled. Two things to weigh
+  before it becomes work. First, **the data does not exist** — no song JSON carries chords today,
+  and Jorge plays much of his material by ear without knowing the chord names, so this is blocked on
+  naming them first (that is what `projects/guitar-harmony/` is for). Second, it is a **question
+  about what Pregonero is**: today it is a performer-facing lyric/timeline surface, and chords would
+  either serve the performer (a prompt on stage) or the audience (a different product). Decide which
+  before designing anything.
 - **Timeline-import contract (Prompt 16 / A+ button) — JSON, locked 2026-06-24:** the standalone **Bombista** project produces the timeline this app imports. Interchange format is **JSON**: a `{ "timeline": [...] }` envelope deserializing straight into `TimelineEntry[]`, parallel-array contract preserved (one entry per song item, section markers as `start == end == 0`). **The A+ button parser must accept exactly this shape — not SRT.** SRT was rejected because it carries cue text (duplicating the song JSON's source-of-truth lyric order) and can't represent section markers. An optional `.srt` export may exist on the extractor side as a human-QA debug convenience only; it is never the canonical contract. Source of truth for the shape stays `src/songState.ts` (`TimelineEntry`, `videoCueLookup`); the extractor mirrored it in its own output-contract doc.
 - ~~**D-wire**~~ — done (Tragedia linked, timeline authored, Video + count-in handoff validated on projector across the 2026-07-01 rounds).
 - ~~**Packaging (local)**~~ — done as Packaging P1 (PR #48); see the 2026-07-02 entry above. Only signed + notarized packaging remains, gated on the Apple Developer account.
