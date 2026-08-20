@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **⚠️ In-flight (2026-06-23) — read before touching media/schema.** The D-wire projector test triaged 6 changes now being implemented (TDD prompts in `docs/d-wire-triage-and-prompts.md`). Direction, decided with Jorge: **one video per song** — `media` collapses from `{ big?, small? }` to a single `MediaFile` (schema **v5→v6**); **"Big"/"Small" becomes a projection display-format toggle** mapping to the `big-screen`/`small-canvas` display profiles, not a per-format file. Local video is served via a **`media://` custom protocol** (registered in `main.cjs`), not `file://` — the `http://localhost` dev origin makes `webSecurity` block `file://`. Also: single-file camera picker (video glyph, green when linked), the always-on bottom DISPLAY row removed, non-video beat gains Start/Pause/Restart decoupled from Next, end-card button removed. Sections below describe pre-change state; update them as each prompt lands.
-
 ## What This App Does
 
 Pregonero (renamed from Live Lyric Translator, 2026-08-14) is a macOS Electron desktop app for live concert subtitle projection. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
@@ -45,7 +43,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 
 | Module | Storage | Responsibility |
 |---|---|---|
-| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (**v5** schema: `title_translations`, `intro`, `tempo`, `media`, `timeline`; migrates v1→v2→v3→v4→v5 on load) |
+| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (**v7** schema: `title_translations`, `intro`, `tempo`, `media` (single `MediaFile`), `timeline`, `timelineVersion`/`leadIn`; older snapshots each migrate forward to v7 on load) |
 | `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaFile` / `SongMedia` |
 | `performanceState.ts` | sessionStorage | Performance lifecycle (setup → ready → armed → performing) |
 | `performanceControlStateMachine.ts` | — | Computes `SETUP / READY_TO_ARM / ARMED` from prereqs |
@@ -84,7 +82,7 @@ Hash-based: `#/control`, `#/projection`, `#/songs`, `#/languages`, `#/setlists`,
 
 ### Song Data Format
 
-Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (**v5**; v1→v2→v3→v4→v5 migration chain runs on load). Optional fields: `title_translations`, `intro`, `tempo { bpm, numerator, denominator, countInBars }`, `media { big?: MediaFile, small?: MediaFile }`, and `timeline` (per-item `{ start, end }` seconds, parallel to the full items array including section markers). Songs without these behave exactly as before. `media.*.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
+Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (**v7**; older snapshots each migrate forward to v7 on load). Optional fields: `title_translations`, `intro`, `tempo { bpm, numerator, denominator, countInBars }`, `media` (a single `MediaFile`, not the older `{ big?, small? }` per-format container), and `timeline` (per-item `{ start, end }` seconds; a `timelineVersion: 2` timeline is cue-relative with a separate `leadIn` block and carries sung lines only — see `docs/timeline-v2-contract.md`). Songs without these behave exactly as before. `media.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
 
 ### Hook stability gotcha (important)
 

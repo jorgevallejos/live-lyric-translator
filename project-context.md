@@ -37,15 +37,15 @@ Chronological. Read top to bottom for how the app got here; later entries supers
 
 ### The video & tempo rework
 
-The **video & tempo rework** (spec: `docs/video-and-tempo-rework-prompt.md`, branch `feat/remove-timed-mode`) replaced the earlier video-sync / auto-advance feature set across 8 slices: tempo split into `numerator`/`denominator` with compound-meter beat grouping, per-song big/small `media` slots, Timed mode + record-by-tapping removed, a camera-icon link dialog in Manage Setlists, a Big/Small selector in the Projection column with WS broadcast, a shared `BeatCircle` indicator, and simplified video + non-video performance screens with a single-clock count-in→video handoff. This took the schema to **v5**.
+The **video & tempo rework** (branch `feat/remove-timed-mode`) replaced the earlier video-sync / auto-advance feature set across 8 slices: tempo split into `numerator`/`denominator` with compound-meter beat grouping, per-song big/small `media` slots, Timed mode + record-by-tapping removed, a camera-icon link dialog in Manage Setlists, a Big/Small selector in the Projection column with WS broadcast, a shared `BeatCircle` indicator, and simplified video + non-video performance screens with a single-clock count-in→video handoff. This took the schema to **v5**.
 
 A follow-up **video transport-sync fix** closed a gap the rework left: the Projection video used to auto-play at arm time and ignore the count-in. Now both windows hold their own `<video>` and the Projection obeys `play`/`pause`/`seek` broadcast from the performer panel over a `localStorage` transport channel, so the audience video starts on the count-in downbeat (architecture noted in `CLAUDE.md`).
 
-**D-wire test run (2026-06-23):** the first end-to-end projector test surfaced 10 observations, triaged in `docs/d-wire-triage-and-prompts.md` (9 real code bugs, none tuning; #10 beat-viz deferred). Critical bug: the linked video didn't show in either window because the renderer ran on an `http://localhost` dev origin while `<video>` used a `file://` URL — Electron `webSecurity` blocks that with no custom protocol registered. Fixed with a `media://` protocol in `main.cjs`.
+**D-wire test run (2026-06-23):** the first end-to-end projector test surfaced 10 observations (9 real code bugs, none tuning; #10 beat-viz deferred). Critical bug: the linked video didn't show in either window because the renderer ran on an `http://localhost` dev origin while `<video>` used a `file://` URL — Electron `webSecurity` blocks that with no custom protocol registered. Fixed with a `media://` protocol in `main.cjs`.
 
 **Model decision (2026-06-23): one video per song; "Big"/"Small" is a projection display-format toggle mapping to the `big-screen`/`small-canvas` display profiles, NOT a per-format file.** This reversed the rework's per-song big/small *file* slots (schema v5→v6, `media` became a single `MediaFile`) but kept the display-profile machinery.
 
-Remaining build docs from this round: `docs/code-execution-plan.md`, `docs/media-assets.md`, `docs/subtitle-format.md`.
+Remaining build docs from this round: `docs/media-assets.md`, `docs/subtitle-format.md`.
 
 ### Feature-complete for performing, and packaging (2026-07-02)
 
@@ -72,7 +72,7 @@ Remaining build docs from this round: `docs/code-execution-plan.md`, `docs/media
 
 ### ASR-following spike — closed NO-GO (2026-07-03)
 
-Dispatched from Cowork (`docs/asr-following-spike-kickoff-2026-07-03.md`), run in Claude Code (Fable coordinator + Sonnet slices). Branch `spike/asr-following`, report `docs/asr-spike-report-2026-07.md` on that branch. Throwaway — never merged.
+Dispatched from Cowork, run in Claude Code (Fable coordinator + Sonnet slices). Branch `spike/asr-following` carries the full report. Throwaway — never merged.
 
 - **Verdict: NO-GO on live ASR driving the lyric pointer.** The *tracking* problem is solved — best candidate (faster-whisper small) advanced all 29 Tragedia lines in order through the accelerando, zero false jumps — but streaming latency kills it: median wall-clock lag **5.36 s** vs the ≤1.0 s rule (3.4% of lines within ±1.0 s vs ≥90% required). Core trade found: on local CPU today, recognizers fast enough for realtime are too inaccurate on sung Spanish over guitar; the accurate one runs at 0.60× realtime. Question closed; the **timeline/Auto (beat-clock) architecture stands validated**.
 - **Side finding 1 — offline forced alignment is the win:** faster-whisper `medium` batch-aligned the whole song near-verbatim in 46 s. Adopted 2026-07-03 as **Bombista's core mechanism** (pivot recorded in that project) — ASR authors timelines; it doesn't drive the show.
@@ -155,7 +155,7 @@ Pulled forward from the general backlog because it was deadline-critical for the
 
 ## Open follow-ups / parked items
 
-- **Timeline-import contract (Prompt 16 / A+ button) — JSON, locked 2026-06-24:** the standalone **Bombista** project produces the timeline this app imports. Interchange format is **JSON**: a `{ "timeline": [...] }` envelope deserializing straight into `TimelineEntry[]`, parallel-array contract preserved (one entry per song item, section markers as `start == end == 0`). **The A+ button parser must accept exactly this shape — not SRT.** SRT was rejected because it carries cue text (duplicating the song JSON's source-of-truth lyric order) and can't represent section markers. An optional `.srt` export may exist on the extractor side as a human-QA debug convenience only; it is never the canonical contract. Source of truth for the shape stays `src/songState.ts` (`TimelineEntry`, `videoCueLookup`); the extractor mirrors it in its `docs/output-contract.md`.
+- **Timeline-import contract (Prompt 16 / A+ button) — JSON, locked 2026-06-24:** the standalone **Bombista** project produces the timeline this app imports. Interchange format is **JSON**: a `{ "timeline": [...] }` envelope deserializing straight into `TimelineEntry[]`, parallel-array contract preserved (one entry per song item, section markers as `start == end == 0`). **The A+ button parser must accept exactly this shape — not SRT.** SRT was rejected because it carries cue text (duplicating the song JSON's source-of-truth lyric order) and can't represent section markers. An optional `.srt` export may exist on the extractor side as a human-QA debug convenience only; it is never the canonical contract. Source of truth for the shape stays `src/songState.ts` (`TimelineEntry`, `videoCueLookup`); the extractor mirrored it in its own output-contract doc.
 - ~~**D-wire**~~ — done (Tragedia linked, timeline authored, Video + count-in handoff validated on projector across the 2026-07-01 rounds).
 - ~~**Packaging (local)**~~ — done as Packaging P1 (PR #48); see the 2026-07-02 entry above. Only signed + notarized packaging remains, gated on the Apple Developer account.
 - **`getLibrarySongById` refactor (tech debt):** it returns a fresh object every render, which caused a render-loop in G (fixed at the hook level). Memoizing it would remove the whole class of bug. Lesson captured in repo `CLAUDE.md` ("Hook stability gotcha").
