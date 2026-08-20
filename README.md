@@ -113,6 +113,7 @@ npm run pack
 - **[docs/subtitle-format.md](docs/subtitle-format.md)** — the song JSON: tempo, media, and the song-level fields, plus how the audience subtitle is rendered.
 - **[docs/timeline-v2-contract.md](docs/timeline-v2-contract.md)** — the timeline format shared with Bombista.
 - **[docs/media-assets.md](docs/media-assets.md)** — how a song's video file is linked per machine.
+- **[docs/visual-language.md](docs/visual-language.md)** — the control window's skin: palette, type and contrast rules, and why status colour means only one thing.
 
 ## License
 

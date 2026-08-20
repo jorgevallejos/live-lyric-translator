@@ -64,7 +64,7 @@ Remaining build docs from this round: `docs/code-execution-plan.md`, `docs/media
 - **Stuck-logo-on-first-arm.** The audience Projection window stayed on the Chango Pepper logo on the *first* arm of a session (unarm/re-arm worked around it). Cause: `KEY_ARMED_BROADCAST` (localStorage, persists across launches) wrote the constant `'1'`, so a leftover `'1'` from a prior session made the first arm a same-value no-op — no cross-window `storage` event, logo never cleared. Fixed by writing a changing nonce on every arm; the consumer now treats any non-null value as "armed". Audit found the other broadcasts (screenSize, displayMode, endCard) not at risk (they read the current value at mount). Class of bug now documented as the **"storage-event / persisted-flag gotcha"** in repo `CLAUDE.md`.
 - **Small format = full-frame + larger font.** See the Video big/small formats bullet above.
 
-**Signed + notarized packaging** (distributable, no Gatekeeper warning) is gated on Jorge getting an **Apple Developer account** ($99/yr): Developer ID cert, hardened-runtime entitlements (allow `media://`), notarization via `notarytool`. Stub in `docs/t3-and-packaging-2026-07-01.md`.
+**Signed + notarized packaging** (distributable, no Gatekeeper warning) is gated on Jorge getting an **Apple Developer account** ($99/yr): Developer ID Application cert, code signing, hardened-runtime entitlements (allow the `media://` custom protocol, plus JIT if needed), notarization via `notarytool` (app-specific password or API key), and stapling. Write this as its own dispatch once the credentials exist — not a rebuild of Packaging P1 (the unsigned local `.dmg`, already done), a separate follow-on to it.
 
 **Optional / deferred ideas from this round:** add a `tempo` block to `songs/libertad*.json` if Jorge wants a beat indicator on it (data only); chords on/off toggle; native iPad app beyond Sidecar. *(Offline forced alignment and live-ASR following are both resolved by the 2026-07-03 ASR spike below.)*
 
@@ -138,6 +138,20 @@ ahead when they went — but "almost certainly" is why the SHAs are written down
 | `worktree-agent-a972d5e0e5b143760` | `1cb72ce` | Projection resyncing the display-mode broadcast to Control's effective value — the A1 fix area. Touched `CLAUDE.md`, `App.tsx`, `ControlView.test.tsx`. Local only. |
 
 The fourth, `claude/zen-hypatia-98259a` (`717daab`), was already merged into `main` — nothing lost.
+
+### Pulse, manual override and performed tempo — P5/P6/P9 (2026-08-14)
+
+Pulled forward from the general backlog because it was deadline-critical for the 21 Aug solo-ready date, not polish.
+
+- **P5 — the pulse runs from Arm and never re-phases on the cue.** Jorge plays *to* the pulse while talking to the audience during arming; he counts himself in on guitar and cues the lyrics with the pedal whenever he's settled, not necessarily on a downbeat. The pulse (`BeatCircle`, driven by `getBeatPhase`) free-runs from the moment of Arm; the pedal cue only starts `songElapsedMs` and must never call `setPhase` to force a re-phase. **Two independent clocks** — the pulse (from Arm) and the song timeline (from the cue) — with a constant offset between them being correct and expected. (Same separation Bombista's project-context states as a design boundary on its side: "the pulse and the timeline are separate clocks.")
+- **P6 — a manual Next/Previous during Auto playback drops the song into Manual for the remainder of that song**, one press, visibly, resetting only on the next song/arm. This is the concrete mechanism behind the README's "a single pedal press takes it back" line.
+- **P9 — performed-tempo scaling, applied at playback, never by rewriting Bombista's output:**
+  ```
+  scale      = tempo.bpm (declared, from the recording) / performedBpm
+  cueTime[i] = timeline[i].start × scale
+  ```
+  The pulse also runs at `performedBpm`, deriving from the same number so it cannot drift from the cues. Non-negotiables: **never overwrite `tempo.bpm`** (a fact about the recording the whole scale depends on) — a persisted performed tempo lives in its own key, `performedBpm`; **adjustable only while idle, frozen once armed** (changing it mid-song would jump the current line); **default `performedBpm == tempo.bpm`** (scale 1.0, byte-identical to today unless nudged); **a song with no `tempo` block gets no pulse and no scaling** — no invented fallback BPM.
+- **P10 (pulse audio) — considered and explicitly parked, 2026-08-14, Jorge's call.** The pulse is visual only (`BeatCircle`'s dot row; no `AudioContext`/oscillator/audio asset anywhere in `src/`) — P5's "click track" wording was loose, not a missing feature. An audible click is out of scope and not currently planned; kept as a record of the shape it would take if it ever is: a short WebAudio blip on `absoluteBeat` change, accented on `beatInBar === 1`, with an on/off control, and an open output-device question (laptop speaker is useless on stage; likely wants an in-ear/monitor path). It would inherit P5's phase behaviour for free.
 
 ## Open follow-ups / parked items
 
