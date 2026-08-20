@@ -153,6 +153,59 @@ Pulled forward from the general backlog because it was deadline-critical for the
   The pulse also runs at `performedBpm`, deriving from the same number so it cannot drift from the cues. Non-negotiables: **never overwrite `tempo.bpm`** (a fact about the recording the whole scale depends on) — a persisted performed tempo lives in its own key, `performedBpm`; **adjustable only while idle, frozen once armed** (changing it mid-song would jump the current line); **default `performedBpm == tempo.bpm`** (scale 1.0, byte-identical to today unless nudged); **a song with no `tempo` block gets no pulse and no scaling** — no invented fallback BPM.
 - **P10 (pulse audio) — considered and explicitly parked, 2026-08-14, Jorge's call.** The pulse is visual only (`BeatCircle`'s dot row; no `AudioContext`/oscillator/audio asset anywhere in `src/`) — P5's "click track" wording was loose, not a missing feature. An audible click is out of scope and not currently planned; kept as a record of the shape it would take if it ever is: a short WebAudio blip on `absoluteBeat` change, accented on `beatInBar === 1`, with an on/off control, and an open output-device question (laptop speaker is useless on stage; likely wants an in-ear/monitor path). It would inherit P5's phase behaviour for free.
 
+## Discovery
+
+### Chords in the app — design session 2026-08-20
+
+Triggered by the first unsolicited external feature request Pregonero has had (a friend asked to see
+chords alongside the lyrics). **Nothing was built and nothing is scheduled**; the session existed to
+decide what the feature would be if it ever happens, while the question was live.
+
+**Concluded**
+
+- **Chords are a training surface, not a stage surface.** Names only, inline with the lyrics;
+  clicking a name opens the fret diagram. For practising a song, explicitly not for performance
+  time.
+- **The name is the compact form of the diagram** — two states of one thing, not two features. This
+  is what lets one set of named-chord data serve both a dense surface and a teaching surface.
+- **No training mode needs inventing — Manual already is one.** Learning a song happens in
+  **Manual**, where the performer advances each line and the song therefore waits. Performing happens
+  in **Video** or **Auto**, where the clock does not wait. Same distinction, already built, tested
+  and pedal-proven. This also reframes what Manual is *for*: it is documented as the fallback for
+  when the clock or video fails, but it is equally the practice mode — and **P6** (a manual
+  Next/Prev during Auto drops the song into Manual for the rest of it, one press, visibly) is the
+  one-press bridge between the two.
+- **The whole mechanic is one rule:** clicking a chord name opens a **small popup**, and **the popup
+  closes when the phrase changes.** That is the entire spec — no mode flag, no setting, no timer, no
+  mode-aware branch. It gives the right behaviour in all three modes because the modes differ in
+  what advances the line, not in what the popup does: in Auto or Video the clock dismisses the popup
+  within a phrase, so it can never accumulate or outstay its use; in Manual the line changes only
+  when Jorge advances it, so it stays exactly as long as he wants. Self-limiting during performance,
+  patient during practice, identical code path. It is also semantically right — a chord belongs to
+  its line, so its diagram should not outlive the line. Tying popup lifetime to line lifetime is
+  what makes the mode question *disappear* rather than get answered.
+- **Two constraints for whoever builds it:** the popup must not cover the line currently being sung
+  (that line owns the contrast budget), and it is **control-window only**, never broadcast to
+  Projection. A practice aid on the audience screen would be a bug.
+- **The diagram comes from `projects/guitar-harmony/`** — same renderer, same house style — rather
+  than being built twice.
+
+**Rejected**
+
+- *A distinct training/performance mode.* Considered first and dropped: Manual and Auto already are
+  that distinction, and inventing a third mode would have been a larger change than the feature that
+  prompted it.
+- *A "disable chords during performance" setting.* Configuration bolted onto a problem the
+  popup-lifetime rule dissolves. Expect this to be re-proposed; the answer is no.
+- *Serving the audience rather than the performer.* Chords on the projection screen are a different
+  product, not this one.
+
+**Blocked on**
+
+The data does not exist. No song JSON carries chords, and Jorge plays much of his material by ear
+without knowing the chord names. Everything above waits on `projects/guitar-harmony/` naming them
+first. Design decided early on purpose — while the thinking was fresh — not because it is next.
+
 ## Open follow-ups / parked items
 
 - **Show chords in the app — first unsolicited external feature request (captured 2026-08-20).** A
@@ -160,10 +213,9 @@ Pulled forward from the general backlog because it was deadline-critical for the
   actioned, deliberately: it is captured here so it survives, not scheduled. Two things to weigh
   before it becomes work. First, **the data does not exist** — no song JSON carries chords today,
   and Jorge plays much of his material by ear without knowing the chord names, so this is blocked on
-  naming them first (that is what `projects/guitar-harmony/` is for). Second, it is a **question
-  about what Pregonero is**: today it is a performer-facing lyric/timeline surface, and chords would
-  either serve the performer (a prompt on stage) or the audience (a different product). Decide which
-  before designing anything.
+  naming them first (that is what `projects/guitar-harmony/` is for). Second, it was a **question
+  about what Pregonero is** — answered in `## Discovery` above, which owns the design. Nothing about
+  this is scheduled.
 - **Timeline-import contract (Prompt 16 / A+ button) — JSON, locked 2026-06-24:** the standalone **Bombista** project produces the timeline this app imports. Interchange format is **JSON**: a `{ "timeline": [...] }` envelope deserializing straight into `TimelineEntry[]`, parallel-array contract preserved (one entry per song item, section markers as `start == end == 0`). **The A+ button parser must accept exactly this shape — not SRT.** SRT was rejected because it carries cue text (duplicating the song JSON's source-of-truth lyric order) and can't represent section markers. An optional `.srt` export may exist on the extractor side as a human-QA debug convenience only; it is never the canonical contract. Source of truth for the shape stays `src/songState.ts` (`TimelineEntry`, `videoCueLookup`); the extractor mirrored it in its own output-contract doc.
 - ~~**D-wire**~~ — done (Tragedia linked, timeline authored, Video + count-in handoff validated on projector across the 2026-07-01 rounds).
 - ~~**Packaging (local)**~~ — done as Packaging P1 (PR #48); see the 2026-07-02 entry above. Only signed + notarized packaging remains, gated on the Apple Developer account.
