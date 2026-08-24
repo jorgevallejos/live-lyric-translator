@@ -206,6 +206,16 @@ The data does not exist. No song JSON carries chords, and Jorge plays much of hi
 without knowing the chord names. Everything above waits on `projects/guitar-harmony/` naming them
 first. Design decided early on purpose — while the thinking was fresh — not because it is next.
 
+**Refined 2026-08-23 (Tramoya integration session).** Chords change *within* a phrase, not once per
+song, which sharpens "inline with the lyrics" without contradicting it. The rendering is a **chord
+line above the lyric line**, each name drawn at the x-offset of its anchor syllable — positioned
+typography, not spaces, so EB Garamond being proportional does not matter. This is the form every
+guitarist already reads. **The popup-lifetime rule, the two constraints and control-window-only all
+stand unchanged.** A chord anchors to a syllable and inherits that line's timing, so nothing here
+needs a clock, a tempo or timeline data of its own. Notation is Latin (`Lam`, `Rem`), owned by
+`projects/guitar-harmony/`; what this costs Bombista is in
+`projects/tramoya-integration/project-context.md`.
+
 ## Open follow-ups / parked items
 
 - **Show chords in the app — first unsolicited external feature request (captured 2026-08-20).** A
