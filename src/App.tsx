@@ -41,7 +41,7 @@ import {
   loadSetlistStore,
   type LibrarySong,
 } from './setlistStore'
-import { addPlayedSong, getPlayedSongIds } from './playedSongsState'
+import { addPlayedSong, getPlayedSongs, hasPlayedSong, isSetlistComplete } from './playedSongsState'
 import {
   getProjectionStatusText,
   getStoredScreenSize,
@@ -360,6 +360,13 @@ function ControlView() {
   // just to restart the UI.
   const skipAutoUnarmOnNextSongTransitionRef = useRef(false)
 
+  // When the current song was loaded. Recording happens at song end, so this is the only place
+  // the start time can be taken; an entry whose load moment was never seen writes `null`.
+  const songLoadedAtRef = useRef<string | null>(null)
+  useEffect(() => {
+    songLoadedAtRef.current = currentSongId ? new Date().toISOString() : null
+  }, [currentSongId])
+
   useEffect(() => {
     const next = {
       songId: getCurrentSongId(),
@@ -499,8 +506,13 @@ function ControlView() {
   const currentSongPosition = currentSongId
     ? orderedSongs.findIndex((song) => song.id === currentSongId)
     : -1
+  // The gig is the unit: arm once, play the setlist through once, then it is over. Anything
+  // played afterwards is a repeat — a single song, honoured on request — and must never resume
+  // the setlist from that song's position. Derived from the played log, not stored, so it
+  // cannot disagree with it. Re-read each render; every append re-renders this component.
+  const setlistDone = isSetlistComplete(orderedSongs.map((song) => song.id))
   const nextSongForTile =
-    currentSongPosition >= 0 && currentSongPosition < orderedSongs.length - 1
+    !setlistDone && currentSongPosition >= 0 && currentSongPosition < orderedSongs.length - 1
       ? orderedSongs[currentSongPosition + 1]
       : null
   const [showNextSongTile, setShowNextSongTile] = useState(false)
@@ -516,7 +528,7 @@ function ControlView() {
 
   const handleStartNextSongInConcertSession = () => {
     if (!nextSongForTile) return
-    if (currentSongId) addPlayedSong(currentSongId)
+    if (currentSongId) addPlayedSong(currentSongId, { startedAt: songLoadedAtRef.current })
 
     // This is an internal concert-flow transition (already armed), so we must not auto-unarm
     // just because the user-facing song id changes.
@@ -1364,7 +1376,8 @@ function ControlView() {
               onClick={
                 isEndOfSong && canUnarm
                   ? () => {
-                      if (currentSongId) addPlayedSong(currentSongId)
+                      if (currentSongId)
+                        addPlayedSong(currentSongId, { startedAt: songLoadedAtRef.current })
                       handleUnarm()
                     }
                   : undefined
@@ -1385,7 +1398,7 @@ function ControlView() {
 }
 
 function SongsView() {
-  const playedIds = getPlayedSongIds()
+  const playedSongs = getPlayedSongs()
 
   const activeOk = hasValidActiveSetlist()
   const orderedSongs = getOrderedSongsForActiveSetlist()
@@ -1399,7 +1412,7 @@ function SongsView() {
   const [selectedSong, setSelectedSong] = useState<LibrarySong | null>(() => {
     const id = getCurrentSongId()
     if (!id) return null
-    if (getPlayedSongIds().includes(id)) return null
+    if (hasPlayedSong(id)) return null
     const lib = getLibrarySongById(id)
     if (!lib) return null
     if (!hasValidActiveSetlist()) return null
@@ -1466,11 +1479,11 @@ function SongsView() {
               <button
                 key={song.id}
                 type="button"
-                className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedIds.includes(song.id) ? 'songs-song-btn-played' : ''}`}
+                className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedSongs.some((e) => e.songId === song.id) ? 'songs-song-btn-played' : ''}`}
                 aria-pressed={selectedSong?.id === song.id}
                 onClick={() => selectSong(song)}
               >
-                {playedIds.includes(song.id) ? (
+                {playedSongs.some((e) => e.songId === song.id) ? (
                   <>
                     <span className="song-played-icon" aria-hidden />
                     <span className="songs-song-title">{song.title}</span>
