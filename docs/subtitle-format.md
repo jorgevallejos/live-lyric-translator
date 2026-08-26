@@ -78,4 +78,4 @@ Each lyric line holds its translations indexed by language code (`es`, `en`, `fr
 
 ## What the app owns vs the video
 
-The clean animation master carries **no** subtitle, title, or end-card. The app overlays the translated subtitle itself (this spec), shows the title via the intro screen (v3 `title_translations` + `intro`), and shows credits via the end-card (Prompt H). The master is only ever the animation.
+The clean animation master carries **no** subtitle, title, or end-card. The app paints the translated subtitle into a `song-lyrics` shape (this spec), the title into a `song-intro` shape (v3 `title_translations` + `intro`), and the contact details into a `gig-contact` shape. The master is only ever the animation.

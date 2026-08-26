@@ -69,7 +69,7 @@ The application runs as a small desktop system composed of two synchronized wind
 - A control window used by the performer
 - A projection window displayed to the audience
 
-Both windows share the same song state so they stay synchronized during the performance. The shared lyric state travels over a WebSocket server on `ws://localhost:8765`, run by Electron's main process; a second channel over `localStorage` storage events carries the commands where each window owns its own resource — video transport and seek, the end-card toggle — because each window renders its own `<video>` element and so cannot share a media clock.
+Both windows share the same song state so they stay synchronized during the performance. The shared lyric state travels over a WebSocket server on `ws://localhost:8765`, run by Electron's main process; a second channel over `localStorage` storage events carries what each window owns its own resource for — video transport and seek, because each window renders its own `<video>` element and so cannot share a media clock — plus the room the Projection window paints into and the one boolean saying whether the contact panel is lit.
 
 ```mermaid
 flowchart LR

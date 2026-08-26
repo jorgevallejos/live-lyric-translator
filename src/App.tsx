@@ -34,8 +34,13 @@ import {
   isNavigationEnabled,
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
-import { KEY_ARMED_BROADCAST } from './performanceState'
-import { getEndCardVisible, KEY_END_CARD_VISIBLE } from './endCardState'
+import {
+  isContactLit,
+  isPresenting,
+  setContactLitBroadcast,
+  useContactLit,
+} from './gigContactState'
+import { ShapeContact, readContactFields } from './ShapeContact'
 import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
@@ -263,7 +268,7 @@ function ControlView() {
   } = useSongNavigation()
   const effectiveLang = getEffectiveProjectionLanguage(lines)
   const effectiveSingingLang = getEffectiveSingingLanguage(lines)
-  const { state: performanceState, arm, unarm } = usePerformanceState(
+  const { state: performanceState, armed: armedFlag, arm, unarm } = usePerformanceState(
     projectionOpen,
     lines,
     effectiveLang,
@@ -569,6 +574,26 @@ function ControlView() {
   // the setlist from that song's position. Derived from the played log, not stored, so it
   // cannot disagree with it. Re-read each render; every append re-renders this component.
   const setlistDone = isSetlistComplete(playableSongs.map((song) => song.id))
+
+  // **The contact panel's one condition**, evaluated here because every input is this window's:
+  // the armed flag, the played log and the playable setlist. The Projection window is handed the
+  // answer rather than the inputs, so there is one implementation of the condition and no second
+  // opinion about it.
+  //
+  // Written through on every change of the value, not only inside a click handler — the reader
+  // takes it at mount, and a broadcast that only moved on a click goes stale against a fresh
+  // session's own state (the A1 rule in CLAUDE.md).
+  const contactLit = isContactLit({
+    // The stored flag, not the control screen's label: with the projection window closed an armed
+    // performance reports `setup`, and he is still armed.
+    armed: armedFlag,
+    setlistDone,
+    presenting: isPresenting(lines, index),
+  })
+  useEffect(() => {
+    setContactLitBroadcast(contactLit)
+  }, [contactLit])
+
   const nextSongForTile =
     !setlistDone && currentSongPosition >= 0 && currentSongPosition < playableSongs.length - 1
       ? playableSongs[currentSongPosition + 1]
@@ -1791,53 +1816,14 @@ function ProjectionView() {
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  // Show logo on every mount; reveal intro only after the control fires an arm transition.
-  // The arm action writes KEY_ARMED_BROADCAST to localStorage, which fires a cross-window
-  // storage event that the projection can receive. This prevents leftover lyrics appearing
-  // when the projection window is reopened mid-song.
-  // The broadcast value is a changing nonce (not a constant '1') — see performanceState.ts —
-  // so any non-null value written to this key means an arm just happened; unarm removes the
-  // key (newValue === null), which correctly does NOT re-show the logo transition flag.
+  // **The contact panel's condition, as answered by the Control window.** One boolean, because
+  // every input to it is that window's — see `gigContactState.ts`.
+  const contactLit = useContactLit()
+
   const isArmed = index === -1 && lines.length > 0
-  const [hasSeenArmedSinceMount, setHasSeenArmedSinceMount] = useState(false)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY_ARMED_BROADCAST && e.newValue !== null) {
-        setHasSeenArmedSinceMount(true)
-      }
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
 
-  // End-card: cross-window state via localStorage (same origin as control window).
-  // **Round E4 deletes this**, once a `gig-contact` shape is what puts something on the wall at
-  // the end. Until then it stays, because deleting it earlier leaves a gig with nothing there.
-  const [endCardVisible, setEndCardVisibleState] = useState(getEndCardVisible)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY_END_CARD_VISIBLE || e.key === null) {
-        setEndCardVisibleState(getEndCardVisible())
-      }
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
-
-  const [endCardLines, setEndCardLines] = useState<string[]>([])
-  useEffect(() => {
-    fetch('/end-card.md')
-      .then((r) => r.text())
-      .then((text) => {
-        setEndCardLines(text.split('\n').filter((l) => l.trim() !== ''))
-      })
-      .catch(() => { /* content stays empty */ })
-  }, [])
-
-  const showLogo = !hasSeenArmedSinceMount
-  const showIntroScreen =
-    hasSeenArmedSinceMount && isArmed && !performanceBlackout && !!currentLibrarySong
-  const showContent = hasSeenArmedSinceMount && index >= 0 && !blank && !isSectionMarker
+  const showIntroScreen = isArmed && !performanceBlackout && !!currentLibrarySong
+  const showContent = index >= 0 && !blank && !isSectionMarker
 
   const [displayedText, setDisplayedText] = useState('')
   const [isVisible, setIsVisible] = useState(false)
@@ -1956,6 +1942,9 @@ function ProjectionView() {
   const lyricShapes = visuals ? resolveShapesForType(visuals, 'song-lyrics', currentSongId) : []
   const videoShapes = visuals ? resolveShapesForType(visuals, 'song-video', currentSongId) : []
   const introShapes = visuals ? resolveShapesForType(visuals, 'song-intro', currentSongId) : []
+  // `gig-contact` is a gig-level fact and is never reassigned per song, so it is looked up with no
+  // song at all — which is also why it is not called `song-contact`.
+  const contactShapes = visuals ? resolveShapesForType(visuals, 'gig-contact', null) : []
   const playVideo = videoWanted && videoShapes.length > 0
 
   // **When a video is playing, the video is the clock.** Subtitles come from its own
@@ -2047,6 +2036,17 @@ function ProjectionView() {
       />
     )
   }
+  if (contactLit) {
+    for (const shape of contactShapes) {
+      contentByShapeId.set(
+        shape.id,
+        <ShapeContact
+          fields={readContactFields(shape.layer)}
+          boxWidth={textLayoutBoxWidth(shapeFrame(shape), 1, outputWidth, outputHeight)}
+        />
+      )
+    }
+  }
   if (showIntro) {
     for (const shape of introShapes) {
       contentByShapeId.set(
@@ -2091,38 +2091,6 @@ function ProjectionView() {
       )
     : []
 
-  // The end card takes the whole wall, as it always has — nothing else is mounted behind it, so a
-  // video stops rather than playing to a covered screen. **Round E4 deletes this branch**, once a
-  // `gig-contact` shape does the job properly.
-  if (endCardVisible) {
-    return (
-      <div
-        className="projection-screen projection-end-card-screen"
-        data-testid="end-card-screen"
-        style={{
-          background: '#000',
-          width: '100vw',
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: 0,
-          gap: '0.5em',
-          textAlign: 'center',
-          padding: '2em',
-          boxSizing: 'border-box',
-        }}
-      >
-        {endCardLines.map((line, i) => (
-          <p key={i} className="projection-end-card-line">
-            {line.replace(/^#+\s*/, '')}
-          </p>
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div
       className="projection-screen"
@@ -2145,26 +2113,6 @@ function ProjectionView() {
           </ShapeRegion>
         )
       )}
-
-      {/* Full-frame and not a shape. **Round E4 deletes it**, once a `gig-contact` shape is what
-          the wall carries when nothing is armed. Deleting it before that stage leaves the wall
-          with nothing on it between power-up and the first arm. */}
-      <img
-        src="/chango-pepper-logo.png"
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: 0,
-          transform: 'translateX(-50%)',
-          height: '100vh',
-          width: 'auto',
-          opacity: showLogo ? 1 : 0,
-          transition: `opacity ${FADE_MS}ms ease`,
-          pointerEvents: 'none',
-        }}
-      />
     </div>
   )
 }
