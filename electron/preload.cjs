@@ -22,4 +22,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openSongFileDialog: () => ipcRenderer.invoke('dialog:openSongFiles'),
   /** Reads a song file as UTF-8. Resolves to { ok: true, text } or { ok: false, error }. */
   readSongFile: (filePath) => ipcRenderer.invoke('fs:readSongFile', filePath),
+  /** Native directory picker for the gig folder. Resolves to an absolute path or null. */
+  openGigFolderDialog: () => ipcRenderer.invoke('dialog:openGigFolder'),
+  /** One read of the gig folder: gig.json and the file its visuals pointer names. */
+  readGigFolder: (folderPath, visualsPointer) =>
+    ipcRenderer.invoke('gig:read', folderPath, visualsPointer),
+  /** Writes gig.json. Pregonero is its only writer. */
+  writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
+  /** Shells out to `bombista validate --for-performance`. Never fails closed. */
+  validateSongForPerformance: (songPath) =>
+    ipcRenderer.invoke('song:validateForPerformance', songPath),
 })
