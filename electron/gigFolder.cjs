@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 
 const GIG_FILE_NAME = 'gig.json'
+const DEBRIEF_FILE_NAME = 'debrief.md'
 const DEFAULT_VISUALS_FILE_NAME = 'visuals.json'
 
 /**
@@ -78,4 +79,26 @@ function writeGigFile(folderPath, text, options = {}) {
   }
 }
 
-module.exports = { readGigFolder, writeGigFile, resolveInsideFolder, GIG_FILE_NAME }
+/**
+ * Writes `debrief.md`. Pregonero writes it and then Jorge edits it, which is why it is written
+ * whole on save rather than merged: the file is his from the moment it lands, and a tool that
+ * silently reconciled his edits with its own idea of the night would be the worst of both.
+ */
+function writeDebriefFile(folderPath, text, options = {}) {
+  const writeFileSync = options.writeFileSync || fs.writeFileSync
+  try {
+    writeFileSync(path.join(folderPath, DEBRIEF_FILE_NAME), text, 'utf8')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+}
+
+module.exports = {
+  readGigFolder,
+  writeGigFile,
+  writeDebriefFile,
+  resolveInsideFolder,
+  GIG_FILE_NAME,
+  DEBRIEF_FILE_NAME,
+}
