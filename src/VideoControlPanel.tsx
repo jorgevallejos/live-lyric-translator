@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { getLyricText, isLyricLine, isSection, type SongItem, type MediaFile, type TimelineEntry } from './songState'
 import { videoCueLookup } from './videoCueLookup'
 import { absolutePathToMediaUrl, validateVideoForImport, setMediaPath, type MediaValidationWarning } from './mediaPathStore'
-import { setVideoSeekTarget } from './VideoProjectionRegion'
+import { setVideoSeekTarget } from './videoTransport'
 
 interface Props {
   absolutePath: string | null

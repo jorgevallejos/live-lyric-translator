@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pregonero (renamed from Live Lyric Translator, 2026-08-14) is a macOS Electron desktop app for live concert subtitle projection. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
 
-Lines can advance in two per-song **playback modes**: **Manual** (keyboard/foot pedal — always available and always wins on override) and **Video** (subtitles locked to a synchronized animation video via `video.currentTime`). The Projection window can render a clean animation full-frame and composite the subtitle band itself (display profiles), so a single clean video serves all languages and screens.
+Lines can advance in two per-song **playback modes**: **Manual** (keyboard/foot pedal — always available and always wins on override) and **Video** (subtitles locked to a synchronized animation video via `video.currentTime`).
+
+**The Projection window is a compositor, not a screen.** It paints into the shapes Muralista mapped onto the actual wall — see "The projection paints into quads" below. There is no full-frame renderer any more and no fallback path: **no gig folder open means there is nothing to project, and the wall is dark.**
 
 ## Commands
 
@@ -52,7 +54,11 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `playedSongsState.ts` | sessionStorage | Which songs have been played this session |
 | `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (Video mode) |
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
-| `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry |
+| `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
+| `gigFolderStore.ts` | localStorage | Which gig folder is open. Its own module so the Projection window can ask without pulling in the reader |
+| `visualsBroadcast.ts` | localStorage | `visuals.json`, carried from the Control window to the Projection window. Re-parsed on read, so both refusals hold on both sides |
+| `shapeTextLayout.ts` | — | Pure: the quad's stretch, the layout box, the text fields Muralista writes |
+| `videoTransport.ts` | localStorage | The play/pause/stop and seek channel. Nonce-carrying, because every consumer reacts to a transition |
 | `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings. `absolutePathToMediaUrl` converts a path to a `media://local/...` URL served by the Electron custom protocol (not `file://` — blocked by webSecurity on the http://localhost dev origin). The `local` host is a fixed sentinel: an empty-host `media:///` URL is canonicalized by Chromium into `media://firstsegment/...`, absorbing and lowercasing the first path segment as the hostname. The main-process handler decodes `pathname` and serves via `net.fetch(pathToFileURL(...))` with forwarded headers so Range/seek requests work. |
 | `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
 | `gigSession.ts` | localStorage | The open gig folder, remembered across launches, plus the last readiness delta and its subscribers. Re-read **on open**, never watched |
@@ -67,7 +73,7 @@ Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` module
 
 Per song, selected from the song's data: **Manual** (default; no `media`) and **Video** (`media` with a video slot + `timeline`; projection plays the muted clean animation, subtitles bound to `video.currentTime + media.offset`, band composited via the active display profile). A manual arrow/pedal press always re-seizes control in Video mode.
 
-**Video mode is two video elements, transport-synced — not a shared clock.** The audience output is `VideoProjectionRegion.tsx` in the Projection window: it derives subtitles from *its own* `video.currentTime` and renders the band. It mounts **paused at `trimStart`** and obeys `play` / `pause` / `seek` commands broadcast from the Control window's `VideoPerformancePanel.tsx` over the `localStorage` transport channel (`setVideoTransportCommand`). The performer panel runs the single-clock count-in and, at the count-in→video handoff (`beginFired`), broadcasts `play` so the audience video starts on the downbeat; Pause broadcasts `pause`; Restart broadcasts `seek(trimStart)` then `play` at the next handoff. The panel also keeps a local preview `<video>` for the performer. Because the two elements aren't continuously time-synced, drift is corrected by manual seek — not a periodic resync (a known trade-off). `screenSizeState.ts` + the WS `screenSize` message decide which slot (`big`/`small`) the Projection plays.
+**Video mode is two video elements, transport-synced — not a shared clock.** The audience output is `ShapeVideo.tsx`, mounted inside the gig's `song-video` shape: **it is the clock**, reporting its own `currentTime` up so the lyric lands in the `song-lyrics` shape — two shapes, not one frame with an overlay. It mounts **paused at `trimStart`** and obeys `play` / `pause` / `seek` commands broadcast from the Control window's `VideoPerformancePanel.tsx` over the `localStorage` transport channel (`videoTransport.ts`). The performer panel runs the single-clock count-in and, at the count-in→video handoff (`beginFired`), broadcasts `play` so the audience video starts on the downbeat; Pause broadcasts `pause`; Restart broadcasts `seek(trimStart)` then `play` at the next handoff. The panel also keeps a local preview `<video>` for the performer. Because the two elements aren't continuously time-synced, drift is corrected by manual seek — not a periodic resync (a known trade-off). `screenSizeState.ts` + the WS `screenSize` message decide which slot (`big`/`small`) the Projection plays.
 
 ### Performance State Machine
 
@@ -122,6 +128,53 @@ exists. Whether a timeline is sane is Bombista's question, asked by shelling out
 a note, never as an arm block** — ten of the fourteen songs in `songs/` are performed from the
 pedal with no timeline at all, and a machine with no `bombista` on `PATH` must still be able to
 run a gig.
+
+### The projection paints into quads
+
+**Today's Projection window is a compositor.** Each shape in `visuals.json` is a named region with
+four normalised corners; Pregonero draws its content into a fixed `UNIT_SIZE` square and warps that
+square onto the corners. `ShapeRegion.tsx` is the whole of the contact with the warp, and
+`src/vendor/warp.js` is **Muralista's code, vendored byte for byte** — never edited here, and
+demoted from a fork to a cache by the hash test in `src/vendorWarp.test.ts` plus Muralista's own
+contract test, run unchanged by `npm run test:warp`. The interface, and the four caller obligations
+no test in either repo can catch, are `projects/tramoya-integration/docs/warp-contract.md` in the
+vault. Read it before touching any of this.
+
+**Pregonero owns *what* and *when*. Muralista owns *how*.** What goes inside the unit square is
+entirely Pregonero's — live lyrics on a clock, the intro card, the video. Where the square lands is
+Muralista's, and it arrives as a function plus four corners, never as a frozen answer.
+
+Four rules that are cheap to break and expensive to have broken:
+
+- **The output size is a parameter, passed on every render** (`useOutputSize`). The corners are
+  normalised; the matrix is in real stage pixels, and the projector at a venue is not the display
+  the room was mapped on. **Never cache a matrix across a resize or a display change.** The symptom
+  is that everything renders and is just subtly off, with no error anywhere.
+- **Everything inside the box is a fraction of the box, never a screen pixel.** A font size in
+  pixels breaks every tuned layout the moment a quad is redrawn in another room.
+- **A `null` matrix skips the render.** Degenerate corners paint nothing rather than a guess.
+- **A fix to the warp goes into Muralista and is re-vendored.** The tag in
+  `src/vendor/warp.source.json` is what moves.
+
+**The room reaches the Projection window as a broadcast, not as a second read.** That window is
+created with no preload, so it has no `electronAPI`; the Control window reads the gig folder and
+writes what it read to `visualsBroadcast`. A value left from a previous launch is checked against
+the folder actually remembered, so it cannot paint last night's room.
+
+**Absence is the empty state.** A shape is a place that can hold content, not a thing that is on:
+it is lit only when the playing song points something at it, and a shape whose song is not playing
+is simply not rendered. **A hidden shape does not resolve either** — filtered in
+`resolveShapesForType`, the one lookup, so the arm gate and the wall cannot disagree about it.
+
+**Paint order is the shape list's order** — later is on top. That is Muralista's rule and the only
+place the z-order is authored; grouping by type when rendering would silently reorder the wall.
+
+**One thing here is a second implementation and is known to be one.** `shapeTextLayout.ts` repeats
+the text-layout rules Muralista also implements — the quad-stretch correction and the `maxSize` /
+`aspect` / `align` / `colour` / outline fields — because legibility is tuned at the wall against
+Muralista's dummy line and that tuning only reaches the audience if the real line is laid out the
+same way. The clean answer is the one round B2 took for the warp: a small pure module exported from
+Muralista and vendored. Until then, a change to either side's text layout has to be made on both.
 
 ### Routing
 
