@@ -34,6 +34,10 @@ import {
   isNavigationEnabled,
   type PerformanceControlPrerequisites,
 } from './performanceControlStateMachine'
+import { DebriefPanel } from './DebriefPanel'
+import { DEBRIEF_FILE_NAME, performedFrom, type DebriefFacts } from './debrief'
+import { useDebriefState } from './debriefState'
+import { writeDebriefFile } from './platform'
 import {
   isContactLit,
   isPresenting,
@@ -594,6 +598,51 @@ function ControlView() {
     setContactLitBroadcast(contactLit)
   }, [contactLit])
 
+  // ── The debrief ──────────────────────────────────────────────────────────────────────────
+  //
+  // Offered when the setlist ends, which is the predicate round D introduced. **Never modal**: a
+  // repeat happens after the setlist ends, so a blocking debrief would land exactly on the moment
+  // the app has to honour a request. It surfaces as available, is dismissable, and is reopenable.
+  // **Control window only** — it never reaches the projection.
+  const debrief = useDebriefState()
+  const debriefFacts: DebriefFacts = {
+    date: gigReadiness.date,
+    venueName: gigReadiness.venue?.name ?? null,
+    venueCity: gigReadiness.venue?.city ?? null,
+    performed: performedFrom(
+      getPlayedSongs(),
+      (songId) => getLibrarySongById(songId)?.title ?? songId
+    ),
+    // The setlist as authored, minus what was actually played. A skip is a fact about a night.
+    skipped: gigReadiness.songs
+      .filter((song) => !hasPlayedSong(song.songId))
+      .map((song) => ({ songId: song.songId, title: song.title })),
+    // What the app noticed going wrong. Nothing new is computed here: it is the readiness delta,
+    // rendered — a fifth view of the one function, not a second opinion.
+    problems: [
+      ...gigReadiness.refusals,
+      ...gigReadiness.songs
+        .filter((song) => !song.ready)
+        .map((song) => `${song.title}: ${song.missing.join('; ')}`),
+      ...gigReadiness.songs.flatMap((song) =>
+        song.notes.filter((n) => n.startsWith('bombista:')).map((n) => `${song.title}: ${n}`)
+      ),
+    ],
+    elapsedSeconds: concertTimer.started ? elapsedMinutes * 60 : null,
+  }
+  const saveDebrief = async (markdown: string) => {
+    if (!gigReadiness.folderPath) {
+      return { ok: false as const, error: `No gig folder is open, so there is nowhere to put ${DEBRIEF_FILE_NAME}.` }
+    }
+    return writeDebriefFile(gigReadiness.folderPath, markdown)
+  }
+
+  // Surfaced once, when the setlist ends. "Never offered" and "dismissed" are different states,
+  // or it would either never open on its own or reopen every render after he has said Later.
+  useEffect(() => {
+    if (setlistDone && !debrief.offered) debrief.setOpen(true)
+  }, [setlistDone, debrief])
+
   const nextSongForTile =
     !setlistDone && currentSongPosition >= 0 && currentSongPosition < playableSongs.length - 1
       ? playableSongs[currentSongPosition + 1]
@@ -954,6 +1003,29 @@ function ControlView() {
     return () => document.removeEventListener('pointerdown', onDocumentPointerDown)
   }, [timerActionsVisible])
 
+  const debriefPanel = setlistDone ? (
+    debrief.open ? (
+      <DebriefPanel
+        facts={debriefFacts}
+        answers={debrief.answers}
+        onAnswers={debrief.setAnswers}
+        onDismiss={() => debrief.setOpen(false)}
+        onSave={saveDebrief}
+      />
+    ) : (
+      <div className="debrief-available">
+        <button
+          type="button"
+          className="ctrl-btn debrief-reopen"
+          data-testid="debrief-reopen"
+          onClick={() => debrief.setOpen(true)}
+        >
+          Debrief
+        </button>
+      </div>
+    )
+  ) : null
+
   return (
     <div className="control-screen">
       {showSetupPanel && (
@@ -995,6 +1067,11 @@ function ControlView() {
           </div>
         </header>
       )}
+
+      {/* Inline and above the controls, never over them: a repeat happens after the setlist ends,
+          so a debrief that covered the screen would land on the moment a request has to be
+          honoured. It is dismissable, and the button brings it back. */}
+      {debriefPanel}
 
       <main className={`control-center ${showSetupPanel ? 'control-center-setup' : ''}`}>
         {showSetupPanel && (

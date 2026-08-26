@@ -4,7 +4,7 @@ const path = require('path')
 const { WebSocketServer } = require('ws')
 const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
 const { readSongFile } = require('./readSongFile.cjs')
-const { readGigFolder, writeGigFile } = require('./gigFolder.cjs')
+const { readGigFolder, writeGigFile, writeDebriefFile } = require('./gigFolder.cjs')
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 
 protocol.registerSchemesAsPrivileged([
@@ -235,6 +235,8 @@ ipcMain.handle('gig:read', (_event, folderPath, visualsPointer) =>
 )
 
 ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPath, text))
+
+ipcMain.handle('gig:writeDebrief', (_event, folderPath, text) => writeDebriefFile(folderPath, text))
 
 ipcMain.handle('song:validateForPerformance', (_event, songPath) =>
   validateSongForPerformance(songPath)

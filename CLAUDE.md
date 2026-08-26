@@ -46,12 +46,14 @@ State is split into pure-function modules with tests, each backed by `localStora
 | Module | Storage | Responsibility |
 |---|---|---|
 | `setlistStore.ts` | localStorage + memory | **v8**: localStorage holds **references** (`{ id, path }`) plus setlists and the active setlist — no song data at all. The songs themselves are read from `songs/` at hydration into an in-memory cache (`LibraryEntry[]`), which may be dropped and rebuilt at any time. Snapshots older than v8 are **wiped, not migrated** (see "The library is a cache" below) |
-| `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaFile` / `SongMedia` |
+| `songState.ts` | **localStorage** | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaFile` / `SongMedia`. localStorage, not sessionStorage — the Projection window is a separate browsing context with its own sessionStorage, so the lyric state has to be on the shared side to reach it at all |
 | `performanceState.ts` | sessionStorage | Performance lifecycle (setup → ready → armed → performing) |
 | `performanceControlStateMachine.ts` | — | Computes `SETUP / READY_TO_ARM / ARMED` from prereqs |
 | `navigationState.ts` | — | Pure index/blank transition logic |
 | `concertSessionState.ts` | sessionStorage | Concert timer (elapsed, pause/resume/reset) |
-| `playedSongsState.ts` | sessionStorage | Which songs have been played this session |
+| `playedSongsState.ts` | sessionStorage | **The played log**: one entry per performance, in order, duplicates preserved, with times. What prefills the debrief and SABAM MyPlaylist |
+| `debrief.ts` | — | Pure: the debrief's facts and the markdown it becomes |
+| `debriefState.ts` | sessionStorage | The four answers, and whether the panel is showing |
 | `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (Video mode) |
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
@@ -88,6 +90,7 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/closeProjectionWindow.cjs`: Safe projection window closure logic (has its own tests)
 - `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
 - `electron/gigFolder.cjs`: One read of the gig folder — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write. A pointer that would leave the gig folder is refused, not followed (has its own tests)
+- `electron/gigFolder.cjs` also writes `debrief.md` — whole on save, never merged: Pregonero writes it and then Jorge edits it
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary on `PATH` is `skipped` (has its own tests)
 
 ### The gig, and the one readiness function
@@ -251,6 +254,29 @@ the text-layout rules Muralista also implements — the quad-stretch correction 
 Muralista's dummy line and that tuning only reaches the audience if the real line is laid out the
 same way. The clean answer is the one round B2 took for the warp: a small pure module exported from
 Muralista and vendored. Until then, a change to either side's text layout has to be made on both.
+
+### The debrief
+
+Offered when the setlist ends, which is round D's predicate against the **playable** setlist.
+Written to `<gig>/debrief.md`, an existing convention.
+
+**Not modal, and that is a requirement rather than a preference.** A repeat happens *after* the
+setlist ends, so a blocking debrief would land exactly on the moment the app has to honour a
+request. It sits inline in the control window, above the controls and never over them; it is
+dismissable and reopenable. **Control window only — it never reaches the projection.**
+
+**Everything factual is prefilled and none of it is typed:** date, venue, start and end time, total
+duration; the setlist as performed, in order, with times, including repeats and anything skipped;
+and what the app noticed going wrong — which is the readiness delta rendered, a further view of the
+one function rather than a second opinion.
+
+**Four taps and one line, and there is no fifth field.** The room (empty / thin / decent / full),
+best song, worst song, and one sentence about this room. Every one earns its place by existing
+nowhere else; a field a future self would have to be disciplined to fill is a field that stays
+empty. Adding one is how this stops being fillable while packing up.
+
+"Never offered" and "dismissed" are different states — without that distinction the panel either
+never opens on its own or reopens after he has said Later.
 
 ### Routing
 
