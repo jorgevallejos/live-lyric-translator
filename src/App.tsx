@@ -1,15 +1,18 @@
+import type { ReactNode } from 'react'
 import { useSongNavigation } from './useSongNavigation'
-import {
-  computeProjectionLayout,
-  type DisplayProfile,
-} from './displayProfile'
-import {
-  getActiveDisplayProfile,
-  setActiveProfileId,
-} from './displayProfileStore'
+import { ShapeRegion } from './ShapeRegion'
+import { ShapeText } from './ShapeText'
+import { ShapeVideo } from './ShapeVideo'
+import { UNIT_SIZE } from './vendor/warp.js'
+import { readTextFields, textLayoutBoxWidth, textLayoutInsetX, TEXT_INSET_Y } from './shapeTextLayout'
+import { resolveShapesForType, shapeFrame } from './visualsFile'
+import { useBroadcastVisuals } from './visualsBroadcast'
+import { useOutputSize } from './useOutputSize'
+import { resolveVideoCueIndex } from './videoCueLookup'
+import type { TimelineEntry, TimelineLeadIn } from './songState'
+import { setActiveProfileId } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { getMediaPath } from './mediaPathStore'
-import { VideoProjectionRegion } from './VideoProjectionRegion'
 import { VideoPerformancePanel } from './VideoPerformancePanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
@@ -1716,20 +1719,6 @@ function LanguagesView() {
   )
 }
 
-function useProjectionDisplayProfile(): DisplayProfile {
-  const [profile, setProfile] = useState<DisplayProfile>(getActiveDisplayProfile)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key?.startsWith('display_profile')) {
-        setProfile(getActiveDisplayProfile())
-      }
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
-  return profile
-}
-
 function ProjectionView() {
   const singleScreen =
     import.meta.env.VITE_SINGLE_SCREEN === '1' ||
@@ -1746,6 +1735,13 @@ function ProjectionView() {
   const currentSongId = getCurrentSongId()
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const singingLang = getSingingLanguage()
+
+  // **The room.** Read from the Control window's broadcast, never from the disk on this side: the
+  // Projection window has no preload and no `electronAPI`, and a second reader of the gig folder
+  // would be a second answer to which room this is.
+  const visuals = useBroadcastVisuals()
+  // **The output size in real pixels, this render.** Never remembered, never cached into a matrix.
+  const { width: outputWidth, height: outputHeight } = useOutputSize()
 
   // Screen size broadcast from Control window — tracked for Prompt 4 display-format toggle.
   const [, setProjectionScreenSize] = useState<ScreenSize | null>(getBroadcastScreenSize)
@@ -1806,6 +1802,8 @@ function ProjectionView() {
   }, [])
 
   // End-card: cross-window state via localStorage (same origin as control window).
+  // **Round E4 deletes this**, once a `gig-contact` shape is what puts something on the wall at
+  // the end. Until then it stays, because deleting it earlier leaves a gig with nothing there.
   const [endCardVisible, setEndCardVisibleState] = useState(getEndCardVisible)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -1915,15 +1913,6 @@ function ProjectionView() {
 
   useEffect(() => () => clearAllTimers(), [])
 
-  const displayProfile = useProjectionDisplayProfile()
-  const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight || 1080)
-  useEffect(() => {
-    const onResize = () => setViewportHeight(window.innerHeight)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  const layout = computeProjectionLayout(displayProfile, window.innerWidth, viewportHeight)
-
   const navRef = useRef({ goNext, goPrev })
   navRef.current = { goNext, goPrev }
   useEffect(() => {
@@ -1943,47 +1932,120 @@ function ProjectionView() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [singleScreen])
 
-  // VIDEO MODE: if the current song has a video, resolve the path and render the compositor
+  // VIDEO MODE: the song's media, if this machine knows where it is.
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
-  // Respect the display mode broadcast: 'none' means lyric screen, 'small'/'big' means video
+  // Respect the display mode broadcast: 'none' means lyrics only, 'small'/'big' means play it.
   const effectiveProjectionDisplayMode: DisplayMode = projectionDisplayMode ?? getDefaultDisplayMode(isVideoMode)
-  const showVideoProjection = isVideoMode && resolvedVideoPath && effectiveProjectionDisplayMode !== 'none'
+  const videoWanted = Boolean(isVideoMode && resolvedVideoPath && effectiveProjectionDisplayMode !== 'none')
 
-  if (showVideoProjection) {
-    return (
-      <div
-        className="projection-screen"
-        style={{
-          background: '#000',
-          width: '100vw',
-          height: '100vh',
-          position: 'relative',
-          margin: 0,
-        }}
-      >
-        <VideoProjectionRegion
-          absolutePath={resolvedVideoPath}
-          media={activeMedia!}
-          timeline={currentLibrarySong!.timeline ?? []}
-          leadIn={currentLibrarySong!.leadIn}
-          lines={lines}
-          effectiveLang={effectiveLang}
-          layout={layout}
-          showIntroScreen={showIntroScreen}
-          introTitle={currentLibrarySong!.title}
-          introTranslatedTitle={
-            effectiveLang !== singingLang
-              ? currentLibrarySong!.title_translations?.[effectiveLang]
-              : undefined
-          }
-          introTagline={currentLibrarySong!.intro?.[effectiveLang]}
+  // **The lookup, and it is the whole of it**: for each song-aware type, the shapes this song
+  // reassigns, or the gig-level shapes of that type. It resolves to a *set* and every member is
+  // lit — two shapes showing the same lyric is how a corner or a pillar gets spanned. Nothing
+  // caps it at one, and no code below may assume it is one.
+  const lyricShapes = visuals ? resolveShapesForType(visuals, 'song-lyrics', currentSongId) : []
+  const videoShapes = visuals ? resolveShapesForType(visuals, 'song-video', currentSongId) : []
+  const playVideo = videoWanted && videoShapes.length > 0
+
+  // **When a video is playing, the video is the clock.** Subtitles come from its own
+  // `currentTime`, not from the navigation index — the same rule the full-frame renderer had,
+  // except that the element is now inside a shape and the text is in a different one.
+  const [videoCueIndex, setVideoCueIndex] = useState(-1)
+  const [videoStarted, setVideoStarted] = useState(false)
+  const cueInputs = useRef({ lines, timeline: [] as TimelineEntry[], leadIn: undefined as TimelineLeadIn | undefined, offset: 0 })
+  cueInputs.current = {
+    lines,
+    timeline: currentLibrarySong?.timeline ?? [],
+    leadIn: currentLibrarySong?.leadIn,
+    offset: activeMedia?.offset ?? 0,
+  }
+  const handleVideoTime = useRef((currentTime: number) => {
+    const { timeline, offset, leadIn } = cueInputs.current
+    setVideoCueIndex(resolveVideoCueIndex(timeline, currentTime, offset, leadIn))
+  }).current
+
+  useEffect(() => {
+    if (!playVideo) {
+      setVideoCueIndex(-1)
+      setVideoStarted(false)
+    }
+  }, [playVideo, currentSongId])
+
+  const videoLyricItem =
+    playVideo && videoCueIndex >= 0 && videoCueIndex < lines.length ? lines[videoCueIndex] : undefined
+  const videoLyricText =
+    videoLyricItem && !isSection(videoLyricItem) && isLyricLine(videoLyricItem) && effectiveLang
+      ? getLyricText(videoLyricItem, effectiveLang)
+      : ''
+
+  // What the lyric shapes carry, and how opaque. Two sources, one destination.
+  const lyricText = playVideo ? videoLyricText : displayedText
+  const lyricOpacity = playVideo ? (videoLyricText ? 1 : 0) : isVisible ? 1 : 0
+  const lyricTransitionMs = playVideo ? 300 : FADE_MS
+
+  const introParts = showIntroScreen && currentLibrarySong
+    ? {
+        title: currentLibrarySong.title,
+        translatedTitle:
+          effectiveLang !== singingLang
+            ? currentLibrarySong.title_translations?.[effectiveLang]
+            : undefined,
+        tagline: currentLibrarySong.intro?.[effectiveLang],
+      }
+    : null
+
+  // The intro card rides in the lyrics shape for this stage. **Round E3 gives it its own
+  // `song-intro` shapes and the locked template**; putting it here now is what keeps the intro on
+  // the wall between the two stages rather than disappearing for one release.
+  const introInLyricShape = introParts && !(playVideo && videoStarted)
+
+  // ── The compositor ────────────────────────────────────────────────────────────────────────
+  //
+  // **Paint order is the shape list's order** — later is on top, which is Muralista's own rule and
+  // the only place the z-order is authored. Grouping by type here would silently reorder the wall.
+  const contentByShapeId = new Map<string, ReactNode>()
+  for (const shape of videoShapes) {
+    if (!playVideo) continue
+    const isClock = shape.id === videoShapes[0]!.id
+    contentByShapeId.set(
+      shape.id,
+      <ShapeVideo
+        absolutePath={resolvedVideoPath!}
+        media={activeMedia!}
+        onTimeUpdate={isClock ? handleVideoTime : undefined}
+        onStartedChange={isClock ? setVideoStarted : undefined}
+      />
+    )
+  }
+  for (const shape of lyricShapes) {
+    const fields = readTextFields(shape.layer)
+    const boxWidth = textLayoutBoxWidth(shapeFrame(shape), fields.aspect, outputWidth, outputHeight)
+    contentByShapeId.set(
+      shape.id,
+      introInLyricShape ? (
+        <ShapeIntro parts={introParts!} boxWidth={boxWidth} />
+      ) : (
+        <ShapeText
+          text={lyricText}
+          boxWidth={boxWidth}
+          fields={fields}
+          opacity={lyricOpacity}
+          transitionMs={lyricTransitionMs}
+          className="projection-lyric shape-text"
+          testId={`shape-lyrics-${shape.id}`}
         />
-      </div>
+      )
     )
   }
 
+  const litShapes = visuals
+    ? visuals.shapes.filter((shape) => contentByShapeId.has(shape.id))
+    : []
+
+  // The end card takes the whole wall, as it always has — nothing else is mounted behind it, so a
+  // video stops rather than playing to a covered screen. **Round E4 deletes this branch**, once a
+  // `gig-contact` shape does the job properly.
   if (endCardVisible) {
     return (
       <div
@@ -2013,27 +2075,37 @@ function ProjectionView() {
     )
   }
 
-  // Non-video path: centered full-screen layout (pre-regression behavior).
-  // The animation-region/subtitle-band split is VIDEO-only (see showVideoProjection branch above).
   return (
     <div
       className="projection-screen"
+      data-testid="projection-screen"
       style={{
         background: '#000',
         width: '100vw',
         height: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
         margin: 0,
       }}
     >
+      {litShapes.map((shape) => (
+        <ShapeRegion key={shape.id} shape={shape} width={outputWidth} height={outputHeight}>
+          {contentByShapeId.get(shape.id)}
+        </ShapeRegion>
+      ))}
+
+      {/* Full-frame and not a shape. **Round E4 deletes it**, once a `gig-contact` shape is what
+          the wall carries when nothing is armed. Deleting it before that stage leaves the wall
+          with nothing on it between power-up and the first arm. */}
       <img
         src="/chango-pepper-logo.png"
         alt=""
         aria-hidden="true"
         style={{
           position: 'absolute',
+          left: '50%',
+          top: 0,
+          transform: 'translateX(-50%)',
           height: '100vh',
           width: 'auto',
           opacity: showLogo ? 1 : 0,
@@ -2041,55 +2113,66 @@ function ProjectionView() {
           pointerEvents: 'none',
         }}
       />
-      {showIntroScreen && currentLibrarySong && (
-        <div
-          data-testid="song-intro-screen"
-          className="projection-intro-screen"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.25em',
-            textAlign: 'center',
-            padding: '0 2em',
-          }}
-        >
-          <span className="projection-intro-title">
-            {currentLibrarySong.title}
-          </span>
-          {effectiveLang !== singingLang &&
-            currentLibrarySong.title_translations?.[effectiveLang] && (
-              <span className="projection-intro-translated-title">
-                ({currentLibrarySong.title_translations[effectiveLang]})
-              </span>
-            )}
-          {currentLibrarySong.intro?.[effectiveLang] && (
-            <span className="projection-intro-tagline">
-              {currentLibrarySong.intro[effectiveLang]}
-            </span>
-          )}
-        </div>
-      )}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5em',
-        }}
-      >
-        <span
-          className="projection-lyric"
-          style={{ opacity: isVisible ? 1 : 0 }}
-        >
-          {displayedText}
-        </span>
-      </div>
     </div>
   )
 }
+
+/**
+ * The title card, drawn inside a shape's unit box.
+ *
+ * A placeholder shape for this stage only: it rides in the lyrics shape so that the intro does not
+ * vanish for one release, and **round E3 replaces it with the locked `song-intro` template** in
+ * shapes of its own. Sizes are fractions of the unit box, as everything inside one must be.
+ */
+function ShapeIntro({
+  parts,
+  boxWidth,
+}: {
+  parts: { title: string; translatedTitle?: string; tagline?: string }
+  boxWidth: number
+}) {
+  return (
+    <div
+      data-testid="song-intro-screen"
+      className="projection-intro-screen"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: `${boxWidth}px`,
+        height: `${UNIT_SIZE}px`,
+        transformOrigin: '0 0',
+        transform: `scaleX(${UNIT_SIZE / boxWidth})`,
+        boxSizing: 'border-box',
+        padding: `${TEXT_INSET_Y}px ${textLayoutInsetX(boxWidth)}px`,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: `${0.02 * UNIT_SIZE}px`,
+        textAlign: 'center',
+      }}
+    >
+      <span className="projection-intro-title" style={{ fontSize: `${0.16 * UNIT_SIZE}px` }}>
+        {parts.title}
+      </span>
+      {parts.translatedTitle && (
+        <span
+          className="projection-intro-translated-title"
+          style={{ fontSize: `${0.08 * UNIT_SIZE}px` }}
+        >
+          ({parts.translatedTitle})
+        </span>
+      )}
+      {parts.tagline && (
+        <span className="projection-intro-tagline" style={{ fontSize: `${0.06 * UNIT_SIZE}px` }}>
+          {parts.tagline}
+        </span>
+      )}
+    </div>
+  )
+}
+
 
 function App({ initialHash }: { initialHash?: string } = {}) {
   const [hash, setHash] = useState(() =>
