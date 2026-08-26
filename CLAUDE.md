@@ -37,7 +37,7 @@ The app opens two Electron windows:
 
 Both windows are served by the same Vite bundle. They synchronize state via a **WebSocket server on `ws://localhost:8765`**, managed by Electron's main process (`electron/main.cjs`). The Control window sends state and commands; the Projection window receives and applies them.
 
-A **second cross-window channel** runs over `localStorage` storage events, used where each window owns a local resource rather than shared lyric state: the end-card toggle (`endCardState.ts`), and — in Video mode — the video **seek** and **transport** commands. Each window renders its **own `<video>` element**, so they can't share a media clock; instead the Control window broadcasts transport intent and the Projection window applies it to its element (see Playback modes). Commands carry a `nonce` so repeated same-value writes still fire.
+A **second cross-window channel** runs over `localStorage` storage events, used where each window owns a local resource rather than shared lyric state: the room the Projection window paints into (`visualsBroadcast.ts`), the one boolean saying whether the contact panel is lit (`gigContactState.ts`), and — in Video mode — the video **seek** and **transport** commands. Each window renders its **own `<video>` element**, so they can't share a media clock; instead the Control window broadcasts transport intent and the Projection window applies it to its element (see Playback modes). Commands carry a `nonce` so repeated same-value writes still fire.
 
 ### State Management (No Redux/Zustand)
 
@@ -60,7 +60,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `shapeTextLayout.ts` | — | Pure: the quad's stretch, the layout box, the auto-fit, the text fields Muralista writes |
 | `videoTransport.ts` | localStorage | The play/pause/stop and seek channel. Nonce-carrying, because every consumer reacts to a transition |
 | `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings. `absolutePathToMediaUrl` converts a path to a `media://local/...` URL served by the Electron custom protocol (not `file://` — blocked by webSecurity on the http://localhost dev origin). The `local` host is a fixed sentinel: an empty-host `media:///` URL is canonicalized by Chromium into `media://firstsegment/...`, absorbing and lowercasing the first path segment as the hostname. The main-process handler decodes `pathname` and serves via `net.fetch(pathToFileURL(...))` with forwarded headers so Range/seek requests work. |
-| `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
+| `gigContactState.ts` | localStorage | **The contact panel's one condition**, and the boolean it travels as |
 | `gigSession.ts` | localStorage | The open gig folder, remembered across launches, plus the last readiness delta and its subscribers. Re-read **on open**, never watched |
 | `gigReadiness.ts` | — | **The one readiness function**: given a gig folder it returns the delta, per setup step and per song. Pure |
 | `gigFile.ts` | — | `gig.json` — parse, serialise, create, and project the setlist into it. Pregonero is its only writer |
@@ -179,7 +179,7 @@ of size one naturally; **no code may depend on that.**
 | `song-lyrics` | The playing song's timed lyric lines | `ShapeText` with the layer's own formatting |
 | `song-video` | The playing song's `media`, and **the clock the lyrics read against** | `ShapeVideo`, `object-fit: fill` — the quad *is* the framing |
 | `song-intro` | Title, translated title, tagline, from the song file | `ShapeIntro` — a **locked template**, no formatting controls |
-| `gig-contact` | — | Round E4 |
+| `gig-contact` | One line of text plus an optional QR code | `ShapeContact` — a locked template, defined once at gig visual setup |
 
 **Pregonero fills content; it never styles it.** `ShapeIntro`'s proportions are Muralista's, matched
 value for value against `mapper.css`: the title is a fraction of the shape with auto-fit below it,
@@ -199,6 +199,39 @@ painted nothing for them, nothing would, and the wall would be fully black betwe
 design explicitly says it is not. Painting them unconditionally is the absence of a rule, not a
 rule. `fill` shapes are the wall's black and are painted flat in output pixels with no unit box and
 no matrix (`ShapeFill`) — a mask, not content.
+
+### When the contact panel is lit
+
+> **Lit when not armed, or when the setlist is done and no song is presenting.** Dark otherwise.
+
+One condition, and it is written as a condition rather than as a list of events because it covers
+all four moments with no special case: lit at power-up (not armed); dark through the setlist
+including the gaps (a gap is inside the setlist); dark while a repeat plays; **lit again the moment
+that repeat ends**, because the wall's attention belongs to the song, but the instant it finishes
+the room is being asked to leave with his details. **If an implementation needs a special case for
+any of those four, the condition is wrong** — go back to it rather than adding the branch.
+
+"Presenting" means a loaded song that has not yet reached its end.
+
+**It is evaluated in the Control window and travels as one boolean.** Every input is that window's:
+the armed flag, the played log, and the playable setlist from the readiness snapshot. The Projection
+window is handed the answer rather than copies of the inputs, so there is one implementation of the
+condition. The value is read at mount and on every `storage` event, and **an absent key reads as
+lit** — the power-up answer.
+
+`gig-contact` is a **gig-level fact**: it is looked up with no song at all, and a per-song
+reassignment of it is dropped rather than honoured. That is why it is not called `song-contact`.
+
+**What it replaced, and both are gone:** the **end card** (`endCardState.ts`, its content file and
+its CSS) and the **logo-when-nothing-is-armed** fallback in Projection. Both existed to put
+something on the wall when no song was presenting, which a `gig-contact` shape does properly — tuned
+to the room instead of read from a text file. With the logo gone, the Projection window no longer
+waits for an arm transition before showing anything: reopened mid-song it shows the line that is
+playing, where it used to show the logo until the next arm.
+
+**The arm-broadcast nonce in `performanceState.ts` did not go with them.** It looks like logo
+plumbing and is not — it is the storage-event fix documented below, and other broadcasts depend on
+the same pattern.
 
 **`pattern` is deliberately not painted.** It is Muralista's test pattern — the default type for a
 new shape and the fallback for a layer this build does not recognise — so it is an authoring aid.
@@ -274,9 +307,9 @@ callback. `useBeatClock` follows this pattern.
 
 ### Storage-event / persisted-flag gotcha (important)
 
-Browsers only fire a cross-window `storage` event when a `localStorage` key's value **actually changes** — writing the same value twice is a no-op with no event. This matters because several keys pair a `sessionStorage`-backed flag (fresh every launch) with a `localStorage`-backed broadcast companion (persists across launches): `setArmedInStorage` in `performanceState.ts` is the canonical example (`KEY_ARMED` in sessionStorage, `KEY_ARMED_BROADCAST` in localStorage). If a previous session left the broadcast key already holding its "true" value and the write uses a **constant**, the *first* write of a new session is a same-value no-op — no event fires, and any consumer that only reacts to that event (rather than reading current state at mount) gets stuck. This bit the Projection window's logo-reveal on 2026-07-02 (audience view stuck on the logo on the first arm of a session; unarm/re-arm worked around it).
+Browsers only fire a cross-window `storage` event when a `localStorage` key's value **actually changes** — writing the same value twice is a no-op with no event. This matters because several keys pair a `sessionStorage`-backed flag (fresh every launch) with a `localStorage`-backed broadcast companion (persists across launches): `setArmedInStorage` in `performanceState.ts` is the canonical example (`KEY_ARMED` in sessionStorage, `KEY_ARMED_BROADCAST` in localStorage). If a previous session left the broadcast key already holding its "true" value and the write uses a **constant**, the *first* write of a new session is a same-value no-op — no event fires, and any consumer that only reacts to that event (rather than reading current state at mount) gets stuck. This bit the Projection window's logo-reveal on 2026-07-02 (audience view stuck on the logo on the first arm of a session; unarm/re-arm worked around it). **That logo is gone and the nonce is not**: it is the fix for the whole family, and other broadcasts depend on the pattern.
 
-Rule: any broadcast write whose consumer needs to detect a **transition** (not just "what's the current value") — arm, video seek/transport, auto-blackout — must write a changing nonce (e.g. `` `${Date.now()}-${counter}` `` or `{ ..., nonce: Date.now() }`), never a constant, so the event is guaranteed to fire regardless of prior state. The consumer should treat *any* value as the signal, not match a literal. Broadcasts whose consumer reads the current value directly at mount (`useState(getBroadcastX)`) — screenSize, displayMode, endCard — don't need this *for the transition problem*, since a suppressed no-op event is harmless when the mount-time read is already correct.
+Rule: any broadcast write whose consumer needs to detect a **transition** (not just "what's the current value") — arm, video seek/transport, auto-blackout — must write a changing nonce (e.g. `` `${Date.now()}-${counter}` `` or `{ ..., nonce: Date.now() }`), never a constant, so the event is guaranteed to fire regardless of prior state. The consumer should treat *any* value as the signal, not match a literal. Broadcasts whose consumer reads the current value directly at mount (`useState(getBroadcastX)`) — screenSize, displayMode, the room, the contact condition — don't need this *for the transition problem*, since a suppressed no-op event is harmless when the mount-time read is already correct.
 
 **But "the mount-time read is already correct" has its own failure mode (A1, 2026-07-04 projector test — confirmed root cause).** When the sessionStorage side of the pair is a **selection with a computed default** (`selected ?? getDefault(...)`, fresh/empty every launch) rather than a flag that's simply present or absent, the *broadcast* can go stale relative to *this session's* freshly computed default — even though no transition was missed. Concretely: `KEY_DISPLAY_MODE_BROADCAST` was only ever written by the toggle's click handler (`handleSelectDisplayMode` in `App.tsx`). On a fresh launch with no click yet, Control's `effectiveDisplayMode` computes to `'small'` (default for a video song) while the broadcast in localStorage still held `'none'` from a previous session/song. The Projection window reads the broadcast at mount (`useState(getBroadcastDisplayMode)`) and got the stale `'none'`, so `showVideoProjection` was false and the video region never mounted — audience stuck on the title/intro card until the performer manually touched the toggle.
 
