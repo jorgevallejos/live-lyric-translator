@@ -26,7 +26,7 @@ import {
 } from './songState'
 import type { SongItem } from './songState'
 import { SONGS } from './songs'
-import { createInitialSnapshot, saveSetlistStore } from './setlistStore'
+import { installLibrary } from './testSupport/library'
 
 function createStorage(): Storage {
   const store = new Map<string, string>()
@@ -105,7 +105,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
       items: [line],
       ...(s.id === 'duelo' ? { tempo: { bpm: 120, numerator: 4, denominator: 4, countInBars: 1 } } : {}),
     }))
-    saveSetlistStore(createInitialSnapshot(songs))
+    installLibrary(songs)
   }
 
   beforeEach(() => {

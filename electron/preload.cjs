@@ -18,4 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
   /** Returns { exists, size } for the file at the given absolute path. */
   getFileStats: (filePath) => ipcRenderer.invoke('fs:getFileStats', filePath),
+  /** Opens a native multi-select picker filtered to JSON. Resolves to absolute paths, [] if cancelled. */
+  openSongFileDialog: () => ipcRenderer.invoke('dialog:openSongFiles'),
+  /** Reads a song file as UTF-8. Resolves to { ok: true, text } or { ok: false, error }. */
+  readSongFile: (filePath) => ipcRenderer.invoke('fs:readSongFile', filePath),
 })

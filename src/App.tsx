@@ -37,6 +37,7 @@ import {
   getOrderedSongsForActiveSetlist,
   getSetlists,
   hasValidActiveSetlist,
+  isLibraryHydrated,
   loadSetlistStore,
   type LibrarySong,
 } from './setlistStore'
@@ -160,20 +161,6 @@ function usePerformanceControlViewState({
     nextDisabled,
     handleArmClick,
     handleUnarmClick,
-  }
-}
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      openProjection: () => Promise<void>
-      closeProjection: () => Promise<void>
-      isProjectionOpen: () => Promise<boolean>
-      onProjectionOpened: (cb: () => void) => () => void
-      onProjectionClosed: (cb: () => void) => () => void
-      openFileDialog: () => Promise<string | null>
-      getFileStats: (filePath: string) => Promise<{ exists: boolean; size: number }>
-    }
   }
 }
 
@@ -1999,7 +1986,7 @@ function App({ initialHash }: { initialHash?: string } = {}) {
   const [songLibState, setSongLibState] = useState<'loading' | 'ready' | 'error'>(() => {
     const h = typeof initialHash === 'string' ? initialHash : window.location.hash
     if (h === '#/projection') return 'ready'
-    if (typeof localStorage !== 'undefined' && loadSetlistStore()) return 'ready'
+    if (typeof localStorage !== 'undefined' && isLibraryHydrated()) return 'ready'
     return 'loading'
   })
   const [songLibError, setSongLibError] = useState<string | null>(null)
@@ -2010,7 +1997,7 @@ function App({ initialHash }: { initialHash?: string } = {}) {
       setSongLibError(null)
       return
     }
-    if (loadSetlistStore()) {
+    if (isLibraryHydrated()) {
       setSongLibState('ready')
       setSongLibError(null)
       return

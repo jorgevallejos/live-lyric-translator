@@ -40,7 +40,7 @@ Each song plays in one of three modes. Manual is always available and always win
 
 In Auto and Video, a manual **Next** or **Previous** does not just nudge the index — it drops the song into Manual for the remainder of the song. Before that behaviour existed, the auto-advance effect recomputed the index from elapsed time every tick and snapped back, so a manual press reverted within a tick: the buttons looked like a safety net and were not one.
 
-A song's `timeline` is authored offline — by hand, or by [Bombista](https://github.com/jorgevallejos/bombista) — and imported per song from the Manage Setlists screen. It must declare `timelineVersion: 2` and carry a `leadIn` block; see [timeline-v2-contract.md](timeline-v2-contract.md). (Earlier *Timed* mode and in-app *record-by-tapping* were removed in the June 2026 rework.)
+A song's `timeline` is authored offline — by hand, or by [Bombista](https://github.com/jorgevallejos/bombista) — and lives **in the song's own JSON file**, which the app reads and never writes. It must declare `timelineVersion: 2` and carry a `leadIn` block; see [timeline-v2-contract.md](timeline-v2-contract.md). (Earlier *Timed* mode, in-app *record-by-tapping*, and the per-song timeline-import button were removed — the last of them when the library became references rather than copies.)
 
 Two facts worth stating plainly, because both have been misread before:
 

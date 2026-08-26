@@ -43,7 +43,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 
 | Module | Storage | Responsibility |
 |---|---|---|
-| `setlistStore.ts` | localStorage | Song library, setlists, active setlist (**v7** schema: `title_translations`, `intro`, `tempo`, `media` (single `MediaFile`), `timeline`, `timelineVersion`/`leadIn`; older snapshots each migrate forward to v7 on load) |
+| `setlistStore.ts` | localStorage + memory | **v8**: localStorage holds **references** (`{ id, path }`) plus setlists and the active setlist — no song data at all. The songs themselves are read from `songs/` at hydration into an in-memory cache (`LibraryEntry[]`), which may be dropped and rebuilt at any time. Snapshots older than v8 are **wiped, not migrated** (see "The library is a cache" below) |
 | `songState.ts` | sessionStorage | Current song, lyric index, blank state, selected languages; defines `TimelineEntry` / `MediaFile` / `SongMedia` |
 | `performanceState.ts` | sessionStorage | Performance lifecycle (setup → ready → armed → performing) |
 | `performanceControlStateMachine.ts` | — | Computes `SETUP / READY_TO_ARM / ARMED` from prereqs |
@@ -75,20 +75,60 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/main.cjs`: Creates and manages both windows, coordinates the WebSocket server
 - `electron/preload.cjs`: Context bridge exposing IPC methods to the renderer (`window.electronAPI`)
 - `electron/closeProjectionWindow.cjs`: Safe projection window closure logic (has its own tests)
+- `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
 
 ### Routing
 
 Hash-based: `#/control`, `#/projection`, `#/songs`, `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
 
+### The library is a cache, `songs/` is the source of truth
+
+**Pregonero holds a reference to each song, never a copy, and never writes song data.** A library
+entry is `{ id, path }`; the song is read from `path` on every launch. Lyrics, translations, intro,
+notes, `timeline`, `leadIn`, `media` and `tempo` are all fields of the song file, authored in
+Bombista or by hand, and the app reads all of them and writes none. There is deliberately no
+timeline-import button and no way to attach media to a song from inside the app: both used to write
+into the copy, which is exactly the drift this removes. The camera button on the manage screen is
+the one survivor and it is not song data — it records where *this machine* keeps the video the song
+file already names, in `mediaPathStore`.
+
+**The id comes from the file name** (`songIdFromPath`: basename minus `.json`), so deleting a song
+from the library and adding the same file again restores the same song rather than a stranger.
+
+**A reference whose file will not read stays in the library** as a visibly broken row naming the
+path. It is not a song the app can perform — `getLibrarySongs`, `getOrderedSongsForActiveSetlist`
+and `getLibrarySongById` all skip it — but hiding it would hide the problem, and the fix is in
+`songs/`. `libertad.json` is the live example: its timeline has 20 entries against 24 lyric lines,
+so `parseSongFile` rejects it today.
+
+**Anything older than v8 is discarded on load, setlists included** — one code path, no migration
+branch (Jorge, 2026-08-24). Those snapshots held copies whose only authority was themselves, so
+there is nothing in them worth reconciling against the files.
+
+**Reading a file is Electron-only**: `window.electronAPI.readSongFile` / `openSongFileDialog`, over
+IPC handlers in `main.cjs`. `ensureSongLibraryHydrated({ readSongFile })` takes the reader as an
+argument, which is the seam tests use (`src/testSupport/library.ts` installs references and a
+resolved cache together, exactly as hydration would).
+
 ### Song Data Format
 
-Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The setlist store schema is versioned (**v7**; older snapshots each migrate forward to v7 on load). Optional fields: `title_translations`, `intro`, `tempo { bpm, numerator, denominator, countInBars }`, `media` (a single `MediaFile`, not the older `{ big?, small? }` per-format container), and `timeline` (per-item `{ start, end }` seconds; a `timelineVersion: 2` timeline is cue-relative with a separate `leadIn` block and carries sung lines only — see `docs/timeline-v2-contract.md`). Songs without these behave exactly as before. `media.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
+Songs are stored as JSON with multilingual lyrics indexed by language code. Each lyric entry is an array of lines. The stored snapshot is versioned (**v8**; anything older is wiped on load). Optional fields: `title_translations`, `intro`, `tempo { bpm, numerator, denominator, countInBars }`, `media` (a single `MediaFile`, not the older `{ big?, small? }` per-format container), and `timeline` (per-item `{ start, end }` seconds; a `timelineVersion: 2` timeline is cue-relative with a separate `leadIn` block and carries sung lines only — see `docs/timeline-v2-contract.md`). Songs without these behave exactly as before. `media.src` is a logical filename only — the absolute path is resolved per-machine via `mediaPathStore` (see `docs/media-assets.md`).
 
 ### Hook stability gotcha (important)
 
-`getLibrarySongById` returns a **fresh object on every call/render** (it's not memoized). So `currentLibrarySong` and anything derived from it (`tempo`, `media`, `timeline`) are **new references each render**. Any `useEffect`/`useMemo` that depends on one of these *by object identity* will re-run every render — which already caused an infinite render loop in `useBeatClock` (effect → `setState` → re-render → new object → effect again, exploding memory). 
+**This got better in v8, and the rule stays.** `getLibrarySongById` used to rebuild a song object
+from localStorage on **every call**, so `currentLibrarySong` and everything derived from it were new
+references each render. Any `useEffect`/`useMemo` depending on one *by object identity* re-ran every
+render, which caused an infinite render loop in `useBeatClock` (effect → `setState` → re-render →
+new object → effect again, exploding memory).
 
-Rule: timer/effect hooks must key on **primitive values** (e.g. `tempo.bpm`, `currentSongId`), not the song object. Store the object itself in a `ref` updated each render if you need it inside a callback. `useBeatClock` follows this pattern. A future refactor could memoize `getLibrarySongById`, but until then, never depend on `currentLibrarySong` identity.
+Since the library became an in-memory cache, `getLibrarySongById` returns **the same object** for
+the same id, so that particular loop can no longer start. But the cache is replaced wholesale
+whenever the library is rehydrated, so song identity is stable only *within* a hydration.
+
+Rule, unchanged: timer/effect hooks key on **primitive values** (e.g. `tempo.bpm`, `currentSongId`),
+not the song object. Store the object in a `ref` updated each render if you need it inside a
+callback. `useBeatClock` follows this pattern.
 
 ### Storage-event / persisted-flag gotcha (important)
 

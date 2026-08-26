@@ -58,7 +58,7 @@ Songs may carry an optional `media` block: **exactly one file, not a slot per sc
 
 Feed the app **web-playable MP4s** (H.264, ≤1080p). ProRes masters are a mastering format and will not play.
 
-**Migration history.** Pre-v5 song files carried a flat `media: { type, src }`, which v5 wrapped into `{ small: { … } }`; **v6 collapsed that back to a single `MediaFile`**, which is the shape above. `SongMedia { big?, small? }` survives in `songState.ts` only as a `@deprecated` type feeding the migration path. Stored snapshots migrate forward automatically on load — the store is at **v7** (`SETLIST_STORE_VERSION`), which added optional `timelineVersion` / `leadIn`.
+**Migration history.** Pre-v5 song files carried a flat `media: { type, src }`, which v5 wrapped into `{ small: { … } }`; **v6 collapsed that back to a single `MediaFile`**, which is the shape above. `SongMedia { big?, small? }` survives in `songState.ts` only as a `@deprecated` type. The stored snapshot is at **v8** (`SETLIST_STORE_VERSION`) and no longer holds songs at all: it holds a reference — an id and a path — per library entry, and every field above is read from the file. Snapshots older than v8 are **discarded on load, not migrated**, because their copies had no authority over the files they were copied from.
 
 ## Song-level fields
 

@@ -64,9 +64,16 @@ npm run dev:single
 
 ### 2. Import the song and build a setlist
 
-**Setlist → Manage setlists → New song**, and pick one or more song JSONs. Songs land in the **Song Library**; **New setlist**, then add the songs you want and order them. This screen is also where a song's video file is linked and where a Bombista timeline is imported onto an existing song.
+**Setlist → Manage setlists → New song**, and pick one or more song JSONs. The library takes a
+**reference** to each file — its path — and reads the song from it at every launch; nothing is
+copied in. **New setlist**, then add the songs you want and order them. This screen is also where
+you point the app at the local copy of a video the song file names.
 
-Nothing is uploaded anywhere. The library lives in the app's local storage, and the JSON files stay where they are on disk.
+Nothing is uploaded anywhere, and nothing is duplicated: the JSON files stay where they are on
+disk and stay authoritative. Edit a song file and the change is there the next time the app
+starts. Lyrics, tempo, timeline and media all live in the song file — the app reads them and
+never writes them. A file that has moved or will not parse shows as an unreadable row in the
+library, naming the file, so the fix is in the file rather than in the app.
 
 ### 3. Choose the two languages
 
