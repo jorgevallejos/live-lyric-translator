@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
-import type { TimelineEntry, TimelineLeadIn } from './songState'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -16,30 +15,33 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  addSongRefToSnapshot,
   addSongToSetlistInSnapshot,
   autoSelectFirstSongForActiveSetlist,
   appendEmptySetlistInSnapshot,
   areSetlistStoreSnapshotsEqual,
   cloneSetlistStoreSnapshot,
+  defaultReadSongFile,
   deleteSetlistInSnapshot,
   deleteSongFromLibraryInSnapshot,
-  getOrderedSongsForSetlistFromSnapshot,
+  getLibraryEntries,
+  getLibraryEntriesForSnapshot,
+  getOrderedEntriesForSetlistFromSnapshot,
   getSetlistNamesContainingSongInSnapshot,
   loadSetlistStore,
-  patchSongMediaInSnapshot,
-  patchSongTimelineInSnapshot,
-  parseTimelineFromJsonText,
   removeSongFromSetlistInSnapshot,
   renameSetlistInSnapshot,
   reorderSongsInSetlistInSnapshot,
+  resolveSongRef,
   saveSetlistStore,
+  setLibraryEntries,
+  songIdFromPath,
   syncLoadedSongSessionWithSnapshot,
-  applySequentialSongImportsFromJsonTexts,
-  type LibrarySong,
+  type LibraryEntry,
   type Setlist,
   type SetlistStoreSnapshot,
 } from './setlistStore'
-import { setMediaPath, validateVideoForImport, type MediaValidationWarning } from './mediaPathStore'
+import { getMediaPath, setMediaPath, validateVideoForImport, type MediaValidationWarning } from './mediaPathStore'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
@@ -53,39 +55,24 @@ function formatBlockedLibraryDeleteMessage(setlistNames: string[]): string {
   ].join('\n')
 }
 
-function readFileAsUtf8(file: File): Promise<{ ok: true; text: string } | { ok: false }> {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const text = typeof reader.result === 'string' ? reader.result : ''
-      resolve({ ok: true, text })
-    }
-    reader.onerror = () => resolve({ ok: false })
-    reader.readAsText(file, 'UTF-8')
-  })
+/** The name to show for a library row: the song's title, or the file name when it could not be read. */
+function entryTitle(entry: LibraryEntry): string {
+  return entry.song?.title ?? songIdFromPath(entry.ref.path)
 }
 
-function formatSongImportBatchAlert(opts: {
-  importedCount: number
-  duplicatesSkipped: number
-  invalidSkipped: number
-  readFailures: number
-}): string {
-  const { importedCount, duplicatesSkipped, invalidSkipped, readFailures } = opts
+function formatAddSongBatchAlert(opts: { addedCount: number; duplicates: number; unreadable: number }): string {
+  const { addedCount, duplicates, unreadable } = opts
   const lines: string[] = []
-  lines.push(importedCount === 1 ? '1 song imported.' : `${importedCount} songs imported.`)
-  if (duplicatesSkipped > 0) {
-    lines.push(
-      duplicatesSkipped === 1 ? '1 duplicate skipped.' : `${duplicatesSkipped} duplicates skipped.`
-    )
+  lines.push(addedCount === 1 ? '1 song added.' : `${addedCount} songs added.`)
+  if (duplicates > 0) {
+    lines.push(duplicates === 1 ? '1 already in the library.' : `${duplicates} already in the library.`)
   }
-  if (invalidSkipped > 0) {
+  if (unreadable > 0) {
     lines.push(
-      invalidSkipped === 1 ? '1 invalid file skipped.' : `${invalidSkipped} invalid files skipped.`
+      unreadable === 1
+        ? '1 file could not be read. It was added anyway and shows as unreadable.'
+        : `${unreadable} files could not be read. They were added anyway and show as unreadable.`
     )
-  }
-  if (readFailures > 0) {
-    lines.push(readFailures === 1 ? 'Could not read 1 file.' : `Could not read ${readFailures} files.`)
   }
   return lines.join('\n')
 }
@@ -156,61 +143,55 @@ function mediaWarningText(w: MediaValidationWarning): string {
   return 'Warning: file is larger than 500 MB.'
 }
 
-function TimelineIcon() {
-  return (
-    <svg
-      className="manage-setlists-icon-svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      stroke="none"
-      aria-hidden="true"
-    >
-      <text x="12" y="18" textAnchor="middle" fontSize="17" fontWeight="bold">A</text>
-    </svg>
-  )
-}
-
-function VideoLinkButton({ onLinkVideo, hasMedia, songTitle }: { onLinkVideo: () => void; hasMedia: boolean; songTitle: string }) {
+/**
+ * Points the app at the local copy of the video the **song file** names. It does not attach a
+ * video to a song: `media.src` is the song's own field and is edited in the song file, not here.
+ * Only the per-machine path is Pregonero's to remember (see `mediaPathStore`).
+ */
+function VideoLocateButton({
+  onLocateVideo,
+  isLocated,
+  songTitle,
+  declaresMedia,
+}: {
+  onLocateVideo: () => void
+  isLocated: boolean
+  songTitle: string
+  declaresMedia: boolean
+}) {
+  if (!declaresMedia) return null
   return (
     <button
       type="button"
-      className={`manage-setlists-action-btn manage-setlists-icon-btn${hasMedia ? ' manage-setlists-icon-btn--linked' : ' manage-setlists-icon-btn--add'}`}
-      aria-label={`Link video for ${songTitle}`}
-      onClick={onLinkVideo}
+      className={`manage-setlists-action-btn manage-setlists-icon-btn${isLocated ? ' manage-setlists-icon-btn--linked' : ' manage-setlists-icon-btn--add'}`}
+      aria-label={`Locate video for ${songTitle}`}
+      onClick={onLocateVideo}
     >
       <VideoCameraIcon />
-      <span className="video-link-btn-badge" aria-hidden="true">{hasMedia ? '✓' : '+'}</span>
+      <span className="video-link-btn-badge" aria-hidden="true">{isLocated ? '✓' : '+'}</span>
     </button>
   )
 }
 
-function TimelineImportButton({ onImportTimeline, hasTimeline, songTitle }: { onImportTimeline: () => void; hasTimeline: boolean; songTitle: string }) {
+/** The row for a reference whose file could not be read: the file is the fix, not the app. */
+function UnreadableNote({ entry }: { entry: LibraryEntry }) {
   return (
-    <button
-      type="button"
-      className={`manage-setlists-action-btn manage-setlists-icon-btn${hasTimeline ? ' manage-setlists-icon-btn--linked' : ' manage-setlists-icon-btn--add'}`}
-      aria-label={`Import timeline for ${songTitle}`}
-      onClick={onImportTimeline}
-    >
-      <TimelineIcon />
-      <span className="video-link-btn-badge" aria-hidden="true">{hasTimeline ? '✓' : '+'}</span>
-    </button>
+    <span className="manage-setlists-song-unreadable" title={entry.error}>
+      Could not read {entry.ref.path}
+    </span>
   )
 }
 
 type SortableSongRowProps = {
-  song: LibrarySong
+  entry: LibraryEntry
   setlistName: string
   onRemove: () => void
-  onLinkVideo: () => void
-  hasMedia: boolean
-  onImportTimeline: () => void
-  hasTimeline: boolean
+  onLocateVideo: () => void
+  isVideoLocated: boolean
 }
 
-function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia, onImportTimeline, hasTimeline }: SortableSongRowProps) {
+function SortableSongRow({ entry, setlistName, onRemove, onLocateVideo, isVideoLocated }: SortableSongRowProps) {
+  const title = entryTitle(entry)
   const {
     attributes,
     listeners,
@@ -219,7 +200,7 @@ function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia, o
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: song.id, data: { source: 'setlist' as const } })
+  } = useSortable({ id: entry.ref.id, data: { source: 'setlist' as const } })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -231,27 +212,32 @@ function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia, o
     <li
       ref={setNodeRef}
       style={style}
-      className="manage-setlists-song-row"
-      data-testid={`manage-setlist-song-row-${song.id}`}
+      className={`manage-setlists-song-row${entry.song ? '' : ' manage-setlists-song-row--unreadable'}`}
+      data-testid={`manage-setlist-song-row-${entry.ref.id}`}
     >
       <button
         type="button"
         ref={setActivatorNodeRef}
         className="manage-setlists-drag-handle"
-        aria-label={`Drag to reorder ${song.title} in setlist ${setlistName}`}
+        aria-label={`Drag to reorder ${title} in setlist ${setlistName}`}
         {...listeners}
         {...attributes}
       >
         <span aria-hidden="true">⋮⋮</span>
       </button>
-      <span className="manage-setlists-song-title">{song.title}</span>
+      <span className="manage-setlists-song-title">{title}</span>
+      {entry.song ? null : <UnreadableNote entry={entry} />}
       <div className="manage-setlists-song-actions">
-        <VideoLinkButton onLinkVideo={onLinkVideo} hasMedia={hasMedia} songTitle={song.title} />
-        <TimelineImportButton onImportTimeline={onImportTimeline} hasTimeline={hasTimeline} songTitle={song.title} />
+        <VideoLocateButton
+          onLocateVideo={onLocateVideo}
+          isLocated={isVideoLocated}
+          songTitle={title}
+          declaresMedia={!!entry.song?.media}
+        />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
-          aria-label={`Remove ${song.title} from setlist ${setlistName}`}
+          aria-label={`Remove ${title} from setlist ${setlistName}`}
           onClick={onRemove}
         >
           <span aria-hidden="true">-</span>
@@ -263,25 +249,23 @@ function SortableSongRow({ song, setlistName, onRemove, onLinkVideo, hasMedia, o
 
 type SortableSongsInSetlistProps = {
   setlistName: string
-  songs: LibrarySong[]
+  entries: LibraryEntry[]
   onRemoveSong: (songId: string) => void
-  onLinkVideoSong: (songId: string) => void
-  onImportTimelineSong: (songId: string) => void
+  onLocateVideoSong: (songId: string) => void
+  isVideoLocated: (entry: LibraryEntry) => boolean
 }
 
-function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoSong, onImportTimelineSong }: SortableSongsInSetlistProps) {
+function SortableSongsInSetlist({ setlistName, entries, onRemoveSong, onLocateVideoSong, isVideoLocated }: SortableSongsInSetlistProps) {
   return (
     <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
-      {songs.map((song) => (
+      {entries.map((entry) => (
         <SortableSongRow
-          key={song.id}
-          song={song}
+          key={entry.ref.id}
+          entry={entry}
           setlistName={setlistName}
-          onRemove={() => onRemoveSong(song.id)}
-          onLinkVideo={() => onLinkVideoSong(song.id)}
-          hasMedia={!!song.media}
-          onImportTimeline={() => onImportTimelineSong(song.id)}
-          hasTimeline={Array.isArray(song.timeline) && song.timeline.length > 0}
+          onRemove={() => onRemoveSong(entry.ref.id)}
+          onLocateVideo={() => onLocateVideoSong(entry.ref.id)}
+          isVideoLocated={isVideoLocated(entry)}
         />
       ))}
     </ul>
@@ -289,24 +273,28 @@ function SortableSongsInSetlist({ setlistName, songs, onRemoveSong, onLinkVideoS
 }
 
 type LibrarySongRowProps = {
-  song: LibrarySong
+  entry: LibraryEntry
   onAdd: () => void
   addDisabled: boolean
   addLabel: string
   onDelete: () => void
-  onLinkVideo: () => void
-  hasMedia: boolean
-  onImportTimeline: () => void
-  hasTimeline: boolean
+  onLocateVideo: () => void
+  isVideoLocated: boolean
 }
 
-function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete, onLinkVideo, hasMedia, onImportTimeline, hasTimeline }: LibrarySongRowProps) {
+function LibrarySongRow({ entry, onAdd, addDisabled, addLabel, onDelete, onLocateVideo, isVideoLocated }: LibrarySongRowProps) {
+  const title = entryTitle(entry)
   return (
-    <li className="manage-setlists-song-row">
-      <span className="manage-setlists-song-title">{song.title}</span>
+    <li className={`manage-setlists-song-row${entry.song ? '' : ' manage-setlists-song-row--unreadable'}`}>
+      <span className="manage-setlists-song-title">{title}</span>
+      {entry.song ? null : <UnreadableNote entry={entry} />}
       <div className="manage-setlists-song-actions">
-        <VideoLinkButton onLinkVideo={onLinkVideo} hasMedia={hasMedia} songTitle={song.title} />
-        <TimelineImportButton onImportTimeline={onImportTimeline} hasTimeline={hasTimeline} songTitle={song.title} />
+        <VideoLocateButton
+          onLocateVideo={onLocateVideo}
+          isLocated={isVideoLocated}
+          songTitle={title}
+          declaresMedia={!!entry.song?.media}
+        />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
@@ -319,7 +307,7 @@ function LibrarySongRow({ song, onAdd, addDisabled, addLabel, onDelete, onLinkVi
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
-          aria-label={`Delete ${song.title} from library`}
+          aria-label={`Delete ${title} from library`}
           onClick={onDelete}
         >
           <TrashCanIcon />
@@ -369,9 +357,6 @@ export function ManageSetlistsView() {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const renameInputRef = useRef<HTMLInputElement>(null)
-  const importInputRef = useRef<HTMLInputElement>(null)
-  const timelineInputRef = useRef<HTMLInputElement>(null)
-  const pendingTimelineSongIdRef = useRef<string | null>(null)
   const renamingSetlistItemRef = useRef<HTMLLIElement | null>(null)
   const renamingIdRef = useRef<string | null>(null)
   renamingIdRef.current = renamingId
@@ -381,14 +366,17 @@ export function ManageSetlistsView() {
   const setlists = draft.setlists
   const activeId = draft.activeSetlistId
   const selectedSetlist = setlists.find((s) => s.id === activeId) ?? null
-  const selectedSetlistSongs = selectedSetlist
-    ? getOrderedSongsForSetlistFromSnapshot(draft, selectedSetlist.id)
+  const selectedSetlistEntries = selectedSetlist
+    ? getOrderedEntriesForSetlistFromSnapshot(draft, selectedSetlist.id)
     : []
   const selectedSetlistSongIds = new Set(selectedSetlist?.songIds ?? [])
-  const visibleLibrarySongs = selectedSetlist
-    ? draft.songLibrary.songs.filter((song) => !selectedSetlistSongIds.has(song.id))
-    : draft.songLibrary.songs
-  const selectedSongIds = selectedSetlistSongs.map((s) => s.id)
+  const libraryEntries = getLibraryEntriesForSnapshot(draft)
+  const visibleLibraryEntries = selectedSetlist
+    ? libraryEntries.filter((e) => !selectedSetlistSongIds.has(e.ref.id))
+    : libraryEntries
+  const selectedSongIds = selectedSetlistEntries.map((e) => e.ref.id)
+  const isVideoLocated = (entry: LibraryEntry) =>
+    entry.song?.media !== undefined && getMediaPath(entry.song.media.src) !== null
 
   useEffect(() => {
     if (!renamingId) return
@@ -535,34 +523,41 @@ export function ManageSetlistsView() {
     }
   }
 
-  const triggerImportSongPicker = () => {
-    importInputRef.current?.click()
-  }
-
-  const handleImportSongFiles = (e: ChangeEvent<HTMLInputElement>) => {
-    const input = e.target
-    const list = input.files
-    if (!list?.length) return
-    const files = Array.from(list)
+  /**
+   * Adds song files to the library as references. Nothing is copied in: the path is stored, the
+   * file is read to fill the cache, and a file that will not read is still added — as a visibly
+   * broken row, which is the honest report and the one that can be fixed in `songs/`.
+   */
+  const handleAddSongs = () => {
+    const api = window.electronAPI
+    if (!api) {
+      window.alert('Songs can only be added from the desktop app.')
+      return
+    }
     void (async () => {
-      const texts: string[] = []
-      let readFailures = 0
-      for (const file of files) {
-        const r = await readFileAsUtf8(file)
-        if (r.ok) texts.push(r.text)
-        else readFailures++
+      const paths = await api.openSongFileDialog()
+      if (!paths.length) return
+      let snapshot = draftRef.current
+      let addedCount = 0
+      let duplicates = 0
+      let unreadable = 0
+      const resolved: LibraryEntry[] = []
+      for (const path of paths) {
+        const ref = { id: songIdFromPath(path), path }
+        const next = addSongRefToSnapshot(snapshot, ref)
+        if (!next) {
+          duplicates++
+          continue
+        }
+        snapshot = next
+        addedCount++
+        const entry = await resolveSongRef(ref, defaultReadSongFile)
+        if (!entry.song) unreadable++
+        resolved.push(entry)
       }
-      const batch = applySequentialSongImportsFromJsonTexts(draftRef.current, texts)
-      window.alert(
-        formatSongImportBatchAlert({
-          importedCount: batch.importedCount,
-          duplicatesSkipped: batch.duplicatesSkipped,
-          invalidSkipped: batch.invalidSkipped,
-          readFailures,
-        })
-      )
-      setDraft(batch.snapshot)
-      input.value = ''
+      setLibraryEntries([...getLibraryEntries(), ...resolved])
+      window.alert(formatAddSongBatchAlert({ addedCount, duplicates, unreadable }))
+      setDraft(snapshot)
       refresh()
     })()
   }
@@ -573,61 +568,23 @@ export function ManageSetlistsView() {
     refresh()
   }
 
-  const handleLinkVideo = (songId: string) => {
+  /**
+   * Records where this machine keeps the video the **song file** names. `media.src` belongs to
+   * the song file and is not written here; only the local path is Pregonero's to remember.
+   */
+  const handleLocateVideo = (songId: string) => {
     const api = window.electronAPI
     if (!api) return
+    const declared = getLibraryEntries().find((e) => e.ref.id === songId)?.song?.media
+    if (!declared) return
     void (async () => {
       const chosen = await api.openFileDialog()
       if (!chosen) return
-      const basename = chosen.split('/').pop() ?? chosen
       const warnings = validateVideoForImport(chosen)
       if (warnings.length) {
         window.alert(warnings.map(mediaWarningText).join('\n'))
       }
-      setDraft((d) => {
-        const next = patchSongMediaInSnapshot(d, songId, { type: 'video', src: basename }) ?? d
-        saveSetlistStore(next)
-        return next
-      })
-      setMediaPath(basename, chosen)
-      refresh()
-    })()
-  }
-
-  const handleImportTimeline = (songId: string) => {
-    pendingTimelineSongIdRef.current = songId
-    timelineInputRef.current?.click()
-  }
-
-  const handleTimelineFileSelected = (e: ChangeEvent<HTMLInputElement>) => {
-    const input = e.target
-    const file = input.files?.[0]
-    const songId = pendingTimelineSongIdRef.current
-    pendingTimelineSongIdRef.current = null
-    if (!file || !songId) return
-    void (async () => {
-      const r = await readFileAsUtf8(file)
-      if (!r.ok) {
-        window.alert('Could not read the timeline file.')
-        return
-      }
-      let parsed: { timelineVersion: number; leadIn: TimelineLeadIn; entries: TimelineEntry[] }
-      try {
-        parsed = parseTimelineFromJsonText(r.text)
-      } catch (err) {
-        window.alert(`Invalid timeline file: ${err instanceof Error ? err.message : String(err)}`)
-        return
-      }
-      setDraft((d) => {
-        const next =
-          patchSongTimelineInSnapshot(d, songId, parsed.entries, {
-            timelineVersion: parsed.timelineVersion,
-            leadIn: parsed.leadIn,
-          }) ?? d
-        saveSetlistStore(next)
-        return next
-      })
-      input.value = ''
+      setMediaPath(declared.src, chosen)
       refresh()
     })()
   }
@@ -662,27 +619,6 @@ export function ManageSetlistsView() {
           Back
         </button>
         <h1 className="songs-title">Manage setlists</h1>
-        <div className="manage-setlists-top-actions">
-          <input
-            ref={importInputRef}
-            type="file"
-            multiple
-            accept=".json,application/json"
-            className="manage-setlists-import-input-hidden"
-            data-testid="import-song-input"
-            aria-label="Choose one or more song JSON files to import"
-            onChange={handleImportSongFiles}
-          />
-          <input
-            ref={timelineInputRef}
-            type="file"
-            accept=".json,application/json"
-            className="manage-setlists-import-input-hidden"
-            data-testid="import-timeline-input"
-            aria-label="Choose a timeline JSON file to import"
-            onChange={handleTimelineFileSelected}
-          />
-        </div>
       </header>
       <main className="songs-body manage-setlists-body">
         <section className="manage-setlists-column manage-setlists-column-setlists" aria-label="Setlists">
@@ -773,16 +709,16 @@ export function ManageSetlistsView() {
             >
               {!selectedSetlist ? (
                 <p className="manage-setlists-song-empty">Select a setlist to edit songs.</p>
-              ) : selectedSetlistSongs.length === 0 ? (
+              ) : selectedSetlistEntries.length === 0 ? (
                 <p className="manage-setlists-song-empty">No songs yet.</p>
               ) : (
                 <SortableContext items={selectedSongIds} strategy={verticalListSortingStrategy}>
                   <SortableSongsInSetlist
                     setlistName={selectedSetlist.name}
-                    songs={selectedSetlistSongs}
+                    entries={selectedSetlistEntries}
                     onRemoveSong={(songId) => handleRemoveSong(selectedSetlist.id, songId)}
-                    onLinkVideoSong={handleLinkVideo}
-                    onImportTimelineSong={handleImportTimeline}
+                    onLocateVideoSong={handleLocateVideo}
+                    isVideoLocated={isVideoLocated}
                   />
                 </SortableContext>
               )}
@@ -794,41 +730,42 @@ export function ManageSetlistsView() {
               <button
                 type="button"
                 className="songs-manage-setlists"
-                onClick={triggerImportSongPicker}
+                onClick={handleAddSongs}
               >
                 New song
               </button>
             </div>
             <div className="manage-setlists-panel" data-testid="manage-setlists-library-panel">
               <ul className="manage-setlists-song-sublist" aria-label="Library songs not in this setlist">
-                {visibleLibrarySongs.length === 0 ? (
+                {visibleLibraryEntries.length === 0 ? (
                   <li className="manage-setlists-song-empty">
                     {selectedSetlist
                       ? 'All library songs are in this setlist.'
                       : 'No songs in library.'}
                   </li>
                 ) : (
-                  visibleLibrarySongs.map((song) => (
-                    <LibrarySongRow
-                      key={song.id}
-                      song={song}
-                      onAdd={() => {
-                        if (!selectedSetlist) return
-                        handleAddSong(selectedSetlist.id, song.id)
-                      }}
-                      addDisabled={!selectedSetlist}
-                      addLabel={
-                        selectedSetlist
-                          ? `Add ${song.title} to setlist ${selectedSetlist.name}`
-                          : `Add ${song.title} to selected setlist`
-                      }
-                      onDelete={() => handleDeleteSongFromLibrary(song.id)}
-                      onLinkVideo={() => handleLinkVideo(song.id)}
-                      hasMedia={!!song.media}
-                      onImportTimeline={() => handleImportTimeline(song.id)}
-                      hasTimeline={Array.isArray(song.timeline) && song.timeline.length > 0}
-                    />
-                  ))
+                  visibleLibraryEntries.map((entry) => {
+                    const title = entryTitle(entry)
+                    return (
+                      <LibrarySongRow
+                        key={entry.ref.id}
+                        entry={entry}
+                        onAdd={() => {
+                          if (!selectedSetlist) return
+                          handleAddSong(selectedSetlist.id, entry.ref.id)
+                        }}
+                        addDisabled={!selectedSetlist}
+                        addLabel={
+                          selectedSetlist
+                            ? `Add ${title} to setlist ${selectedSetlist.name}`
+                            : `Add ${title} to selected setlist`
+                        }
+                        onDelete={() => handleDeleteSongFromLibrary(entry.ref.id)}
+                        onLocateVideo={() => handleLocateVideo(entry.ref.id)}
+                        isVideoLocated={isVideoLocated(entry)}
+                      />
+                    )
+                  })
                 )}
               </ul>
             </div>

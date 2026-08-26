@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const { WebSocketServer } = require('ws')
 const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
+const { readSongFile } = require('./readSongFile.cjs')
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -206,6 +207,16 @@ ipcMain.handle('dialog:openFile', async () => {
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
+
+ipcMain.handle('dialog:openSongFiles', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Song files', extensions: ['json'] }],
+  })
+  return result.canceled ? [] : result.filePaths
+})
+
+ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
 
 ipcMain.handle('fs:getFileStats', (_event, filePath) => {
   try {
