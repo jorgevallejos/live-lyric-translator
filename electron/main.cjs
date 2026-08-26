@@ -4,6 +4,8 @@ const path = require('path')
 const { WebSocketServer } = require('ws')
 const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
 const { readSongFile } = require('./readSongFile.cjs')
+const { readGigFolder, writeGigFile } = require('./gigFolder.cjs')
+const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -217,6 +219,26 @@ ipcMain.handle('dialog:openSongFiles', async () => {
 })
 
 ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
+
+// ── The gig folder. Every Electron call this round introduces lives behind `src/platform.ts`
+// on the renderer side; these are its four handlers. ──────────────────────────────────────────
+ipcMain.handle('dialog:openGigFolder', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Choose the gig folder',
+    properties: ['openDirectory', 'createDirectory'],
+  })
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+
+ipcMain.handle('gig:read', (_event, folderPath, visualsPointer) =>
+  readGigFolder(folderPath, visualsPointer ? { visualsPointer } : {})
+)
+
+ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPath, text))
+
+ipcMain.handle('song:validateForPerformance', (_event, songPath) =>
+  validateSongForPerformance(songPath)
+)
 
 ipcMain.handle('fs:getFileStats', (_event, filePath) => {
   try {

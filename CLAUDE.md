@@ -55,6 +55,11 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry |
 | `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings. `absolutePathToMediaUrl` converts a path to a `media://local/...` URL served by the Electron custom protocol (not `file://` — blocked by webSecurity on the http://localhost dev origin). The `local` host is a fixed sentinel: an empty-host `media:///` URL is canonicalized by Chromium into `media://firstsegment/...`, absorbing and lowercasing the first path segment as the hostname. The main-process handler decodes `pathname` and serves via `net.fetch(pathToFileURL(...))` with forwarded headers so Range/seek requests work. |
 | `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
+| `gigSession.ts` | localStorage | The open gig folder, remembered across launches, plus the last readiness delta and its subscribers. Re-read **on open**, never watched |
+| `gigReadiness.ts` | — | **The one readiness function**: given a gig folder it returns the delta, per setup step and per song. Pure |
+| `gigFile.ts` | — | `gig.json` — parse, serialise, create, and project the setlist into it. Pregonero is its only writer |
+| `visualsFile.ts` | — | `visuals.json` — Muralista's file, read-only here. Version and gig-id refusals, and **the lookup** (type + song → a *set* of shapes) |
+| `platform.ts` | — | **The one module that knows Electron exists** for gig work: the folder picker, reading and writing files in it, `bombista` |
 
 Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` modules (no side effects, fully unit-tested). React hooks (`use*.ts`) wire them to components and own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC. Timer-driven hooks include `useBeatClock` (count-in).
 
@@ -76,10 +81,51 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/preload.cjs`: Context bridge exposing IPC methods to the renderer (`window.electronAPI`)
 - `electron/closeProjectionWindow.cjs`: Safe projection window closure logic (has its own tests)
 - `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
+- `electron/gigFolder.cjs`: One read of the gig folder — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write. A pointer that would leave the gig folder is refused, not followed (has its own tests)
+- `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary on `PATH` is `skipped` (has its own tests)
+
+### The gig, and the one readiness function
+
+**A gig is a folder.** Pregonero remembers which one across launches; the folder holds `gig.json`
+(Pregonero writes it, and is its only writer), `visuals.json` (Muralista writes it, Pregonero only
+reads it) and later `debrief.md`. The authoritative description of both files lives in the vault at
+`projects/tramoya-integration/docs/gig-file.md`; the field names Pregonero reads from
+`visuals.json` are Muralista's own — `visualsVersion`, `gigId`, `shapes`, and a shape's type at
+`shape.layer.type`.
+
+**Given a gig folder, one function returns the delta: what is missing, per step and per song.**
+Everything that sounds like it needs its own notion of validity is a *rendering* of
+`computeGigReadiness`, and **nothing else in the app gets an opinion about what "ready" means.**
+Two of its four views ship today — the hard gate at arm time (`songReadyForGig` in
+`performanceControlStateMachine.ts`, plus the setlist screen) and the report when a gig is opened
+(`GigView.tsx`). The setup flow's per-step gating and the setup confirmation going stale are the
+other two, and they are the next round's.
+
+Three rules that are easy to break and expensive to break:
+
+- **A per-step verdict, never a boolean.** `gig.json` exists from setup step 2 and is incomplete
+  for most of its life; that is normal, not degraded. Absence of a later step's data means *not
+  yet*, never *broken*. `broken` is only for the loud refusals — a file that will not parse, a
+  `visualsVersion` this build does not know, a `gigId` that is not this gig's. Those are named on
+  screen and never repaired automatically.
+- **Derived from the files, never stored as progress.** "Step 3 is done" is *the visuals pointer
+  resolves and carries the shapes the setlist needs*. Muralista is fully usable standalone, so
+  stored progress diverges the moment work happens outside Pregonero — and diverges silently.
+- **The running order is derived against the playable setlist**, which is
+  `readiness.playableSongIds` and nothing else. A trailing song that cannot be played is never
+  played, so a predicate reading the *authored* setlist would wait for it forever: the gig would
+  never end. That is discovered at the end of a real night, not in CI.
+
+**Completeness, not correctness.** Pregonero checks that the pointer resolves, the files parse,
+every setlist song resolves to a shape for each type it needs, and the content those types require
+exists. Whether a timeline is sane is Bombista's question, asked by shelling out and **reported as
+a note, never as an arm block** — ten of the fourteen songs in `songs/` are performed from the
+pedal with no timeline at all, and a machine with no `bombista` on `PATH` must still be able to
+run a gig.
 
 ### Routing
 
-Hash-based: `#/control`, `#/projection`, `#/songs`, `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
+Hash-based: `#/control`, `#/projection`, `#/songs`, `#/gig`, `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
 
 ### The library is a cache, `songs/` is the source of truth
 

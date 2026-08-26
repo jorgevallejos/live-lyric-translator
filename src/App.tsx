@@ -42,6 +42,10 @@ import {
   type LibrarySong,
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongs, hasPlayedSong, isSetlistComplete } from './playedSongsState'
+import { useGigReadiness } from './useGigReadiness'
+import { refreshGigReadiness } from './gigSession'
+import { GigView } from './GigView'
+import { isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import {
   getProjectionStatusText,
   getStoredScreenSize,
@@ -91,13 +95,15 @@ function buildPerformanceControlPrerequisites(
   lines: SongItem[],
   effectiveLang: string,
   effectiveSingingLang: string,
-  projectionOpen: boolean
+  projectionOpen: boolean,
+  songReadyForGig: boolean
 ): PerformanceControlPrerequisites {
   return {
     songSelected: currentSongId !== '' && lines.length > 0,
     translationLanguageSelected: effectiveLang.length > 0,
     singingLanguageSelected: lines.length > 0 && effectiveSingingLang.length > 0,
     projectionOpen,
+    songReadyForGig,
   }
 }
 
@@ -107,6 +113,7 @@ type ControlViewStateInput = {
   effectiveLang: string
   effectiveSingingLang: string
   projectionOpen: boolean
+  songReadyForGig: boolean
   armed: boolean
   arm: () => void
   unarm: () => void
@@ -121,6 +128,7 @@ function usePerformanceControlViewState({
   effectiveLang,
   effectiveSingingLang,
   projectionOpen,
+  songReadyForGig,
   armed,
   arm,
   unarm,
@@ -132,7 +140,8 @@ function usePerformanceControlViewState({
     lines,
     effectiveLang,
     effectiveSingingLang,
-    projectionOpen
+    projectionOpen,
+    songReadyForGig
   )
   const controlState = getPerformanceControlState(prereqs, armed)
   const controlStateLabel = CONTROL_STATE_LABELS[controlState]
@@ -162,6 +171,24 @@ function usePerformanceControlViewState({
     handleArmClick,
     handleUnarmClick,
   }
+}
+
+/**
+ * One line of the readiness delta for the setup panel. It renders what the readiness function
+ * already decided; it decides nothing itself.
+ */
+function gigSummaryText(readiness: GigReadiness): string {
+  if (readiness.gate === 'off') return 'No gig folder open.'
+  if (readiness.refusals.length > 0) return readiness.refusals[0]!
+  const blocked = readiness.songs.filter((song) => !song.ready).length
+  const pending = readiness.steps.filter((step) => step.status !== 'complete')
+  if (blocked > 0) {
+    return `${blocked} song${blocked === 1 ? '' : 's'} cannot be armed.`
+  }
+  if (pending.length > 0) {
+    return `Step ${pending[0]!.step} — ${pending[0]!.name.toLowerCase()} — is not done yet.`
+  }
+  return 'Set up, and every song can be armed.'
 }
 
 function ProjectionButton({
@@ -231,6 +258,12 @@ function ControlView() {
     index
   )
   const currentSongId = getCurrentSongId()
+
+  // The gig's readiness delta. Rendered here in two places — the hard gate below, and the Gig
+  // section of the setup panel. Nothing in this component re-derives what "ready" means.
+  const gigReadiness = useGigReadiness()
+  const songReadyForGig = isSongReadyToArm(gigReadiness, currentSongId)
+  const songBlockedReasons = songReadyForGig ? [] : whySongCannotArm(gigReadiness, currentSongId)
 
   const concertTimer = useConcertSessionTimer()
   const elapsedMinutes = concertTimer.elapsedMinutes
@@ -318,6 +351,7 @@ function ControlView() {
     effectiveLang,
     effectiveSingingLang,
     projectionOpen,
+    songReadyForGig,
     armed,
     arm: armWithConcertSessionStart,
     unarm,
@@ -502,18 +536,30 @@ function ControlView() {
     window.location.hash = '#/languages'
   }
 
+  const goToGig = () => {
+    window.location.hash = '#/gig'
+  }
+
   const orderedSongs = getOrderedSongsForActiveSetlist()
+  // **The setlist as it can actually be played**, and the only list the running order is derived
+  // against. Readiness decides what is unplayable — the same function that gates arming, never a
+  // second list that can disagree with it. A trailing song that cannot be played is never played,
+  // so a predicate reading the authored setlist would wait for it forever: the gig would never
+  // end, and that is discovered at the end of a real night.
+  const playableSongs = orderedSongs.filter((song) =>
+    gigReadiness.playableSongIds.includes(song.id)
+  )
   const currentSongPosition = currentSongId
-    ? orderedSongs.findIndex((song) => song.id === currentSongId)
+    ? playableSongs.findIndex((song) => song.id === currentSongId)
     : -1
   // The gig is the unit: arm once, play the setlist through once, then it is over. Anything
   // played afterwards is a repeat — a single song, honoured on request — and must never resume
   // the setlist from that song's position. Derived from the played log, not stored, so it
   // cannot disagree with it. Re-read each render; every append re-renders this component.
-  const setlistDone = isSetlistComplete(orderedSongs.map((song) => song.id))
+  const setlistDone = isSetlistComplete(playableSongs.map((song) => song.id))
   const nextSongForTile =
-    !setlistDone && currentSongPosition >= 0 && currentSongPosition < orderedSongs.length - 1
-      ? orderedSongs[currentSongPosition + 1]
+    !setlistDone && currentSongPosition >= 0 && currentSongPosition < playableSongs.length - 1
+      ? playableSongs[currentSongPosition + 1]
       : null
   const [showNextSongTile, setShowNextSongTile] = useState(false)
 
@@ -928,6 +974,26 @@ function ControlView() {
               aria-live="polite"
             >
               <div className="control-setup-section">
+                <span className="control-setup-label">Gig</span>
+                <div className="control-setup-content">
+                  <span className="control-setup-value" data-testid="control-gig-value">
+                    {gigReadiness.gigId ?? 'No gig'}
+                  </span>
+                </div>
+                <div className="control-setup-extras">
+                  <span className="control-setup-note" data-testid="control-gig-summary">
+                    {gigSummaryText(gigReadiness)}
+                  </span>
+                </div>
+                <div className="control-setup-buttons">
+                  <div className="control-setup-button-row">
+                    <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToGig}>
+                      Gig
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="control-setup-section">
                 <span className="control-setup-label">Song</span>
                 <div className="control-setup-content">
                   {currentSongId && lines.length > 0 ? (
@@ -1070,7 +1136,23 @@ function ControlView() {
                 <div className="control-setup-content">
                   <span className="control-setup-value">Unarmed</span>
                 </div>
-                <div className="control-setup-extras" />
+                <div className="control-setup-extras">
+                  {songBlockedReasons.length > 0 && (
+                    <div className="control-arm-blocked" data-testid="arm-blocked-reasons">
+                      <p className="control-arm-blocked-title">
+                        {currentSongTitle || 'This song'} cannot be armed:
+                      </p>
+                      <ul>
+                        {songBlockedReasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                      <p className="control-arm-blocked-hint">
+                        Or map the wall directly in Muralista and come back.
+                      </p>
+                    </div>
+                  )}
+                </div>
                 <div className="control-setup-buttons">
                   <button
                     type="button"
@@ -1399,6 +1481,9 @@ function ControlView() {
 
 function SongsView() {
   const playedSongs = getPlayedSongs()
+  // **The hard gate, on the screen where a song is chosen.** A song whose visuals are not set up
+  // is not selectable for performance, so the failure lands here instead of on the wall.
+  const gigReadiness = useGigReadiness()
 
   const activeOk = hasValidActiveSetlist()
   const orderedSongs = getOrderedSongsForActiveSetlist()
@@ -1431,6 +1516,10 @@ function SongsView() {
 
   const confirmSelection = () => {
     if (!selectedSong) return
+    // The gate again, on the way out. A song can stop being carried while this screen is open —
+    // the room is re-mapped in Muralista, a song file changes — and a stale selection must not
+    // walk past it.
+    if (whySongCannotArm(gigReadiness, selectedSong.id).length > 0) return
     const lib = getLibrarySongById(selectedSong.id)
     if (!lib) {
       alert(`Could not load ${selectedSong.title}.`)
@@ -1475,29 +1564,41 @@ function SongsView() {
           </p>
         ) : (
           <>
-            {orderedSongs.map((song) => (
-              <button
-                key={song.id}
-                type="button"
-                className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedSongs.some((e) => e.songId === song.id) ? 'songs-song-btn-played' : ''}`}
-                aria-pressed={selectedSong?.id === song.id}
-                onClick={() => selectSong(song)}
-              >
-                {playedSongs.some((e) => e.songId === song.id) ? (
-                  <>
-                    <span className="song-played-icon" aria-hidden />
+            {orderedSongs.map((song) => {
+              const blockedReasons = whySongCannotArm(gigReadiness, song.id)
+              const blocked = blockedReasons.length > 0
+              return (
+                <button
+                  key={song.id}
+                  type="button"
+                  className={`songs-song-btn ${selectedSong?.id === song.id ? 'ctrl-arm' : ''} ${playedSongs.some((e) => e.songId === song.id) ? 'songs-song-btn-played' : ''} ${blocked ? 'songs-song-btn-blocked' : ''}`}
+                  aria-pressed={selectedSong?.id === song.id}
+                  disabled={blocked}
+                  title={blocked ? blockedReasons.join(' ') : undefined}
+                  data-testid={blocked ? `songs-song-blocked-${song.id}` : undefined}
+                  onClick={() => selectSong(song)}
+                >
+                  {playedSongs.some((e) => e.songId === song.id) ? (
+                    <>
+                      <span className="song-played-icon" aria-hidden />
+                      <span className="songs-song-title">{song.title}</span>
+                    </>
+                  ) : (
                     <span className="songs-song-title">{song.title}</span>
-                  </>
-                ) : (
-                  <span className="songs-song-title">{song.title}</span>
-                )}
-              </button>
-            ))}
+                  )}
+                  {blocked && (
+                    <span className="songs-song-blocked-reason">{blockedReasons[0]}</span>
+                  )}
+                </button>
+              )
+            })}
             <div className="songs-confirm-wrap">
               <button
                 type="button"
                 className="ctrl-btn languages-confirm"
-                disabled={!selectedSong}
+                disabled={
+                  !selectedSong || whySongCannotArm(gigReadiness, selectedSong.id).length > 0
+                }
                 aria-label="Confirm"
                 onClick={confirmSelection}
               >
@@ -2056,6 +2157,15 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     }
   }, [hash, songLibState])
 
+  // **A gig re-checks its references whenever it is opened.** Arriving on the control screen is
+  // that moment: songs are edited in Bombista and the room is mapped in Muralista, independently
+  // of the gigs holding them, and nothing chases those gigs. Just-in-time on open is the whole
+  // mechanism, and it is trivially not mid-song — which is why there is no file watcher here.
+  useEffect(() => {
+    if (hash !== '#/' || songLibState !== 'ready') return
+    void refreshGigReadiness()
+  }, [hash, songLibState])
+
   useEffect(() => {
     if (typeof initialHash === 'string') return
     const onHashChange = () => setHash(window.location.hash)
@@ -2099,6 +2209,13 @@ function App({ initialHash }: { initialHash?: string } = {}) {
       <>
         <ConcertSessionTimerRunner />
         <ManageSetlistsView />
+      </>
+    )
+  if (hash === '#/gig')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <GigView />
       </>
     )
   if (hash === '#/songs')
