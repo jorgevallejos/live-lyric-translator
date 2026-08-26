@@ -57,7 +57,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
 | `gigFolderStore.ts` | localStorage | Which gig folder is open. Its own module so the Projection window can ask without pulling in the reader |
 | `visualsBroadcast.ts` | localStorage | `visuals.json`, carried from the Control window to the Projection window. Re-parsed on read, so both refusals hold on both sides |
-| `shapeTextLayout.ts` | — | Pure: the quad's stretch, the layout box, the text fields Muralista writes |
+| `shapeTextLayout.ts` | — | Pure: the quad's stretch, the layout box, the auto-fit, the text fields Muralista writes |
 | `videoTransport.ts` | localStorage | The play/pause/stop and seek channel. Nonce-carrying, because every consumer reacts to a transition |
 | `mediaPathStore.ts` | localStorage | Maps a song's logical `media.src` → an absolute path the user links once; format/size validation warnings. `absolutePathToMediaUrl` converts a path to a `media://local/...` URL served by the Electron custom protocol (not `file://` — blocked by webSecurity on the http://localhost dev origin). The `local` host is a fixed sentinel: an empty-host `media:///` URL is canonicalized by Chromium into `media://firstsegment/...`, absorbing and lowercasing the first path segment as the hostname. The main-process handler decodes `pathname` and serves via `net.fetch(pathToFileURL(...))` with forwarded headers so Range/seek requests work. |
 | `endCardState.ts` | localStorage | End-of-concert card visibility, broadcast cross-window via storage events |
@@ -163,8 +163,51 @@ the folder actually remembered, so it cannot paint last night's room.
 
 **Absence is the empty state.** A shape is a place that can hold content, not a thing that is on:
 it is lit only when the playing song points something at it, and a shape whose song is not playing
-is simply not rendered. **A hidden shape does not resolve either** — filtered in
+is simply not rendered — not blacked out, not declared empty. The gap between songs falls out for
+free with no blackout state. **A hidden shape does not resolve either** — filtered in
 `resolveShapesForType`, the one lookup, so the arm gate and the wall cannot disagree about it.
+
+**The lookup, and it is the whole of it.** The playing song is X; for each song-aware type, take
+the shapes reassigned to X if there are any, otherwise the gig-level shapes of that type. **It
+resolves to a set and every shape in it is lit.** Nothing caps it at one — two shapes showing the
+same lyric is how a corner or a pillar gets spanned, and how an original sits beside its
+translation. Muralista's authoring UI offers one shape per type today, so real files contain sets
+of size one naturally; **no code may depend on that.**
+
+| Type | Content | Component |
+|---|---|---|
+| `song-lyrics` | The playing song's timed lyric lines | `ShapeText` with the layer's own formatting |
+| `song-video` | The playing song's `media`, and **the clock the lyrics read against** | `ShapeVideo`, `object-fit: fill` — the quad *is* the framing |
+| `song-intro` | Title, translated title, tagline, from the song file | `ShapeIntro` — a **locked template**, no formatting controls |
+| `gig-contact` | — | Round E4 |
+
+**Pregonero fills content; it never styles it.** `ShapeIntro`'s proportions are Muralista's, matched
+value for value against `mapper.css`: the title is a fraction of the shape with auto-fit below it,
+and every other measure is a multiple of the title, so the card shrinks as one thing. There are no
+controls, so **those proportions are the entire design** — the only handles are the shape's position
+and size, which move all three parts together.
+
+### Shapes Pregonero does not coordinate
+
+A logo, a picture, a line of text — authored wholly in `visuals.json` and **up from power-up to
+teardown**. Pregonero does not start them, stop them, or decide when they appear; there is no state
+behind them. **A `logo` case in Pregonero would be the mistake**: the test for being coordinated is
+not "is it on the wall" but "does Pregonero decide when it appears".
+
+They are painted (`ShapeStatic`) because Pregonero is the only thing running on stage — if it
+painted nothing for them, nothing would, and the wall would be fully black between songs, which the
+design explicitly says it is not. Painting them unconditionally is the absence of a rule, not a
+rule. `fill` shapes are the wall's black and are painted flat in output pixels with no unit box and
+no matrix (`ShapeFill`) — a mask, not content.
+
+**`pattern` is deliberately not painted.** It is Muralista's test pattern — the default type for a
+new shape and the fallback for a layer this build does not recognise — so it is an authoring aid.
+One on a wall at a gig would be a bug that looks like a feature.
+
+A static `image` or `video` resolves its source through `mediaPathStore`, the same per-machine link
+table song media uses. **A source with no link on this machine paints nothing**, deliberately: a
+broken image on a wall says less than an empty shape does, and the fix is a link. Linking them is
+not yet reachable from the UI — that is setup-flow work.
 
 **Paint order is the shape list's order** — later is on top. That is Muralista's rule and the only
 place the z-order is authored; grouping by type when rendering would silently reorder the wall.

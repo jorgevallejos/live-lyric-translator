@@ -3,9 +3,18 @@ import { useSongNavigation } from './useSongNavigation'
 import { ShapeRegion } from './ShapeRegion'
 import { ShapeText } from './ShapeText'
 import { ShapeVideo } from './ShapeVideo'
-import { UNIT_SIZE } from './vendor/warp.js'
-import { readTextFields, textLayoutBoxWidth, textLayoutInsetX, TEXT_INSET_Y } from './shapeTextLayout'
-import { resolveShapesForType, shapeFrame } from './visualsFile'
+import { ShapeIntro } from './ShapeIntro'
+import { ShapeStatic, isStaticType } from './ShapeStatic'
+import { ShapeFill } from './ShapeFill'
+import { readTextFields, textLayoutBoxWidth } from './shapeTextLayout'
+import {
+  resolveShapesForType,
+  shapeFrame,
+  shapeIsVisible,
+  shapeTypeOf,
+  SONG_AWARE_TYPES,
+  type VisualShape,
+} from './visualsFile'
 import { useBroadcastVisuals } from './visualsBroadcast'
 import { useOutputSize } from './useOutputSize'
 import { resolveVideoCueIndex } from './videoCueLookup'
@@ -1946,6 +1955,7 @@ function ProjectionView() {
   // caps it at one, and no code below may assume it is one.
   const lyricShapes = visuals ? resolveShapesForType(visuals, 'song-lyrics', currentSongId) : []
   const videoShapes = visuals ? resolveShapesForType(visuals, 'song-video', currentSongId) : []
+  const introShapes = visuals ? resolveShapesForType(visuals, 'song-intro', currentSongId) : []
   const playVideo = videoWanted && videoShapes.length > 0
 
   // **When a video is playing, the video is the clock.** Subtitles come from its own
@@ -1984,10 +1994,12 @@ function ProjectionView() {
   const lyricOpacity = playVideo ? (videoLyricText ? 1 : 0) : isVisible ? 1 : 0
   const lyricTransitionMs = playVideo ? 300 : FADE_MS
 
+  // The three parts of the title card, and all three come from the song file. Pregonero fills
+  // them; the template that arranges them is locked and has no formatting controls.
   const introParts = showIntroScreen && currentLibrarySong
     ? {
         title: currentLibrarySong.title,
-        translatedTitle:
+        annotation:
           effectiveLang !== singingLang
             ? currentLibrarySong.title_translations?.[effectiveLang]
             : undefined,
@@ -1995,16 +2007,18 @@ function ProjectionView() {
       }
     : null
 
-  // The intro card rides in the lyrics shape for this stage. **Round E3 gives it its own
-  // `song-intro` shapes and the locked template**; putting it here now is what keeps the intro on
-  // the wall between the two stages rather than disappearing for one release.
-  const introInLyricShape = introParts && !(playVideo && videoStarted)
+  const showIntro = introParts !== null && !(playVideo && videoStarted)
 
   // ── The compositor ────────────────────────────────────────────────────────────────────────
   //
   // **Paint order is the shape list's order** — later is on top, which is Muralista's own rule and
   // the only place the z-order is authored. Grouping by type here would silently reorder the wall.
   const contentByShapeId = new Map<string, ReactNode>()
+
+  // Song-aware shapes: **a shape is a place that can hold content, not a thing that is on.** It is
+  // lit only when the playing song points something at it, and one whose song is not playing is
+  // simply not here. Absence is the empty state; nothing is ever declared empty, and the gap
+  // between songs falls out for free with no blackout state.
   for (const shape of videoShapes) {
     if (!playVideo) continue
     const isClock = shape.id === videoShapes[0]!.id
@@ -2020,27 +2034,61 @@ function ProjectionView() {
   }
   for (const shape of lyricShapes) {
     const fields = readTextFields(shape.layer)
-    const boxWidth = textLayoutBoxWidth(shapeFrame(shape), fields.aspect, outputWidth, outputHeight)
     contentByShapeId.set(
       shape.id,
-      introInLyricShape ? (
-        <ShapeIntro parts={introParts!} boxWidth={boxWidth} />
-      ) : (
-        <ShapeText
-          text={lyricText}
-          boxWidth={boxWidth}
-          fields={fields}
-          opacity={lyricOpacity}
-          transitionMs={lyricTransitionMs}
-          className="projection-lyric shape-text"
-          testId={`shape-lyrics-${shape.id}`}
+      <ShapeText
+        text={lyricText}
+        boxWidth={textLayoutBoxWidth(shapeFrame(shape), fields.aspect, outputWidth, outputHeight)}
+        fields={fields}
+        opacity={lyricOpacity}
+        transitionMs={lyricTransitionMs}
+        className="projection-lyric shape-text"
+        testId={`shape-lyrics-${shape.id}`}
+      />
+    )
+  }
+  if (showIntro) {
+    for (const shape of introShapes) {
+      contentByShapeId.set(
+        shape.id,
+        <ShapeIntro
+          parts={introParts!}
+          boxWidth={textLayoutBoxWidth(shapeFrame(shape), 1, outputWidth, outputHeight)}
         />
       )
+    }
+  }
+
+  // **Everything that is not song-aware is on because the projector is on.** Pregonero does not
+  // coordinate these, start them, stop them or hold state for them, and there is no case here for
+  // any particular one of them — a `logo` case would be the mistake. Painting them unconditionally
+  // is the absence of a rule rather than a rule, and it is what makes the wall never fully black
+  // between songs without anything arranging that.
+  const fillShapes: VisualShape[] = []
+  for (const shape of visuals?.shapes ?? []) {
+    if (!shapeIsVisible(shape)) continue
+    const type = shapeTypeOf(shape)
+    if ((SONG_AWARE_TYPES as readonly string[]).includes(type)) continue
+    if (type === 'fill') {
+      // A mask, not content: painted flat in output pixels with no unit box and no matrix.
+      fillShapes.push(shape)
+      continue
+    }
+    if (!isStaticType(type)) continue
+    contentByShapeId.set(
+      shape.id,
+      <ShapeStatic shape={shape} type={type} width={outputWidth} height={outputHeight} />
     )
   }
 
-  const litShapes = visuals
-    ? visuals.shapes.filter((shape) => contentByShapeId.has(shape.id))
+  // **Paint order is the shape list's order** — later is on top, which is Muralista's own rule and
+  // the only place the z-order is authored. Grouping by type here would silently reorder the wall.
+  const paintable = visuals
+    ? visuals.shapes.filter(
+        (shape) =>
+          shapeIsVisible(shape) &&
+          (contentByShapeId.has(shape.id) || fillShapes.includes(shape))
+      )
     : []
 
   // The end card takes the whole wall, as it always has — nothing else is mounted behind it, so a
@@ -2088,11 +2136,15 @@ function ProjectionView() {
         margin: 0,
       }}
     >
-      {litShapes.map((shape) => (
-        <ShapeRegion key={shape.id} shape={shape} width={outputWidth} height={outputHeight}>
-          {contentByShapeId.get(shape.id)}
-        </ShapeRegion>
-      ))}
+      {paintable.map((shape) =>
+        fillShapes.includes(shape) ? (
+          <ShapeFill key={shape.id} shape={shape} width={outputWidth} height={outputHeight} />
+        ) : (
+          <ShapeRegion key={shape.id} shape={shape} width={outputWidth} height={outputHeight}>
+            {contentByShapeId.get(shape.id)}
+          </ShapeRegion>
+        )
+      )}
 
       {/* Full-frame and not a shape. **Round E4 deletes it**, once a `gig-contact` shape is what
           the wall carries when nothing is armed. Deleting it before that stage leaves the wall
@@ -2116,63 +2168,6 @@ function ProjectionView() {
     </div>
   )
 }
-
-/**
- * The title card, drawn inside a shape's unit box.
- *
- * A placeholder shape for this stage only: it rides in the lyrics shape so that the intro does not
- * vanish for one release, and **round E3 replaces it with the locked `song-intro` template** in
- * shapes of its own. Sizes are fractions of the unit box, as everything inside one must be.
- */
-function ShapeIntro({
-  parts,
-  boxWidth,
-}: {
-  parts: { title: string; translatedTitle?: string; tagline?: string }
-  boxWidth: number
-}) {
-  return (
-    <div
-      data-testid="song-intro-screen"
-      className="projection-intro-screen"
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: `${boxWidth}px`,
-        height: `${UNIT_SIZE}px`,
-        transformOrigin: '0 0',
-        transform: `scaleX(${UNIT_SIZE / boxWidth})`,
-        boxSizing: 'border-box',
-        padding: `${TEXT_INSET_Y}px ${textLayoutInsetX(boxWidth)}px`,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: `${0.02 * UNIT_SIZE}px`,
-        textAlign: 'center',
-      }}
-    >
-      <span className="projection-intro-title" style={{ fontSize: `${0.16 * UNIT_SIZE}px` }}>
-        {parts.title}
-      </span>
-      {parts.translatedTitle && (
-        <span
-          className="projection-intro-translated-title"
-          style={{ fontSize: `${0.08 * UNIT_SIZE}px` }}
-        >
-          ({parts.translatedTitle})
-        </span>
-      )}
-      {parts.tagline && (
-        <span className="projection-intro-tagline" style={{ fontSize: `${0.06 * UNIT_SIZE}px` }}>
-          {parts.tagline}
-        </span>
-      )}
-    </div>
-  )
-}
-
 
 function App({ initialHash }: { initialHash?: string } = {}) {
   const [hash, setHash] = useState(() =>
