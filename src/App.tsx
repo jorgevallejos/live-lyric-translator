@@ -68,7 +68,7 @@ import { refreshGigReadiness } from './gigSession'
 import { GigView } from './GigView'
 import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
-import { isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
+import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import {
   getProjectionStatusText,
   getStoredScreenSize,
@@ -204,14 +204,22 @@ function gigSummaryText(readiness: GigReadiness): string {
   if (readiness.gate === 'off') return 'No gig folder open.'
   if (readiness.refusals.length > 0) return readiness.refusals[0]!
   const blocked = readiness.songs.filter((song) => !song.ready).length
-  const pending = readiness.steps.filter((step) => step.status !== 'complete')
+  // The confirmation is a milestone, not a lock: unconfirmed and lapsed both read as a warning
+  // here, and neither of them stops anything. The hard gate is the line above.
+  const pending = readiness.steps.filter((step) => step.status !== 'complete' && step.step < 6)
   if (blocked > 0) {
     return `${blocked} song${blocked === 1 ? '' : 's'} cannot be armed.`
   }
   if (pending.length > 0) {
     return `Step ${pending[0]!.step} — ${pending[0]!.name.toLowerCase()} — is not done yet.`
   }
-  return 'Set up, and every song can be armed.'
+  if (readiness.confirmation === null) {
+    return 'Every song can be armed. Setup is not confirmed.'
+  }
+  if (readiness.confirmation.stale) {
+    return `Every song can be armed. Setup has lapsed: ${readiness.confirmation.moved[0]}`
+  }
+  return 'Set up, confirmed, and every song can be armed.'
 }
 
 function ProjectionButton({
@@ -287,6 +295,9 @@ function ControlView() {
   const gigReadiness = useGigReadiness()
   const songReadyForGig = isSongReadyToArm(gigReadiness, currentSongId)
   const songBlockedReasons = songReadyForGig ? [] : whySongCannotArm(gigReadiness, currentSongId)
+  // **A warning, never a refusal.** The setup confirmation is a milestone: it blocks nothing, and
+  // the hard gate is the line above, which is a different thing and stays as it is.
+  const setupWarnings = armWarnings(gigReadiness)
 
   const concertTimer = useConcertSessionTimer()
   const elapsedMinutes = concertTimer.elapsedMinutes
@@ -1289,6 +1300,18 @@ function ControlView() {
                       </ul>
                       <p className="control-arm-blocked-hint">
                         Or map the wall directly in Muralista and come back.
+                      </p>
+                    </div>
+                  )}
+                  {setupWarnings.length > 0 && (
+                    <div className="control-arm-warning" data-testid="arm-setup-warning">
+                      <ul>
+                        {setupWarnings.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                      <p className="control-arm-blocked-hint">
+                        This is a warning, not a gate — you can arm anyway.
                       </p>
                     </div>
                   )}

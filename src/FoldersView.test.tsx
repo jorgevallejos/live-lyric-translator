@@ -13,7 +13,10 @@ import { installLibrary } from './testSupport/library'
 const chooseFolderPath = vi.fn()
 const fileExists = vi.fn()
 
+const describeDisplays = vi.fn()
+
 vi.mock('./platform', () => ({
+  describeDisplays: (...a: unknown[]) => describeDisplays(...a),
   hasFolderPicker: () => true,
   hasGigFolderAccess: () => true,
   chooseFolderPath: (...a: unknown[]) => chooseFolderPath(...a),
@@ -84,6 +87,7 @@ beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
   fileExists.mockResolvedValue(true)
+  describeDisplays.mockResolvedValue({ count: 1, displays: [], fingerprint: '1728x1117@2*' })
   installLibrary([song('tragedia', 'Tragedia', 'tragedia.mp4')])
 })
 

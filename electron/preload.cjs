@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
   /** Writes debrief.md into the gig folder. Pregonero writes it, then Jorge edits it. */
   writeDebriefFile: (folderPath, text) => ipcRenderer.invoke('gig:writeDebrief', folderPath, text),
+  /** What displays this machine has. Read-only; the confirmation fingerprints it. */
+  describeDisplays: () => ipcRenderer.invoke('display:describe'),
   /** Shells out to `bombista validate --for-performance`. Never fails closed. */
   validateSongForPerformance: (songPath) =>
     ipcRenderer.invoke('song:validateForPerformance', songPath),

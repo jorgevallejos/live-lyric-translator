@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { chooseGigFolder, closeGig, refreshGigReadiness } from './gigSession'
+import { chooseGigFolder, closeGig, confirmSetup, refreshGigReadiness } from './gigSession'
 import { useGigReadiness } from './useGigReadiness'
 import { hasGigFolderAccess } from './platform'
 import { useBroadcastVisuals } from './visualsBroadcast'
@@ -276,21 +276,45 @@ function StepFive() {
   )
 }
 
-function StepSix({ readiness }: { readiness: GigReadiness }) {
+/**
+ * **Step 6: setup confirmed — a milestone, not a lock.**
+ *
+ * It blocks nothing and freezes nothing. Arming an unconfirmed gig warns; it never refuses, and the
+ * hard gate stays per-song completeness, which is a different thing.
+ *
+ * **He confirms against evidence, never blindly.** The completeness results and the rig checklist
+ * are on this screen, above the button. A confirm button with nothing to read above it is theatre.
+ *
+ * **It records that the checks passed — never a warp matrix, a layout or a pixel size.** Save the
+ * recipe, not the cake: setting up at the venue with the projector attached does not change that,
+ * because the window can still move and `docs/warp-contract.md` is binding regardless.
+ */
+function StepSix({
+  readiness,
+  onConfirm,
+  onReview,
+  busy,
+}: {
+  readiness: GigReadiness
+  onConfirm: () => void
+  onReview: () => void
+  busy: boolean
+}) {
   const blocked = readiness.songs.filter((song) => !song.ready)
-  const done = readiness.steps.filter((s) => s.step < 6).every((s) => s.status === 'complete')
+  const earlier = readiness.steps.filter((s) => s.step < 6)
+  const checksPass = earlier.every((s) => s.status === 'complete')
+  const confirmation = readiness.confirmation
+
   return (
     <div data-testid="setup-body-6">
       <section className="setup-evidence" data-testid="setup-evidence">
         <h3 className="gig-section-title">What is true right now</h3>
         <ul>
-          {readiness.steps
-            .filter((s) => s.step < 6)
-            .map((s) => (
-              <li key={s.step}>
-                {s.step}. {s.name} — {STATUS_LABEL[s.status]}
-              </li>
-            ))}
+          {earlier.map((s) => (
+            <li key={s.step}>
+              {s.step}. {s.name} — {STATUS_LABEL[s.status]}
+            </li>
+          ))}
         </ul>
         <p className={blocked.length === 0 ? 'gig-hint' : 'setup-song-problem'}>
           {blocked.length === 0
@@ -300,25 +324,81 @@ function StepSix({ readiness }: { readiness: GigReadiness }) {
                 .join(', ')}.`}
         </p>
       </section>
+
       <RigChecklist testId="setup-rig-6" />
-      <p className="gig-hint" data-testid="setup-confirmation-derived">
-        {done
-          ? 'Setup is complete: every check above passes.'
-          : 'Setup is not complete yet — the steps above say what is left.'}{' '}
-        Recording that you confirmed it, against what, and noticing when that stops being true, is
-        what this screen gains next.
+
+      {confirmation === null ? (
+        <p className="gig-hint" data-testid="setup-confirmation-state">
+          Setup has not been confirmed for this gig. Arming warns about that; it does not refuse.
+        </p>
+      ) : confirmation.stale ? (
+        <div className="setup-lapsed" data-testid="setup-confirmation-lapsed">
+          <p>
+            Setup was confirmed on {confirmation.confirmedAt}, and has <strong>lapsed</strong>:
+          </p>
+          <ul>
+            {confirmation.moved.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="gig-hint" data-testid="setup-confirmation-state">
+          Setup was confirmed on {confirmation.confirmedAt}, and everything it was confirmed against
+          is still as it was.
+        </p>
+      )}
+
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn ctrl-setup-link"
+          data-testid="setup-confirm"
+          disabled={busy || !checksPass}
+          title={checksPass ? undefined : 'The checks above have to pass first.'}
+          onClick={onConfirm}
+        >
+          {confirmation === null ? 'Confirm setup' : 'Confirm setup again'}
+        </button>
+        <button
+          type="button"
+          className="ctrl-btn ctrl-setup-link"
+          data-testid="setup-review"
+          disabled={busy}
+          onClick={onReview}
+        >
+          Review setup
+        </button>
+      </div>
+      <p className="gig-hint">
+        Confirming records that these checks passed and what they passed against — the song files,
+        the room, the displays. It never records a matrix, a layout or a pixel size, and it blocks
+        nothing. <strong>Review setup</strong> goes back to step 2 with everything as it is; nothing
+        is ever retyped, and re-entering re-checks the files.
       </p>
     </div>
   )
 }
 
-function StepBody({ step, readiness }: { step: number; readiness: GigReadiness }) {
+function StepBody({
+  step,
+  readiness,
+  onConfirm,
+  onReview,
+  busy,
+}: {
+  step: number
+  readiness: GigReadiness
+  onConfirm: () => void
+  onReview: () => void
+  busy: boolean
+}) {
   if (step === 1) return <StepOne />
   if (step === 2) return <StepTwo readiness={readiness} />
   if (step === 3) return <StepThree />
   if (step === 4) return <StepFour songs={readiness.songs} />
   if (step === 5) return <StepFive />
-  return <StepSix readiness={readiness} />
+  return <StepSix readiness={readiness} onConfirm={onConfirm} onReview={onReview} busy={busy} />
 }
 
 export function GigView() {
@@ -341,6 +421,20 @@ export function GigView() {
   const run = (action: () => Promise<unknown>) => () => {
     setBusy(true)
     void action().finally(() => setBusy(false))
+  }
+
+  /**
+   * **Review setup returns to step 2, not step 1.** Song preparation is gig-independent, so
+   * re-entering a gig's setup starts at the gig.
+   *
+   * Nothing is retyped, because nothing was typed into the flow in the first place: every step is
+   * derived from the files, so "prefilled" is what it always is. **Re-entering re-checks**, which
+   * is the same on-open re-read the rest of the app does — no watcher, and no boundary to police.
+   */
+  const reviewSetup = () => {
+    setSelected(2)
+    setBusy(true)
+    void refreshGigReadiness().finally(() => setBusy(false))
   }
 
   const canReachFolder = hasGigFolderAccess()
@@ -483,7 +577,13 @@ export function GigView() {
           </h2>
           <p className="gig-hint">{step.purpose}</p>
 
-          <StepBody step={step.step} readiness={readiness} />
+          <StepBody
+            step={step.step}
+            readiness={readiness}
+            busy={busy}
+            onConfirm={run(confirmSetup)}
+            onReview={reviewSetup}
+          />
 
           {step.escapeHatch !== null && (
             <p className="setup-escape-hatch" data-testid="setup-escape-hatch">

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, screen } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const { WebSocketServer } = require('ws')
@@ -6,6 +6,7 @@ const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
 const { readSongFile } = require('./readSongFile.cjs')
 const { readGigFolder, writeGigFile, writeDebriefFile } = require('./gigFolder.cjs')
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
+const { describeDisplays } = require('./displays.cjs')
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -251,6 +252,10 @@ ipcMain.handle('gig:writeDebrief', (_event, folderPath, text) => writeDebriefFil
 ipcMain.handle('song:validateForPerformance', (_event, songPath) =>
   validateSongForPerformance(songPath)
 )
+
+// What displays this machine has. Read-only: the setup confirmation fingerprints it so it can
+// notice the projector was unplugged, and nothing renders from it.
+ipcMain.handle('display:describe', () => describeDisplays(screen))
 
 ipcMain.handle('fs:getFileStats', (_event, filePath) => {
   try {
