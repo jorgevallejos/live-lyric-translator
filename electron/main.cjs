@@ -10,6 +10,7 @@ const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
+const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -109,6 +110,50 @@ function requestProjectionWindowClose(win) {
   })
 }
 
+/**
+ * Where the projection window last went, and why. Read by the renderer so the fallback is visible.
+ *
+ * **Not remembered across launches, and never fed back into a render.** The output size is a
+ * parameter passed on every render (`docs/warp-contract.md`, caller obligation 1); this is a
+ * sentence for a screen, nothing more.
+ */
+let lastProjectorPlacement = { placed: false, reason: null, display: null }
+
+/**
+ * **Puts the projection window on the projector, by itself.**
+ *
+ * The projector is the display that is not the laptop's own, and placing the window there removes
+ * the drag-it-across step — the last manual thing between arming and the wall.
+ *
+ * **The fallback is visible.** With one display the window opens exactly as it did before, and the
+ * app says so: a projection window that quietly stayed on the laptop is discovered by looking at a
+ * blank wall.
+ */
+function projectorBounds() {
+  const chosen = chooseProjectorDisplay(describeDisplays(screen))
+  if (chosen.display === null) {
+    lastProjectorPlacement = { placed: false, reason: chosen.reason, display: null }
+    return null
+  }
+  // The real display object, for its bounds: `describeDisplays` reduces a display to what
+  // identifies it, which is deliberately not enough to position a window with.
+  const match = screen.getAllDisplays().find((d) => String(d.id) === chosen.display.id)
+  if (!match) {
+    lastProjectorPlacement = {
+      placed: false,
+      reason: 'The display chosen for the projector went away before the window opened.',
+      display: null,
+    }
+    return null
+  }
+  lastProjectorPlacement = {
+    placed: true,
+    reason: null,
+    display: `${chosen.display.width}x${chosen.display.height}`,
+  }
+  return match.bounds
+}
+
 function createProjectionWindow(loadWindow) {
   const existing = getOpenProjectionWindow()
   if (existing) {
@@ -117,7 +162,13 @@ function createProjectionWindow(loadWindow) {
     return existing
   }
 
+  const bounds = projectorBounds()
+
   const win = new BrowserWindow({
+    // Positioned on the projector *before* going fullscreen: a window made fullscreen on one
+    // display and then moved is a display change the renderer has to survive, and there is no
+    // reason to create one when the window can simply be born in the right place.
+    ...(bounds ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } : {}),
     fullscreen: true,
     title: 'Projection',
     webPreferences: {
@@ -292,6 +343,9 @@ ipcMain.handle('projection:open', () => {
     loadProjectionUrl(projectionWin)
   })
 })
+
+/** Where the projection window went, and why — so a one-display fallback is said rather than seen. */
+ipcMain.handle('projection:placement', () => lastProjectorPlacement)
 
 ipcMain.handle('projection:isOpen', () => {
   return projectionWindow != null && !projectionWindow.isDestroyed()

@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openProjection: () => ipcRenderer.invoke('projection:open'),
   closeProjection: () => ipcRenderer.invoke('projection:close'),
   isProjectionOpen: () => ipcRenderer.invoke('projection:isOpen'),
+  /** Where the projection window went, and why. The one-display fallback is visible, not silent. */
+  projectionPlacement: () => ipcRenderer.invoke('projection:placement'),
   onProjectionOpened: (callback) => {
     const handler = () => callback()
     ipcRenderer.on('projection-opened', handler)

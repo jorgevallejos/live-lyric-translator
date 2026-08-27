@@ -96,6 +96,7 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/bombistaRun.cjs`: One Bombista subcommand, as a subprocess. A fixed allow-list of subcommands, and a missing binary is `skipped` (has its own tests)
 - `electron/bombistaServe.cjs`: Starts `bombista serve` and reads the address it prints (has its own tests)
 - `electron/localhostServer.cjs`: A loopback static server for Muralista's page. Mounts a folder per tool; a request that would leave its mount is refused, not followed (has its own tests)
+- `electron/projectorDisplay.cjs`: Which display the projection window belongs on — the one that is not the laptop's own. **The one-display fallback is visible, never silent** (has its own tests)
 - `dialog:openFolder` is the picker for any folder this machine remembers — the songs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
 
 ### Where this machine keeps things: the songs folder and the media folder
@@ -434,12 +435,35 @@ link are set, and where a name with nothing behind it is visible instead of sile
 **Paint order is the shape list's order** — later is on top. That is Muralista's rule and the only
 place the z-order is authored; grouping by type when rendering would silently reorder the wall.
 
-**One thing here is a second implementation and is known to be one.** `shapeTextLayout.ts` repeats
-the text-layout rules Muralista also implements — the quad-stretch correction and the `maxSize` /
-`aspect` / `align` / `colour` / outline fields — because legibility is tuned at the wall against
-Muralista's dummy line and that tuning only reaches the audience if the real line is laid out the
-same way. The clean answer is the one round B2 took for the warp: a small pure module exported from
-Muralista and vendored. Until then, a change to either side's text layout has to be made on both.
+### Muralista sets the boundary; Pregonero renders inside it
+
+**Jorge, 2026-08-27, and it replaced a proposed extraction round.** `shapeTextLayout.ts` looked like
+a second implementation of Muralista's text layout. **It is not debt, because the relationship is not
+replication:**
+
+> **Muralista tunes against the worst case and emits a boundary. Pregonero renders the real lyrics
+> inside that boundary.**
+
+Muralista never reads song content. It previews with a deliberately nasty dummy line and writes down
+a `maxSize` that is safe; Pregonero executes within those guidelines. Two jobs sharing a boundary,
+not one computation done twice.
+
+**What must agree is narrow: the meaning of a size fraction, and the quad-stretch correction.** Those
+two are asserted against Muralista's own numbers over a set of known quads in
+`muralistaTextContract.test.ts` — **a test, deliberately, and not an extracted module.** A failure
+there means the two have drifted, and the fix goes into whichever one moved away from the written
+rule.
+
+**When a real line beats the boundary anyway, it shrinks — it never spills.** Muralista's v1 scope is
+that text cannot overflow, so a smaller line is the only answer available. `fitInBox` returns the
+maximum untouched for every line that fits, so **the size is uniform across lines** and only the
+offending one moves: text jumping size line to line on a wall is worse than text being smaller.
+
+**The dummy line is therefore load-bearing as the worst case**, and `worstCase.ts` is where that is
+checkable. **The real catalogue beats it**: 36 of 1088 lyric strings are harder than the stand-in,
+almost all on the longest-unbreakable-run axis — `ontdekkingsreiziger` is nineteen characters against
+the stand-in's eleven. **That is a Muralista finding**, not something to fix here; the answer is a
+nastier stand-in over there.
 
 ### The debrief
 
@@ -463,6 +487,22 @@ empty. Adding one is how this stops being fillable while packing up.
 
 "Never offered" and "dismissed" are different states — without that distinction the panel either
 never opens on its own or reopens after he has said Later.
+
+### The projection window goes on the projector
+
+`createProjectionWindow` is born on the projector's bounds and *then* goes fullscreen — a window made
+fullscreen on one display and moved afterwards is a display change the renderer has to survive, and
+there is no reason to create one. The projector is the display that is **not** the laptop's own.
+
+**The fallback is visible.** With one display the window opens exactly as it did before, and the
+control screen says so with the reason and *drag it across yourself*. A projection window that
+quietly stayed on the laptop is discovered by looking at a blank wall, at a venue, with people
+arriving.
+
+**Nothing is remembered.** The display is read at the moment the window opens and never stored: the
+output size is a parameter passed on every render (`docs/warp-contract.md`, caller obligation 1), and
+a remembered display would be the frozen-matrix bug with extra steps. `projection:placement` returns
+a sentence for a screen, and nothing renders from it.
 
 ### Routing
 
