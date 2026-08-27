@@ -14,8 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('projection-closed', handler)
     return () => ipcRenderer.removeListener('projection-closed', handler)
   },
-  /** Opens a native file-picker filtered to video files. Resolves to the chosen absolute path or null. */
-  openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
+  /** Native file-picker, filtered to `video` (default), `audio` or `json`. Absolute path, or null. */
+  openFileDialog: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
   /** Returns { exists, size } for the file at the given absolute path. */
   getFileStats: (filePath) => ipcRenderer.invoke('fs:getFileStats', filePath),
   /** Opens a native multi-select picker filtered to JSON. Resolves to absolute paths, [] if cancelled. */
@@ -33,6 +33,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
   /** Writes debrief.md into the gig folder. Pregonero writes it, then Jorge edits it. */
   writeDebriefFile: (folderPath, text) => ipcRenderer.invoke('gig:writeDebrief', folderPath, text),
+  /**
+   * Runs one Bombista subcommand. **A song file path, never a gig** — Bombista does not know
+   * Pregonero exists and does not know gigs exist.
+   */
+  runBombista: (subcommand, args) => ipcRenderer.invoke('bombista:run', subcommand, args),
+  /** Whether `bombista` answers on this machine, and what version. */
+  bombistaVersion: () => ipcRenderer.invoke('bombista:version'),
+  /** The directory `align` writes into for a song. Pregonero names it and never reaches into it. */
+  bombistaStagingDir: (songId) => ipcRenderer.invoke('bombista:stagingDir', songId),
+  /** Starts `bombista serve` and opens a window on the address it prints. */
+  openBombistaReview: (args) => ipcRenderer.invoke('bombista:review', args),
+  /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
+  openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
+  closeTool: (key) => ipcRenderer.invoke('tool:close', key),
+  isToolOpen: (key) => ipcRenderer.invoke('tool:isOpen', key),
   /** What displays this machine has. Read-only; the confirmation fingerprints it. */
   describeDisplays: () => ipcRenderer.invoke('display:describe'),
   /** Shells out to `bombista validate --for-performance`. Never fails closed. */
