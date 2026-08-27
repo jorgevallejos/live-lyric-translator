@@ -1,0 +1,9 @@
+{
+  "module": "mapper.js",
+  "owner": "muralista",
+  "path": "mapper/mapper.js",
+  "tag": "v1.6.0",
+  "sha256": "57b95c48fa95acd08a1ad181a6b8d8bcfefcd6811d901910ccd1148b34dc77c2",
+  "fixtures": ["LYRICS_PREVIEW_TEXT", "INTRO_PLACEHOLDER"],
+  "vendoredOn": "2026-08-27"
+}

@@ -1,28 +1,25 @@
+/**
+ * **Every expectation about the stand-ins is derived from the stand-ins.**
+ *
+ * The previous version of this file asserted `{ length: 91, longestWord: 11, hardRows: 2 }` and
+ * the exact text of the line, typed in by hand. Muralista replaced that line on 2026-08-27 and
+ * these tests **kept passing** — which is the worst outcome available, because green meant
+ * "Pregonero is checked against Muralista's boundary" and it was not. Nothing below hardcodes a
+ * number the fixture decides; the literals that remain are inputs to `difficultyOf`, which is
+ * Pregonero's own function and is what these tests are for.
+ */
 import { describe, it, expect } from 'vitest'
 import {
   difficultyOf,
-  DUMMY_DIFFICULTY,
-  harderThanDummy,
-  harderThanDummyWhy,
-  MURALISTA_DUMMY_LINE,
+  harderThanLyricsStandIn,
+  harderThanLyricsStandInWhy,
+  INTRO_STAND_IN_DIFFICULTY,
+  LYRICS_STAND_IN_DIFFICULTY,
+  MURALISTA_LYRICS_LINE,
 } from './worstCase'
 
-describe('Muralista’s stand-in as the worst case', () => {
-  it('is the line Muralista actually previews with, byte for byte', () => {
-    expect(MURALISTA_DUMMY_LINE).toBe(
-      '"Wat een lekkernij zul jij zijn," zucht hij,\nterwijl ik denk aan mijn vertrouwde modderplas.'
-    )
-  })
-
-  it('is two rows, 91 characters, and an 11-character longest run', () => {
-    expect(DUMMY_DIFFICULTY).toEqual({ length: 91, longestWord: 11, hardRows: 2 })
-  })
-
-  it('is not harder than itself', () => {
-    expect(harderThanDummy(MURALISTA_DUMMY_LINE)).toBe(false)
-    expect(harderThanDummyWhy(MURALISTA_DUMMY_LINE)).toEqual([])
-  })
-})
+/** A string of `n` characters with no space in it — harder than anything on two axes at once. */
+const run = (n: number) => 'x'.repeat(n)
 
 describe('what makes a line harder', () => {
   it('counts characters without the hard breaks themselves', () => {
@@ -43,39 +40,95 @@ describe('what makes a line harder', () => {
   })
 })
 
+describe('the lyrics stand-in, as Muralista currently emits it', () => {
+  it('is measured, not asserted: the numbers come from the vendored fixture', () => {
+    expect(LYRICS_STAND_IN_DIFFICULTY).toEqual(difficultyOf(MURALISTA_LYRICS_LINE))
+  })
+
+  it('is a real stand-in and not an empty string that would pass everything', () => {
+    // The one guard that has to be absolute: a fixture that failed to extract would arrive as ''
+    // and then no real line could ever be flagged, silently.
+    expect(MURALISTA_LYRICS_LINE.length).toBeGreaterThan(0)
+    expect(LYRICS_STAND_IN_DIFFICULTY.longestWord).toBeGreaterThan(0)
+  })
+
+  it('is not harder than itself', () => {
+    expect(harderThanLyricsStandIn(MURALISTA_LYRICS_LINE)).toBe(false)
+    expect(harderThanLyricsStandInWhy(MURALISTA_LYRICS_LINE)).toEqual([])
+  })
+})
+
 describe('a real line against the stand-in', () => {
-  it('passes an ordinary lyric line', () => {
-    expect(harderThanDummy('Libertad, que no se compra ni se vende.')).toBe(false)
+  it('passes a line the stand-in beats on every axis', () => {
+    const easy = 'ab '.repeat(3).trim()
+    expect(harderThanLyricsStandIn(easy)).toBe(false)
   })
 
   it('flags a longer line, and says by how much', () => {
-    const long = 'x'.repeat(120)
-    expect(harderThanDummy(long)).toBe(true)
-    expect(harderThanDummyWhy(long)[0]).toMatch(/120 characters against the stand-in's 91/)
+    const long = `${run(LYRICS_STAND_IN_DIFFICULTY.length)} ${run(2)}`
+    expect(harderThanLyricsStandIn(long)).toBe(true)
+    expect(harderThanLyricsStandInWhy(long)).toContain(
+      `${LYRICS_STAND_IN_DIFFICULTY.length + 3} characters against the stand-in's ` +
+        `${LYRICS_STAND_IN_DIFFICULTY.length}`
+    )
   })
 
   it('flags a longer unbreakable run even when the line itself is short', () => {
-    // The real one, from `quien-fuera.json`'s Dutch: nineteen characters against the stand-in's
-    // eleven, in a line the stand-in beats on every other axis.
-    expect(harderThanDummy('Was ik maar jouw ontdekkingsreiziger')).toBe(true)
-    expect(harderThanDummyWhy('Was ik maar jouw ontdekkingsreiziger')).toEqual([
-      "a 19-character unbreakable run against the stand-in's 11",
+    const word = run(LYRICS_STAND_IN_DIFFICULTY.longestWord + 1)
+    expect(difficultyOf(word).length).toBeLessThanOrEqual(LYRICS_STAND_IN_DIFFICULTY.length)
+    expect(harderThanLyricsStandIn(word)).toBe(true)
+    expect(harderThanLyricsStandInWhy(word)).toEqual([
+      `a ${LYRICS_STAND_IN_DIFFICULTY.longestWord + 1}-character unbreakable run against the ` +
+        `stand-in's ${LYRICS_STAND_IN_DIFFICULTY.longestWord}`,
     ])
   })
 
-  it('flags a third hard row, which the stand-in never had', () => {
-    // The real one, from `paso.json`'s English.
-    expect(harderThanDummy('You look at me, \nthinking \nof what may come.')).toBe(true)
-    expect(harderThanDummyWhy('You look at me, \nthinking \nof what may come.')).toEqual([
-      "3 hard rows against the stand-in's 2",
+  it('flags one more hard row than the stand-in arrives with', () => {
+    const rows = 'a\n'.repeat(LYRICS_STAND_IN_DIFFICULTY.hardRows) + 'a'
+    expect(harderThanLyricsStandIn(rows)).toBe(true)
+    expect(harderThanLyricsStandInWhy(rows)).toEqual([
+      `${LYRICS_STAND_IN_DIFFICULTY.hardRows + 1} hard rows against the stand-in's ` +
+        `${LYRICS_STAND_IN_DIFFICULTY.hardRows}`,
     ])
   })
 
   it('flags on any axis, not all of them — the boundary has to hold for every line', () => {
-    expect(harderThanDummy('a'.repeat(12))).toBe(true)
+    // Short overall, one word too long: the case that made 36 of 1088 catalogue lines beat the
+    // stand-in Muralista shipped before v1.5.0.
+    const onlyTheRun = run(LYRICS_STAND_IN_DIFFICULTY.longestWord + 1)
+    expect(difficultyOf(onlyTheRun).length).toBeLessThan(LYRICS_STAND_IN_DIFFICULTY.length)
+    expect(harderThanLyricsStandIn(onlyTheRun)).toBe(true)
   })
 
   it('names every axis a line beats it on, not only the first', () => {
-    expect(harderThanDummyWhy(`${'a'.repeat(100)}\nb\nc`)).toHaveLength(3)
+    const worst = `${run(LYRICS_STAND_IN_DIFFICULTY.length + 1)}\n${'b\n'.repeat(
+      LYRICS_STAND_IN_DIFFICULTY.hardRows
+    )}c`
+    expect(harderThanLyricsStandInWhy(worst)).toHaveLength(3)
+  })
+})
+
+describe('the intro stand-in, which is a different stand-in', () => {
+  it('has all three parts, and none of them is empty', () => {
+    for (const part of ['annotation', 'title', 'tagline'] as const) {
+      expect(INTRO_STAND_IN_DIFFICULTY[part].length).toBeGreaterThan(0)
+      expect(INTRO_STAND_IN_DIFFICULTY[part].longestWord).toBeGreaterThan(0)
+    }
+  })
+
+  it('does not move when the lyrics stand-in does, because they are independent', () => {
+    // Not a coincidence worth asserting loosely: `LYRICS_PREVIEW_TEXT` seeds a `song-lyrics` slot
+    // and `INTRO_PLACEHOLDER` is what the intro card paints. v1.5.0 replaced the first and left
+    // the second untouched, and a round measured the wrong one as a result.
+    expect(MURALISTA_LYRICS_LINE).not.toBe(INTRO_STAND_IN_DIFFICULTY.tagline)
+    expect(INTRO_STAND_IN_DIFFICULTY.tagline).not.toEqual(LYRICS_STAND_IN_DIFFICULTY)
+  })
+
+  it('arrives with no hard rows, because the intro card cannot paint one', () => {
+    // `.intro-tagline` has no `white-space: pre-line`, so a `\n` in any of the three renders as a
+    // space. A stand-in carrying one would be claiming a row the template does not honour.
+    for (const part of ['annotation', 'title', 'tagline'] as const) {
+      expect(INTRO_STAND_IN_DIFFICULTY[part].hardRows).toBe(1)
+    }
   })
 })
