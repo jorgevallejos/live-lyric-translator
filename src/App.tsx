@@ -21,7 +21,7 @@ import { resolveVideoCueIndex } from './videoCueLookup'
 import type { TimelineEntry, TimelineLeadIn } from './songState'
 import { setActiveProfileId } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
-import { getMediaPath } from './mediaPathStore'
+import { resolveMediaPath } from './mediaPathStore'
 import { VideoPerformancePanel } from './VideoPerformancePanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
@@ -66,6 +66,7 @@ import { addPlayedSong, getPlayedSongs, hasPlayedSong, isSetlistComplete } from 
 import { useGigReadiness } from './useGigReadiness'
 import { refreshGigReadiness } from './gigSession'
 import { GigView } from './GigView'
+import { FoldersView } from './FoldersView'
 import { isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import {
   getProjectionStatusText,
@@ -329,7 +330,7 @@ function ControlView() {
 
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
+  const resolvedVideoPath = isVideoMode ? resolveMediaPath(activeMedia!.src) : null
   const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
   // Effective display mode: stored value or default (small for video songs, none for non-video)
   const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
@@ -559,6 +560,10 @@ function ControlView() {
 
   const goToGig = () => {
     window.location.hash = '#/gig'
+  }
+
+  const goToFolders = () => {
+    window.location.hash = '#/folders'
   }
 
   const orderedSongs = getOrderedSongsForActiveSetlist()
@@ -1103,6 +1108,9 @@ function ControlView() {
                   <div className="control-setup-button-row">
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToGig}>
                       Gig
+                    </button>
+                    <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToFolders}>
+                      Folders
                     </button>
                   </div>
                 </div>
@@ -2007,7 +2015,7 @@ function ProjectionView() {
   // VIDEO MODE: the song's media, if this machine knows where it is.
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? getMediaPath(activeMedia!.src) : null
+  const resolvedVideoPath = isVideoMode ? resolveMediaPath(activeMedia!.src) : null
   // Respect the display mode broadcast: 'none' means lyrics only, 'small'/'big' means play it.
   const effectiveProjectionDisplayMode: DisplayMode = projectionDisplayMode ?? getDefaultDisplayMode(isVideoMode)
   const videoWanted = Boolean(isVideoMode && resolvedVideoPath && effectiveProjectionDisplayMode !== 'none')
@@ -2319,6 +2327,13 @@ function App({ initialHash }: { initialHash?: string } = {}) {
       <>
         <ConcertSessionTimerRunner />
         <GigView />
+      </>
+    )
+  if (hash === '#/folders')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <FoldersView />
       </>
     )
   if (hash === '#/songs')

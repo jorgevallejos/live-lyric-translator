@@ -19,9 +19,11 @@ const writeGigFile = vi.fn()
 const validateSongForPerformance = vi.fn()
 const fileExists = vi.fn()
 const chooseGigFolderPath = vi.fn()
+const readSongFileText = vi.fn()
 
 vi.mock('./platform', () => ({
   hasGigFolderAccess: () => true,
+  readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   chooseGigFolderPath: (...a: unknown[]) => chooseGigFolderPath(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
@@ -117,6 +119,20 @@ beforeEach(() => {
   writeGigFile.mockResolvedValue({ ok: true })
   validateSongForPerformance.mockResolvedValue({ status: 'skipped', reason: 'bombista is not on PATH' })
   fileExists.mockResolvedValue(true)
+  // Adopting `gig.json`'s running order re-reads any song it points somewhere new.
+  readSongFileText.mockImplementation((path: string) => {
+    const id = String(path).split('/').pop()!.replace(/\.json$/, '')
+    return Promise.resolve({
+      ok: true,
+      text: JSON.stringify({
+        title: id.charAt(0).toUpperCase() + id.slice(1),
+        lyrics: [
+          { es: 'Hola', en: 'Hello' },
+          { es: 'Mundo', en: 'World' },
+        ],
+      }),
+    })
+  })
   installLibrary([song('duelo', 'Duelo'), song('vidas', 'Vidas')])
 })
 

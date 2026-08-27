@@ -36,12 +36,14 @@ import {
   saveSetlistStore,
   setLibraryEntries,
   songIdFromPath,
+  songRefForChosenFile,
   syncLoadedSongSessionWithSnapshot,
   type LibraryEntry,
   type Setlist,
   type SetlistStoreSnapshot,
 } from './setlistStore'
-import { getMediaPath, setMediaPath, validateVideoForImport, type MediaValidationWarning } from './mediaPathStore'
+import { resolveMediaPath, setMediaPath, validateVideoForImport, type MediaValidationWarning } from './mediaPathStore'
+import { publishSetlistToGig } from './gigSession'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
@@ -376,7 +378,7 @@ export function ManageSetlistsView() {
     : libraryEntries
   const selectedSongIds = selectedSetlistEntries.map((e) => e.ref.id)
   const isVideoLocated = (entry: LibraryEntry) =>
-    entry.song?.media !== undefined && getMediaPath(entry.song.media.src) !== null
+    entry.song?.media !== undefined && resolveMediaPath(entry.song.media.src) !== null
 
   useEffect(() => {
     if (!renamingId) return
@@ -426,6 +428,11 @@ export function ManageSetlistsView() {
     }
     const priorActive = loadSetlistStore()?.activeSetlistId ?? ''
     saveSetlistStore(snapshot)
+    // **This is where `gig.json` is written.** Pregonero is its only writer, and the running
+    // order is authored here — so the write is an act, not a side effect of reading a folder. If
+    // the file's order had been edited outside the app, that is recorded and shown on the gig
+    // screen rather than replaced quietly.
+    void publishSetlistToGig()
     if (priorActive !== snapshot.activeSetlistId) {
       autoSelectFirstSongForActiveSetlist(snapshot)
     } else {
@@ -543,7 +550,7 @@ export function ManageSetlistsView() {
       let unreadable = 0
       const resolved: LibraryEntry[] = []
       for (const path of paths) {
-        const ref = { id: songIdFromPath(path), path }
+        const ref = songRefForChosenFile(path)
         const next = addSongRefToSnapshot(snapshot, ref)
         if (!next) {
           duplicates++

@@ -124,6 +124,36 @@ export function GigView() {
           </div>
         </section>
 
+        {readiness.adoption !== null && (
+          <section className="gig-adoption" data-testid="gig-adoption">
+            <h2 className="gig-section-title">The running order</h2>
+            {readiness.adoption.direction === 'adopted' ? (
+              <p>
+                <code>gig.json</code> states the running order, so it is the one this app performs.
+                {readiness.adoption.displaced.length > 0 && (
+                  <> The order held here before ({readiness.adoption.displaced.join(', ')}) was replaced.</>
+                )}
+              </p>
+            ) : (
+              <p>
+                The running order in <code>gig.json</code> had been changed outside Pregonero (
+                {readiness.adoption.displaced.join(', ')}) and has been replaced by the one edited
+                here.
+              </p>
+            )}
+            <p className="gig-now" data-testid="gig-adoption-now">
+              Now: {readiness.adoption.now.join(', ') || '(empty)'}
+            </p>
+            {readiness.adoption.unresolved.length > 0 && (
+              <p className="gig-hint" data-testid="gig-adoption-unresolved">
+                Named in the setlist with no file this machine knows:{' '}
+                {readiness.adoption.unresolved.join(', ')}. Point the songs folder at them, or give
+                each one a <code>file</code> in <code>gig.json</code>.
+              </p>
+            )}
+          </section>
+        )}
+
         {readiness.refusals.length > 0 && (
           <section className="gig-refusals" role="alert" data-testid="gig-refusals">
             <h2 className="gig-section-title">Refused</h2>

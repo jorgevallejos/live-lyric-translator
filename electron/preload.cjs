@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readSongFile: (filePath) => ipcRenderer.invoke('fs:readSongFile', filePath),
   /** Native directory picker for the gig folder. Resolves to an absolute path or null. */
   openGigFolderDialog: () => ipcRenderer.invoke('dialog:openGigFolder'),
+  /** Native directory picker for any folder this machine remembers. Absolute path, or null. */
+  openFolderDialog: (title) => ipcRenderer.invoke('dialog:openFolder', title),
   /** One read of the gig folder: gig.json and the file its visuals pointer names. */
   readGigFolder: (folderPath, visualsPointer) =>
     ipcRenderer.invoke('gig:read', folderPath, visualsPointer),
