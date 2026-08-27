@@ -138,10 +138,10 @@ reads it) and later `debrief.md`. The authoritative description of both files li
 **Given a gig folder, one function returns the delta: what is missing, per step and per song.**
 Everything that sounds like it needs its own notion of validity is a *rendering* of
 `computeGigReadiness`, and **nothing else in the app gets an opinion about what "ready" means.**
-Two of its four views ship today — the hard gate at arm time (`songReadyForGig` in
-`performanceControlStateMachine.ts`, plus the setlist screen) and the report when a gig is opened
-(`GigView.tsx`). The setup flow's per-step gating and the setup confirmation going stale are the
-other two, and they are the next round's.
+**Three of its four views ship today** — the hard gate at arm time (`songReadyForGig` in
+`performanceControlStateMachine.ts`, plus the setlist screen), the report when a gig is opened, and
+the setup flow's per-step gating (the last two both in `GigView.tsx`, over `setupFlow.ts`). The setup
+confirmation going stale is the fourth.
 
 Three rules that are easy to break and expensive to break:
 
@@ -187,6 +187,61 @@ exists. Whether a timeline is sane is Bombista's question, asked by shelling out
 a note, never as an arm block** — ten of the fourteen songs in `songs/` are performed from the
 pedal with no timeline at all, and a machine with no `bombista` on `PATH` must still be able to
 run a gig.
+
+### The setup flow: six ordered steps, and where the forward button greys
+
+`setupFlow.ts` is the guided path, and it is **pure rendering of the delta** — it decides nothing
+about readiness. The order, from `projects/tramoya-integration/project-context.md`:
+
+1. **The songs** — first, because songs are **gig-independent** and are often done days ahead. This
+   is the one step whose subject is the library rather than the gig, so it has a real verdict with no
+   gig open at all.
+2. **The gig**, with a setlist drawn from those songs. 3. **Gig visuals**, mapped at the wall.
+4. **Song visuals** — optional, deviating songs only. 5. **Readiness at the venue.** 6. **Setup
+   confirmed** — derived today; recording it is the next round's.
+
+**The block is on the guided path and nowhere else.** Pregonero greys a forward button. It never
+refuses to open, parse or display a half-built gig — the gig file exists from step 2 and being
+incomplete is its normal state, so a block that prevented loading would make a half-built gig
+impossible to finish. Every step stays readable, every song stays listed; only *moving on* is held.
+**Step 4 never holds the flow**, because a gig where no song deviates is fully set up having done
+nothing there.
+
+**The escape hatch is said out loud on every step that is not done**, naming the tool that owns the
+work — *or map the wall directly in Muralista and come back*. That is not a workaround being
+tolerated, it is what makes strict blocking affordable: each tool is fully usable on its own by
+requirement, so the blocked path is never the only path. **Pregonero owns the flow, not the
+capability.** Work done outside comes back through the on-open re-check, which is why **the current
+step is derived and never stored** — a "you got to step 4" flag would diverge the first time work
+happened elsewhere, and diverge silently.
+
+**Step 1's verdict is deliberately weak: the library holds a song that reads.** An unreadable
+reference and a `bombista` finding are `GigStep.notes` — work, not blockers. A step that could never
+complete while `libertad.json` sits in the library would be a guided path nobody could walk, and that
+file is kept in the library by design.
+
+**The rig is a checklist, not a data model** (`rigChecklist.ts`): four lines a person reads, shown at
+step 5 and again on the control screen immediately before Arm. Nothing is stored and none of it
+reaches `gig.json` — a hardware field rots the first time the gig is reused for another room.
+
+### Two doors on a song, and only two
+
+**Modify the song, and modify its visuals.** `SongDoors.tsx`, and a test counts the buttons, because
+counting them is the only way this rule survives. There is **no separate button to attach a timeline,
+link a video or set a tempo** — those are all *modify the song*, and they live in the tool that owns
+the song file. The rule is written down because it is the one that erodes a convenience button at a
+time: each looks harmless alone, and each moves the information architecture further from the
+ownership rule it exists to teach. **If a third door seems necessary, say so rather than adding one.**
+
+The manage-setlists screen's *Locate video…* camera button was one, and it is gone. Nothing was lost:
+the media folder resolves a name with nobody clicking, and the per-source link lives on `#/folders`,
+where every name the files ask for is listed rather than only a song's own declared media.
+
+**Step 0 is named, not hidden.** Behind the song door is the whole subflow — `new`, **a named gap
+where an LLM session writes the words, outside the suite**, align, review and tempo, `validate` —
+and the input rule that a song needs **lyrics and audio**, said at the entry so the missing input is
+visible before the work rather than after. Pregonero brackets that gap and explains it; **no tool in
+the suite gets a language model.**
 
 ### The projection paints into quads
 
