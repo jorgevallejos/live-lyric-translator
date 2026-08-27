@@ -345,6 +345,15 @@ Four rules that are cheap to break and expensive to have broken:
 - **A fix to the warp goes into Muralista and is re-vendored.** The tag in
   `src/vendor/warp.source.json` is what moves.
 
+**The same rule now covers Muralista's stand-ins.** `src/vendor/mapper.js` is Muralista's file byte
+for byte at the tag in `src/vendor/muralista-fixtures.source.json`, hashed by
+`src/muralistaFixtures.test.ts`, and `src/muralistaFixtures.ts` reads the two constants out of it.
+**There are two independent stand-ins** — `LYRICS_PREVIEW_TEXT`, which seeds a lyrics slot, and
+`INTRO_PLACEHOLDER`, the three strings the intro card paints — and replacing one does not move the
+other. This replaced a hand-copy of the first with its numbers hardcoded beside it, which went
+stale in a single day while every test stayed green. **Derive test expectations from the fixture;
+never type its numbers in.**
+
 **The room reaches the Projection window as a broadcast, not as a second read.** That window is
 created with no preload, so it has no `electronAPI`; the Control window reads the gig folder and
 writes what it read to `visualsBroadcast`. A value left from a previous launch is checked against

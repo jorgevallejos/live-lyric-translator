@@ -1,5 +1,5 @@
 /**
- * **Muralista's dummy line is the worst case, and that makes it load-bearing.**
+ * **Muralista's stand-ins are the worst case, and that makes them load-bearing.**
  *
  * The decision this file exists to serve (Jorge, 2026-08-27): *Muralista tunes against the worst
  * case and emits a boundary; Pregonero renders the real lyrics inside that boundary.* Muralista
@@ -8,23 +8,25 @@
  *
  * The relationship is **not replication**, which is why it is not debt. But it does rest on one
  * thing being true: **the stand-in has to actually be the worst case.** A real lyric line harder
- * than the dummy is a line Muralista never tuned against, and the boundary it wrote down is a
- * promise about a case it did not see.
+ * than it is a line Muralista never tuned against, and the boundary it wrote down is a promise
+ * about a case it did not see.
  *
- * So the dummy is reproduced here **verbatim**, and this module says whether a real line is worse
- * than it. **A line that is worse is a Muralista finding, not something to fix in Pregonero** —
- * the answer would be a nastier stand-in over there, not a workaround here.
- */
-
-/**
- * Muralista's `LYRICS_PREVIEW_TEXT`, byte for byte (`mapper.js`, the TEXT LAYER section).
+ * So this module says whether a real line is worse than it. **A line that is worse is a Muralista
+ * finding, not something to fix in Pregonero** — the answer would be a nastier stand-in over
+ * there, not a workaround here.
  *
- * Two lines, a hard break, quote marks, 89 characters. Deliberately nasty: legibility at a wall
- * from the back of a room is the top untested assumption in the whole design, and a short
- * stand-in makes the tuning feel finished while having tested nothing.
+ * **THE STAND-IN IS NOT WRITTEN DOWN HERE ANY MORE, AND THAT IS THE POINT.** It used to be, as a
+ * verbatim hand-copy with its three numbers hardcoded beside it. Muralista replaced it in `v1.5.0`
+ * on 2026-08-27 and every test in this repo stayed green — the copy went stale in a day and the
+ * tests reported confidence they did not have. It now comes from `muralistaFixtures.ts`, which
+ * reads Muralista's own file out of `src/vendor` at a recorded tag with a hash test on it.
+ * **Nothing below hardcodes a number the fixture decides.**
+ *
+ * **TOOLING ONLY — do not import this into the app.** It reaches the vendored source through
+ * `node:fs`. Nothing in the running app has ever needed it, and the day something does, the
+ * fixture has to arrive some other way.
  */
-export const MURALISTA_DUMMY_LINE =
-  '"Wat een lekkernij zul jij zijn," zucht hij,\nterwijl ik denk aan mijn vertrouwde modderplas.'
+import { MURALISTA_INTRO_STAND_IN, MURALISTA_LYRICS_STAND_IN } from './muralistaFixtures'
 
 /**
  * What makes one string harder to lay out than another, in the two ways the fit can fail.
@@ -56,38 +58,64 @@ export function difficultyOf(text: string): LineDifficulty {
   }
 }
 
-export const DUMMY_DIFFICULTY = difficultyOf(MURALISTA_DUMMY_LINE)
+/**
+ * Muralista's `LYRICS_PREVIEW_TEXT`, from the vendored copy.
+ *
+ * Re-exported under this name because *lyrics* is the half of the boundary Pregonero renders
+ * inside. The intro stand-in is the other one — see `INTRO_STAND_IN_DIFFICULTY`.
+ */
+export const MURALISTA_LYRICS_LINE: string = MURALISTA_LYRICS_STAND_IN
+
+/** The three numbers the lyrics boundary is tuned against. Derived, never typed in. */
+export const LYRICS_STAND_IN_DIFFICULTY = difficultyOf(MURALISTA_LYRICS_LINE)
 
 /**
- * Whether `text` is harder than the stand-in on **any** axis.
+ * The same three numbers for each part of the intro card.
+ *
+ * **The intro stand-in is independent of the lyrics one**, which is the fact whose absence let a
+ * round measure the wrong thing: replacing `LYRICS_PREVIEW_TEXT` in Muralista `v1.5.0` moved
+ * nothing here, and `INTRO_PLACEHOLDER` went un-measured until `v1.6.0`. The three parts are sized
+ * as multiples of one number the auto-fit searches over, so **whichever part binds first decides
+ * the block** — and on a narrow shape that is the title, not the tagline, because the tagline is
+ * 0.28 of the title and an unbreakable run therefore costs it 3.6 times less.
+ */
+export const INTRO_STAND_IN_DIFFICULTY = {
+  annotation: difficultyOf(MURALISTA_INTRO_STAND_IN.annotation),
+  title: difficultyOf(MURALISTA_INTRO_STAND_IN.title),
+  tagline: difficultyOf(MURALISTA_INTRO_STAND_IN.tagline),
+}
+
+/**
+ * Whether `text` is harder than the lyrics stand-in on **any** axis.
  *
  * Deliberately *any* rather than *all*: the boundary has to hold for every real line, so a line
- * that is shorter overall but carries a word the dummy never had is still a case Muralista did not
- * tune against.
+ * that is shorter overall but carries a word the stand-in never had is still a case Muralista did
+ * not tune against.
  */
-export function harderThanDummy(text: string): boolean {
+export function harderThanLyricsStandIn(text: string): boolean {
   const d = difficultyOf(text)
   return (
-    d.length > DUMMY_DIFFICULTY.length ||
-    d.longestWord > DUMMY_DIFFICULTY.longestWord ||
-    d.hardRows > DUMMY_DIFFICULTY.hardRows
+    d.length > LYRICS_STAND_IN_DIFFICULTY.length ||
+    d.longestWord > LYRICS_STAND_IN_DIFFICULTY.longestWord ||
+    d.hardRows > LYRICS_STAND_IN_DIFFICULTY.hardRows
   )
 }
 
 /** Which axes a line beats the stand-in on, in the words a report uses. Empty when it does not. */
-export function harderThanDummyWhy(text: string): string[] {
+export function harderThanLyricsStandInWhy(text: string): string[] {
   const d = difficultyOf(text)
   const why: string[] = []
-  if (d.length > DUMMY_DIFFICULTY.length) {
-    why.push(`${d.length} characters against the stand-in's ${DUMMY_DIFFICULTY.length}`)
+  if (d.length > LYRICS_STAND_IN_DIFFICULTY.length) {
+    why.push(`${d.length} characters against the stand-in's ${LYRICS_STAND_IN_DIFFICULTY.length}`)
   }
-  if (d.longestWord > DUMMY_DIFFICULTY.longestWord) {
+  if (d.longestWord > LYRICS_STAND_IN_DIFFICULTY.longestWord) {
     why.push(
-      `a ${d.longestWord}-character unbreakable run against the stand-in's ${DUMMY_DIFFICULTY.longestWord}`
+      `a ${d.longestWord}-character unbreakable run against the stand-in's ` +
+        `${LYRICS_STAND_IN_DIFFICULTY.longestWord}`
     )
   }
-  if (d.hardRows > DUMMY_DIFFICULTY.hardRows) {
-    why.push(`${d.hardRows} hard rows against the stand-in's ${DUMMY_DIFFICULTY.hardRows}`)
+  if (d.hardRows > LYRICS_STAND_IN_DIFFICULTY.hardRows) {
+    why.push(`${d.hardRows} hard rows against the stand-in's ${LYRICS_STAND_IN_DIFFICULTY.hardRows}`)
   }
   return why
 }
