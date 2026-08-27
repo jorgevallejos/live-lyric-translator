@@ -1,0 +1,158 @@
+/** @vitest-environment jsdom */
+/**
+ * The screen that closes round E4's hole: a static shape's image, a static video and a contact QR
+ * resolve through the same link table song media does, and the only way into that table was the
+ * song library's *Locate video…* button, which only ever offers a song's own declared media. So a
+ * `visuals.json` naming the logo resolved to nothing and the wall lost it, with nothing saying why.
+ */
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
+import type { LibrarySong } from './setlistStore'
+import { installLibrary } from './testSupport/library'
+
+const chooseFolderPath = vi.fn()
+const fileExists = vi.fn()
+
+vi.mock('./platform', () => ({
+  hasFolderPicker: () => true,
+  hasGigFolderAccess: () => true,
+  chooseFolderPath: (...a: unknown[]) => chooseFolderPath(...a),
+  fileExists: (...a: unknown[]) => fileExists(...a),
+  readGigFolder: vi.fn(),
+  writeGigFile: vi.fn(),
+  writeDebriefFile: vi.fn(),
+  chooseGigFolderPath: vi.fn(),
+  validateSongForPerformance: vi.fn(),
+  readSongFileText: vi.fn(),
+}))
+
+const { FoldersView } = await import('./FoldersView')
+const { getMediaFolder, getSongsFolder, setMediaFolder } = await import('./contentFolders')
+const { KEY_VISUALS_BROADCAST } = await import('./visualsBroadcast')
+const { GIG_FOLDER_KEY } = await import('./gigFolderStore')
+
+function createStorage(): Storage {
+  const store = new Map<string, string>()
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => { store.set(key, value) },
+    removeItem: (key: string) => { store.delete(key) },
+    clear: () => { store.clear() },
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() { return store.size },
+  }
+}
+
+beforeAll(() => {
+  if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localStorage.setItem !== 'function') {
+    vi.stubGlobal('localStorage', createStorage())
+  }
+})
+
+const FOLDER = '/gigs/2026-09-12-bar-eduard'
+
+function song(id: string, title: string, src?: string): LibrarySong {
+  return {
+    id,
+    title,
+    items: [{ languages: { es: 'línea' } }],
+    ...(src ? { media: { type: 'video', src } } : {}),
+  } as LibrarySong
+}
+
+/** A room with a logo, exactly the shape E4 left unresolvable. */
+function broadcastRoomWithLogo(): void {
+  localStorage.setItem(GIG_FOLDER_KEY, FOLDER)
+  localStorage.setItem(
+    KEY_VISUALS_BROADCAST,
+    JSON.stringify({
+      folderPath: FOLDER,
+      gigId: '2026-09-12-bar-eduard',
+      visuals: {
+        visualsVersion: 1,
+        gigId: '2026-09-12-bar-eduard',
+        shapes: [
+          { id: 'logo', name: 'Logo', layer: { type: 'image', src: 'chango-pepper-logo.png' } },
+        ],
+        songVisuals: { defaults: {}, songs: {} },
+      },
+    })
+  )
+}
+
+beforeEach(() => {
+  localStorage.clear()
+  vi.clearAllMocks()
+  fileExists.mockResolvedValue(true)
+  installLibrary([song('tragedia', 'Tragedia', 'tragedia.mp4')])
+})
+
+afterEach(cleanup)
+
+describe('the folders screen', () => {
+  it('shows both folders as unset to begin with', async () => {
+    render(<FoldersView />)
+    expect(screen.getByTestId('folders-songs-value').textContent).toContain('Not set')
+    expect(screen.getByTestId('folders-media-value').textContent).toContain('Not set')
+    await waitFor(() => expect(screen.getByTestId('folders-source-tragedia.mp4')).toBeTruthy())
+  })
+
+  it('remembers a chosen media folder', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/songs/video')
+    render(<FoldersView />)
+    await act(async () => {
+      screen.getByTestId('folders-media').querySelector('button')!.click()
+    })
+    await waitFor(() => expect(getMediaFolder()).toBe('/vault/songs/video'))
+    expect(screen.getByTestId('folders-media-value').textContent).toContain('/vault/songs/video')
+  })
+
+  it('remembers a chosen songs folder, separately', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/songs')
+    render(<FoldersView />)
+    await act(async () => {
+      screen.getByTestId('folders-songs').querySelector('button')!.click()
+    })
+    await waitFor(() => expect(getSongsFolder()).toBe('/vault/songs'))
+    expect(getMediaFolder()).toBeNull()
+  })
+
+  it('lists the logo the room names — the file that had no screen at all', async () => {
+    broadcastRoomWithLogo()
+    render(<FoldersView />)
+    await waitFor(() =>
+      expect(screen.getByTestId('folders-source-chango-pepper-logo.png')).toBeTruthy()
+    )
+    expect(
+      screen.getByTestId('folders-source-chango-pepper-logo.png').textContent
+    ).toContain('Logo — image shape')
+  })
+
+  it('says a name has nowhere to resolve from when no media folder is set', async () => {
+    broadcastRoomWithLogo()
+    render(<FoldersView />)
+    await waitFor(() =>
+      expect(screen.getByTestId('folders-status-chango-pepper-logo.png').textContent).toContain('No media folder, and no link')
+    )
+  })
+
+  it('says it found the logo once the media folder holds it', async () => {
+    broadcastRoomWithLogo()
+    setMediaFolder('/vault/assets')
+    render(<FoldersView />)
+    await waitFor(() =>
+      expect(screen.getByTestId('folders-status-chango-pepper-logo.png').textContent).toContain('Found in the media folder')
+    )
+    expect(fileExists).toHaveBeenCalledWith('/vault/assets/chango-pepper-logo.png')
+  })
+
+  it('says a name is not there when the folder does not hold it', async () => {
+    broadcastRoomWithLogo()
+    setMediaFolder('/vault/assets')
+    fileExists.mockResolvedValue(false)
+    render(<FoldersView />)
+    await waitFor(() =>
+      expect(screen.getByTestId('folders-status-chango-pepper-logo.png').textContent).toContain('Not there')
+    )
+  })
+})

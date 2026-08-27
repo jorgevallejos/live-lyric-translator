@@ -92,6 +92,39 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/gigFolder.cjs`: One read of the gig folder — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write. A pointer that would leave the gig folder is refused, not followed (has its own tests)
 - `electron/gigFolder.cjs` also writes `debrief.md` — whole on save, never merged: Pregonero writes it and then Jorge edits it
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary on `PATH` is `skipped` (has its own tests)
+- `dialog:openFolder` is the picker for any folder this machine remembers — the songs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
+
+### Where this machine keeps things: the songs folder and the media folder
+
+**A `src` in a file is a name, never a path** (`docs/media-assets.md`), and a configured folder is
+what turns that name into bytes. That is Muralista's model, adopted deliberately: it holds a
+directory handle because a page cannot hold a path, Pregonero has Electron and holds the path, and
+the rule either side of that difference is the same — **the files stay portable and the folder is a
+fact about this machine.**
+
+`src/contentFolders.ts` holds both, one `localStorage` key each. `resolveMediaPath` in
+`mediaPathStore.ts` is **the one answer to "where is the file called X"**: the per-source link
+first, the media folder second, null when this machine has no answer. Every renderer that needs
+bytes goes through it — `ShapeStatic`, `ShapeContact`'s QR, the video path in `App.tsx`, and the
+readiness function's media check.
+
+**This is what put the logo back on the wall.** A static shape's image, a static video and a
+contact QR all resolve the same way song media does, and the only way into the link table was the
+song library's *Locate video…* button, which only ever offers a song's own declared media. So a
+`visuals.json` naming `chango-pepper-logo.png` resolved to nothing, and nothing anywhere said why.
+`FoldersView` (`#/folders`) is both halves of the fix: the folder, and a list of every name the
+files currently ask for with what it resolves to — `src/mediaSources.ts` gathers that list, and it
+resolves nothing itself.
+
+**A source that does not arrive paints nothing**, whether the name does not resolve at all or the
+answer is a file that is not there (`ShapeStatic` drops the element on `onError`). A broken image on
+a wall says less than an empty shape does, and the fix is in the folder.
+
+**The songs folder is the same idea one level up.** A library reference added while it is set is
+stored by name, so the library survives the folder moving; `resolveSongPath` turns either form into
+a path. **Nothing migrates** — an absolute reference is returned untouched, and a bare name with no
+songs folder set is handed back unchanged, which is exactly what the app did before the setting
+existed.
 
 ### The gig, and the one readiness function
 
@@ -124,6 +157,29 @@ Three rules that are easy to break and expensive to break:
   `readiness.playableSongIds` and nothing else. A trailing song that cannot be played is never
   played, so a predicate reading the *authored* setlist would wait for it forever: the gig would
   never end. That is discovered at the end of a real night, not in CI.
+
+**`gig.json`'s `setlist` is the running order the app performs.** Round E1 wrote it one way — the
+app's setlist was dumped into the file on every read — so a running order edited by hand in the file
+was silently overwritten. It is the source now. Pregonero is still its **only writer**; what changed
+is which side of the read is authoritative:
+
+- **Reading a gig adopts the file's order** (`adoptSetlistFromGig`). The gig gets a setlist of its
+  own, id `gig-<gigId>`, so adopting never touches a setlist built by hand for something else, and
+  references the file names are added or repointed — compared **resolved**, so a reference held
+  relative to the songs folder and a `file` written relative to the gig folder are not mistaken for
+  a move.
+- **Writing happens when the running order is changed in Pregonero**, in `publishSetlistToGig`,
+  called from the setlist screen's commit. Reading never writes a setlist that is already there.
+- **A file with no `setlist` field at all** still gets the app's written in. That is the field
+  accreting for the first time, not an overwrite — `docs/gig-file.md`, "The file exists before it is
+  finished".
+- **Either direction displacing an order is announced**, never done quietly: `readiness.adoption`
+  carries what replaced what, and the gig screen says it. An id the file names that this machine
+  cannot turn into a song is named too, rather than vanishing from the setlist.
+
+`file` is **written** relative to the gig folder (`../../songs/libertad.json`) so the folder can be
+handed over on a stick; an absolute one is still read without complaint. `src/paths.ts` is the posix
+path arithmetic behind both.
 
 **Completeness, not correctness.** Pregonero checks that the pointer resolves, the files parse,
 every setlist song resolves to a shape for each type it needs, and the content those types require
@@ -240,10 +296,11 @@ the same pattern.
 new shape and the fallback for a layer this build does not recognise — so it is an authoring aid.
 One on a wall at a gig would be a bug that looks like a feature.
 
-A static `image` or `video` resolves its source through `mediaPathStore`, the same per-machine link
-table song media uses. **A source with no link on this machine paints nothing**, deliberately: a
-broken image on a wall says less than an empty shape does, and the fix is a link. Linking them is
-not yet reachable from the UI — that is setup-flow work.
+A static `image` or `video` resolves its source through `resolveMediaPath`, the same per-machine
+answer song media gets: the link table first, the configured media folder second. **A source that
+does not arrive paints nothing**, deliberately — a broken image on a wall says less than an empty
+shape does, and the fix is in the folder. `#/folders` is where both the folder and the per-source
+link are set, and where a name with nothing behind it is visible instead of silent.
 
 **Paint order is the shape list's order** — later is on top. That is Muralista's rule and the only
 place the z-order is authored; grouping by type when rendering would silently reorder the wall.
@@ -280,7 +337,7 @@ never opens on its own or reopens after he has said Later.
 
 ### Routing
 
-Hash-based: `#/control`, `#/projection`, `#/songs`, `#/gig`, `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
+Hash-based: `#/control`, `#/projection`, `#/songs`, `#/gig`, `#/folders`, `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
 
 ### The library is a cache, `songs/` is the source of truth
 
@@ -294,7 +351,9 @@ the one survivor and it is not song data — it records where *this machine* kee
 file already names, in `mediaPathStore`.
 
 **The id comes from the file name** (`songIdFromPath`: basename minus `.json`), so deleting a song
-from the library and adding the same file again restores the same song rather than a stranger.
+from the library and adding the same file again restores the same song rather than a stranger. A
+reference's `path` is absolute, or a name relative to the configured songs folder when there is one
+— see "Where this machine keeps things" above.
 
 **A reference whose file will not read stays in the library** as a visibly broken row naming the
 path. It is not a song the app can perform — `getLibrarySongs`, `getOrderedSongsForActiveSetlist`
@@ -306,8 +365,8 @@ so `parseSongFile` rejects it today.
 branch (Jorge, 2026-08-24). Those snapshots held copies whose only authority was themselves, so
 there is nothing in them worth reconciling against the files.
 
-**Reading a file is Electron-only**: `window.electronAPI.readSongFile` / `openSongFileDialog`, over
-IPC handlers in `main.cjs`. `ensureSongLibraryHydrated({ readSongFile })` takes the reader as an
+**Reading a file is Electron-only**, and goes through `platform.ts` like every other file this app
+touches: `readSongFileText` over the `fs:readSongFile` IPC handler. `ensureSongLibraryHydrated({ readSongFile })` takes the reader as an
 argument, which is the seam tests use (`src/testSupport/library.ts` installs references and a
 resolved cache together, exactly as hydration would).
 

@@ -230,6 +230,16 @@ ipcMain.handle('dialog:openGigFolder', async () => {
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
 
+// Any folder this machine is asked to remember — the songs root, the media folder. The gig
+// folder keeps its own handler because its picker offers to create one; these never do.
+ipcMain.handle('dialog:openFolder', async (_event, title) => {
+  const result = await dialog.showOpenDialog({
+    title: typeof title === 'string' && title ? title : 'Choose a folder',
+    properties: ['openDirectory'],
+  })
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+
 ipcMain.handle('gig:read', (_event, folderPath, visualsPointer) =>
   readGigFolder(folderPath, visualsPointer ? { visualsPointer } : {})
 )
