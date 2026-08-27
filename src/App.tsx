@@ -26,6 +26,7 @@ import { VideoPerformancePanel } from './VideoPerformancePanel'
 import { usePerformanceState } from './performanceState'
 import { useWebSocket } from './useWebSocket'
 import { useProjectionOpenState } from './useProjectionOpenState'
+import { useProjectionPlacement } from './useProjectionPlacement'
 import { useConcertSessionTimer } from './concertSessionState'
 import { useHoldToConfirm, useRestartKeyHold } from './useHoldToConfirm'
 import {
@@ -263,6 +264,8 @@ function ControlView() {
   const { projectionOpen, openProjection, closeProjection } = useProjectionOpenState(
     typeof window !== 'undefined' ? window.electronAPI : undefined
   )
+  // Re-read when the window opens: the projector can be plugged in between arriving and doors.
+  const placement = useProjectionPlacement(projectionOpen)
 
   const {
     lines,
@@ -1221,6 +1224,18 @@ function ControlView() {
                     <span className="control-setup-value">
                       {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
                     </span>
+                    {/* **The fallback is visible, never silent.** A projection window that quietly
+                        stayed on the laptop is otherwise discovered by looking at a blank wall. */}
+                    {projectionOpen && placement.placed && placement.display !== null && (
+                      <span className="control-setup-note" data-testid="projection-placement">
+                        On the second display, {placement.display}.
+                      </span>
+                    )}
+                    {projectionOpen && !placement.placed && placement.reason !== null && (
+                      <span className="control-setup-note" data-testid="projection-placement-fallback">
+                        {placement.reason} Drag it across yourself.
+                      </span>
+                    )}
                   </div>
                   <div className="control-setup-extras">
                     {isVideoMode && (

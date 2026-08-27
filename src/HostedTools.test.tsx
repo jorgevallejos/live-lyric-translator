@@ -24,6 +24,7 @@ const closeTool = vi.fn()
 let hosted = true
 
 vi.mock('./platform', () => ({
+  projectionPlacement: () => Promise.resolve({ placed: false, reason: null, display: null }),
   canRunBombista: () => hosted,
   canHostTools: () => hosted,
   runBombista: (...a: unknown[]) => runBombista(...a),
