@@ -153,6 +153,30 @@ Pulled forward from the general backlog because it was deadline-critical for the
   The pulse also runs at `performedBpm`, deriving from the same number so it cannot drift from the cues. Non-negotiables: **never overwrite `tempo.bpm`** (a fact about the recording the whole scale depends on) — a persisted performed tempo lives in its own key, `performedBpm`; **adjustable only while idle, frozen once armed** (changing it mid-song would jump the current line); **default `performedBpm == tempo.bpm`** (scale 1.0, byte-identical to today unless nudged); **a song with no `tempo` block gets no pulse and no scaling** — no invented fallback BPM.
 - **P10 (pulse audio) — considered and explicitly parked, 2026-08-14, Jorge's call.** The pulse is visual only (`BeatCircle`'s dot row; no `AudioContext`/oscillator/audio asset anywhere in `src/`) — P5's "click track" wording was loose, not a missing feature. An audible click is out of scope and not currently planned; kept as a record of the shape it would take if it ever is: a short WebAudio blip on `absoluteBeat` change, accented on `beatInBar === 1`, with an on/off control, and an open output-device question (laptop speaker is useless on stage; likely wants an in-ear/monitor path). It would inherit P5's phase behaviour for free.
 
+### Tramoya integration — what changed inside this repo (2026-08-26–27)
+
+The cross-tool contract and the setup-flow design belong to
+`projects/tramoya-integration/project-context.md` ("Pregonero owns what and when, Muralista owns
+how"; "One readiness function, four views"). Recorded here is what changed specifically inside
+Pregonero that the integration file does not carry.
+
+- **The gig became the unit of play.** `playedSongsState` changed from tracking one song to holding
+  an ordered list of performances, each with `startedAt`/`endedAt`. A request after the setlist ends
+  no longer restarts the running order.
+- **The gig is a folder with `gig.json` in it.** Projection paints into Muralista's mapped quads
+  instead of rendering one full frame, and typed shapes decide what appears where. `gig-contact`
+  replaced both the old end-card screen and the logo fallback, and the gig now ends in a prefilled
+  debrief rather than just stopping.
+- **The manage screen's "Locate video…" button is gone.** It was a third door onto a song's media,
+  made unnecessary once the setup flow's configured media folder resolves media by name instead.
+  `tragedia` is the only catalogue song with linked media, so it is the one song that actually
+  exercises this path.
+- **The logo was briefly off the wall.** Removing the old end-card/logo fallback (the same round
+  that introduced `gig-contact`) left nothing painting the logo for a stretch, until it was wired
+  through the same media-folder mechanism. Worth keeping as a lesson, in the same family as the
+  storage-event gotcha above: deleting a fallback path can silently delete the only thing painting
+  something, if the replacement isn't wired to the same source before the old path goes.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20
