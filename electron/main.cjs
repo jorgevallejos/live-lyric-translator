@@ -7,6 +7,9 @@ const { readSongFile } = require('./readSongFile.cjs')
 const { readGigFolder, writeGigFile, writeDebriefFile } = require('./gigFolder.cjs')
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
+const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
+const { createLocalhostServer } = require('./localhostServer.cjs')
+const { startBombistaServe } = require('./bombistaServe.cjs')
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -150,6 +153,101 @@ function createProjectionWindow(loadWindow) {
   return win
 }
 
+// ── Hosting the other two tools. **Packaging, not architecture.** ────────────────────────────
+//
+// Each tool stays fully usable without Pregonero — that is a requirement, and it is also the
+// escape hatch that makes the setup flow's strictness affordable. Nothing here passes data between
+// running processes: Muralista reads and writes files, Bombista is handed a path and returns an
+// exit code, and **the file is the only channel.**
+//
+// Served over `http://127.0.0.1`, never `file://`: Muralista's File System Access API needs a
+// secure context, and `file://` also hits the `webSecurity` block on media this repo already
+// solved once with `media://`.
+const toolServer = createLocalhostServer()
+const toolWindows = new Map()
+
+async function openToolWindow(key, folder, page, title) {
+  const existing = toolWindows.get(key)
+  if (existing && !existing.isDestroyed()) {
+    existing.focus()
+    return { ok: true, url: existing.__pregoneroUrl }
+  }
+  let port
+  try {
+    port = await toolServer.start()
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+  toolServer.mount(key, folder)
+  const url = `http://127.0.0.1:${port}/${key}/${page}`
+
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    title,
+    webPreferences: {
+      // No preload, and no Node. A hosted tool is a page in a window, not a peer with a bridge:
+      // giving it `electronAPI` would be the slide from "Pregonero launches a tool" to "they share
+      // state at runtime", which is exactly the shape the design rejected.
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  })
+  win.__pregoneroUrl = url
+  toolWindows.set(key, win)
+  win.on('closed', () => {
+    if (toolWindows.get(key) === win) toolWindows.delete(key)
+  })
+  await win.loadURL(url)
+  return { ok: true, url }
+}
+
+/**
+ * Opens a window on an address somebody else is serving — `bombista serve`'s.
+ *
+ * Same window model, no mount: the page is Bombista's, served by Bombista, and Pregonero only
+ * decides where the window is.
+ */
+async function openToolUrl(key, url, title) {
+  const existing = toolWindows.get(key)
+  if (existing && !existing.isDestroyed()) {
+    existing.focus()
+    return { ok: true, url: existing.__pregoneroUrl }
+  }
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    title,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  })
+  win.__pregoneroUrl = url
+  toolWindows.set(key, win)
+  win.on('closed', () => {
+    if (toolWindows.get(key) === win) toolWindows.delete(key)
+  })
+  await win.loadURL(url)
+  return { ok: true, url }
+}
+
+function closeToolWindow(key) {
+  const win = toolWindows.get(key)
+  if (win && !win.isDestroyed()) win.close()
+}
+
+// `bombista serve` runs for as long as its window is open. One at a time, stopped with the window.
+let bombistaServeChild = null
+
+function stopBombistaServe() {
+  if (bombistaServeChild) {
+    try {
+      bombistaServeChild.kill()
+    } catch {
+      /* already gone */
+    }
+    bombistaServeChild = null
+  }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     // Open at iPad Pro 13" (M4) landscape logical size. useContentSize makes these
@@ -203,10 +301,17 @@ ipcMain.handle('projection:close', () => {
   closeProjectionWindowIfOpen()
 })
 
-ipcMain.handle('dialog:openFile', async () => {
+const FILE_FILTERS = {
+  video: { name: 'Video files', extensions: ['mp4', 'mov', 'webm', 'm4v', 'mkv'] },
+  audio: { name: 'Audio files', extensions: ['m4a', 'mp3', 'wav', 'aif', 'aiff', 'flac', 'ogg'] },
+  json: { name: 'Song files', extensions: ['json'] },
+}
+
+ipcMain.handle('dialog:openFile', async (_event, kind) => {
+  const filter = FILE_FILTERS[kind] || FILE_FILTERS.video
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: 'Video files', extensions: ['mp4', 'mov', 'webm', 'm4v', 'mkv'] }],
+    filters: [filter],
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
@@ -257,6 +362,57 @@ ipcMain.handle('song:validateForPerformance', (_event, songPath) =>
 // notice the projector was unplugged, and nothing renders from it.
 ipcMain.handle('display:describe', () => describeDisplays(screen))
 
+// ── Bombista, and Muralista ───────────────────────────────────────────────────────────────────
+// **Pass a song file path, never a gig.** Bombista does not know Pregonero exists and does not
+// know gigs exist. Hosting its review page changes packaging, not knowledge.
+ipcMain.handle('bombista:run', (_event, subcommand, args) =>
+  runBombista(subcommand, Array.isArray(args) ? args : [])
+)
+
+ipcMain.handle('bombista:version', () => bombistaVersion())
+
+/** Where `align` writes. Pregonero names the directory and never reaches into it. */
+ipcMain.handle('bombista:stagingDir', (_event, songId) => {
+  const dir = path.join(app.getPath('userData'), 'bombista-staging', String(songId || 'song'))
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    return { ok: true, path: dir }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+})
+
+ipcMain.handle('tool:open', (_event, key, folder, page, title) =>
+  openToolWindow(String(key), String(folder), String(page), String(title || key))
+)
+
+/**
+ * Starts `bombista serve` and opens a window on the address it prints.
+ *
+ * **A subprocess and a window, and nothing else.** Bombista serves its own review page — which is
+ * why it is not hosted from Pregonero's server: the static `--emit html` page names its audio with
+ * a path relative to the staging directory, so serving it from anywhere else gives a review page
+ * that cannot play the two lines it exists to let you hear.
+ */
+ipcMain.handle('bombista:review', async (_event, args) => {
+  stopBombistaServe()
+  const started = await startBombistaServe(Array.isArray(args) ? args : [])
+  if (!started.ok) return { ok: false, error: started.error }
+  bombistaServeChild = started.child
+  const opened = await openToolUrl('bombista', started.url, 'Bombista — review')
+  return opened.ok ? { ok: true, url: started.url } : opened
+})
+
+ipcMain.handle('tool:close', (_event, key) => {
+  closeToolWindow(String(key))
+  if (String(key) === 'bombista') stopBombistaServe()
+})
+
+ipcMain.handle('tool:isOpen', (_event, key) => {
+  const win = toolWindows.get(String(key))
+  return win != null && !win.isDestroyed()
+})
+
 ipcMain.handle('fs:getFileStats', (_event, filePath) => {
   try {
     const stats = fs.statSync(filePath)
@@ -286,4 +442,5 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   requestProjectionWindowClose(openProjectionWindow)
 })
+app.on('before-quit', () => stopBombistaServe())
 app.on('window-all-closed', () => app.quit())

@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   getMediaFolder,
+  getMuralistaFolder,
   getSongsFolder,
   setMediaFolder,
+  setMuralistaFolder,
   setSongsFolder,
 } from './contentFolders'
 import { getMediaPath, resolveMediaPath, setMediaPath } from './mediaPathStore'
 import { collectMediaSources, type MediaSource } from './mediaSources'
 import { getLibraryEntries } from './setlistStore'
 import { useBroadcastVisuals } from './visualsBroadcast'
-import { chooseFolderPath, fileExists, hasFolderPicker } from './platform'
+import { bombistaVersion, chooseFolderPath, fileExists, hasFolderPicker } from './platform'
 import { refreshGigReadiness } from './gigSession'
 
 /**
@@ -77,6 +79,8 @@ export function FoldersView() {
   const visuals = useBroadcastVisuals()
   const [songsFolder, setSongsFolderState] = useState<string | null>(getSongsFolder)
   const [mediaFolder, setMediaFolderState] = useState<string | null>(getMediaFolder)
+  const [muralistaFolder, setMuralistaFolderState] = useState<string | null>(getMuralistaFolder)
+  const [bombista, setBombista] = useState<{ present: boolean; version: string | null } | null>(null)
   const [rows, setRows] = useState<Row[]>([])
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
@@ -106,6 +110,19 @@ export function FoldersView() {
     }
   }, [visuals, mediaFolder, tick])
 
+  // Whether the tools are reachable at all. **Absent is a degraded mode, never a failure**: each
+  // tool is fully usable on its own, so a missing one means the button is not there and the escape
+  // hatch is.
+  useEffect(() => {
+    let cancelled = false
+    void bombistaVersion().then((v) => {
+      if (!cancelled) setBombista(v)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [tick])
+
   const canPick = hasFolderPicker()
 
   const chooseSongs = () => {
@@ -130,6 +147,18 @@ export function FoldersView() {
         // Readiness counts a song's video as missing when the name does not resolve, so choosing
         // the folder can turn a blocked song into a ready one. Nothing else recomputes it.
         void refreshGigReadiness()
+      }
+      setBusy(false)
+    })()
+  }
+
+  const chooseMuralista = () => {
+    setBusy(true)
+    void (async () => {
+      const chosen = await chooseFolderPath('Choose Muralista’s mapper folder')
+      if (chosen) {
+        setMuralistaFolder(chosen)
+        setMuralistaFolderState(chosen)
       }
       setBusy(false)
     })()
@@ -204,6 +233,37 @@ export function FoldersView() {
               void refreshGigReadiness()
             }}
           />
+          <FolderRow
+            testId="folders-muralista"
+            label="Muralista"
+            hint="The folder holding mapper.html. Pregonero hosts that page in a window over localhost rather than carrying a copy — a copy would be a fork, and the room is Muralista’s."
+            value={muralistaFolder}
+            disabled={busy || !canPick}
+            onChoose={chooseMuralista}
+            onClear={() => {
+              setMuralistaFolder(null)
+              setMuralistaFolderState(null)
+            }}
+          />
+        </section>
+
+        <section className="folders-section">
+          <h2 className="gig-section-title">Tools on this machine</h2>
+          <div className="folders-row" data-testid="folders-bombista">
+            <span className="folders-row-label">Bombista</span>
+            <span className="folders-row-value" data-testid="folders-bombista-value">
+              {bombista === null
+                ? 'Checking…'
+                : bombista.present
+                  ? (bombista.version ?? 'On PATH')
+                  : 'Not on PATH'}
+            </span>
+            <p className="gig-hint">
+              A Python CLI you install yourself. Without it Pregonero still opens gigs, still arms
+              and still performs — a song simply carries no <code>bombista</code> verdict, which is a
+              missing check and not a failed one.
+            </p>
+          </div>
         </section>
 
         <section className="folders-section">

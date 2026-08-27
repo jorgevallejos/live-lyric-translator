@@ -93,6 +93,9 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/gigFolder.cjs` also writes `debrief.md` — whole on save, never merged: Pregonero writes it and then Jorge edits it
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary on `PATH` is `skipped` (has its own tests)
 - `electron/displays.cjs`: What displays this machine has, from Electron's `screen`. **Read-only, and a fingerprint to compare rather than a value to render from** — the setup confirmation uses it to notice the projector was unplugged (has its own tests)
+- `electron/bombistaRun.cjs`: One Bombista subcommand, as a subprocess. A fixed allow-list of subcommands, and a missing binary is `skipped` (has its own tests)
+- `electron/bombistaServe.cjs`: Starts `bombista serve` and reads the address it prints (has its own tests)
+- `electron/localhostServer.cjs`: A loopback static server for Muralista's page. Mounts a folder per tool; a request that would leave its mount is refused, not followed (has its own tests)
 - `dialog:openFolder` is the picker for any folder this machine remembers — the songs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
 
 ### Where this machine keeps things: the songs folder and the media folder
@@ -277,6 +280,42 @@ where an LLM session writes the words, outside the suite**, align, review and te
 and the input rule that a song needs **lyrics and audio**, said at the entry so the missing input is
 visible before the work rather than after. Pregonero brackets that gap and explains it; **no tool in
 the suite gets a language model.**
+
+### Hosting Bombista and Muralista
+
+**Packaging, not architecture.** Each tool stays fully usable without Pregonero — that is a
+requirement, and it is also the escape hatch that makes the setup flow's strictness affordable.
+**Nothing passes data between running processes; the file is the only channel.** A hosted page gets
+no preload and no `electronAPI`: giving it one would be the slide from *Pregonero launches a tool* to
+*they share state at runtime*, which is the shape the design rejected.
+
+**Muralista** is served from `electron/localhostServer.cjs` and opened in a `BrowserWindow`, over
+`http://127.0.0.1` and **never `file://`** — its File System Access API needs a secure context, and
+`file://` also hits the `webSecurity` block on media this repo already solved once with `media://`.
+Where Muralista lives is a per-machine setting like the folders, because Pregonero cannot guess it
+and **must not carry a copy**: a copy is a fork, and the room is Muralista's.
+
+**Bombista** is a subprocess (`bombistaRun.cjs`), on an allow-list of five subcommands, and **it is
+handed a song file path — never a gig.** It does not know Pregonero exists and does not know gigs
+exist; hosting its UI changes packaging, not knowledge. **If anything ever wants to hand it gig
+context, that is the boundary breaking**, and there is a test asserting no argument Pregonero passes
+mentions a gig, a setlist or visuals.
+
+**Its review page is served by Bombista, not by Pregonero** (`bombistaServe.cjs` → `bombista serve`,
+then a window on the address it prints). The reason is concrete: the static `--emit html` page names
+its audio with a path *relative to the staging directory*, so serving it from a mount rooted there
+gives a review page **with no audio** — and hearing the doubtful lines is the whole of what it is
+for. `bombista serve` has `/api/audio` precisely so the page needs no relative src, and it is where
+tempo editing lives.
+
+**Nothing here manages candidate files, temp files or swaps.** `bombista promote` merges a candidate
+home and `bombista/songfile.py`'s `back_up_and_replace` is *THE one song-write path*. Pregonero calls
+`promote` and shows what it printed; it names one working directory for `align` to write into and
+never reaches inside. **A file-replacement step in this repo would drift from the one that exists.**
+
+**"Pass control back" is courtesy, not architecture.** *Done* closes the window and re-checks — the
+reload would have happened anyway because the file changed. **If the bridge is absent the button is
+absent**, and the screen names the terminal or Chrome instead.
 
 ### The projection paints into quads
 

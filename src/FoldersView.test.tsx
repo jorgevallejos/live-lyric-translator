@@ -16,6 +16,15 @@ const fileExists = vi.fn()
 const describeDisplays = vi.fn()
 
 vi.mock('./platform', () => ({
+  canRunBombista: () => false,
+  canHostTools: () => false,
+  runBombista: vi.fn(),
+  bombistaVersion: () => Promise.resolve({ present: false, version: null }),
+  bombistaStagingDir: vi.fn(),
+  openTool: vi.fn(),
+  openBombistaReview: vi.fn(),
+  closeTool: vi.fn(),
+  chooseFilePath: vi.fn(),
   describeDisplays: (...a: unknown[]) => describeDisplays(...a),
   hasFolderPicker: () => true,
   hasGigFolderAccess: () => true,

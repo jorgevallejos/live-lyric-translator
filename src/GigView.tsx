@@ -5,12 +5,10 @@ import { hasGigFolderAccess } from './platform'
 import { useBroadcastVisuals } from './visualsBroadcast'
 import { shapeTypeOf, shapeIsVisible, type VisualShape } from './visualsFile'
 import { currentStep, flowSteps, type FlowStep } from './setupFlow'
-import {
-  SongDoors,
-  SONG_INPUT_RULE,
-  SONG_SUBFLOW,
-  type SongDoor,
-} from './SongDoors'
+import { SongDoors, SONG_INPUT_RULE, type SongDoor } from './SongDoors'
+import { SongSubflow } from './SongSubflow'
+import { MuralistaDoor } from './MuralistaDoor'
+import { resolveSongPath } from './contentFolders'
 import type { GigReadiness, SongReadiness, StepStatus } from './gigReadiness'
 import { getLibraryEntries } from './setlistStore'
 
@@ -78,8 +76,15 @@ function StepRow({
   )
 }
 
-/** What is behind a door today: the tool that owns the work, and what to run. */
-function DoorBody({ door }: { door: SongDoor }) {
+/**
+ * What is behind each door.
+ *
+ * **The song door is Bombista, the visuals door is Muralista**, and hosting them changes where the
+ * window is rather than who writes what. Neither passes data to a running process: Bombista is
+ * handed a file path and its exit code is read, Muralista writes `visuals.json` and Pregonero reads
+ * it on the next open. **The file is the only channel.**
+ */
+function DoorBody({ door, songId, songPath }: { door: SongDoor; songId: string; songPath: string | null }) {
   if (door === 'song') {
     return (
       <div data-testid="door-body-song">
@@ -87,39 +92,33 @@ function DoorBody({ door }: { door: SongDoor }) {
           Everything inside a song file is <strong>Bombista’s</strong> — the words, the timeline, the
           tempo, the media it names. Pregonero reads them and writes none of them.
         </p>
-        <p className="gig-hint">{SONG_INPUT_RULE}</p>
-        <ol className="song-subflow" data-testid="song-subflow">
-          {SONG_SUBFLOW.map((phase) => (
-            <li key={phase.name}>
-              <span className="song-subflow-name">{phase.name}</span>
-              <span className="song-subflow-detail">{phase.detail}</span>
-            </li>
-          ))}
-        </ol>
+        <SongSubflow songId={songId} songPath={songPath} />
       </div>
     )
   }
-  return (
-    <div data-testid="door-body-visuals">
-      <p className="gig-hint">
-        Where a song’s content lands on the wall is <strong>Muralista’s</strong>. A song reassigns —
-        it picks which existing shape of a kind it uses — and never holds its own geometry, because
-        re-mapping the room would leave it silently on the old position.
-      </p>
-      <p className="gig-hint">
-        If no shape fits, go back to step 3 and add one at gig level. Shapes stay at gig level; this
-        extends the set, it never gives a song a room of its own.
-      </p>
-    </div>
-  )
+  return <MuralistaDoor />
 }
 
-function SongRow({ songId, title, children }: { songId: string; title: string; children?: React.ReactNode }) {
+function SongRow({
+  songId,
+  title,
+  songPath,
+  children,
+}: {
+  songId: string
+  title: string
+  songPath: string | null
+  children?: React.ReactNode
+}) {
   return (
     <li className="setup-song" data-testid={`setup-song-${songId}`}>
       <span className="setup-song-title">{title}</span>
       {children}
-      <SongDoors songId={songId} title={title} renderDoor={(door) => <DoorBody door={door} />} />
+      <SongDoors
+        songId={songId}
+        title={title}
+        renderDoor={(door) => <DoorBody door={door} songId={songId} songPath={songPath} />}
+      />
     </li>
   )
 }
@@ -138,6 +137,7 @@ function StepOne() {
               key={entry.ref.id}
               songId={entry.ref.id}
               title={entry.song?.title ?? entry.ref.id}
+              songPath={resolveSongPath(entry.ref.path)}
             >
               {!entry.song && (
                 <span className="setup-song-problem">{entry.error ?? 'Will not read.'}</span>
@@ -210,6 +210,9 @@ function StepThree() {
 }
 
 function StepFour({ songs }: { songs: readonly SongReadiness[] }) {
+  // The setlist's own rows, so a song's door hands Bombista the file this machine actually reads.
+  const songPaths: Record<string, string> = {}
+  for (const entry of getLibraryEntries()) songPaths[entry.ref.id] = resolveSongPath(entry.ref.path)
   return (
     <div data-testid="setup-body-4">
       <p className="gig-hint">
@@ -222,7 +225,12 @@ function StepFour({ songs }: { songs: readonly SongReadiness[] }) {
       ) : (
         <ul className="setup-songs">
           {songs.map((song) => (
-            <SongRow key={song.songId} songId={song.songId} title={song.title}>
+            <SongRow
+              key={song.songId}
+              songId={song.songId}
+              title={song.title}
+              songPath={songPaths[song.songId] ?? null}
+            >
               {song.missing.length > 0 && (
                 <span className="setup-song-problem">{song.missing.join('; ')}</span>
               )}
