@@ -18,7 +18,10 @@ const validateSongForPerformance = vi.fn()
 const fileExists = vi.fn()
 const readSongFileText = vi.fn()
 
+const describeDisplays = vi.fn()
+
 vi.mock('./platform', () => ({
+  describeDisplays: (...a: unknown[]) => describeDisplays(...a),
   hasGigFolderAccess: () => true,
   hasFolderPicker: () => true,
   chooseFolderPath: vi.fn(),
@@ -114,6 +117,7 @@ beforeEach(() => {
   writeGigFile.mockResolvedValue({ ok: true })
   validateSongForPerformance.mockResolvedValue({ status: 'skipped', reason: 'bombista is not on PATH' })
   fileExists.mockResolvedValue(true)
+  describeDisplays.mockResolvedValue({ count: 1, displays: [], fingerprint: '1728x1117@2*' })
   readSongFileText.mockImplementation((path: string) => {
     const id = String(path).split('/').pop()!.replace(/\.json$/, '')
     return Promise.resolve({
@@ -373,15 +377,144 @@ describe('step 6 shows the evidence', () => {
     expect(screen.getByTestId('setup-rig-6')).toBeTruthy()
   })
 
-  it('says setup is complete only when everything before it is', async () => {
+  it('says setup is not confirmed until someone confirms it', async () => {
     readyGig()
     await renderSetup()
     await waitFor(
       () =>
-        expect(screen.getByTestId('setup-confirmation-derived').textContent).toMatch(
-          /Setup is complete/
+        expect(screen.getByTestId('setup-confirmation-state').textContent).toMatch(
+          /has not been confirmed/
         ),
       WAIT
     )
+  })
+})
+
+/**
+ * **The confirmation is a milestone, not a lock.** It blocks nothing, arming an unconfirmed gig
+ * warns rather than refuses, and the whole of its keep is that it can go stale and say what moved.
+ */
+describe('confirming setup', () => {
+  function readGigWithSetup(setup: unknown, songs = ['duelo', 'vidas']) {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({
+        gigPresent: true,
+        gigText: JSON.stringify({
+          gigVersion: 1,
+          id: GIG_ID,
+          date: '2026-09-12',
+          venue: { name: 'Bar Eduard', city: 'Ghent' },
+          visuals: './visuals.json',
+          songs: songs.map((id) => ({ id, title: id, file: `${id}.json` })),
+          setlist: songs,
+          ...(setup === undefined ? {} : { setup }),
+        }),
+        visualsPresent: true,
+        visualsText: visualsJson({ 'song-lyrics': ['lyr'] }),
+      })
+    )
+  }
+
+  it('confirms against evidence: the checks and the rig are above the button', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-body-6')).toBeTruthy(), WAIT)
+    const page = screen.getByTestId('setup-step-page')
+    const order = [...page.querySelectorAll('[data-testid]')].map((n) => n.getAttribute('data-testid'))
+    expect(order.indexOf('setup-evidence')).toBeLessThan(order.indexOf('setup-confirm'))
+    expect(order.indexOf('setup-rig-6')).toBeLessThan(order.indexOf('setup-confirm'))
+  })
+
+  it('writes the confirmation into gig.json, with what it was confirmed against', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-confirm')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-confirm'))
+    })
+    await waitFor(() => expect(writeGigFile).toHaveBeenCalled(), WAIT)
+    const calls = writeGigFile.mock.calls as [string, string][]
+    const written = JSON.parse(calls[calls.length - 1]![1]) as {
+      setup: { confirmedAt: string; against: { songs: Record<string, string>; visuals: string; display: string } }
+    }
+    expect(written.setup.confirmedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(Object.keys(written.setup.against.songs).sort()).toEqual(['duelo', 'vidas'])
+    expect(written.setup.against.visuals).toMatch(/^[0-9a-f]{8}$/)
+    expect(written.setup.against.display).toBe('1728x1117@2*')
+  })
+
+  it('records no matrix, no layout and no pixel size — the recipe, not the cake', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-confirm')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-confirm'))
+    })
+    await waitFor(() => expect(writeGigFile).toHaveBeenCalled(), WAIT)
+    const calls = writeGigFile.mock.calls as [string, string][]
+    const text = calls[calls.length - 1]![1]
+    for (const forbidden of ['matrix3d', 'corners', 'outline', 'fontSize', 'width', 'height']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('will not confirm while the checks above do not pass', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({ gigPresent: true, gigText: gigJson(['duelo', 'vidas']) })
+    )
+    await renderSetup()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /6\. Setup confirmed/ }))
+    })
+    expect((screen.getByTestId('setup-confirm') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('says the confirmation has lapsed, and which thing moved', async () => {
+    readGigWithSetup({
+      confirmedAt: '2026-09-12T19:04:11.000Z',
+      against: { songs: { duelo: 'deadbeef', vidas: 'deadbeef' }, visuals: 'deadbeef', display: 'a laptop' },
+    })
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-confirmation-lapsed')).toBeTruthy(), WAIT)
+    const text = screen.getByTestId('setup-confirmation-lapsed').textContent ?? ''
+    expect(text).toMatch(/lapsed/)
+    expect(text).toMatch(/displays have changed/)
+    expect(text).toMatch(/re-mapped/)
+  })
+
+  it('review setup goes back to step 2 and re-reads the folder', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-review')).toBeTruthy(), WAIT)
+    const before = readGigFolder.mock.calls.length
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-review'))
+    })
+    expect(screen.getByTestId('setup-step-title').textContent).toMatch(/2\. The gig/)
+    await waitFor(() => expect(readGigFolder.mock.calls.length).toBeGreaterThan(before), WAIT)
+  })
+})
+
+describe('arming an unconfirmed gig warns rather than refuses', () => {
+  it('says setup is not confirmed on the control screen, and leaves Arm alone', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({
+        gigPresent: true,
+        gigText: gigJson(['duelo', 'vidas']),
+        visualsPresent: true,
+        visualsText: visualsJson({ 'song-lyrics': ['lyr'] }),
+      })
+    )
+    await act(async () => {
+      render(<App initialHash="#/" />)
+    })
+    await waitFor(
+      () => expect(screen.getByTestId('arm-setup-warning').textContent).toMatch(/not been confirmed/),
+      WAIT
+    )
+    expect(screen.getByTestId('arm-setup-warning').textContent).toMatch(/warning, not a gate/)
   })
 })

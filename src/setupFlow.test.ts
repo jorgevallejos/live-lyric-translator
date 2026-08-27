@@ -25,6 +25,7 @@ function readiness(statuses: Record<number, StepStatus>, missing: Record<number,
     playableSongIds: [],
     refusals: [],
     validationSkipped: false,
+    confirmation: null,
     adoption: null,
   }
 }

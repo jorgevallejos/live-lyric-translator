@@ -21,7 +21,10 @@ const fileExists = vi.fn()
 const chooseGigFolderPath = vi.fn()
 const readSongFileText = vi.fn()
 
+const describeDisplays = vi.fn()
+
 vi.mock('./platform', () => ({
+  describeDisplays: (...a: unknown[]) => describeDisplays(...a),
   hasGigFolderAccess: () => true,
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   chooseGigFolderPath: (...a: unknown[]) => chooseGigFolderPath(...a),
@@ -119,6 +122,7 @@ beforeEach(() => {
   writeGigFile.mockResolvedValue({ ok: true })
   validateSongForPerformance.mockResolvedValue({ status: 'skipped', reason: 'bombista is not on PATH' })
   fileExists.mockResolvedValue(true)
+  describeDisplays.mockResolvedValue({ count: 1, displays: [], fingerprint: '1728x1117@2*' })
   // Adopting `gig.json`'s running order re-reads any song it points somewhere new.
   readSongFileText.mockImplementation((path: string) => {
     const id = String(path).split('/').pop()!.replace(/\.json$/, '')
@@ -348,7 +352,10 @@ describe('the hard gate at arm time', () => {
       () => expect(screen.getByTestId('control-gig-value').textContent).toBe(GIG_ID),
       { timeout: WAIT_TIMEOUT }
     )
-    expect(screen.getByTestId('control-gig-summary').textContent).toMatch(/every song can be armed/)
+    // The confirmation is a milestone, not a lock: an unconfirmed gig says so and arms anyway.
+    expect(screen.getByTestId('control-gig-summary').textContent).toMatch(
+      /Every song can be armed\. Setup is not confirmed\./
+    )
   })
 })
 

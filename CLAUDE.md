@@ -92,6 +92,7 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/gigFolder.cjs`: One read of the gig folder — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write. A pointer that would leave the gig folder is refused, not followed (has its own tests)
 - `electron/gigFolder.cjs` also writes `debrief.md` — whole on save, never merged: Pregonero writes it and then Jorge edits it
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary on `PATH` is `skipped` (has its own tests)
+- `electron/displays.cjs`: What displays this machine has, from Electron's `screen`. **Read-only, and a fingerprint to compare rather than a value to render from** — the setup confirmation uses it to notice the projector was unplugged (has its own tests)
 - `dialog:openFolder` is the picker for any folder this machine remembers — the songs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
 
 ### Where this machine keeps things: the songs folder and the media folder
@@ -138,10 +139,10 @@ reads it) and later `debrief.md`. The authoritative description of both files li
 **Given a gig folder, one function returns the delta: what is missing, per step and per song.**
 Everything that sounds like it needs its own notion of validity is a *rendering* of
 `computeGigReadiness`, and **nothing else in the app gets an opinion about what "ready" means.**
-**Three of its four views ship today** — the hard gate at arm time (`songReadyForGig` in
-`performanceControlStateMachine.ts`, plus the setlist screen), the report when a gig is opened, and
-the setup flow's per-step gating (the last two both in `GigView.tsx`, over `setupFlow.ts`). The setup
-confirmation going stale is the fourth.
+**All four views ship** — the hard gate at arm time (`songReadyForGig` in
+`performanceControlStateMachine.ts`, plus the setlist screen), the report when a gig is opened, the
+setup flow's per-step gating, and the setup confirmation going stale (the last three all in
+`GigView.tsx`, over `setupFlow.ts`).
 
 Three rules that are easy to break and expensive to break:
 
@@ -223,6 +224,40 @@ file is kept in the library by design.
 **The rig is a checklist, not a data model** (`rigChecklist.ts`): four lines a person reads, shown at
 step 5 and again on the control screen immediately before Arm. Nothing is stored and none of it
 reaches `gig.json` — a hardware field rots the first time the gig is reused for another room.
+
+### The setup confirmation: a milestone, not a lock
+
+**The one thing this app deliberately stores.** It lives in `gig.json`'s `setup` block and it
+**blocks nothing**: arming an unconfirmed or lapsed gig **warns** (`armWarnings`), it never refuses,
+and the hard gate stays per-song completeness, which is a different thing.
+
+**It records that the checks passed, and against what** — a fingerprint of each setlist song's file,
+of `visuals.json`, and of the display configuration (`fingerprint.ts`, `electron/displays.cjs`).
+Those exist for exactly one purpose: **noticing that one of them moved.** They are compared and never
+read back.
+
+**It must be able to go stale, and that is the part that earns its keep.** Fix a song at the venue,
+re-map the room, unplug the projector, and the confirmation **visibly lapses and says which thing
+moved**. A confirmation that could not lapse would hand out peace of mind that is no longer true,
+which is the exact opposite of what it is for. A lapse is **not** a refusal: nothing lands in
+`refusals`, no step goes `broken`, and every song stays armable.
+
+**Save the recipe, not the cake.** No warp matrix, no layout and no pixel size is ever recorded —
+there is a test asserting the written file contains none of those strings. Setting up at the venue
+with the projector attached does not change this: the window can still move, the display can still
+change, and `docs/warp-contract.md` is binding regardless of when setup happened. The display
+fingerprint is a string to compare, never a size to render from.
+
+**"Review setup" returns to step 2, not step 1** — song preparation is gig-independent — and
+re-entering re-reads the folder. **Nothing is ever retyped**, because nothing is typed into the flow
+at all: every step is derived from the files, so "prefilled" is simply what it always is.
+
+**A damaged `setup` block reads as absent, not as a refusal.** The worst it can do is ask for the
+confirmation again, which is cheap; refusing to open the gig over it would be a lock.
+
+**The reload boundary is doors, and it is satisfied by re-reading on open.** There is **no file
+watcher** and none is coming: on-open is trivially not mid-song, with no watcher to build and no
+boundary to police.
 
 ### Two doors on a song, and only two
 
