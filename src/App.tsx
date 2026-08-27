@@ -66,6 +66,7 @@ import { addPlayedSong, getPlayedSongs, hasPlayedSong, isSetlistComplete } from 
 import { useGigReadiness } from './useGigReadiness'
 import { refreshGigReadiness } from './gigSession'
 import { GigView } from './GigView'
+import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
 import { isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import {
@@ -1107,7 +1108,7 @@ function ControlView() {
                 <div className="control-setup-buttons">
                   <div className="control-setup-button-row">
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToGig}>
-                      Gig
+                      Setup
                     </button>
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToFolders}>
                       Folders
@@ -1251,6 +1252,23 @@ function ControlView() {
                   <div className="control-setup-buttons">
                     <ProjectionButton isOpen={projectionOpen} onToggle={handleToggleProjection} />
                   </div>
+                </div>
+              )}
+              {controlState === 'SETUP' && (
+                <div className="control-setup-section" data-testid="control-rig">
+                  <span className="control-setup-label">Rig</span>
+                  <div className="control-setup-content">
+                    {/* Shown at step 5 and again here — the last moment before the room sees
+                        anything. Four lines to read, not a model of the room: nothing is stored
+                        and none of it reaches gig.json. */}
+                    <ul className="control-rig-list">
+                      {RIG_CHECKLIST.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="control-setup-extras" />
+                  <div className="control-setup-buttons" />
                 </div>
               )}
               <div className="control-setup-section">

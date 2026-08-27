@@ -42,7 +42,6 @@ import {
   type Setlist,
   type SetlistStoreSnapshot,
 } from './setlistStore'
-import { resolveMediaPath, setMediaPath, validateVideoForImport, type MediaValidationWarning } from './mediaPathStore'
 import { publishSetlistToGig } from './gigSession'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
@@ -120,61 +119,6 @@ function PencilIcon() {
   )
 }
 
-function VideoCameraIcon() {
-  return (
-    <svg
-      className="manage-setlists-icon-svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="2" y="7" width="15" height="10" rx="2" ry="2" />
-      <polygon points="17 9 22 6 22 18 17 15" />
-    </svg>
-  )
-}
-
-function mediaWarningText(w: MediaValidationWarning): string {
-  if (w === 'mov-or-prores') return 'Warning: ProRes/MOV files are not web-playable. Convert to MP4/H.264.'
-  return 'Warning: file is larger than 500 MB.'
-}
-
-/**
- * Points the app at the local copy of the video the **song file** names. It does not attach a
- * video to a song: `media.src` is the song's own field and is edited in the song file, not here.
- * Only the per-machine path is Pregonero's to remember (see `mediaPathStore`).
- */
-function VideoLocateButton({
-  onLocateVideo,
-  isLocated,
-  songTitle,
-  declaresMedia,
-}: {
-  onLocateVideo: () => void
-  isLocated: boolean
-  songTitle: string
-  declaresMedia: boolean
-}) {
-  if (!declaresMedia) return null
-  return (
-    <button
-      type="button"
-      className={`manage-setlists-action-btn manage-setlists-icon-btn${isLocated ? ' manage-setlists-icon-btn--linked' : ' manage-setlists-icon-btn--add'}`}
-      aria-label={`Locate video for ${songTitle}`}
-      onClick={onLocateVideo}
-    >
-      <VideoCameraIcon />
-      <span className="video-link-btn-badge" aria-hidden="true">{isLocated ? '✓' : '+'}</span>
-    </button>
-  )
-}
-
 /** The row for a reference whose file could not be read: the file is the fix, not the app. */
 function UnreadableNote({ entry }: { entry: LibraryEntry }) {
   return (
@@ -188,11 +132,9 @@ type SortableSongRowProps = {
   entry: LibraryEntry
   setlistName: string
   onRemove: () => void
-  onLocateVideo: () => void
-  isVideoLocated: boolean
 }
 
-function SortableSongRow({ entry, setlistName, onRemove, onLocateVideo, isVideoLocated }: SortableSongRowProps) {
+function SortableSongRow({ entry, setlistName, onRemove }: SortableSongRowProps) {
   const title = entryTitle(entry)
   const {
     attributes,
@@ -230,12 +172,6 @@ function SortableSongRow({ entry, setlistName, onRemove, onLocateVideo, isVideoL
       <span className="manage-setlists-song-title">{title}</span>
       {entry.song ? null : <UnreadableNote entry={entry} />}
       <div className="manage-setlists-song-actions">
-        <VideoLocateButton
-          onLocateVideo={onLocateVideo}
-          isLocated={isVideoLocated}
-          songTitle={title}
-          declaresMedia={!!entry.song?.media}
-        />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
@@ -253,11 +189,9 @@ type SortableSongsInSetlistProps = {
   setlistName: string
   entries: LibraryEntry[]
   onRemoveSong: (songId: string) => void
-  onLocateVideoSong: (songId: string) => void
-  isVideoLocated: (entry: LibraryEntry) => boolean
 }
 
-function SortableSongsInSetlist({ setlistName, entries, onRemoveSong, onLocateVideoSong, isVideoLocated }: SortableSongsInSetlistProps) {
+function SortableSongsInSetlist({ setlistName, entries, onRemoveSong }: SortableSongsInSetlistProps) {
   return (
     <ul className="manage-setlists-song-sublist" aria-label="Songs in setlist">
       {entries.map((entry) => (
@@ -266,8 +200,6 @@ function SortableSongsInSetlist({ setlistName, entries, onRemoveSong, onLocateVi
           entry={entry}
           setlistName={setlistName}
           onRemove={() => onRemoveSong(entry.ref.id)}
-          onLocateVideo={() => onLocateVideoSong(entry.ref.id)}
-          isVideoLocated={isVideoLocated(entry)}
         />
       ))}
     </ul>
@@ -280,23 +212,15 @@ type LibrarySongRowProps = {
   addDisabled: boolean
   addLabel: string
   onDelete: () => void
-  onLocateVideo: () => void
-  isVideoLocated: boolean
 }
 
-function LibrarySongRow({ entry, onAdd, addDisabled, addLabel, onDelete, onLocateVideo, isVideoLocated }: LibrarySongRowProps) {
+function LibrarySongRow({ entry, onAdd, addDisabled, addLabel, onDelete }: LibrarySongRowProps) {
   const title = entryTitle(entry)
   return (
     <li className={`manage-setlists-song-row${entry.song ? '' : ' manage-setlists-song-row--unreadable'}`}>
       <span className="manage-setlists-song-title">{title}</span>
       {entry.song ? null : <UnreadableNote entry={entry} />}
       <div className="manage-setlists-song-actions">
-        <VideoLocateButton
-          onLocateVideo={onLocateVideo}
-          isLocated={isVideoLocated}
-          songTitle={title}
-          declaresMedia={!!entry.song?.media}
-        />
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
@@ -377,8 +301,6 @@ export function ManageSetlistsView() {
     ? libraryEntries.filter((e) => !selectedSetlistSongIds.has(e.ref.id))
     : libraryEntries
   const selectedSongIds = selectedSetlistEntries.map((e) => e.ref.id)
-  const isVideoLocated = (entry: LibraryEntry) =>
-    entry.song?.media !== undefined && resolveMediaPath(entry.song.media.src) !== null
 
   useEffect(() => {
     if (!renamingId) return
@@ -575,27 +497,6 @@ export function ManageSetlistsView() {
     refresh()
   }
 
-  /**
-   * Records where this machine keeps the video the **song file** names. `media.src` belongs to
-   * the song file and is not written here; only the local path is Pregonero's to remember.
-   */
-  const handleLocateVideo = (songId: string) => {
-    const api = window.electronAPI
-    if (!api) return
-    const declared = getLibraryEntries().find((e) => e.ref.id === songId)?.song?.media
-    if (!declared) return
-    void (async () => {
-      const chosen = await api.openFileDialog()
-      if (!chosen) return
-      const warnings = validateVideoForImport(chosen)
-      if (warnings.length) {
-        window.alert(warnings.map(mediaWarningText).join('\n'))
-      }
-      setMediaPath(declared.src, chosen)
-      refresh()
-    })()
-  }
-
   const handleReorderInSetlist = (setlistId: string, oldIndex: number, newIndex: number) => {
     setDraft((d) => reorderSongsInSetlistInSnapshot(d, setlistId, oldIndex, newIndex) ?? d)
     refresh()
@@ -724,8 +625,6 @@ export function ManageSetlistsView() {
                     setlistName={selectedSetlist.name}
                     entries={selectedSetlistEntries}
                     onRemoveSong={(songId) => handleRemoveSong(selectedSetlist.id, songId)}
-                    onLocateVideoSong={handleLocateVideo}
-                    isVideoLocated={isVideoLocated}
                   />
                 </SortableContext>
               )}
@@ -768,8 +667,6 @@ export function ManageSetlistsView() {
                             : `Add ${title} to selected setlist`
                         }
                         onDelete={() => handleDeleteSongFromLibrary(entry.ref.id)}
-                        onLocateVideo={() => handleLocateVideo(entry.ref.id)}
-                        isVideoLocated={isVideoLocated(entry)}
                       />
                     )
                   })
