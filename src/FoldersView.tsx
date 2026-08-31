@@ -279,7 +279,9 @@ export function FoldersView() {
             {bombistaWhere !== null && (
               <p className="folders-source-path" data-testid="folders-bombista-where">
                 {bombistaWhere.source === 'unresolved'
-                  ? `Not found. Looked in: ${bombistaWhere.searched.join(', ')}`
+                  ? bombistaWhere.searched.length === 0
+                    ? 'Not checked — this only runs in the desktop app.'
+                    : `Not found. Looked in: ${bombistaWhere.searched.join(', ')}`
                   : `${bombistaWhere.command} (${
                       bombistaWhere.source === 'configured'
                         ? 'set below'

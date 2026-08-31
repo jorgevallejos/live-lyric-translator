@@ -2886,11 +2886,22 @@ html, body, #root {
    columns hold their width and the page scrolls, which is why there is no fold, no max-height and
    no "show more" anywhere below. If this screen ever needs one, the requirement changed and the
    change should be argued rather than absorbed. */
-.setup-home-body {
+.songs-screen.setup-home-screen .songs-body.setup-home-body {
+  /* The two-class-per-element selector is not decoration: `.songs-screen:not(.languages-screen)
+     .songs-body` above declares a `repeat(auto-fit, minmax(220px, 1fr))` song-button grid with
+     `justify-items: center`, and it outranks a single class. Manage-setlists escapes it the same
+     way, and this follows that precedent rather than inventing a second one. Everything it sets
+     that would leak into a two-column reading list is reset here explicitly. */
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2em;
   align-items: start;
+  justify-items: stretch;
+  max-width: none;
+  margin: 0;
+  padding: 2em;
+  row-gap: 2em;
+  column-gap: 2em;
 }
 
 .setup-home-column {
@@ -2961,6 +2972,17 @@ html, body, #root {
   flex-wrap: wrap;
 }
 
+/* `.ctrl-setup-link` is `width: 100%`, which is right in a control-view column one button wide and
+   wrong here: three full-width buttons turn one gig into 200px of screen, and four gigs into the
+   wall this list exists to avoid. They size to their own labels and sit on one line. */
+.setup-home-row-actions .ctrl-btn.ctrl-setup-link,
+.setup-home-column-head .ctrl-btn.ctrl-setup-link {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  margin-top: 0;
+}
+
 .setup-home-row-body {
   padding-top: 0.5em;
 }
@@ -2998,10 +3020,20 @@ html, body, #root {
    Its own screen because linking a file used to be possible in exactly one place, the song
    library, which only ever offered a song's own declared media. A static shape's image and a
    contact QR had no way in at all. */
-.folders-body {
+.songs-screen .songs-body.folders-body {
+  /* Two classes, for the same reason Setup home needs them: `.songs-screen:not(.languages-screen)
+     .songs-body` declares the song-button grid and outranks a single class, so this screen was
+     being laid out in three centred auto-fit columns — a settings list reading as a card wall.
+     It has been that way since the screen was added and was easy to miss while it was somewhere
+     you rarely went; it is a destination now, reached from Setup home. */
   display: flex;
   flex-direction: column;
   gap: 1.6em;
+  align-items: stretch;
+  justify-items: stretch;
+  max-width: 46em;
+  margin: 0 auto;
+  padding: 2em;
 }
 
 .folders-section {
