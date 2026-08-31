@@ -11,7 +11,7 @@ import {
 } from './contentFolders'
 import { getMediaPath, resolveMediaPath, setMediaPath } from './mediaPathStore'
 import { collectMediaSources, type MediaSource } from './mediaSources'
-import { getLibraryEntries } from './setlistStore'
+import { ensureSongLibraryHydrated, getLibraryEntries } from './setlistStore'
 import { useBroadcastVisuals } from './visualsBroadcast'
 import {
   bombistaVersion,
@@ -146,6 +146,10 @@ export function FoldersView() {
       if (chosen) {
         setSongsFolder(chosen)
         setSongsFolderState(chosen)
+        // **The songs appear now, not on the next launch.** Hydration seeds a reference for every
+        // song file in the folder, and this is the moment the folder becomes known.
+        await ensureSongLibraryHydrated()
+        void refreshGigReadiness()
       }
       setBusy(false)
     })()

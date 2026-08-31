@@ -9,6 +9,7 @@ const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
 const { resolveBombista } = require('./bombistaBinary.cjs')
+const { listSongFiles } = require('./songsFolder.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
 const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
@@ -380,6 +381,11 @@ ipcMain.handle('dialog:openSongFiles', async () => {
 })
 
 ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
+
+// **What songs are in the songs folder.** Until this existed the app had no way to look: the
+// library is a list of references added one at a time, so a machine whose songs folder held the
+// whole catalogue reported "No songs yet". `songs/` is the source of truth; this is how it is read.
+ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(String(folderPath)))
 
 // ── The gig folder. Every Electron call this round introduces lives behind `src/platform.ts`
 // on the renderer side; these are its four handlers. ──────────────────────────────────────────

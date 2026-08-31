@@ -12,8 +12,8 @@ import {
   type TimelineLeadIn,
   type MediaFile,
 } from './songState'
-import { resolveSongPath, songRefPathFor } from './contentFolders'
-import { readSongFileText } from './platform'
+import { getSongsFolder, resolveSongPath, songRefPathFor } from './contentFolders'
+import { listSongsFolder, readSongFileText } from './platform'
 import { digest } from './fingerprint'
 
 export const SETLIST_STORE_KEY = 'liveLyricSetlistStore'
@@ -348,6 +348,53 @@ export const defaultReadSongFile: ReadSongFile = async (path: string) => {
 export type EnsureSongLibraryOptions = {
   /** Overrides how a reference's file is read. Defaults to the Electron file reader. */
   readSongFile?: ReadSongFile
+  /** Overrides how the songs folder is listed. Defaults to the Electron directory read. */
+  listFolder?: (folderPath: string) => Promise<string[]>
+}
+
+/**
+ * **Every song file in the songs folder gets a reference.**
+ *
+ * Without this the library is only what somebody picked from a file dialog one at a time, so a
+ * machine whose songs folder held the whole catalogue reported **"No songs yet"** — the app had
+ * been pointed at the songs and said there were none. Found walking R1 on 2026-08-31, and it is
+ * the same dead-end shape the whole setup redesign exists to remove.
+ *
+ * **This makes a written rule true rather than aspirational.** `songs/` is the source of truth and
+ * the library is a cache of it; the library predates there being a songs root to read, which is
+ * why it was ever a hand-assembled list.
+ *
+ * **Additive, and it never removes.** A reference to a song outside the folder — an absolute path
+ * from before the setting existed — is left exactly as it is. **A song is stored by name** when it
+ * sits inside the folder, which is what `songRefPathFor` already does, so the library survives the
+ * folder moving.
+ *
+ * **The consequence worth knowing:** removing a song from the library on the manage-setlists
+ * screen no longer sticks if its file is still in the songs folder — the next hydration finds it
+ * again. That is the right way round. The library is a view of the folder, and a row that vanished
+ * while the file was still there would be hiding a song rather than removing one.
+ */
+async function seedLibraryFromSongsFolder(
+  snap: SetlistStoreSnapshot,
+  listFolder: (folderPath: string) => Promise<string[]>
+): Promise<SetlistStoreSnapshot> {
+  const folder = getSongsFolder()
+  if (folder === null) return snap
+  const files = await listFolder(folder)
+  if (files.length === 0) return snap
+
+  const known = new Set(snap.library.map((ref) => ref.id))
+  let next = snap
+  for (const file of files) {
+    const id = songIdFromPath(file)
+    if (id === '' || known.has(id)) continue
+    known.add(id)
+    // `path` is the bare name: inside the songs folder a reference is stored by name so the
+    // library survives the folder moving. `resolveSongPath` turns it back into a path to read.
+    const grown = addSongRefToSnapshot(next, { id, path: file })
+    if (grown !== null) next = grown
+  }
+  return next
 }
 
 let hydrationInFlight: Promise<SetlistStoreSnapshot> | null = null
@@ -362,10 +409,19 @@ export function ensureSongLibraryHydrated(
 ): Promise<SetlistStoreSnapshot> {
   if (!hydrationInFlight) {
     const read = options.readSongFile ?? defaultReadSongFile
+    const listFolder = options.listFolder ?? listSongsFolder
     hydrationInFlight = (async () => {
       let snap = loadSetlistStore()
       if (!snap) {
         snap = repairSnapshot(createEmptySnapshot())
+        writeRaw(snap)
+      }
+      // **The folder comes first, and the references are what is read.** Everything downstream —
+      // Setup home, the setlist picker, readiness — sees one library, so there is no second list
+      // of songs anywhere and no way for two lists to disagree.
+      const seeded = await seedLibraryFromSongsFolder(snap, listFolder)
+      if (seeded !== snap) {
+        snap = seeded
         writeRaw(snap)
       }
       const next = new Map<string, LibraryEntry>()

@@ -336,6 +336,21 @@ export async function chooseFilePath(kind: 'video' | 'audio' | 'json'): Promise<
   return a.openFileDialog(kind)
 }
 
+/**
+ * **The song files in the songs folder.** Outside Electron there is no folder to read, which reads
+ * as an empty list — the same shape as a folder with nothing in it, and not an error.
+ */
+export async function listSongsFolder(folderPath: string): Promise<string[]> {
+  const a = api()
+  if (!a || typeof a.listSongsFolder !== 'function') return []
+  try {
+    const result = await a.listSongsFolder(folderPath)
+    return result.ok ? result.files : []
+  } catch {
+    return []
+  }
+}
+
 /** Whether the file at an absolute path is there. Unknown outside Electron, which reads as absent. */
 export async function fileExists(absolutePath: string): Promise<boolean> {
   const a = api()

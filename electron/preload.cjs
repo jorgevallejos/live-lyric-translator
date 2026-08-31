@@ -56,6 +56,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Starts `bombista serve` and opens a window on the address it prints. */
   openBombistaReview: (args, bombistaPath) =>
     ipcRenderer.invoke('bombista:review', args, bombistaPath),
+  /** The song files in the songs folder. `songs/` is the source of truth; the library caches it. */
+  listSongsFolder: (folderPath) => ipcRenderer.invoke('fs:listSongsFolder', folderPath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
   closeTool: (key) => ipcRenderer.invoke('tool:close', key),

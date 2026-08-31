@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
 import type { SongItem } from './songState'
+import { SONGS_FOLDER_KEY } from './contentFolders'
 import {
   SETLIST_STORE_KEY,
   SETLIST_STORE_VERSION,
@@ -565,5 +566,104 @@ describe('setlist type', () => {
   it('is still id, name and ordered song ids', () => {
     const sl: Setlist = { id: 'x', name: 'X', songIds: ['a'] }
     expect(sl.songIds).toEqual(['a'])
+  })
+})
+
+/**
+ * **The songs folder fills the library.**
+ *
+ * Walking R1 on 2026-08-31, the songs folder was pointed at a directory holding thirteen songs and
+ * Setup home said **"No songs yet"** — the app had been shown the songs and reported none, which
+ * is the dead-end shape the whole setup redesign exists to remove. The cause was structural rather
+ * than a slip: hydration read the *references* in the snapshot, references only ever arrived one at
+ * a time through a file dialog, and nothing in the app could list a directory at all.
+ */
+describe('seeding the library from the songs folder', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setLibraryEntries([])
+  })
+
+  const read = async (path: string) =>
+    JSON.stringify({ title: path.replace(/.*\//, '').replace('.json', ''), lyrics: [{ es: 'a' }] })
+
+  it('lists every song in the folder, with no reference added by hand', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    await ensureSongLibraryHydrated({
+      readSongFile: read,
+      listFolder: async () => ['duelo.json', 'pimiento.json', 'vidas.json'],
+    })
+    expect(getLibraryEntries().map((e) => e.ref.id).sort()).toEqual([
+      'duelo',
+      'pimiento',
+      'vidas',
+    ])
+  })
+
+  it('stores a song in the folder by name, so the library survives the folder moving', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    await ensureSongLibraryHydrated({
+      readSongFile: read,
+      listFolder: async () => ['duelo.json'],
+    })
+    expect(getLibraryEntries()[0]!.ref.path).toBe('duelo.json')
+  })
+
+  it('adds, and never removes', async () => {
+    // A reference to a song outside the folder — an absolute path from before the setting existed
+    // — is left exactly as it is.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    saveSetlistStore({
+      version: SETLIST_STORE_VERSION,
+      library: [{ id: 'elsewhere', path: '/somewhere/else/elsewhere.json' }],
+      setlists: [{ id: 'default', name: 'Default', songIds: [] }],
+      activeSetlistId: 'default',
+    })
+    await ensureSongLibraryHydrated({
+      readSongFile: read,
+      listFolder: async () => ['duelo.json'],
+    })
+    const ids = getLibraryEntries().map((e) => e.ref.id).sort()
+    expect(ids).toEqual(['duelo', 'elsewhere'])
+  })
+
+  it('does not duplicate a song that is already referenced', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    saveSetlistStore({
+      version: SETLIST_STORE_VERSION,
+      library: [{ id: 'duelo', path: 'duelo.json' }],
+      setlists: [{ id: 'default', name: 'Default', songIds: [] }],
+      activeSetlistId: 'default',
+    })
+    await ensureSongLibraryHydrated({
+      readSongFile: read,
+      listFolder: async () => ['duelo.json'],
+    })
+    expect(getLibraryEntries()).toHaveLength(1)
+  })
+
+  it('does nothing at all when no songs folder is set', async () => {
+    await ensureSongLibraryHydrated({
+      readSongFile: read,
+      listFolder: async () => {
+        throw new Error('must not be asked for a folder that is not set')
+      },
+    })
+    expect(getLibraryEntries()).toEqual([])
+  })
+
+  it('keeps a song whose file will not read, listed and visibly broken', async () => {
+    // `libertad` is the live case, and hiding it would hide the problem: the fix is in `songs/`.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    await ensureSongLibraryHydrated({
+      readSongFile: async (path: string) => {
+        if (path.includes('libertad')) throw new Error('24 lines against a 20-entry timeline')
+        return read(path)
+      },
+      listFolder: async () => ['duelo.json', 'libertad.json'],
+    })
+    const broken = getLibraryEntries().find((e) => e.ref.id === 'libertad')!
+    expect(broken.song).toBeUndefined()
+    expect(broken.error).toContain('24 lines')
   })
 })

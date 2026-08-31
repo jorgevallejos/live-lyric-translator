@@ -131,6 +131,10 @@ declare global {
         args: string[],
         bombistaPath: string | null
       ) => Promise<{ ok: true; url: string } | { ok: false; error: string }>
+      /** The song files in the songs folder, sorted. `songs/` is the source of truth. */
+      listSongsFolder: (
+        folderPath: string
+      ) => Promise<{ ok: true; files: string[] } | { ok: false; error: string }>
       /** Opens a tool's page in a window of its own, over localhost. */
       openTool: (
         key: string,

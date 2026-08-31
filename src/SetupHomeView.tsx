@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { chooseGigFolder, openGigFolder, refreshGigReadiness } from './gigSession'
 import { getRememberedGigFolder } from './gigFolderStore'
 import { forgetGig, getGigList, replaceGigPath } from './gigListStore'
-import { getLibraryEntries, adoptSongFile, type LibraryEntry } from './setlistStore'
+import {
+  ensureSongLibraryHydrated,
+  getLibraryEntries,
+  adoptSongFile,
+  type LibraryEntry,
+} from './setlistStore'
 import { getSongsFolder, resolveSongPath } from './contentFolders'
 import { chooseGigFolderPath, hasGigFolderAccess, canRunBombista, runBombista } from './platform'
 import { joinPath } from './paths'
@@ -196,7 +201,11 @@ function NewSong({ onCreated }: { onCreated: () => void }) {
             <input
               type="text"
               value={songId}
-              placeholder="hasta-calmar-el-alma"
+              // **A shape, never a plausible instance.** This said `hasta-calmar-el-alma` — a real
+              // id out of the catalogue — and on 2026-08-31 it was read as a name already typed,
+              // with Create disabled beside it saying "give it a name first". A placeholder that
+              // could be an answer is indistinguishable from one.
+              placeholder="lowercase-with-hyphens"
               data-testid="setup-new-song-id"
               onChange={(e) => setSongId(e.target.value)}
             />
@@ -262,10 +271,15 @@ export function SetupHomeView() {
     setSongs(getLibraryEntries())
   }, [])
 
-  // Arriving here is a door, so the files are re-read. Same on-open re-check the rest of the app
-  // does — no watcher, and no boundary to police.
+  // Arriving here is a door, so the files are re-read — the songs folder as well as the gig. Same
+  // on-open re-check the rest of the app does, with no watcher and no boundary to police. It is
+  // what makes a song added in a terminal, or a folder just chosen in preferences, simply be here.
   useEffect(() => {
-    void refreshGigReadiness().then(reload)
+    void (async () => {
+      await ensureSongLibraryHydrated()
+      await refreshGigReadiness()
+      reload()
+    })()
   }, [reload])
 
   const openFolder = getRememberedGigFolder()
