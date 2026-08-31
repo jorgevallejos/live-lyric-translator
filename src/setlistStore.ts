@@ -813,3 +813,34 @@ export function getOrderedSongsForActiveSetlist(): LibrarySong[] {
   if (!snap.activeSetlistId) return []
   return orderedSongsForSetlistId(snap, snap.activeSetlistId)
 }
+
+/**
+ * **Takes a song file this machine already has into the library**, and reports what it found.
+ *
+ * The one path by which a song that did not exist a moment ago becomes a row on a screen. It
+ * writes the *reference* — `{ id, path }` — which Pregonero owns; it never writes the song file,
+ * which is Bombista's, and it never rewrites one it reads.
+ *
+ * **This is what "the song flow ends with the song appearing in the list" is made of**, and it is
+ * deliberately all of it: no status is recorded, no badge, no completion label. Whether the song
+ * can go into tonight's setlist is a question asked at the moment a surface draws it, and a stored
+ * answer could only ever describe a file that has since been edited.
+ *
+ * A file already in the library is not an error and not a duplicate: the reference stays as it is
+ * and the file is re-read, because the reason to call this twice is that the file changed.
+ */
+export async function adoptSongFile(
+  absolutePath: string,
+  read: ReadSongFile = defaultReadSongFile
+): Promise<LibraryEntry> {
+  const ref = songRefForChosenFile(absolutePath)
+  const snap = loadSetlistStore()
+  if (snap !== null) {
+    const next = addSongRefToSnapshot(snap, ref)
+    if (next !== null) saveSetlistStore(next)
+  }
+  const entry = await resolveSongRef(ref, read)
+  const others = getLibraryEntries().filter((e) => e.ref.id !== ref.id)
+  setLibraryEntries([...others, entry])
+  return entry
+}

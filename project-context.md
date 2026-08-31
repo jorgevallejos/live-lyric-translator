@@ -227,6 +227,58 @@ strategy depends on, silently ran the wrong build. Half an hour of defects were 
 before the header was noticed. **Anyone told to run from source must be told to build first**, and
 the README now says so.
 
+### Setup home, and where its state actually lives (R1, 2026-08-31)
+
+**The control view keeps one button, and songs and gigs became peers one level below it.** Setup
+home shows both lists in full, side by side; `Folders` came off the GIG column and is now
+**Preferences**, one screen for where the tools and the content live on this machine — songs,
+media, Muralista and the Bombista binary path. The design is
+`projects/tramoya-integration/project-context.md`; recorded here is what this repo now stores.
+
+**State outside git, named because the vault rule says to name it.**
+
+| What | Where | Why it is allowed to be stored |
+|---|---|---|
+| **The gig list** — which gigs this machine knows about | `localStorage`, key `pregoneroGigList`, a JSON array of absolute folder paths, most recently opened first | It is a **bookmark list**, like recent files. Losing it costs one trip to a folder picker. |
+| The Bombista binary override | `localStorage`, key `pregoneroBombistaPath` | A per-machine fact, like the folders beside it. Normally unset. |
+
+**The gig list stores paths and never readiness**, and that is an instruction rather than an
+observation. A stored verdict would go stale precisely when a gig folder is edited from outside
+Pregonero, which the escape hatch guarantees will happen — every tool in the suite is usable on its
+own by requirement. `libertad` is the standing argument: a flag written when it last passed would
+still read Ready today, and it is not. Each row's delta is computed on read, and **until that lands
+a row shows no verdict at all rather than a stale one.**
+
+**A row whose folder is gone stays in the list**, named, to be located or forgotten. A folder on a
+drive that is not plugged in is not a deleted gig, and a list that tidied itself would erase the
+evidence that something moved. Noticing that it is gone is still owed: `electron/gigFolder.cjs`
+does not check that the folder exists, so a moved folder and a fresh empty one are identical to it.
+
+**Two findings from planning this round, both of which would have surfaced late.**
+
+- **`bombista` was unreachable from a Finder-launched app.** The bridges called
+  `execFile('bombista', ...)`; a Finder launch inherits `/usr/bin:/bin:/usr/sbin:/sbin` and pipx
+  installs to `~/.local/bin`. The hosted song flow was dark in exactly the launch mode a performer
+  uses, and the symptom was `skipped` — the same word a machine with no Python gets. This is also
+  why the vault said "bombista is not on `PATH` on this machine" while `which bombista` answers:
+  both were true, of different processes. `electron/bombistaBinary.cjs` resolves it now, and
+  preferences says where it looked.
+- **`refreshGigReadiness` writes.** It creates `gig.json` when the folder has none and injects the
+  app's running order into a gig that has none. A gig list calling it per row would have created
+  files in every folder it drew. `src/gigFolderRead.ts` is the read-only path, and it exists before
+  the list is built rather than during.
+
+**One thing R1 could not close, and it is Bombista's.** A song made from a lyrics `.txt` and a
+recording cannot be finished from inside the app. `bombista align --emit songjson` writes a
+complete song file into the **staging** directory; `bombista promote` takes
+`click.Path(exists=True)` for its target and merges only the envelope keys, so it can neither
+create `songs/<id>.json` nor carry the words into a skeleton — and `back_up_and_replace` copies the
+original before replacing it, so it cannot write a file that does not exist. Pregonero must not
+move the file itself: it never writes a song file. **So the from-a-text-file entry point needs a
+Bombista change, and it is the one thing standing between this round and the walk it is judged
+by.** `bombista new` works and its song appears in the list, which is the no-audio branch and the
+honest state for a song not yet recorded.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

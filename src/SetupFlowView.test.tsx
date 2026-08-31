@@ -357,7 +357,7 @@ describe('step 0 is named, not hidden', () => {
     expect(phases).toHaveLength(5)
     expect(phases.map((p) => p.querySelector('.song-subflow-name')?.textContent)).toEqual([
       '1. New',
-      '2. The words — outside the suite',
+      '2. Translations — outside the suite',
       '3. Align',
       '4. Review and tempo',
       '5. Validate',

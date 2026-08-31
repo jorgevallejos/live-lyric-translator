@@ -30,10 +30,15 @@ export const DOOR_LABEL: Record<SongDoor, string> = {
  * **Step 0 is named, not hidden.** A song becomes SP JSON in an LLM session outside the suite.
  * Pregonero brackets that step and explains it; it never performs it, and no translation support is
  * added to any tool. `bombista new` on one side, `bombista validate` on the other.
+ *
+ * **The step is called Translations, and not "the words"** (Jorge, 2026-08-31). For the author the
+ * words are the original lyrics: they arrive with the song and are not a step. "The words —
+ * outside the suite" reads as though the lyric itself were outsourced to a language model, which
+ * is both wrong and faintly insulting to the person who wrote it. **Only the translations leave.**
  */
 export const SONG_SUBFLOW: readonly { name: string; detail: string }[] = [
   { name: '1. New', detail: '`bombista new <id>` writes a skeleton into the songs folder. Skip it when the song file already exists.' },
-  { name: '2. The words — outside the suite', detail: 'An LLM session writes the lyrics and translations into the file. **Pregonero does not do this and never will**: no tool in the suite gets a language model. This step is named so it is not a gap you fall into.' },
+  { name: '2. Translations — outside the suite', detail: 'An LLM session writes the translations into the file. **Pregonero does not do this and never will**: no tool in the suite gets a language model. This step is named so it is not a gap you fall into.' },
   { name: '3. Align', detail: '`bombista align` against the audio. This is why a song needs lyrics **and** audio: the timeline comes from matching one to the other.' },
   { name: '4. Review and tempo', detail: 'Bombista’s review page, where the alignment is visible while the tempo is being set.' },
   { name: '5. Validate', detail: '`bombista validate --for-performance` is the exit gate. Only a song that passes it belongs in a setlist.' },

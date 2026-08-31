@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  getBombistaPath,
   getMediaFolder,
   getMuralistaFolder,
   getSongsFolder,
+  setBombistaPath,
   setMediaFolder,
   setMuralistaFolder,
   setSongsFolder,
@@ -11,7 +13,14 @@ import { getMediaPath, resolveMediaPath, setMediaPath } from './mediaPathStore'
 import { collectMediaSources, type MediaSource } from './mediaSources'
 import { getLibraryEntries } from './setlistStore'
 import { useBroadcastVisuals } from './visualsBroadcast'
-import { bombistaVersion, chooseFolderPath, fileExists, hasFolderPicker } from './platform'
+import {
+  bombistaVersion,
+  chooseFolderPath,
+  fileExists,
+  hasFolderPicker,
+  locateBombista,
+} from './platform'
+import type { BombistaLocation } from './electronApi'
 import { refreshGigReadiness } from './gigSession'
 
 /**
@@ -81,6 +90,8 @@ export function FoldersView() {
   const [mediaFolder, setMediaFolderState] = useState<string | null>(getMediaFolder)
   const [muralistaFolder, setMuralistaFolderState] = useState<string | null>(getMuralistaFolder)
   const [bombista, setBombista] = useState<{ present: boolean; version: string | null } | null>(null)
+  const [bombistaWhere, setBombistaWhere] = useState<BombistaLocation | null>(null)
+  const [bombistaPath, setBombistaPathState] = useState<string | null>(getBombistaPath)
   const [rows, setRows] = useState<Row[]>([])
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
@@ -117,6 +128,9 @@ export function FoldersView() {
     let cancelled = false
     void bombistaVersion().then((v) => {
       if (!cancelled) setBombista(v)
+    })
+    void locateBombista().then((where) => {
+      if (!cancelled) setBombistaWhere(where)
     })
     return () => {
       cancelled = true
@@ -186,12 +200,12 @@ export function FoldersView() {
           type="button"
           className="songs-back"
           onClick={() => {
-            window.location.hash = '#/'
+            window.location.hash = '#/setup'
           }}
         >
           Back
         </button>
-        <h1 className="songs-title">Folders</h1>
+        <h1 className="songs-title">Preferences</h1>
         <div className="manage-setlists-top-actions">
           <button type="button" className="songs-manage-setlists" disabled={busy} onClick={recheck}>
             Re-check
@@ -255,13 +269,52 @@ export function FoldersView() {
               {bombista === null
                 ? 'Checking…'
                 : bombista.present
-                  ? (bombista.version ?? 'On PATH')
-                  : 'Not on PATH'}
+                  ? (bombista.version ?? 'Found')
+                  : 'Not found'}
             </span>
+            {/* **Where it was found, said out loud.** The failure this replaces was silent: the
+                binary was installed, an app launched from Finder could not see it — its PATH is
+                /usr/bin:/bin:/usr/sbin:/sbin and pipx installs to ~/.local/bin — and the only
+                symptom was `skipped`, which is the same word a machine with no Python gets. */}
+            {bombistaWhere !== null && (
+              <p className="folders-source-path" data-testid="folders-bombista-where">
+                {bombistaWhere.source === 'unresolved'
+                  ? `Not found. Looked in: ${bombistaWhere.searched.join(', ')}`
+                  : `${bombistaWhere.command} (${
+                      bombistaWhere.source === 'configured'
+                        ? 'set below'
+                        : bombistaWhere.source === 'path'
+                          ? 'on PATH'
+                          : 'a known install location'
+                    })`}
+              </p>
+            )}
+            <label className="setup-home-field">
+              <span>Path</span>
+              <input
+                type="text"
+                value={bombistaPath ?? ''}
+                placeholder="Found automatically — set one only to override"
+                data-testid="folders-bombista-path"
+                onChange={(e) => {
+                  const next = e.target.value.trim()
+                  setBombistaPathState(next.length > 0 ? next : null)
+                  setBombistaPath(next.length > 0 ? next : null)
+                }}
+                onBlur={recheck}
+              />
+            </label>
             <p className="gig-hint">
-              A Python CLI you install yourself. Without it Pregonero still opens gigs, still arms
-              and still performs — a song simply carries no <code>bombista</code> verdict, which is a
-              missing check and not a failed one.
+              A Python CLI you install yourself, normally found without being told: on{' '}
+              <code>PATH</code> first, then where a Python CLI installs. Set a path here only for a
+              machine where neither answer is the right one — a virtualenv, a checkout, a second
+              install. <strong>What you type is used exactly as typed and never checked</strong>, so
+              a wrong path fails naming itself rather than quietly falling back to another binary.
+            </p>
+            <p className="gig-hint">
+              Without Bombista at all, Pregonero still opens gigs, still arms and still performs — a
+              song simply carries no <code>bombista</code> verdict, which is a missing check and not
+              a failed one.
             </p>
           </div>
         </section>

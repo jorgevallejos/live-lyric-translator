@@ -21,6 +21,8 @@ vi.mock('./platform', () => ({
   canHostTools: () => false,
   runBombista: vi.fn(),
   bombistaVersion: () => Promise.resolve({ present: false, version: null }),
+  locateBombista: () =>
+    Promise.resolve({ command: 'bombista', source: 'unresolved' as const, searched: [] }),
   bombistaStagingDir: vi.fn(),
   openTool: vi.fn(),
   openBombistaReview: vi.fn(),

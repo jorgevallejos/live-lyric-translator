@@ -2875,6 +2875,125 @@ html, body, #root {
   overflow-y: auto;
 }
 
+/* ---- Setup home: gigs and songs, side by side, both in full ----
+   Two columns because songs and gigs are PEERS, one level below the stage. A screen whose only
+   content is two buttons is a signpost rather than a place, and putting songs behind a "manage
+   songs" button hangs the long-lived thing off the ephemeral one — gigs come and go, songs last
+   for years.
+
+   NEITHER LIST TRUNCATES, AND THE NARROW-WIDTH CONSTRAINT DOES NOT APPLY HERE. Setup is desk work
+   done hours ahead on a real screen; only the control view has to survive an iPad on a stage. The
+   columns hold their width and the page scrolls, which is why there is no fold, no max-height and
+   no "show more" anywhere below. If this screen ever needs one, the requirement changed and the
+   change should be argued rather than absorbed. */
+.setup-home-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2em;
+  align-items: start;
+}
+
+.setup-home-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  min-width: 0;
+}
+
+.setup-home-column-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  flex-wrap: wrap;
+}
+
+.setup-home-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.setup-home-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  padding: 0.75em 0;
+  border-bottom: 1px solid var(--rule-faint);
+  min-width: 0;
+}
+
+.setup-home-row-open {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.setup-home-row-name {
+  font-size: 1.0625em;
+}
+
+.setup-home-row-badge {
+  font-family: var(--font-label);
+  font-size: 0.7em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* A path is long and is the thing that identifies a row when two gigs share a name, so it wraps
+   rather than being clipped or truncated with an ellipsis. */
+.setup-home-row-path {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.setup-home-row-actions {
+  display: flex;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+
+.setup-home-row-body {
+  padding-top: 0.5em;
+}
+
+.setup-home-new {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  width: 100%;
+}
+
+.setup-home-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.setup-home-field span {
+  font-family: var(--font-label);
+  font-size: 0.75em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.setup-home-field input {
+  font: inherit;
+  padding: 0.5em 0.6em;
+  color: var(--text-strong, inherit);
+  background: var(--app-bg);
+  border: 1px solid var(--rule-faint);
+}
+
 /* ---- Folders: where this machine keeps the songs and the media ----
    Its own screen because linking a file used to be possible in exactly one place, the song
    library, which only ever offered a song's own declared media. A static shape's image and a

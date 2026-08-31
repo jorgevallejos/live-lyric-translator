@@ -69,6 +69,7 @@ import { refreshGigReadiness } from './gigSession'
 import { GigView } from './GigView'
 import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
+import { SetupHomeView } from './SetupHomeView'
 import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import {
   getProjectionStatusText,
@@ -573,13 +574,10 @@ function ControlView() {
     window.location.hash = '#/languages'
   }
 
-  const goToGig = () => {
-    window.location.hash = '#/gig'
+  const goToSetupHome = () => {
+    window.location.hash = '#/setup'
   }
 
-  const goToFolders = () => {
-    window.location.hash = '#/folders'
-  }
 
   const orderedSongs = getOrderedSongsForActiveSetlist()
   // **The setlist as it can actually be played**, and the only list the running order is derived
@@ -1120,12 +1118,14 @@ function ControlView() {
                   </span>
                 </div>
                 <div className="control-setup-buttons">
+                  {/* **One button, and it leaves the stage.** The control view is the performance
+                      surface; everything that is desk work is one level below it, on Setup home.
+                      `Folders` came off this column deliberately — where songs and media live on
+                      this machine is configuration rather than content, and it lives in
+                      preferences now, reached from that screen. */}
                   <div className="control-setup-button-row">
-                    <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToGig}>
+                    <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSetupHome}>
                       Setup
-                    </button>
-                    <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToFolders}>
-                      Folders
                     </button>
                   </div>
                 </div>
@@ -2378,6 +2378,13 @@ function App({ initialHash }: { initialHash?: string } = {}) {
         <ManageSetlistsView />
       </>
     )
+  if (hash === '#/setup')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <SetupHomeView />
+      </>
+    )
   if (hash === '#/gig')
     return (
       <>
@@ -2385,7 +2392,7 @@ function App({ initialHash }: { initialHash?: string } = {}) {
         <GigView />
       </>
     )
-  if (hash === '#/folders')
+  if (hash === '#/preferences' || hash === '#/folders')
     return (
       <>
         <ConcertSessionTimerRunner />
