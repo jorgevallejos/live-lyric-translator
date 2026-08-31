@@ -177,6 +177,47 @@ Pregonero that the integration file does not carry.
   storage-event gotcha above: deleting a fallback path can silently delete the only thing painting
   something, if the replacement isn't wired to the same source before the old path goes.
 
+### The first from-scratch walk, and what it found (2026-08-31)
+
+**The E2E run was attempted at the studio and stopped deliberately at setup step 1.** Not a failure
+of the attempt: the run answered its question, and continuing would have required feeding files in
+from outside, which would have tested something other than what was being tested. The setup
+redesign it produced lives in `projects/tramoya-integration/project-context.md`; recorded here is
+what is specific to this repo.
+
+**The control window had no responsive behaviour at all, and three defects came from it.** No media
+query existed anywhere in `control.css` before this date.
+
+1. **Mid-word wrapping in the GIG column** — `min-width: 0` on those buttons removed the flex floor
+   that normally keeps a word intact, and `word-break: break-word` then split it. Only GIG had two
+   buttons competing for width. Fixed with `min-width: min-content`, dropping the legacy
+   `word-break` spelling, which is `overflow-wrap: anywhere` and would have cancelled the floor.
+2. **The rig checklist collided with the section above it** — `grid-template-columns: 1fr 1fr 1fr 1fr`
+   was hardcoded and its comment named only four sections, while `App.tsx` had grown to **six**, two
+   of them conditional. Auto-placement wrapped Rig and Arm into a second row-block on top of GIG.
+   Fixed with `grid-auto-flow: column`, so a seventh section widens the row instead of folding under
+   the first, and a regression test now asserts no fixed column count is declared.
+3. **The Arm button spilled onto a white strip** — `html, body, #root` declared no background while
+   `.control-screen` is a fixed `100vh`, so anything overflowing landed on the unstyled page. Defect
+   2 was its cause; the missing background was a latent bug regardless, and is now set.
+
+**The lesson is the stale comment, not the stale number.** The grid's own comment named four sections
+by name while six rendered. A comment that lists what something contains becomes a second source of
+truth and rots the moment the thing grows. Same family as the Praktijk tab that no document named.
+
+**PR #79 also carries a reflow that should be dropped.** Its 1310px breakpoint was found by sweeping
+for where buttons begin to **clip**. Seen on the real iPad the same day, the panel is illegible well
+before it clips — values break mid-word, the rig checklist becomes a ribbon — and the reflow
+correctly does not fire, because nothing is clipped. **Wrong criterion, not a wrong number.**
+Legibility is the test, and the number chosen by reading the panel will be higher. Merge the three
+fixes above; redesign the narrow behaviour separately.
+
+**`dist/` was two weeks stale and shipped `v0.22.0` while `package.json` said `v0.23.1`.** `npx
+electron .` serves `dist/` without warning, so "run from source", which is what the whole rollback
+strategy depends on, silently ran the wrong build. Half an hour of defects were diagnosed against it
+before the header was noticed. **Anyone told to run from source must be told to build first**, and
+the README now says so.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20
