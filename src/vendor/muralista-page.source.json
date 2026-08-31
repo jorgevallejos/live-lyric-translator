@@ -1,0 +1,15 @@
+{
+  "page": "mapper.html",
+  "owner": "muralista",
+  "path": "mapper/",
+  "tag": "v1.6.0",
+  "files": {
+    "mapper.html": "bae6cfbe436bd8af3cade6636ef9132df1e7827a047861fe975cdc97dd5f4c83",
+    "mapper.css": "0877c11dacdac9ff82a2d7d47d2a02beafbf148841292fc4c4cc58b2775e8608",
+    "mapper.js": "57b95c48fa95acd08a1ad181a6b8d8bcfefcd6811d901910ccd1148b34dc77c2",
+    "warp.js": "17e3a25ef61074b622965c6df2e2b8ec7a50fc6f5ffb698c160eead701c15cb6"
+  },
+  "vendoredOn": "2026-08-31",
+  "why": "Muralista's page is served from here rather than from a folder the user points at. Pregonero cannot guess where mapper.html is on a machine, and a setting that has to be discovered before anything works is the dead-end shape this redesign exists to remove. Vendoring by tag with a hash test is what already demotes warp.js from a fork to a cache, and it does the same here.",
+  "notVendored": "media/ (90 MB of Muralista's own test clips) and white.html. They are its test content, not its page."
+}

@@ -450,8 +450,27 @@ ipcMain.handle('bombista:stagingDir', (_event, songId) => {
   }
 })
 
+/**
+ * **Where Muralista's page is: inside this app.**
+ *
+ * It used to be a per-machine setting — a folder holding `mapper.html` that the user pointed at —
+ * on the reasoning that Pregonero must not carry a copy, because a copy is a fork. **The copy is
+ * not a fork when a hash test proves it current**, which is exactly how `warp.js` and Muralista's
+ * stand-ins are already carried, and a setting that has to be discovered before anything works is
+ * the dead-end shape this redesign exists to remove.
+ *
+ * `src/vendor` ships because `build.files` names it. **Muralista staying usable alone is a
+ * requirement about its own repo**, not about Pregonero holding a path to it, and it is untouched.
+ */
+const MURALISTA_ROOT = path.join(__dirname, '..', 'src', 'vendor')
+
 ipcMain.handle('tool:open', (_event, key, folder, page, title) =>
-  openToolWindow(String(key), String(folder), String(page), String(title || key))
+  openToolWindow(
+    String(key),
+    String(key) === 'muralista' ? MURALISTA_ROOT : String(folder),
+    String(page),
+    String(title || key)
+  )
 )
 
 /**

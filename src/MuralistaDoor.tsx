@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { canHostTools, chooseFolderPath, closeTool, openTool } from './platform'
-import { getMuralistaFolder, setMuralistaFolder } from './contentFolders'
+import { canHostTools, closeTool, openTool } from './platform'
 import { refreshGigReadiness } from './gigSession'
 import { GatedAction } from './GatedAction'
 
@@ -26,7 +25,6 @@ export const MURALISTA_KEY = 'muralista'
 export const MURALISTA_PAGE = 'mapper.html'
 
 export function MuralistaDoor() {
-  const [folder, setFolder] = useState<string | null>(getMuralistaFolder)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -61,38 +59,8 @@ export function MuralistaDoor() {
             on its own, and Pregonero discovers the room on the next re-check.
           </p>
         </div>
-      ) : folder === null ? (
-        <div data-testid="muralista-no-folder">
-          <p className="gig-hint">
-            Pregonero does not know where Muralista is on this machine, and does not carry a copy —
-            a copy would be a fork, and the room is Muralista’s. Point at the folder holding{' '}
-            <code>mapper.html</code>.
-          </p>
-          <div className="gig-actions">
-            <button
-              type="button"
-              className="ctrl-btn ctrl-setup-link"
-              data-testid="muralista-choose-folder"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true)
-                void (async () => {
-                  const chosen = await chooseFolderPath('Choose Muralista’s mapper folder')
-                  if (chosen) {
-                    setMuralistaFolder(chosen)
-                    setFolder(chosen)
-                  }
-                  setBusy(false)
-                })()
-              }}
-            >
-              Choose Muralista’s folder
-            </button>
-          </div>
-        </div>
       ) : (
         <div data-testid="muralista-hosted">
-          <p className="gig-hint">{folder}</p>
           <div className="gig-actions">
             <button
               type="button"
@@ -103,12 +71,10 @@ export function MuralistaDoor() {
                 setBusy(true)
                 setError(null)
                 void (async () => {
-                  const result = await openTool(
-                    MURALISTA_KEY,
-                    folder,
-                    MURALISTA_PAGE,
-                    'Muralista'
-                  )
+                  // The folder argument is ignored for this key: the main process serves the
+                  // vendored page out of the app itself. It is still passed so the one IPC keeps
+                  // one shape.
+                  const result = await openTool(MURALISTA_KEY, '', MURALISTA_PAGE, 'Muralista')
                   if (result.ok) setOpen(true)
                   else setError(result.error)
                   setBusy(false)
@@ -136,18 +102,6 @@ export function MuralistaDoor() {
                 Done
               </button>
             )}
-            <button
-              type="button"
-              className="ctrl-btn ctrl-setup-link"
-              data-testid="muralista-forget-folder"
-              disabled={busy}
-              onClick={() => {
-                setMuralistaFolder(null)
-                setFolder(null)
-              }}
-            >
-              Forget this folder
-            </button>
           </div>
           {error !== null && (
             <p className="setup-song-problem" data-testid="muralista-error">

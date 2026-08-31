@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   getBombistaPath,
-  getMediaFolder,
-  getMuralistaFolder,
+  defaultMediaFolder,
+  getChosenMediaFolder,
   getSongsFolder,
   setBombistaPath,
   setMediaFolder,
-  setMuralistaFolder,
   setSongsFolder,
 } from './contentFolders'
 import { getMediaPath, resolveMediaPath, setMediaPath } from './mediaPathStore'
@@ -87,8 +86,7 @@ function FolderRow({
 export function FoldersView() {
   const visuals = useBroadcastVisuals()
   const [songsFolder, setSongsFolderState] = useState<string | null>(getSongsFolder)
-  const [mediaFolder, setMediaFolderState] = useState<string | null>(getMediaFolder)
-  const [muralistaFolder, setMuralistaFolderState] = useState<string | null>(getMuralistaFolder)
+  const [mediaFolder, setMediaFolderState] = useState<string | null>(getChosenMediaFolder)
   const [bombista, setBombista] = useState<{ present: boolean; version: string | null } | null>(null)
   const [bombistaWhere, setBombistaWhere] = useState<BombistaLocation | null>(null)
   const [bombistaPath, setBombistaPathState] = useState<string | null>(getBombistaPath)
@@ -170,17 +168,6 @@ export function FoldersView() {
     })()
   }
 
-  const chooseMuralista = () => {
-    setBusy(true)
-    void (async () => {
-      const chosen = await chooseFolderPath('Choose Muralista’s mapper folder')
-      if (chosen) {
-        setMuralistaFolder(chosen)
-        setMuralistaFolderState(chosen)
-      }
-      setBusy(false)
-    })()
-  }
 
   const locate = (src: string) => {
     const api = window.electronAPI
@@ -241,26 +228,15 @@ export function FoldersView() {
           <FolderRow
             testId="folders-media"
             label="Media"
-            hint="Where a name in a file is looked for — videos, images, QR codes. The same folder Muralista is pointed at, named the same way."
-            value={mediaFolder}
+            hint="Where a name in a file is looked for — videos, images, QR codes. Defaults to the audio folder inside the songs folder, which is where the audio already lives; set one here only for a machine where it is somewhere else. A per-source link still wins either way."
+            value={mediaFolder ?? defaultMediaFolder()}
             disabled={busy || !canPick}
             onChoose={chooseMedia}
             onClear={() => {
+              // Clearing returns to `<songs>/audio` rather than to nothing.
               setMediaFolder(null)
               setMediaFolderState(null)
               void refreshGigReadiness()
-            }}
-          />
-          <FolderRow
-            testId="folders-muralista"
-            label="Muralista"
-            hint="The folder holding mapper.html. Pregonero hosts that page in a window over localhost rather than carrying a copy — a copy would be a fork, and the room is Muralista’s."
-            value={muralistaFolder}
-            disabled={busy || !canPick}
-            onChoose={chooseMuralista}
-            onClear={() => {
-              setMuralistaFolder(null)
-              setMuralistaFolderState(null)
             }}
           />
         </section>
