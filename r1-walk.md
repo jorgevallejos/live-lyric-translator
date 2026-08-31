@@ -50,7 +50,7 @@ reason will not be what the screen says.
 - **Expect:** two columns side by side — **Gigs** with `New gig`, **Songs** with `New song`. Both
   lists complete; no "show more", no scrolling *inside* a column. The page itself scrolls.
 - **Expect:** gig rows carry **no readiness word at all**. Not "Ready", not "Not ready". That lands
-  in R2, and a wrong verdict is worse than none.
+  in R4 — the gig list — and a wrong verdict is worse than none.
 - **Judge, and tell me:** with your thirteen songs and however many gigs, does this read, or is it
   a wall? I have my own answer at the bottom of this file — read it after you have yours.
 
@@ -107,7 +107,7 @@ to Setup.
 - **Expect:** the row is still there, still naming the old path, with `Locate…` and `Forget`.
 - **Expect:** every other row still opens.
 - **Does not yet:** say that the folder is gone. Pregonero cannot tell a moved folder from a fresh
-  empty one — that is R2's first item. So the row looks ordinary and fails when you open it.
+  empty one — that is R4's third item. So the row looks ordinary and fails when you open it.
 
 `Locate…` → pick the renamed folder.
 
@@ -122,7 +122,7 @@ Back to the control screen. Open a gig, arm a song, advance a line, unarm.
 
 ---
 
-## What I would change already, before R2 builds on it
+## What I would change already, before the gig list builds on it
 
 You asked me to judge the no-truncation decision. **Keep it** — but the pressure is not where I
 expected.
@@ -133,7 +133,7 @@ times this size to become a problem. The **gigs** column is the heavy one, and t
 entirely the **folder path** — three wrapped lines under a one-line name, on every row.
 
 The path is diagnostic information, not identity: the gig id already identifies the row, and the
-path only matters when something is wrong with it or when two gigs share a name. **In R2, when each
+path only matters when something is wrong with it or when two gigs share a name. **In R4, when each
 row also gains a delta, I would show the path only on a row that needs it.** That is a change to
-R2's design rather than a retreat from no-truncation, and I would rather raise it now than have R2
-inherit a row that is already the tallest thing on the screen.
+R4's design rather than a retreat from no-truncation, and I would rather raise it now than have that
+round inherit a row that is already the tallest thing on the screen. It is written into the queue.
