@@ -7713,6 +7713,144 @@ describe('§P14 Manual/Auto lyric-advance toggle', () => {
   })
 
   /**
+   * Setup panel — every section gets a column, and they all sit in ONE row-block.
+   *
+   * The grid named four columns (`grid-template-columns: 1fr 1fr 1fr 1fr`) long after App grew
+   * to six sections, so auto-placement wrapped the surplus — Rig and Arm — into a second
+   * row-block that rendered on top of Gig and Song. Nothing errored; the columns just collided.
+   *
+   * jsdom does no layout, so the invariant is checked where it is authored: the grid must not
+   * declare a fixed number of columns, and the number of sections App can render must fit
+   * whatever it does declare. A seventh section fails here rather than wrapping in silence.
+   */
+  describe('Setup panel column count', () => {
+    /** The declaration block of the setup grid, with CSS comments stripped. */
+    const setupGridDeclarations = () => {
+      const css = readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+      const block = css.match(/\.control-center-setup \.control-performance-state \{([^}]*)\}/)
+      expect(block).toBeTruthy()
+      return block![1].replace(/\/\*[\s\S]*?\*\//g, '')
+    }
+
+    /**
+     * How many sections the grid can place before auto-placement folds one into a second
+     * row-block. `Infinity` when it generates a column per item instead of naming a fixed set.
+     */
+    const declaredColumnCapacity = (declarations: string): number => {
+      const template = declarations.match(/grid-template-columns:\s*([^;}]*)/)
+      if (template) {
+        const value = template[1].trim()
+        const repeat = value.match(/^repeat\(\s*(\d+)\s*,/)
+        return repeat ? Number(repeat[1]) : value.split(/\s+/).length
+      }
+      if (/grid-auto-flow:\s*column/.test(declarations) && /grid-auto-columns:/.test(declarations)) {
+        return Infinity
+      }
+      return 1 // row flow with no column template: one implicit column, everything stacks
+    }
+
+    /** Every `.control-setup-section` App can render, conditional ones included. */
+    const sectionsAppCanRender = () =>
+      (readFileSync(resolve(__dirname, 'App.tsx'), 'utf8').match(
+        /className="control-setup-section"/g
+      ) ?? []).length
+
+    it('generates a column per section instead of naming a fixed number of them', () => {
+      expect(declaredColumnCapacity(setupGridDeclarations())).toBe(Infinity)
+    })
+
+    it('has room for every section App can render, so none wraps into a second row-block', () => {
+      const capacity = declaredColumnCapacity(setupGridDeclarations())
+      const sections = sectionsAppCanRender()
+      // Sanity on the fixture itself: this only guards anything while App has more sections
+      // than the four the old fixed track list held.
+      expect(sections).toBeGreaterThan(4)
+      expect(sections).toBeLessThanOrEqual(capacity)
+    })
+
+    it('puts the sections it actually renders in that one row-block, as direct children', async () => {
+      setupControlViewWithReadinessPassing()
+      await armAndReachSetup()
+      const grid = document.querySelector('.control-performance-state')
+      expect(grid).toBeTruthy()
+      const sections = grid!.querySelectorAll('.control-setup-section')
+      expect(sections.length).toBeGreaterThan(1)
+      expect(sections.length).toBeLessThanOrEqual(sectionsAppCanRender())
+      expect(sections.length).toBeLessThanOrEqual(declaredColumnCapacity(setupGridDeclarations()))
+      sections.forEach((section) => expect(section.parentElement).toBe(grid))
+    })
+  })
+
+  /**
+   * Setup panel — the fold onto a narrow control surface.
+   *
+   * Six columns stop fitting their own buttons below 1311px (measured: Projection's "Close
+   * projection" is clipped first), and the iPad over Sidecar at 1112pt is inside that band and
+   * is a surface this app is actually driven from. Below the breakpoint the row folds into
+   * row-blocks.
+   *
+   * The fold must not smuggle back the fixed column count that caused the original collision,
+   * and each block must keep its own aligned value row — which is what grid-auto-rows repeating
+   * the container's four-track pattern buys. Both are asserted here rather than by loosening
+   * anything in 'Setup panel column count' above.
+   *
+   * Verified in Chromium at 1112x834: two row-blocks of three, no clipped controls, no page
+   * overflow, Arm fully visible with 36px of clearance. Not yet confirmed on a real iPad
+   * over Sidecar.
+   */
+  describe('Setup panel reflow on a narrow control surface', () => {
+    const css = () => readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+
+    /** The body of the reflow media query, with CSS comments stripped. */
+    const reflowBlock = () => {
+      const source = css()
+      const start = source.search(/@media \(max-width: 1310px\) \{/)
+      expect(start).toBeGreaterThan(-1)
+      let depth = 0
+      let i = source.indexOf('{', start)
+      const from = i
+      do {
+        if (source[i] === '{') depth += 1
+        if (source[i] === '}') depth -= 1
+        i += 1
+      } while (depth > 0 && i < source.length)
+      return source.slice(from, i).replace(/\/\*[\s\S]*?\*\//g, '')
+    }
+
+    it('folds at the width where the six-column row starts clipping its own buttons', () => {
+      // 1310, not a round number: 1311 is the narrowest width that still fits six columns.
+      expect(css()).toMatch(/@media \(max-width: 1310px\) \{/)
+      expect(reflowBlock()).toMatch(/\.control-center-setup \.control-performance-state \{/)
+    })
+
+    it('derives the folded column count from the width instead of naming one', () => {
+      const columns = reflowBlock().match(/grid-template-columns:\s*([^;}]*)/)
+      expect(columns).toBeTruthy()
+      const value = columns![1].trim()
+      // auto-fit fits as many columns as the width allows and wraps the rest; repeat(3, …) or a
+      // literal track list would be the hardcoded count this whole fix removed.
+      expect(value).toMatch(/^repeat\(\s*auto-fit\s*,\s*minmax\([^)]*\)\s*\)$/)
+      expect(value).not.toMatch(/repeat\(\s*\d/)
+    })
+
+    it('gives a folded block the same four rows, so its value row still lines up', () => {
+      const outer = css().match(
+        /\.control-center-setup \.control-performance-state \{([^}]*)\}/
+      )
+      const explicitRows = outer![1].match(/grid-template-rows:\s*([^;}]*)/)![1].trim()
+      const implicitRows = reflowBlock().match(/grid-auto-rows:\s*([^;}]*)/)
+      expect(implicitRows).toBeTruthy()
+      // The implicit rows a wrapped block lands in must repeat the container's own track
+      // pattern; anything else and the second block's value row sizes independently.
+      expect(implicitRows![1].trim()).toBe(explicitRows)
+    })
+
+    it('flows by row when folded, so the surplus wraps instead of extending the row', () => {
+      expect(reflowBlock()).toMatch(/grid-auto-flow:\s*row/)
+    })
+  })
+
+  /**
    * The setup screen carries the masthead — the only place in the app that says what this is.
    * Modelled on `bombista serve`'s, because the two are one suite and should look it.
    */

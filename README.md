@@ -62,6 +62,17 @@ Vite and Electron come up together and two windows open: **Control**, which only
 npm run dev:single
 ```
 
+Both of those serve the UI from Vite, so they always run the code you have. **Any other way of
+running from this checkout reads `dist/`** — `electron .` on its own, and `npm run pack`. `dist/`
+is a build artifact and is not in git, so it is only as fresh as your last:
+
+```bash
+npm run build
+```
+
+Run it after pulling and before running anything that isn't `npm run dev`. Without it the app
+starts happily and silently runs an older build than the one in `package.json`.
+
 ### 2. Import the song and build a setlist
 
 **Setlist → Manage setlists → New song**, and pick one or more song JSONs. The library takes a
@@ -87,7 +98,7 @@ They are separate on purpose: the performer view shows you the Spanish you are a
 <img src="docs/images/control-setup.png" width="700">
 </p>
 
-Four columns, and arming is blocked until all four are satisfied: a **song** is selected, both **languages** are chosen, the **projection** window is open. Only then does **Arm** light up.
+One column per thing that has to be right, and arming is blocked until they all are: a **song** is selected, both **languages** are chosen, the **projection** window is open. Only then does **Arm** light up.
 
 That gate exists because the failure it prevents is a public one — hitting the pedal on a dark night and discovering the projection window was never opened.
 
@@ -107,7 +118,8 @@ Arrow keys or a foot pedal advance the line. The performer view shows you where 
 
 In **Auto**, the timeline advances the lines for you and the pulse runs from the moment you arm. **A single pedal press takes it back**, mid-song, mid-video, and drops that song to Manual for the rest of it. There is no mode to exit and no dialog to dismiss — the manual path is always underneath, and it always wins.
 
-To build a distributable `.dmg`:
+To build a distributable `.dmg` (this runs `npm run build` first, so the bundle it ships is
+always the current source):
 
 ```bash
 npm run pack
