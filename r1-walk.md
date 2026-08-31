@@ -5,6 +5,9 @@ seven rounds deep without anyone noticing step 1 had no action on it. So: you ru
 
 **Delete this file when the walk is done.** It is an artefact of one round.
 
+**Updated after the first walk.** Step 4 changed: what it found is fixed, and re-walking it is the
+check. Steps 5, 6 and 7 are unchanged and still unreached.
+
 ## Before you start
 
 Build first. `npx electron .` serves the gitignored `dist/`, which goes stale silently.
@@ -53,7 +56,17 @@ reason will not be what the screen says.
 
 ## 4 — A song from nothing
 
-Point the songs folder at an **empty directory** in Preferences first, so the list starts empty.
+**Re-walk this one; it is what stopped last time and it has changed.** Before setting anything,
+open `New song` with **no songs folder set**.
+
+- **Expect:** `Create` is **there and disabled**, with the reason under it and an `Open preferences`
+  beside it. Not a paragraph where the button was.
+- **Fails if:** the button is missing, or the reason only appears on hover.
+
+Same check on the other two sites governed by the rule: `New gig` in a browser tab, and the visuals
+door's `Open Muralista` when hosting is unavailable. Both used to vanish.
+
+Then point the songs folder at an **empty directory** in Preferences, so the list starts empty.
 
 `New song` → type `prueba` → `Create`.
 
