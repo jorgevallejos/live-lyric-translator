@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { canHostTools, chooseFolderPath, closeTool, openTool } from './platform'
 import { getMuralistaFolder, setMuralistaFolder } from './contentFolders'
 import { refreshGigReadiness } from './gigSession'
+import { GatedAction } from './GatedAction'
 
 /**
  * **The visuals door: Muralista, hosted in a window of its own.**
@@ -45,11 +46,21 @@ export function MuralistaDoor() {
       </p>
 
       {!hosted ? (
-        <p className="gig-hint" data-testid="muralista-unhosted">
-          Muralista can only be hosted from the desktop app. Open <code>mapper.html</code> in Chrome
-          and hand it this gig folder — it is fully usable on its own, and Pregonero discovers the
-          room on the next re-check.
-        </p>
+        // **Disabled, not absent.** The escape hatch below is the real answer here — Muralista is
+        // fully usable on its own by requirement — but a screen with no control on it reads as a
+        // wall rather than as a fork in the road. See `GatedAction`.
+        <div data-testid="muralista-unhosted">
+          <GatedAction
+            site="muralista-open"
+            label="Open Muralista"
+            blockedBy="Muralista can only be hosted from the desktop app, not from a browser tab."
+            onClick={() => undefined}
+          />
+          <p className="gig-hint">
+            Open <code>mapper.html</code> in Chrome and hand it this gig folder — it is fully usable
+            on its own, and Pregonero discovers the room on the next re-check.
+          </p>
+        </div>
       ) : folder === null ? (
         <div data-testid="muralista-no-folder">
           <p className="gig-hint">

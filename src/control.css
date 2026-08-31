@@ -2987,6 +2987,23 @@ html, body, #root {
   padding-top: 0.5em;
 }
 
+/* An action held by a precondition: the control stays, the reason sits under it. See
+   `GatedAction.tsx` — a vanished control reads as a wall, a disabled one with a sentence reads as
+   a next step. */
+.gated-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  min-width: 0;
+}
+
+.gated-action-reason {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  max-width: 30em;
+}
+
 .setup-home-new {
   display: flex;
   flex-direction: column;

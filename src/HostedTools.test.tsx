@@ -339,12 +339,19 @@ describe('the visuals door: Muralista, hosted', () => {
     expect(screen.queryByTestId('muralista-done')).toBeNull()
   })
 
-  it('with no bridge, the button is absent and Chrome is named instead', () => {
+  it('with no bridge, the button is disabled with its reason — and Chrome is still named', () => {
+    // **Changed 2026-08-31, and the change is the point.** This asserted the button was ABSENT,
+    // which is the defect the R1 walk found on `New song`: a screen with no control on it reads as
+    // a wall rather than as a fork in the road, however good the sentence beside it. The escape
+    // hatch is still the real answer here — Muralista is fully usable on its own by requirement —
+    // but it now sits under a visible, disabled action. See `GatedAction.tsx`.
     hosted = false
     setMuralistaFolder('/tools/muralista/mapper')
     render(<MuralistaDoor />)
     expect(screen.getByTestId('muralista-unhosted').textContent).toMatch(/Chrome/)
-    expect(screen.queryByTestId('muralista-open')).toBeNull()
+    const button = screen.getByTestId('muralista-open') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(screen.getByTestId('muralista-open-reason').textContent).toMatch(/desktop app/)
   })
 
   it('says the file is the only channel, not a running connection', () => {

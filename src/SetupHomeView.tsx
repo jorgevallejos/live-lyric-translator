@@ -8,6 +8,7 @@ import { chooseGigFolderPath, hasGigFolderAccess, canRunBombista, runBombista } 
 import { joinPath } from './paths'
 import { SongSubflow } from './SongSubflow'
 import { SONG_INPUT_RULE } from './SongDoors'
+import { GatedAction } from './GatedAction'
 
 /**
  * **Setup home: gigs and songs, side by side, both in full.**
@@ -155,6 +156,18 @@ function NewSong({ onCreated }: { onCreated: () => void }) {
     })()
   }
 
+  // **The precondition never removes the action.** It disables it and says why — see
+  // `GatedAction`. This form used to replace Create with a paragraph, and the walk that found it
+  // stopped here reading a correct sentence as a wall.
+  const blockedBy =
+    songsFolder === null
+      ? 'There is no songs folder yet, so there is nowhere for a song to land.'
+      : !hosted
+        ? 'bombista cannot be run from here. Run bombista new in a terminal — it is fully usable on its own — and come back; Pregonero re-reads the files when you return.'
+        : !legal
+          ? 'Give it a name first. It becomes the file’s name and the song’s id.'
+          : null
+
   if (!open) {
     return (
       <button
@@ -171,18 +184,12 @@ function NewSong({ onCreated }: { onCreated: () => void }) {
   return (
     <div className="setup-home-new" data-testid="setup-new-song-form">
       <p className="gig-hint">{SONG_INPUT_RULE}</p>
-      {songsFolder === null ? (
+      {songsFolder === null && (
         <p className="setup-song-problem" data-testid="setup-new-song-no-folder">
-          There is no songs folder set, so there is nowhere for a song to land. Set one in
-          preferences.
+          Set the songs folder in preferences.
         </p>
-      ) : !hosted ? (
-        <p className="setup-song-problem">
-          <code>bombista</code> cannot be run from here. Run <code>bombista new</code> in a terminal
-          — it is fully usable on its own — and come back; Pregonero re-reads the files when you
-          return.
-        </p>
-      ) : (
+      )}
+      {(
         <>
           <label className="setup-home-field">
             <span>Name it</span>
@@ -200,15 +207,27 @@ function NewSong({ onCreated }: { onCreated: () => void }) {
             song is played at many gigs and there is only ever one copy of it.
           </p>
           <div className="gig-actions">
-            <button
-              type="button"
-              className="ctrl-btn ctrl-setup-link"
-              data-testid="setup-new-song-create"
-              disabled={busy || !legal}
+            <GatedAction
+              site="setup-new-song-create"
+              label="Create"
+              blockedBy={blockedBy}
+              busy={busy}
               onClick={create}
-            >
-              Create
-            </button>
+              remedy={
+                songsFolder === null ? (
+                  <button
+                    type="button"
+                    className="setup-home-row-open"
+                    data-testid="setup-new-song-to-preferences"
+                    onClick={() => {
+                      window.location.hash = '#/preferences'
+                    }}
+                  >
+                    Open preferences
+                  </button>
+                ) : undefined
+              }
+            />
             <button
               type="button"
               className="ctrl-btn ctrl-setup-link"
@@ -295,19 +314,17 @@ export function SetupHomeView() {
         <section className="setup-home-column" data-testid="setup-home-gigs">
           <div className="setup-home-column-head">
             <h2 className="gig-section-title">Gigs</h2>
-            {canReachFolder ? (
-              <button
-                type="button"
-                className="ctrl-btn ctrl-setup-link"
-                data-testid="setup-new-gig"
-                disabled={busy}
-                onClick={run(chooseGigFolder)}
-              >
-                New gig
-              </button>
-            ) : (
-              <span className="gig-empty">Gigs can only be opened from the desktop app.</span>
-            )}
+            <GatedAction
+              site="setup-new-gig"
+              label="New gig"
+              busy={busy}
+              blockedBy={
+                canReachFolder
+                  ? null
+                  : 'A gig folder can only be opened from the desktop app, not from a browser tab.'
+              }
+              onClick={run(chooseGigFolder)}
+            />
           </div>
           {gigs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-gigs">

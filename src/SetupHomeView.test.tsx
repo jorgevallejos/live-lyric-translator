@@ -164,13 +164,47 @@ describe('Setup home', () => {
     expect(screen.getByTestId('setup-song-row-nuevo').textContent).not.toMatch(/ready|complete|done/i)
   })
 
-  it('will not make a song with no songs folder set, and says where to set one', async () => {
+  it('shows Create disabled with its reason when no songs folder is set — never absent', async () => {
+    // **The defect the walk found, and the rule that replaced it.** This form used to swap Create
+    // for a paragraph. The paragraph was correct and still read as a wall: with no control on
+    // screen there is no evidence the app makes songs at all. See `GatedAction.tsx`.
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-new-song'))
     })
-    expect(screen.getByTestId('setup-new-song-no-folder').textContent).toContain('preferences')
+    const create = screen.getByTestId('setup-new-song-create') as HTMLButtonElement
+    expect(create).toBeTruthy()
+    expect(create.disabled).toBe(true)
+    expect(screen.getByTestId('setup-new-song-create-reason').textContent).toContain(
+      'no songs folder'
+    )
     expect(runBombista).not.toHaveBeenCalled()
+  })
+
+  it('offers the way to preferences beside the reason, so the reason is a next step', async () => {
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song'))
+    })
+    expect(screen.getByTestId('setup-new-song-to-preferences')).toBeTruthy()
+  })
+
+  it('shows New gig disabled with its reason outside Electron, never as a bare sentence', async () => {
+    // The same defect, written a second time in the same round: a button replaced by a span.
+    vi.resetModules()
+    vi.doMock('./platform', async (importOriginal) => ({
+      ...(await importOriginal<Record<string, unknown>>()),
+      hasGigFolderAccess: () => false,
+    }))
+    const { SetupHomeView: Fresh } = await import('./SetupHomeView')
+    await act(async () => {
+      render(<Fresh />)
+    })
+    const button = screen.getByTestId('setup-new-gig') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(screen.getByTestId('setup-new-gig-reason').textContent).toContain('desktop app')
+    vi.doUnmock('./platform')
+    vi.resetModules()
   })
 
   it('reports a refusal from bombista instead of pretending a song was made', async () => {

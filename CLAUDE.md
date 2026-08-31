@@ -289,6 +289,29 @@ confirmation again, which is cheap; refusing to open the gig over it would be a 
 watcher** and none is coming: on-open is trivially not mid-song, with no watcher to build and no
 boundary to police.
 
+### An action with an unmet precondition is disabled, never absent
+
+`GatedAction.tsx`, and **a test counts the sites**, because counting them is the only way this rule
+survives — the same device `SONG_DOORS` uses, for the same reason.
+
+**Where it came from.** The 2026-08-31 end-to-end run stopped at setup step 1: the step stated a
+requirement, disabled both navigation buttons, offered no action and pointed at a terminal. The
+setup redesign exists to remove that. Walking the redesign the same day, `New song` had no action
+because no songs folder was set — **the same shape, reappearing inside the fix for it.** The message
+was correct and named what to do, and it still read as a wall.
+
+**The lesson is not the setting.** A precondition discovered at the moment you need it is a dead end
+however well it is worded. The cure is to stop discovering settings when they are needed — first
+run, which is a later round. This is the other half, and it stays useful after the cure: **a
+vanished control reads as a wall; a disabled one with a sentence beside it reads as a next step.**
+The difference is whether the person can see that the thing they wanted is a thing the app does.
+
+**It is not an argument for enabling everything and failing on click.** The button is genuinely
+disabled and genuinely does nothing; what changes is that it is *there*, with the reason beside it
+rather than in its place — as text, not only as a `title`, because a tooltip is a reason nobody on
+an iPad ever sees. **Nor does it cover a control that is meaningless rather than blocked**: a
+*Close gig* button with no gig open is an action about nothing, and it stays absent.
+
 ### Two doors on a song, and only two
 
 **Modify the song, and modify its visuals.** `SongDoors.tsx`, and a test counts the buttons, because
