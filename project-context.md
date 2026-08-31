@@ -205,12 +205,21 @@ query existed anywhere in `control.css` before this date.
 by name while six rendered. A comment that lists what something contains becomes a second source of
 truth and rots the moment the thing grows. Same family as the Praktijk tab that no document named.
 
-**PR #79 also carries a reflow that should be dropped.** Its 1310px breakpoint was found by sweeping
-for where buttons begin to **clip**. Seen on the real iPad the same day, the panel is illegible well
-before it clips — values break mid-word, the rig checklist becomes a ribbon — and the reflow
-correctly does not fire, because nothing is clipped. **Wrong criterion, not a wrong number.**
-Legibility is the test, and the number chosen by reading the panel will be higher. Merge the three
-fixes above; redesign the narrow behaviour separately.
+**PR #79 also carried a reflow, and it was dropped before merge.** Its 1310px breakpoint was found
+by sweeping for where buttons begin to **clip**. Seen on the real iPad the same day, the panel is
+illegible well before it clips — values break mid-word, the rig checklist becomes a ribbon — and the
+reflow correctly does not fire, because nothing is clipped. **Wrong criterion, not a wrong number.**
+Legibility is the test, and the number chosen by reading the panel will be higher.
+
+**So the file has no media query again**, which is the state it was in before the collision was
+fixed, and the reason is written into `control.css` where the fold was so the next person does not
+re-derive it from clipping. **The expected outcome of merging #79 is a panel that is still
+illegible at iPad width** — if it looks fixed, the wrong half was merged. The three fixes are about
+a grid that collided with itself, not about narrow surfaces.
+
+**One thing this cost, worth knowing before the next split:** the three fixes and the reflow were
+written into a single commit, so there was no commit to drop. Two halves that will be judged
+separately belong in two commits, whatever their size.
 
 **`dist/` was two weeks stale and shipped `v0.22.0` while `package.json` said `v0.23.1`.** `npx
 electron .` serves `dist/` without warning, so "run from source", which is what the whole rollback

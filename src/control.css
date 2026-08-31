@@ -496,82 +496,17 @@ html, body, #root {
   border-left: none;
 }
 
-/* ---- Narrow control surfaces: the row folds into row-blocks ----------------
-   The breakpoint is measured, not rounded. At --control-ui-scale 1.5 the six-column row runs
-   out of room for its own buttons below 1311px — Projection's "Close projection" is the first
-   to be clipped by its column's overflow:hidden — so 1310px is where the row has to fold. The
-   iPad over Sidecar (1112pt) sits inside that band and is a control surface this app is
-   actually driven from, so a clipped button there is a defect, not a fallback.
+/* ---- Narrow control surfaces have no behaviour here yet, and that is deliberate -----------
+   A fold was written and dropped before merge. Its breakpoint was swept for the width where
+   buttons begin to CLIP, and on a real iPad on 2026-08-31 the panel is illegible well before it
+   clips: values break mid-word ("Trage / dia de cerdo asado", "Unarm / ed"). A fold that fires
+   at the clipping width arrives long after the panel stopped being readable, so it was the
+   wrong criterion rather than the wrong number.
 
-   auto-fit, not a column count: how many columns fit is derived from the width, exactly as the
-   single row derives one column per section. Nothing here names a number, so a seventh section
-   changes where the fold lands and nothing else.
-
-   grid-auto-rows repeats the container's own four-track pattern, so the implicit rows a folded
-   block lands in are label / value / extras / buttons again — each block keeps its own shared,
-   aligned value row instead of collapsing to auto heights.
-
-   THE COLUMN RULES DO NOT SURVIVE THE FOLD, AND THIS IS DELIBERATE — DO NOT RESTORE THEM.
-   A rule belongs between columns but not before the first one of a row, and "first column of a
-   row" cannot be expressed without naming how many columns a row has: :nth-child(3n+1) is a
-   hardcoded 3. That hardcoded count is exactly what caused the collision this file was fixed
-   for — the grid claimed four columns while six sections rendered, and Rig and Arm wrapped on
-   top of Gig and Song. Bringing the count back to hang a 1px decoration on it trades the fix
-   for a rule. The gaps carry the separation; that is the whole job. If the blocks ever need to
-   read as more separate, widen the row gap — it costs vertical space (see the fit budget
-   below), and it costs no correctness. */
-@media (max-width: 1310px) {
-  .control-center-setup .control-performance-state {
-    grid-auto-flow: row;
-    /* 12em floor: wide enough that four columns never fit this band (which would be no fold at
-       all), narrow enough that three always do, down to the point where two is the honest
-       answer. */
-    grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
-    grid-auto-rows: auto minmax(min-content, 1fr) auto auto;
-    gap: 0.5em 2em;
-  }
-
-  .control-center-setup .control-setup-section {
-    /* The inline padding existed to centre the column rule in the gap. No rule, no padding —
-       the column gap is a real gap again. */
-    padding-inline: 0;
-    border-left: none;
-  }
-
-  /* Two row-blocks cost twice the fixed vertical furniture — two label rows, two button rows,
-     two sets of panel padding — and at 1112x834 that overflowed the 100vh screen by 294px,
-     putting Arm below the fold. Arm is the control that starts the performance: it does not go
-     below a fold. What gives way is spacing, never type or content — the big values stay the
-     size they are, because a narrow surface here is an iPad on a stage, read at a glance. */
-  .control-center-setup {
-    padding-top: 0.75em;
-    padding-bottom: 0.75em;
-  }
-
-  .control-center-setup .control-performance-state {
-    padding: 0.75em 1.5em;
-  }
-
-  .control-center-setup .control-setup-label {
-    /* 2.5em was reserved so a one-line and a two-line label still lined up. The shared subgrid
-       row does that, and over two blocks the reserve is dead space above the fold. */
-    min-height: 2em;
-  }
-
-  .control-center-setup .control-setup-buttons {
-    /* Not 0. Sections are `min-height: 0` scroll containers, so a subgrid row is free to shrink
-       below its own content: with no floor here the button row collapsed to 39px, the button
-       overflowed it upwards (justify-content: flex-end) and landed on top of the note in the
-       extras row above. 3em is one button row (2.75em) and no more — the old 6.25em was
-       alignment padding the shared grid row already provides, and it cost 160px across two
-       blocks. */
-    min-height: 3em;
-  }
-
-  .control-center-setup .control-setup-toggle-area {
-    margin-bottom: 0.25em;
-  }
-}
+   THE TEST FOR ANY FUTURE FOLD IS LEGIBILITY ON THE DEVICE, NOT CLIPPING IN A BROWSER. jsdom
+   does no layout and Chromium is not the surface, so the number has to come from reading the
+   panel on the iPad over Sidecar. Until that is done, this file has no media query at all —
+   the same state it was in before the column collision was fixed. */
 
 /* Allow grid columns to shrink below content size; prevent overlap into adjacent columns */
 .control-center-setup .control-performance-state > * {
