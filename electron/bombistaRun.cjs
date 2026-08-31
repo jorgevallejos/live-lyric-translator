@@ -1,4 +1,5 @@
 const { execFile } = require('child_process')
+const { resolveBombista } = require('./bombistaBinary.cjs')
 
 /**
  * **Running Bombista.** A subprocess invocation from the main process, and that is all it is — not
@@ -33,7 +34,8 @@ const ALLOWED = new Set(['new', 'align', 'promote', 'validate', 'migrate'])
  */
 function runBombista(subcommand, args = [], options = {}) {
   const run = options.execFile || execFile
-  const command = options.command || 'bombista'
+  // Resolved, not inherited: a Finder-launched app's PATH cannot see ~/.local/bin.
+  const command = options.command || resolveBombista(options.bombistaPath).command
   // `align` transcribes: roughly 50 s for a three-minute song, and longer for a first run that has
   // to fetch the model. Everything else answers immediately.
   const timeout = options.timeout ?? (subcommand === 'align' ? 30 * 60_000 : 60_000)
@@ -52,7 +54,7 @@ function runBombista(subcommand, args = [], options = {}) {
     run(command, argv, { timeout, maxBuffer: 8 * 1024 * 1024 }, (error, stdout, stderr) => {
       const output = `${stdout || ''}${stderr || ''}`
       if (error && NOT_INSTALLED_CODES.has(error.code)) {
-        resolve({ status: 'skipped', output: `${command} is not on PATH`, code: null })
+        resolve({ status: 'skipped', output: `${command} could not be run`, code: null })
         return
       }
       if (error && error.killed) {
@@ -71,7 +73,8 @@ function runBombista(subcommand, args = [], options = {}) {
 /** Whether `bombista` answers at all on this machine, and what it says it is. */
 function bombistaVersion(options = {}) {
   const run = options.execFile || execFile
-  const command = options.command || 'bombista'
+  // Resolved, not inherited: a Finder-launched app's PATH cannot see ~/.local/bin.
+  const command = options.command || resolveBombista(options.bombistaPath).command
   return new Promise((resolve) => {
     run(command, ['--version'], { timeout: options.timeout || 10_000 }, (error, stdout, stderr) => {
       if (error) {

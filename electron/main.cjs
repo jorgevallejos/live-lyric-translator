@@ -8,6 +8,7 @@ const { readGigFolder, writeGigFile, writeDebriefFile } = require('./gigFolder.c
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
+const { resolveBombista } = require('./bombistaBinary.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
 const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
@@ -408,8 +409,8 @@ ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPat
 
 ipcMain.handle('gig:writeDebrief', (_event, folderPath, text) => writeDebriefFile(folderPath, text))
 
-ipcMain.handle('song:validateForPerformance', (_event, songPath) =>
-  validateSongForPerformance(songPath)
+ipcMain.handle('song:validateForPerformance', (_event, songPath, bombistaPath) =>
+  validateSongForPerformance(songPath, { bombistaPath })
 )
 
 // What displays this machine has. Read-only: the setup confirmation fingerprints it so it can
@@ -419,11 +420,18 @@ ipcMain.handle('display:describe', () => describeDisplays(screen))
 // ── Bombista, and Muralista ───────────────────────────────────────────────────────────────────
 // **Pass a song file path, never a gig.** Bombista does not know Pregonero exists and does not
 // know gigs exist. Hosting its review page changes packaging, not knowledge.
-ipcMain.handle('bombista:run', (_event, subcommand, args) =>
-  runBombista(subcommand, Array.isArray(args) ? args : [])
+// **The binary is resolved, never inherited.** A Finder-launched app's PATH is
+// /usr/bin:/bin:/usr/sbin:/sbin and cannot see ~/.local/bin, where pipx puts a Python CLI — so
+// every one of these was `skipped` in exactly the launch mode a performer uses. The path
+// preferences holds travels with the call, so the main process stays stateless about settings.
+ipcMain.handle('bombista:run', (_event, subcommand, args, bombistaPath) =>
+  runBombista(subcommand, Array.isArray(args) ? args : [], { bombistaPath })
 )
 
-ipcMain.handle('bombista:version', () => bombistaVersion())
+ipcMain.handle('bombista:version', (_event, bombistaPath) => bombistaVersion({ bombistaPath }))
+
+/** Where Pregonero found it, and everywhere it looked. For preferences to say out loud. */
+ipcMain.handle('bombista:locate', (_event, bombistaPath) => resolveBombista(bombistaPath))
 
 /** Where `align` writes. Pregonero names the directory and never reaches into it. */
 ipcMain.handle('bombista:stagingDir', (_event, songId) => {
@@ -448,9 +456,9 @@ ipcMain.handle('tool:open', (_event, key, folder, page, title) =>
  * a path relative to the staging directory, so serving it from anywhere else gives a review page
  * that cannot play the two lines it exists to let you hear.
  */
-ipcMain.handle('bombista:review', async (_event, args) => {
+ipcMain.handle('bombista:review', async (_event, args, bombistaPath) => {
   stopBombistaServe()
-  const started = await startBombistaServe(Array.isArray(args) ? args : [])
+  const started = await startBombistaServe(Array.isArray(args) ? args : [], { bombistaPath })
   if (!started.ok) return { ok: false, error: started.error }
   bombistaServeChild = started.child
   const opened = await openToolUrl('bombista', started.url, 'Bombista — review')

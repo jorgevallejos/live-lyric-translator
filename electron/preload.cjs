@@ -39,13 +39,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * Runs one Bombista subcommand. **A song file path, never a gig** — Bombista does not know
    * Pregonero exists and does not know gigs exist.
    */
-  runBombista: (subcommand, args) => ipcRenderer.invoke('bombista:run', subcommand, args),
+  runBombista: (subcommand, args, bombistaPath) =>
+    ipcRenderer.invoke('bombista:run', subcommand, args, bombistaPath),
   /** Whether `bombista` answers on this machine, and what version. */
-  bombistaVersion: () => ipcRenderer.invoke('bombista:version'),
+  bombistaVersion: (bombistaPath) => ipcRenderer.invoke('bombista:version', bombistaPath),
+  /**
+   * Where Pregonero found `bombista`, and everywhere it looked.
+   *
+   * `bombistaPath` is what preferences holds, and it travels on every call: the main process is
+   * told the setting rather than reading it, so it stays stateless about renderer settings the
+   * way it already is about the songs and media folders.
+   */
+  locateBombista: (bombistaPath) => ipcRenderer.invoke('bombista:locate', bombistaPath),
   /** The directory `align` writes into for a song. Pregonero names it and never reaches into it. */
   bombistaStagingDir: (songId) => ipcRenderer.invoke('bombista:stagingDir', songId),
   /** Starts `bombista serve` and opens a window on the address it prints. */
-  openBombistaReview: (args) => ipcRenderer.invoke('bombista:review', args),
+  openBombistaReview: (args, bombistaPath) =>
+    ipcRenderer.invoke('bombista:review', args, bombistaPath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
   closeTool: (key) => ipcRenderer.invoke('tool:close', key),
@@ -53,6 +63,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** What displays this machine has. Read-only; the confirmation fingerprints it. */
   describeDisplays: () => ipcRenderer.invoke('display:describe'),
   /** Shells out to `bombista validate --for-performance`. Never fails closed. */
-  validateSongForPerformance: (songPath) =>
-    ipcRenderer.invoke('song:validateForPerformance', songPath),
+  validateSongForPerformance: (songPath, bombistaPath) =>
+    ipcRenderer.invoke('song:validateForPerformance', songPath, bombistaPath),
 })

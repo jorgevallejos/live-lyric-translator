@@ -1,4 +1,5 @@
 const { execFile } = require('child_process')
+const { resolveBombista } = require('./bombistaBinary.cjs')
 
 /**
  * `bombista validate --for-performance` — a CLI invocation from the main process, which is
@@ -17,7 +18,8 @@ const NOT_INSTALLED_CODES = new Set(['ENOENT', 'EACCES', 'ENOTDIR'])
 
 function validateSongForPerformance(songPath, options = {}) {
   const run = options.execFile || execFile
-  const command = options.command || 'bombista'
+  // Resolved, not inherited: a Finder-launched app's PATH cannot see ~/.local/bin.
+  const command = options.command || resolveBombista(options.bombistaPath).command
   const timeout = options.timeout || 15_000
 
   return new Promise((resolve) => {
@@ -27,7 +29,7 @@ function validateSongForPerformance(songPath, options = {}) {
       { timeout },
       (error, stdout, stderr) => {
         if (error && NOT_INSTALLED_CODES.has(error.code)) {
-          resolve({ status: 'skipped', reason: `${command} is not on PATH` })
+          resolve({ status: 'skipped', reason: `${command} could not be run` })
           return
         }
         if (error && error.killed) {

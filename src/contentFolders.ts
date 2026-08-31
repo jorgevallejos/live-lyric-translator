@@ -29,6 +29,7 @@ import { isAbsolutePath, joinPath } from './paths'
 export const SONGS_FOLDER_KEY = 'pregoneroSongsFolder'
 export const MEDIA_FOLDER_KEY = 'pregoneroMediaFolder'
 export const MURALISTA_FOLDER_KEY = 'pregoneroMuralistaFolder'
+export const BOMBISTA_PATH_KEY = 'pregoneroBombistaPath'
 
 function read(key: string): string | null {
   try {
@@ -82,6 +83,27 @@ export function getMuralistaFolder(): string | null {
 
 export function setMuralistaFolder(folderPath: string | null): void {
   write(MURALISTA_FOLDER_KEY, folderPath)
+}
+
+/**
+ * **Where `bombista` is on this machine, when the answer is not obvious.**
+ *
+ * Normally there is nothing to set: `electron/bombistaBinary.cjs` looks on `PATH` and then in the
+ * places a Python CLI actually installs. This is the override for a machine where neither answer
+ * is the right one — a virtualenv, a checkout, a second install.
+ *
+ * **It is used verbatim and never checked**, so a path typed here that is wrong fails naming
+ * itself. Falling back to a working binary would leave a dead setting looking alive.
+ *
+ * It is a per-machine fact, like the folders either side of it, and it travels to the main process
+ * on every call rather than being read there — the main process stays stateless about settings.
+ */
+export function getBombistaPath(): string | null {
+  return read(BOMBISTA_PATH_KEY)
+}
+
+export function setBombistaPath(binaryPath: string | null): void {
+  write(BOMBISTA_PATH_KEY, binaryPath)
 }
 
 /**

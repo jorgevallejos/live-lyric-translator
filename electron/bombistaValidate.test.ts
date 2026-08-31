@@ -1,5 +1,8 @@
 /**
- * The bombista shell-out. The spawner is injected, so no Python and no PATH are involved.
+ * The bombista shell-out. The spawner is injected, so no Python is involved — and `command` is
+ * pinned wherever the assertion mentions it by name, because the module RESOLVES the binary now
+ * and would otherwise pick up whatever is installed on the machine running these tests. Which
+ * answer resolution gives is `bombistaBinary.test.ts`'s question, not this file's.
  * @vitest-environment node
  */
 import { describe, it, expect } from 'vitest'
@@ -39,6 +42,7 @@ describe('validateSongForPerformance', () => {
     const seen: { command?: string; args?: string[] } = {}
     await validateSongForPerformance('/songs/duelo.json', {
       execFile: spawner(null, '', '', seen),
+      command: 'bombista',
     })
     expect(seen.command).toBe('bombista')
     expect(seen.args).toEqual(['validate', '/songs/duelo.json', '--for-performance'])
@@ -63,19 +67,28 @@ describe('validateSongForPerformance', () => {
 
   it('never reports a failure with no words in it', async () => {
     const err = Object.assign(new Error('exit 2'), { code: 2 })
-    const r = await validateSongForPerformance('/songs/x.json', { execFile: spawner(err) })
+    const r = await validateSongForPerformance('/songs/x.json', {
+      execFile: spawner(err),
+      command: 'bombista',
+    })
     expect(r).toEqual({ status: 'failed', messages: ['bombista exited 2'] })
   })
 
   it('does not fail closed when bombista is not installed', async () => {
     const err = Object.assign(new Error('spawn bombista ENOENT'), { code: 'ENOENT' })
-    const r = await validateSongForPerformance('/songs/x.json', { execFile: spawner(err) })
-    expect(r).toEqual({ status: 'skipped', reason: 'bombista is not on PATH' })
+    const r = await validateSongForPerformance('/songs/x.json', {
+      execFile: spawner(err),
+      command: 'bombista',
+    })
+    expect(r).toEqual({ status: 'skipped', reason: 'bombista could not be run' })
   })
 
   it('does not fail closed when bombista hangs', async () => {
     const err = Object.assign(new Error('timed out'), { killed: true })
-    const r = await validateSongForPerformance('/songs/x.json', { execFile: spawner(err) })
+    const r = await validateSongForPerformance('/songs/x.json', {
+      execFile: spawner(err),
+      command: 'bombista',
+    })
     expect(r).toEqual({ status: 'skipped', reason: 'bombista did not answer in time' })
   })
 })
