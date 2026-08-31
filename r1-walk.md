@@ -5,8 +5,9 @@ seven rounds deep without anyone noticing step 1 had no action on it. So: you ru
 
 **Delete this file when the walk is done.** It is an artefact of one round.
 
-**Updated after the first walk.** Step 4 changed: what it found is fixed, and re-walking it is the
-check. Steps 5, 6 and 7 are unchanged and still unreached.
+**Updated after the first walk, twice.** Step 4's two findings are fixed and re-walking it is the
+check — including the songs list, which was a real defect. **Step 5 is now a skip**: you were right
+to stop, and rebuilding that flow is its own round. Steps 6 and 7 are unchanged and unreached.
 
 ## Before you start
 
@@ -79,9 +80,17 @@ Then point the songs folder at an **empty directory** in Preferences, so the lis
 
 Then, with the songs folder pointed back at the real `songs/`:
 
-- **Expect:** `libertad` is listed, visibly broken, with its reason. Not hidden.
+- **Expect:** all thirteen songs are listed, without adding a single one by hand. This is the
+  defect you found: the library was a list of individually chosen songs and could not see a folder.
+- **Expect:** `libertad` among them, visibly broken, with its reason. Not hidden.
 
-## 5 — A song from a lyrics file and a recording — **this is the one that stops**
+## 5 — SKIP. You were right to stop here.
+
+You declined this because the subflow implements the previous design. It still does — rebuilding it
+as one door is now **R3** in the queue, and `promote` being able to land a new song (**R2**, built
+overnight on `r2/promote-creates`) is what it needs. Do not walk this until R3 exists.
+
+## 5-as-written, kept only so the diagnosis is on record
 
 Click a song row to open the flow, or `New song`. Try to get from a lyrics `.txt` plus a recording
 to a finished song in the list.
