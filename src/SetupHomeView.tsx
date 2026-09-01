@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { chooseGigFolder, openGigFolder, refreshGigReadiness } from './gigSession'
+import { chooseGigFolder, closeGig, openGigFolder, refreshGigReadiness } from './gigSession'
 import { getRememberedGigFolder } from './gigFolderStore'
 import { forgetGig, getGigList, replaceGigPath } from './gigListStore'
 import {
@@ -349,6 +349,10 @@ export function SetupHomeView() {
         <section className="setup-home-column" data-testid="setup-home-gigs">
           <div className="setup-home-column-head">
             <h2 className="gig-section-title">Gigs</h2>
+            {/* **New gig asks for a name, and it asks for it in the flow.** It used to open a
+                directory picker here, so the first thing asked of somebody making their first gig
+                was a filesystem decision. It now goes to step 1, where the gig is named and the
+                app makes its folder inside the gigs root first run recorded. */}
             <GatedAction
               site="setup-new-gig"
               label="New gig"
@@ -356,15 +360,17 @@ export function SetupHomeView() {
               blockedBy={
                 canReachFolder
                   ? null
-                  : 'A gig folder can only be opened from the desktop app, not from a browser tab.'
+                  : 'A gig can only be made from the desktop app, not from a browser tab.'
               }
-              onClick={run(chooseGigFolder)}
+              onClick={() => {
+                void closeGig().then(toSetup)
+              }}
             />
           </div>
           {gigs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-gigs">
-              No gigs yet. A gig is a folder: <code>gig.json</code> is Pregonero’s and{' '}
-              <code>visuals.json</code> is Muralista’s, written beside it.
+              No gigs yet. A gig is a folder inside your gigs folder: <code>gig.json</code> is
+              Pregonero’s and <code>visuals.json</code> is Muralista’s, written beside it.
             </p>
           ) : (
             <ul className="setup-home-list">
@@ -395,6 +401,21 @@ export function SetupHomeView() {
             a drive that is not plugged in is not a deleted gig. <strong>Forget</strong> is
             Pregonero forgetting where a gig was; the folder itself is untouched.
           </p>
+          {/* The import path, one act away from making one, because they are different acts. */}
+          {canReachFolder && (
+            <button
+              type="button"
+              className="ctrl-btn ctrl-setup-link"
+              data-testid="setup-import-gig"
+              disabled={busy}
+              onClick={run(async () => {
+                await chooseGigFolder()
+                toSetup()
+              })}
+            >
+              Import a gig from elsewhere…
+            </button>
+          )}
         </section>
 
         <section className="setup-home-column" data-testid="setup-home-songs">

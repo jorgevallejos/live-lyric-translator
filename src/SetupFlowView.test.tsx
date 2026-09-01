@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 /**
- * The guided setup flow: six ordered steps, a forward button that greys, the escape hatch said out
- * loud, two doors on a song and only two, and step 0 named rather than hidden.
+ * The guided setup flow: **four** ordered steps, a forward button that greys, the escape hatch said
+ * out loud, two doors on a song and only two, and step 0 named rather than hidden.
  *
  * Every assertion here is about **rendering** the readiness delta. The gig folder is mocked at the
  * platform seam, which is the one module that knows Electron exists.
@@ -15,6 +15,7 @@ import { installLibrary } from './testSupport/library'
 
 const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
+const createGigFolder = vi.fn()
 const validateSongForPerformance = vi.fn()
 const fileExists = vi.fn()
 const readSongFileText = vi.fn()
@@ -40,6 +41,7 @@ vi.mock('./platform', async (importOriginal) => ({
   chooseGigFolderPath: vi.fn(),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
+  createGigFolder: (...a: unknown[]) => createGigFolder(...a),
   writeDebriefFile: vi.fn(),
   validateSongForPerformance: (...a: unknown[]) => validateSongForPerformance(...a),
   fileExists: (...a: unknown[]) => fileExists(...a),
@@ -168,30 +170,46 @@ function readyGig() {
   )
 }
 
-describe('the six steps', () => {
-  it('names all six, in order', async () => {
+describe('the four steps', () => {
+  it('names all four, in order, and there is no songs step in front of them', async () => {
     await renderSetup()
-    for (const step of [1, 2, 3, 4, 5, 6]) {
+    for (const step of [1, 2, 3, 4]) {
       expect(screen.getByTestId(`gig-step-${step}`)).toBeTruthy()
     }
-    expect(screen.getByTestId('gig-step-1').textContent).toMatch(/1\. The songs/)
-    expect(screen.getByTestId('gig-step-6').textContent).toMatch(/6\. Setup confirmed/)
+    expect(screen.queryByTestId('gig-step-5')).toBeNull()
+    expect(screen.queryByTestId('gig-step-6')).toBeNull()
+    expect(screen.getByTestId('gig-step-1').textContent).toMatch(/1\. The gig/)
+    expect(screen.getByTestId('gig-step-2').textContent).toMatch(/2\. The setlist/)
+    expect(screen.getByTestId('gig-step-3').textContent).toMatch(/3\. Visuals/)
+    expect(screen.getByTestId('gig-step-4').textContent).toMatch(/4\. Setup confirmed/)
   })
 
-  it('puts you on the first step that is not done', async () => {
+  /**
+   * **The 2026-08-31 dead end, and where it is not.** The flow opened on "Prepare the songs" —
+   * a library step, gated, whose escape hatch pointed at a terminal — because `currentStep`
+   * returns the first step that is not complete. From nothing it now opens on the gig itself,
+   * which is a step with an action on it.
+   */
+  it('opens on the gig from nothing, and never on a step about the songs', async () => {
     await renderSetup()
-    // The library reads, so step 1 is done; with no gig folder, step 2 is where the work is.
     await waitFor(
-      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/2\. The gig/),
+      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/1\. The gig/),
       WAIT
     )
+    expect(screen.getByTestId('setup-step-page').textContent).not.toMatch(/in a terminal/)
+  })
+
+  it('asks for a name rather than a folder when there is no gig', async () => {
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('setup-gig-lands').textContent).toMatch(/never pick a path/)
   })
 
   it('puts you at the end when everything is done', async () => {
     readyGig()
     await renderSetup()
     await waitFor(
-      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/6\. Setup confirmed/),
+      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/4\. Setup confirmed/),
       WAIT
     )
   })
@@ -199,10 +217,10 @@ describe('the six steps', () => {
   it('lets you look at any step, because the block is on moving on and not on reading', async () => {
     await renderSetup()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /5\. Readiness at the venue/ }))
+      fireEvent.click(screen.getByRole('button', { name: /3\. Visuals/ }))
     })
-    expect(screen.getByTestId('setup-step-title').textContent).toMatch(/5\./)
-    expect(screen.getByTestId('setup-body-5')).toBeTruthy()
+    expect(screen.getByTestId('setup-step-title').textContent).toMatch(/3\./)
+    expect(screen.getByTestId('setup-body-3')).toBeTruthy()
   })
 })
 
@@ -210,7 +228,7 @@ describe('the forward button', () => {
   it('greys on a step that is not done, and says why', async () => {
     await renderSetup()
     await waitFor(
-      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/2\./),
+      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/1\./),
       WAIT
     )
     expect((screen.getByTestId('setup-forward') as HTMLButtonElement).disabled).toBe(true)
@@ -218,22 +236,46 @@ describe('the forward button', () => {
   })
 
   it('is live on a step that is done', async () => {
+    readyGig()
     await renderSetup()
+    await waitFor(
+      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/4\./),
+      WAIT
+    )
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
+      fireEvent.click(screen.getByRole('button', { name: /1\. The gig/ }))
     })
     expect((screen.getByTestId('setup-forward') as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('moves you on when it is live', async () => {
+    readyGig()
     await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
+      fireEvent.click(screen.getByRole('button', { name: /1\. The gig/ }))
     })
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-forward'))
     })
     expect(screen.getByTestId('setup-step-title').textContent).toMatch(/2\./)
+  })
+
+  /**
+   * **The trap this round exists to not rebuild, seen from the screen.** `bombista` is unavailable
+   * in this suite, so every song comes back `skipped` rather than `failed`; the assertion that
+   * matters is the shape — a setlist step that is complete, with the songs listed, and a live
+   * forward button.
+   */
+  it('is live on the setlist step with songs in it, whatever the songs need', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
+    })
+    expect((screen.getByTestId('setup-forward') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByTestId('setup-setlist-row-duelo')).toBeTruthy()
   })
 
   it('never blocks reading a half-built gig: every step and every song stays on the screen', async () => {
@@ -243,7 +285,7 @@ describe('the forward button', () => {
     )
     await renderSetup()
     await waitFor(() => expect(screen.getByTestId('gig-id').textContent).toBe(GIG_ID), WAIT)
-    for (const step of [1, 2, 3, 4, 5, 6]) {
+    for (const step of [1, 2, 3, 4]) {
       expect(screen.getByTestId(`gig-step-${step}`)).toBeTruthy()
     }
     expect(screen.getByTestId('gig-song-duelo')).toBeTruthy()
@@ -258,7 +300,7 @@ describe('the escape hatch', () => {
     )
     await renderSetup()
     await waitFor(
-      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/3\. Gig visuals/),
+      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/3\. Visuals/),
       WAIT
     )
     expect(screen.getByTestId('setup-escape-hatch').textContent).toMatch(
@@ -266,42 +308,71 @@ describe('the escape hatch', () => {
     )
   })
 
-  it('names bombista on step 1 rather than Muralista', async () => {
-    installLibrary([])
+  /**
+   * **No step points at a terminal any more.** The hatch that did belonged to the songs step, and
+   * the songs step is gone: song preparation is the song door's, on Setup home.
+   */
+  it('never sends anybody to a terminal, on any step', async () => {
     await renderSetup()
-    await waitFor(
-      () => expect(screen.getByTestId('setup-step-title').textContent).toMatch(/1\./),
-      WAIT
-    )
-    expect(screen.getByTestId('setup-escape-hatch').textContent).toMatch(/bombista/)
+    for (const step of [1, 2, 3, 4]) {
+      await act(async () => {
+        fireEvent.click(screen.getByTestId(`gig-step-${step}`).querySelector('button')!)
+      })
+      const hatch = screen.queryByTestId('setup-escape-hatch')
+      if (hatch) expect(hatch.textContent).not.toMatch(/terminal/i)
+    }
   })
 
   it('is silent on a step that is done', async () => {
     readyGig()
     await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /3\. Gig visuals/ }))
+      fireEvent.click(screen.getByRole('button', { name: /3\. Visuals/ }))
     })
     await waitFor(() => expect(screen.queryByTestId('setup-escape-hatch')).toBeNull(), WAIT)
   })
 })
 
+/**
+ * **Where the doors are now.** Step 1 of six was *The songs*, and it listed the whole library with
+ * a pair of doors on every row. That step is gone: song preparation is gig-independent and lives on
+ * Setup home, reachable without a gig at all. What is left inside the flow is step 3's optional
+ * half — **the songs of this gig that deviate** — and each of those still gets the same two doors.
+ */
 describe('two doors on a song, and only two', () => {
-  it('offers exactly two buttons per song, and no third', async () => {
+  /** A gig whose room is mapped but carries no lyrics shape, so every song in it deviates. */
+  function deviatingGig() {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({
+        gigPresent: true,
+        gigText: gigJson(['duelo', 'vidas']),
+        visualsPresent: true,
+        visualsText: visualsJson({}),
+      })
+    )
+  }
+
+  async function openVisuals() {
+    deviatingGig()
     await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
+      fireEvent.click(screen.getByRole('button', { name: /3\. Visuals/ }))
     })
+    await waitFor(() => expect(screen.getByTestId('song-doors-duelo')).toBeTruthy(), WAIT)
+  }
+
+  it('offers exactly two buttons per song, and no third', async () => {
+    await openVisuals()
     const doors = screen.getByTestId('song-doors-duelo').querySelectorAll('.song-doors-buttons button')
     expect(doors).toHaveLength(2)
     expect([...doors].map((b) => b.textContent)).toEqual(['Modify the song', 'Modify its visuals'])
   })
 
   it('has no button to attach a timeline, link a video or set a tempo', async () => {
-    await renderSetup()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
-    })
+    await openVisuals()
     const page = screen.getByTestId('setup-step-page')
     for (const forbidden of [/attach.*timeline/i, /link.*video/i, /set.*tempo/i, /import.*timeline/i]) {
       const hit = [...page.querySelectorAll('button')].find((b) => forbidden.test(b.textContent ?? ''))
@@ -310,10 +381,7 @@ describe('two doors on a song, and only two', () => {
   })
 
   it('sends the song door to Bombista and the visuals door to Muralista', async () => {
-    await renderSetup()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
-    })
+    await openVisuals()
     await act(async () => {
       fireEvent.click(screen.getByTestId('song-doors-duelo-song'))
     })
@@ -323,39 +391,61 @@ describe('two doors on a song, and only two', () => {
     })
     expect(screen.getByTestId('door-body-visuals').textContent).toMatch(/Muralista/)
   })
+
+  it('says nothing is to be done here when no song deviates, rather than listing them all', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /3\. Visuals/ }))
+    })
+    expect(screen.getByTestId('setup-no-deviating')).toBeTruthy()
+    expect(screen.queryByTestId('song-doors-duelo')).toBeNull()
+  })
 })
 
 describe('step 0 is named, not hidden', () => {
+  async function openSongDoor() {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({
+        gigPresent: true,
+        gigText: gigJson(['duelo', 'vidas']),
+        visualsPresent: true,
+        visualsText: visualsJson({}),
+      })
+    )
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /3\. Visuals/ }))
+    })
+    await waitFor(() => expect(screen.getByTestId('song-doors-duelo')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('song-doors-duelo-song'))
+    })
+  }
+
   it('names Translations as the gap, outside the suite', async () => {
     // **Rewritten 2026-09-01 with the door.** It used to read the phases out of an `<ol>` the door
     // rendered above its controls. The door is the steps now, so the list is gone rather than kept
     // as a second description that would drift from the buttons beside it.
-    await renderSetup()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('song-doors-duelo-song'))
-    })
+    await openSongDoor()
     const gap = screen.getByTestId('subflow-gap').textContent ?? ''
     expect(gap).toMatch(/Translations/)
     expect(gap).toMatch(/outside the suite/)
     expect(gap).toMatch(/no tool here gets a language model/)
   })
 
-  it('says at the entry that a song needs lyrics and audio', async () => {
-    await renderSetup()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
-    })
-    expect(screen.getByTestId('setup-body-1').textContent).toMatch(/needs lyrics and audio/)
+  it('says in the door that a song needs lyrics and audio', async () => {
+    await openSongDoor()
+    expect(screen.getByTestId('door-body-song').textContent).toMatch(/needs lyrics and audio/)
   })
 
-  it('is a checklist and says it is not saved anywhere', async () => {
+  it('is a checklist on the confirmation step, and says it is not saved anywhere', async () => {
+    readyGig()
     await renderSetup()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /5\. Readiness at the venue/ }))
-    })
+    await waitFor(() => expect(screen.getByTestId('setup-rig')).toBeTruthy(), WAIT)
     const rig = screen.getByTestId('setup-rig')
     expect(rig.querySelectorAll('input[type="checkbox"]')).toHaveLength(4)
     expect(rig.textContent).toMatch(/Nothing here is saved/)
@@ -363,13 +453,29 @@ describe('step 0 is named, not hidden', () => {
   })
 })
 
-describe('step 6 shows the evidence', () => {
+describe('step 4 shows the evidence', () => {
   it('puts the completeness results and the rig on the screen', async () => {
     readyGig()
     await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-body-6')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('setup-evidence').textContent).toMatch(/5\. Readiness at the venue/)
-    expect(screen.getByTestId('setup-rig-6')).toBeTruthy()
+    await waitFor(() => expect(screen.getByTestId('setup-body-4')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('setup-evidence').textContent).toMatch(/3\. Visuals/)
+    expect(screen.getByTestId('setup-rig')).toBeTruthy()
+  })
+
+  /**
+   * *Readiness at the venue* is not a step any more — it discovered nothing and owned no work.
+   * What was real about it is here: an instruction for a person standing in the room, with a way
+   * back to the step that can act on what they see.
+   */
+  it('carries the recalibration instruction, and a way back to the visuals', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-recalibrate')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('setup-recalibrate').textContent).toMatch(/standing in the room/)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-back-to-visuals'))
+    })
+    expect(screen.getByTestId('setup-step-title').textContent).toMatch(/3\. Visuals/)
   })
 
   it('says setup is not confirmed until someone confirms it', async () => {
@@ -414,11 +520,11 @@ describe('confirming setup', () => {
   it('confirms against evidence: the checks and the rig are above the button', async () => {
     readyGig()
     await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-body-6')).toBeTruthy(), WAIT)
+    await waitFor(() => expect(screen.getByTestId('setup-body-4')).toBeTruthy(), WAIT)
     const page = screen.getByTestId('setup-step-page')
     const order = [...page.querySelectorAll('[data-testid]')].map((n) => n.getAttribute('data-testid'))
     expect(order.indexOf('setup-evidence')).toBeLessThan(order.indexOf('setup-confirm'))
-    expect(order.indexOf('setup-rig-6')).toBeLessThan(order.indexOf('setup-confirm'))
+    expect(order.indexOf('setup-rig')).toBeLessThan(order.indexOf('setup-confirm'))
   })
 
   it('writes the confirmation into gig.json, with what it was confirmed against', async () => {
@@ -461,7 +567,7 @@ describe('confirming setup', () => {
     )
     await renderSetup()
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /6\. Setup confirmed/ }))
+      fireEvent.click(screen.getByRole('button', { name: /4\. Setup confirmed/ }))
     })
     expect((screen.getByTestId('setup-confirm') as HTMLButtonElement).disabled).toBe(true)
   })
@@ -479,7 +585,7 @@ describe('confirming setup', () => {
     expect(text).toMatch(/re-mapped/)
   })
 
-  it('review setup goes back to step 2 and re-reads the folder', async () => {
+  it('review setup goes back to the first step and re-reads the folder', async () => {
     readyGig()
     await renderSetup()
     await waitFor(() => expect(screen.getByTestId('setup-review')).toBeTruthy(), WAIT)
@@ -487,8 +593,145 @@ describe('confirming setup', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-review'))
     })
-    expect(screen.getByTestId('setup-step-title').textContent).toMatch(/2\. The gig/)
+    expect(screen.getByTestId('setup-step-title').textContent).toMatch(/1\. The gig/)
     await waitFor(() => expect(readGigFolder.mock.calls.length).toBeGreaterThan(before), WAIT)
+  })
+})
+
+/**
+ * **Journey step 8 and 9: `New gig`, and never a filesystem path.**
+ *
+ * The from-nothing walk arrives here with a gigs folder recorded by first run and nothing else.
+ * What it must not meet is a directory picker.
+ */
+describe('making a gig, from the flow', () => {
+  const GIGS_ROOT = '/vault/gigs'
+
+  beforeEach(() => {
+    localStorage.setItem('pregoneroGigsFolder', GIGS_ROOT)
+    createGigFolder.mockResolvedValue({ ok: true, folderPath: `${GIGS_ROOT}/${GIG_ID}` })
+  })
+
+  it('says where the gig will land, and never asks for a path', async () => {
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
+    fireEvent.change(screen.getByTestId('setup-gig-name'), { target: { value: GIG_ID } })
+    expect(screen.getByTestId('setup-gig-lands').textContent).toContain(`${GIGS_ROOT}/${GIG_ID}`)
+  })
+
+  it('makes the folder under the gigs root, from the name and nothing else', async () => {
+    let onDisk: string | null = null
+    writeGigFile.mockImplementation((_folder: string, text: string) => {
+      onDisk = text
+      return Promise.resolve({ ok: true })
+    })
+    readGigFolder.mockImplementation(() =>
+      Promise.resolve(
+        folderRead({
+          folderPath: `${GIGS_ROOT}/${GIG_ID}`,
+          gigPresent: onDisk !== null,
+          gigText: onDisk,
+        })
+      )
+    )
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
+    fireEvent.change(screen.getByTestId('setup-gig-name'), { target: { value: GIG_ID } })
+    fireEvent.change(screen.getByTestId('setup-gig-venue-input'), { target: { value: 'Bar Eduard' } })
+    fireEvent.change(screen.getByTestId('setup-gig-date-input'), { target: { value: '2026-09-12' } })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-create-gig'))
+    })
+    await waitFor(() => expect(createGigFolder).toHaveBeenCalledWith(GIGS_ROOT, GIG_ID), WAIT)
+    const calls = writeGigFile.mock.calls as [string, string][]
+    const written = JSON.parse(calls[0]![1]) as { id: string; date: string; venue: { name: string } }
+    expect(written.id).toBe(GIG_ID)
+    expect(written.date).toBe('2026-09-12')
+    expect(written.venue.name).toBe('Bar Eduard')
+  })
+
+  it('holds Create until it has a name, disabled with the reason — never absent', async () => {
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-create-gig')).toBeTruthy(), WAIT)
+    expect((screen.getByTestId('setup-create-gig') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByTestId('setup-create-gig-reason').textContent).toMatch(/name/)
+  })
+
+  it('reports a refusal instead of pretending a gig was made', async () => {
+    createGigFolder.mockResolvedValue({
+      ok: false,
+      error: 'There is already something called "2026-09-12-bar-eduard" in the gigs folder.',
+    })
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
+    fireEvent.change(screen.getByTestId('setup-gig-name'), { target: { value: GIG_ID } })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-create-gig'))
+    })
+    await waitFor(
+      () => expect(screen.getByTestId('setup-create-gig-problem').textContent).toMatch(/already/),
+      WAIT
+    )
+  })
+
+  it('shows the gig’s name as fixed once it exists, and edits only venue and date', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /1\. The gig/ }))
+    })
+    expect(screen.getByTestId('setup-gig-name-fixed').textContent).toBe(GIG_ID)
+    expect(screen.queryByTestId('setup-gig-name')).toBeNull()
+    expect((screen.getByTestId('setup-gig-venue-input') as HTMLInputElement).value).toBe('Bar Eduard')
+    expect((screen.getByTestId('setup-gig-date-input') as HTMLInputElement).value).toBe('2026-09-12')
+  })
+})
+
+describe('step 2: the setlist, as two tables', () => {
+  it('shows this gig on one side and the rest of the library on the other', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({ gigPresent: true, gigText: gigJson(['duelo']) })
+    )
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
+    })
+    expect(screen.getByTestId('setup-setlist-row-duelo')).toBeTruthy()
+    expect(screen.getByTestId('setup-library-row-vidas')).toBeTruthy()
+    // The one in the gig is not offered again on the library side.
+    expect(screen.queryByTestId('setup-library-row-duelo')).toBeNull()
+  })
+
+  it('adds a song from the library and writes the running order', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({ gigPresent: true, gigText: gigJson(['duelo']) })
+    )
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
+    })
+    const before = writeGigFile.mock.calls.length
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-setlist-add-vidas'))
+    })
+    await waitFor(() => expect(screen.getByTestId('setup-setlist-row-vidas')).toBeTruthy(), WAIT)
+    await waitFor(() => expect(writeGigFile.mock.calls.length).toBeGreaterThan(before), WAIT)
+  })
+
+  it('says the setlist is empty rather than looking broken', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson([]) }))
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
+    })
+    expect(screen.getByTestId('setup-setlist-empty')).toBeTruthy()
   })
 })
 

@@ -264,6 +264,30 @@ describe('Setup home', () => {
     expect(screen.getByTestId('setup-new-song-to-preferences')).toBeTruthy()
   })
 
+  /**
+   * **`New gig` no longer opens a directory picker.** The first thing asked of somebody making
+   * their first gig was where on their disk it should live — a filesystem decision, before the gig
+   * had a venue or a date. It goes to the flow's step 1 now, where the gig is named.
+   */
+  it('takes New gig to the gig flow rather than to a folder picker', async () => {
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-gig'))
+    })
+    await waitFor(() => expect(window.location.hash).toBe('#/gig'))
+    expect(chooseGigFolderPath).not.toHaveBeenCalled()
+  })
+
+  it('keeps importing a gig from elsewhere, one act away from making one', async () => {
+    // The portability case rule 3 protects: a gig that already exists on a stick or a shared drive.
+    chooseGigFolderPath.mockResolvedValue('/elsewhere/2026-09-12-bar-eduard')
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-import-gig'))
+    })
+    expect(chooseGigFolderPath).toHaveBeenCalled()
+  })
+
   it('shows New gig disabled with its reason outside Electron, never as a bare sentence', async () => {
     // The same defect, written a second time in the same round: a button replaced by a span.
     vi.resetModules()

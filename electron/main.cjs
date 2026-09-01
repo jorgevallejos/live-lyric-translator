@@ -4,7 +4,12 @@ const path = require('path')
 const { WebSocketServer } = require('ws')
 const { safeCloseProjectionWindow } = require('./closeProjectionWindow.cjs')
 const { readSongFile } = require('./readSongFile.cjs')
-const { readGigFolder, writeGigFile, writeDebriefFile } = require('./gigFolder.cjs')
+const {
+  readGigFolder,
+  createGigFolder,
+  writeGigFile,
+  writeDebriefFile,
+} = require('./gigFolder.cjs')
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
@@ -413,6 +418,12 @@ ipcMain.handle('dialog:openFolder', async (_event, title) => {
 
 ipcMain.handle('gig:read', (_event, folderPath, visualsPointer) =>
   readGigFolder(folderPath, visualsPointer ? { visualsPointer } : {})
+)
+
+// **A name, not a path.** The gigs root is what first run recorded; this is the only way a gig
+// folder is created from inside the app. The picker above is the import path now.
+ipcMain.handle('gig:createFolder', (_event, gigsRoot, name) =>
+  createGigFolder(String(gigsRoot), String(name))
 )
 
 ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPath, text))

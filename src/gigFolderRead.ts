@@ -183,7 +183,6 @@ export async function readGigReadiness(
     visuals,
     visualsProblem,
     setlist,
-    library: setlist,
     mediaResolution,
     validation,
   })
