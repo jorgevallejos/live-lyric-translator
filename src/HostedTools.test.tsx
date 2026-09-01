@@ -23,7 +23,8 @@ const openBombistaReview = vi.fn()
 const closeTool = vi.fn()
 let hosted = true
 
-vi.mock('./platform', () => ({
+vi.mock('./platform', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   projectionPlacement: () => Promise.resolve({ placed: false, reason: null, display: null }),
   canRunBombista: () => hosted,
   canHostTools: () => hosted,
