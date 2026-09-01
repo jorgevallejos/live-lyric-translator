@@ -7,6 +7,7 @@
  * platform seam, which is the one module that knows Electron exists.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { installRequiredFolders } from './testSupport/folders'
 import { render, screen, act, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import type { SongItem } from './songState'
 import { dropLibraryCache, type LibrarySong } from './setlistStore'
@@ -121,6 +122,7 @@ function folderRead(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   localStorage.clear()
+  installRequiredFolders()
   sessionStorage.clear()
   dropLibraryCache()
   vi.clearAllMocks()
