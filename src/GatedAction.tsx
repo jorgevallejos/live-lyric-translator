@@ -50,6 +50,12 @@ export const GATED_SITES = [
   'setup-new-gig',
   /** The visuals door → Open Muralista, when tool hosting is unavailable. */
   'muralista-open',
+  /** The song door → Align, before both the words and the recording are chosen. */
+  'subflow-align',
+  /** The song door → Review and tempo, before there is an alignment to review. */
+  'subflow-review',
+  /** The song door → Add to the library, before there is anything to add. */
+  'subflow-add',
 ] as const
 
 export type GatedSite = (typeof GATED_SITES)[number]

@@ -323,7 +323,10 @@ describe('two doors on a song, and only two', () => {
 })
 
 describe('step 0 is named, not hidden', () => {
-  it('names the LLM session as a step of the flow, outside the suite', async () => {
+  it('names Translations as the gap, outside the suite', async () => {
+    // **Rewritten 2026-09-01 with the door.** It used to read the phases out of an `<ol>` the door
+    // rendered above its controls. The door is the steps now, so the list is gone rather than kept
+    // as a second description that would drift from the buttons beside it.
     await renderSetup()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
@@ -331,10 +334,10 @@ describe('step 0 is named, not hidden', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('song-doors-duelo-song'))
     })
-    const subflow = screen.getByTestId('song-subflow').textContent ?? ''
-    expect(subflow).toMatch(/outside the suite/)
-    expect(subflow).toMatch(/LLM session/)
-    expect(subflow).toMatch(/no tool in the suite gets a language model/)
+    const gap = screen.getByTestId('subflow-gap').textContent ?? ''
+    expect(gap).toMatch(/Translations/)
+    expect(gap).toMatch(/outside the suite/)
+    expect(gap).toMatch(/no tool here gets a language model/)
   })
 
   it('says at the entry that a song needs lyrics and audio', async () => {
@@ -345,27 +348,6 @@ describe('step 0 is named, not hidden', () => {
     expect(screen.getByTestId('setup-body-1').textContent).toMatch(/needs lyrics and audio/)
   })
 
-  it('walks new, the gap, align, review and tempo, validate', async () => {
-    await renderSetup()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /1\. The songs/ }))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('song-doors-duelo-song'))
-    })
-    const phases = [...screen.getByTestId('song-subflow').querySelectorAll('li')]
-    expect(phases).toHaveLength(5)
-    expect(phases.map((p) => p.querySelector('.song-subflow-name')?.textContent)).toEqual([
-      '1. New',
-      '2. Translations — outside the suite',
-      '3. Align',
-      '4. Review and tempo',
-      '5. Validate',
-    ])
-  })
-})
-
-describe('the rig at the venue', () => {
   it('is a checklist and says it is not saved anywhere', async () => {
     await renderSetup()
     await act(async () => {
