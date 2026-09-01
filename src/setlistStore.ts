@@ -241,15 +241,6 @@ export function areSetlistStoreSnapshotsEqual(
   return JSON.stringify(a) === JSON.stringify(b)
 }
 
-/** Setlist display names that include `songId` in the snapshot's draft order. */
-export function getSetlistNamesContainingSongInSnapshot(
-  snap: SetlistStoreSnapshot,
-  songId: string
-): string[] {
-  if (!songId) return []
-  return snap.setlists.filter((sl) => sl.songIds.includes(songId)).map((sl) => sl.name)
-}
-
 // ── The resolved library: a cache, never a source of truth ──────────────────────────────────
 // Held in memory only. Dropping it loses nothing: every field came from a file in `songs/` and
 // is read again on the next hydration.
@@ -676,22 +667,30 @@ export function removeSongFromSetlistInSnapshot(
   })
 }
 
-/** Pure snapshot update: remove a library reference and drop its id from every setlist. */
-export function deleteSongFromLibraryInSnapshot(
-  snap: SetlistStoreSnapshot,
-  songId: string
-): SetlistStoreSnapshot | null {
-  if (!songId) return null
-  if (!snap.library.some((r) => r.id === songId)) return null
-  return repairSnapshot({
-    ...snap,
-    library: snap.library.filter((r) => r.id !== songId),
-    setlists: snap.setlists.map((sl) => ({
-      ...sl,
-      songIds: sl.songIds.filter((id) => id !== songId),
-    })),
-  })
-}
+/**
+ * **There is deliberately no way to remove a song from the library, and this note is the guard.**
+ *
+ * `deleteSongFromLibraryInSnapshot`, `deleteSongFromLibrary` and the "is it still in a setlist?"
+ * check that gated them were removed on 2026-09-01, along with the trash can on the manage-setlists
+ * screen. **`songs/` is the source of truth, the library is a cache of it, and hydration seeds a
+ * reference for every song file in the songs folder** — so a reference deleted here reappears on the
+ * next hydration. A control that silently undoes itself must not remain, looking functional.
+ *
+ * The deeper reason, which outlives the mechanics: **a row vanishing while the file is still in the
+ * folder is the app disagreeing with the disk.** This repo already refuses that for a song whose
+ * file will not read — it stays listed and visibly broken, because hiding it would hide the problem
+ * — and it is the same rule. **Retiring a song means moving the file out of `songs/`**, a decision
+ * about the catalogue made in Finder, not something to hide inside one app.
+ *
+ * **Removing a song from a SETLIST is a different act and it stays** (`removeSongFromSetlist`).
+ * That is gig-scoped and durable: a setlist is an authored running order, the removal lives in the
+ * snapshot, and nothing on disk contradicts it. The two sat one trash can apart on the same screen,
+ * which is why the distinction is written down rather than assumed.
+ *
+ * **If a "hide this song" feature is ever wanted, it is not this.** It would be stored state about
+ * a file that still exists, and it would need to answer what an arm gate does with a hidden song.
+ * Say so rather than reinstating a delete.
+ */
 
 /**
  * Pure snapshot update: reorder within one setlist (`fromIndex` → `toIndex`, @dnd-kit arrayMove semantics).
@@ -798,17 +797,6 @@ export function addSongToSetlist(setlistId: string, songId: string): boolean {
 /** Removes `songId` from the setlist's ordered ids. Returns false if the setlist or id is missing. */
 export function removeSongFromSetlist(setlistId: string, songId: string): boolean {
   const next = removeSongFromSetlistInSnapshot(getSnapshot(), setlistId, songId)
-  if (!next) return false
-  writeRaw(next)
-  return true
-}
-
-/**
- * Removes a library reference by id and drops that id from every setlist.
- * Returns false when the id is missing or empty.
- */
-export function deleteSongFromLibrary(songId: string): boolean {
-  const next = deleteSongFromLibraryInSnapshot(getSnapshot(), songId)
   if (!next) return false
   writeRaw(next)
   return true

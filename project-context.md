@@ -279,6 +279,52 @@ Bombista change, and it is the one thing standing between this round and the wal
 by.** `bombista new` works and its song appears in the list, which is the no-audio branch and the
 honest state for a song not yet recorded.
 
+### Three-for-three in a week: two ways the app lied about itself (2026-08-31 → 09-01)
+
+**Named because a rule that caught the first two would have let the third through**, and because
+all three came from code that was correct, tested and green.
+
+| | What it said | What was true | Class |
+|---|---|---|---|
+| Setup step 1 | states a requirement, both buttons disabled, points at a terminal | the requirement was real, the action was elsewhere | **dead end** |
+| `New song`, no songs folder | swaps Create for a paragraph naming the fix | the paragraph was correct | **dead end** |
+| Setup home, songs folder set | **"No songs yet"** | thirteen song files in that folder | **false answer** |
+
+**Class one — a requirement stated with no action offered.** Every message was accurate. Each still
+read as a wall, because a screen with no control on it gives no evidence the capability exists at
+all. **The rule is `GatedAction.tsx`**: an action with an unmet precondition renders **disabled with
+the reason attached**, never absent, with a counted list of the sites it governs. The cure for the
+underlying cause is first run, which stops settings being discovered at the moment they block you;
+the rule stays useful afterwards, because *nearly unreachable* is not *unreachable*.
+
+**Class two — a confident answer that is false, and it is the worse one.** Nothing was disabled and
+nothing was missing. The app answered the question and the answer was wrong, because it was
+reporting on a hand-assembled list of individually chosen files while appearing to report on the
+folder it had just been pointed at. **A dead end is visible the moment you hit it** and sends you
+looking for what is blocked. **A false answer is invisible** — indistinguishable from the truth, and
+catchable only by someone who already knows better. Jorge caught it because he knew how many songs
+were in that folder.
+
+**The rule is about where an answer comes from, not how it is worded.** When a screen answers a
+question about the world — what songs exist, what gigs there are, whether a file is present — **the
+answer must be derived from the thing it is about, at the moment it is asked.** `songs/` is the
+source of truth and the library is a cache of it; the gig list stores paths and computes readiness
+on read; a shape's content is looked up when it is drawn. **An app-held list standing in for the
+world is the shape of this failure**, and no amount of better copy fixes it: *"No songs yet"* was a
+perfectly clear sentence.
+
+**Two questions for any new list before it ships.** *Can it disagree with the disk?* And *if it did,
+would anything say so?* Yes and no is this failure waiting to happen.
+
+**The corollary, ruled 2026-09-01: a control that silently undoes itself must not remain.** Once the
+library is seeded from the folder, removing a song from it came back on the next hydration — so the
+trash can went, along with the three store functions behind it, rather than being left looking
+functional. **A row vanishing while the file is still in the folder is the app disagreeing with the
+disk**, which is class two in a smaller costume. **Retiring a song means moving the file out of
+`songs/`.** Removing a song from a **setlist** is a different act and stays: gig-scoped, durable,
+stored in the snapshot, contradicted by nothing on disk. The two sat one trash can apart on the same
+screen.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

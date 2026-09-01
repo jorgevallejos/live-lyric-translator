@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
 import type { SongItem } from './songState'
+import * as setlistStoreModule from './setlistStore'
 import { SONGS_FOLDER_KEY } from './contentFolders'
 import {
   SETLIST_STORE_KEY,
@@ -28,10 +29,8 @@ import {
   moveSongInSetlist,
   reorderSongsInSetlist,
   addSongRefToSnapshot,
-  deleteSongFromLibrary,
   areSetlistStoreSnapshotsEqual,
   cloneSetlistStoreSnapshot,
-  getSetlistNamesContainingSongInSnapshot,
   getActiveMediaFile,
   dropLibraryCache,
   isLibraryHydrated,
@@ -472,10 +471,25 @@ describe('setlists over a reference library', () => {
     expect(addSongToSetlist(DEFAULT_SETLIST_ID, 'nope')).toBe(false)
   })
 
-  it('deleting a reference drops it from every setlist', () => {
-    expect(deleteSongFromLibrary('b')).toBe(true)
+  it('offers no way to remove a song from the library, and that is the rule', () => {
+    // **Removed 2026-09-01 along with the function it tested.** `songs/` is the source of truth,
+    // the library is a cache of it, and hydration seeds a reference for every song file in the
+    // folder — so a deleted reference came back on the next hydration. A control that silently
+    // undoes itself must not remain looking functional. Retiring a song means moving the file out
+    // of `songs/`. The reasoning lives in `setlistStore.ts` where the function used to be; this
+    // asserts the absence, because an absence with no test is an invitation.
+    const store = setlistStoreModule as Record<string, unknown>
+    expect(store.deleteSongFromLibrary).toBeUndefined()
+    expect(store.deleteSongFromLibraryInSnapshot).toBeUndefined()
+  })
+
+  it('still removes a song from a SETLIST, which is a different act', () => {
+    // Gig-scoped and durable: a setlist is an authored running order, the removal lives in the
+    // snapshot, and nothing on disk contradicts it. The two sat one trash can apart on one screen.
+    expect(removeSongFromSetlist(DEFAULT_SETLIST_ID, 'b')).toBe(true)
     expect(getOrderedSongsForSetlist(DEFAULT_SETLIST_ID).map((s) => s.id)).toEqual(['a', 'c'])
-    expect(loadSetlistStore()?.library.map((r) => r.id)).toEqual(['a', 'c'])
+    // The reference is untouched: the song still exists, it is just not in this running order.
+    expect(loadSetlistStore()?.library.map((r) => r.id)).toEqual(['a', 'b', 'c'])
   })
 
   it('renames and deletes setlists', () => {
@@ -506,11 +520,6 @@ describe('setlists over a reference library', () => {
     expect(loadSetlistStore()?.setlists[0]?.songIds).toEqual(['a', 'c'])
   })
 
-  it('names the setlists a song appears in', () => {
-    const snap = loadSetlistStore() as SetlistStoreSnapshot
-    expect(getSetlistNamesContainingSongInSnapshot(snap, 'a')).toEqual(['Default'])
-    expect(getSetlistNamesContainingSongInSnapshot(snap, 'ghost')).toEqual([])
-  })
 })
 
 describe('setlist entries for the manage screen', () => {

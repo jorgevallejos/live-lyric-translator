@@ -289,6 +289,37 @@ confirmation again, which is cheap; refusing to open the gig over it would be a 
 watcher** and none is coming: on-open is trivially not mid-song, with no watcher to build and no
 boundary to police.
 
+### Two ways this app has lied to its user, and both are rules now
+
+Three times in one week the app told a person something untrue about itself. They fall into two
+classes, and **a rule that only caught the first would have let the third through** — which is why
+both are named.
+
+**Class one: a requirement stated with no action offered.** Setup step 1 stated what it needed,
+disabled both navigation buttons and pointed at a terminal. `New song` with no songs folder set
+swapped its Create button for a paragraph. Both messages were **correct**. Both read as walls,
+because a screen with no control on it gives no evidence the capability exists at all. **The rule is
+`GatedAction.tsx`**, below: an action with an unmet precondition renders disabled with the reason
+attached, never absent.
+
+**Class two: a confident answer that is false.** The songs folder was pointed at thirteen song files
+and Setup home said **"No songs yet"**. Nothing was disabled and nothing was missing; the app
+answered the question and the answer was wrong, because it was reporting on its own hand-assembled
+list while claiming to report on the folder. **This is the worse of the two.** A dead end is visible
+the moment you hit it and sends you looking for what is blocked. A false answer is invisible: it is
+indistinguishable from the truth, and the only way to catch it is to already know better.
+
+**The rule for class two is about where an answer comes from, not how it is worded.** When a screen
+answers a question about the world — what songs exist, what gigs there are, whether a file is
+present — **the answer must be derived from the thing it is about**, at the moment it is asked.
+`songs/` is the source of truth and the library is a cache of it; the gig list stores paths and
+computes readiness on read; a shape's content is looked up when it is drawn. **An app-held list
+standing in for the world is the shape of this failure**, and it is not fixed by better copy:
+"No songs yet" was a perfectly clear sentence.
+
+**Two tests for a new list before it ships.** Can it disagree with the disk? And if it did, would
+anything say so? If the answers are *yes* and *no*, it is this failure waiting to happen.
+
 ### An action with an unmet precondition is disabled, never absent
 
 `GatedAction.tsx`, and **a test counts the sites**, because counting them is the only way this rule
@@ -567,6 +598,30 @@ a sentence for a screen, and nothing renders from it.
 Hash-based: `#/control`, `#/projection`, `#/setup` (Setup home), `#/songs`, `#/gig`, `#/preferences` (`#/folders` still resolves to it), `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
 
 ### The library is a cache, `songs/` is the source of truth
+
+**`songs/` is the source of truth and the library is a cache of it. Hydration seeds a reference for
+every song file in the songs folder** (`electron/songsFolder.cjs` lists it,
+`seedLibraryFromSongsFolder` in `setlistStore.ts` seeds from it). The library was a hand-assembled
+list of individually chosen files only because it predates there being a songs root to read — and
+on 2026-08-31 that cost a walk: the songs folder was pointed at thirteen songs and Setup home said
+**"No songs yet"**. Seeding is **additive and never removes**: an absolute reference from before the
+setting existed is left alone, and a file inside the folder is stored by name so the library
+survives the folder moving.
+
+**There is therefore no way to remove a song from the library, and that is deliberate.** The trash
+can on the manage-setlists screen and the three store functions behind it were removed on
+2026-09-01. A reference deleted there reappeared on the next hydration, and **a control that
+silently undoes itself must not remain, looking functional.** The deeper reason outlives the
+mechanics: **a row vanishing while the file is still in the folder is the app disagreeing with the
+disk**, which this repo already refuses for a song whose file will not read. **Retiring a song means
+moving the file out of `songs/`** — a decision about the catalogue, made in Finder.
+
+**Removing a song from a SETLIST is a different act and it stays.** Gig-scoped and durable: a
+setlist is an authored running order, the removal lives in the snapshot, and nothing on disk
+contradicts it. The two sat one trash can apart on the same screen, which is why the distinction is
+written down. If a *hide this song* feature is ever wanted, it is not a delete — it would be stored
+state about a file that still exists, and it would owe an answer about what the arm gate does with a
+hidden song. Say so rather than reinstating one.
 
 **Pregonero holds a reference to each song, never a copy, and never writes song data.** A library
 entry is `{ id, path }`; the song is read from `path` on every launch. Lyrics, translations, intro,
