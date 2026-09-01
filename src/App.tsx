@@ -20,7 +20,7 @@ import { useOutputSize } from './useOutputSize'
 import { resolveVideoCueIndex } from './videoCueLookup'
 import type { TimelineEntry, TimelineLeadIn } from './songState'
 import { setActiveProfileId } from './displayProfileStore'
-import { isSection, getSongIndex, getBlank, setSongLines, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
+import { isSection, getSongIndex, getBlank, setLoadedSong, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { resolveMediaPath } from './mediaPathStore'
 import { VideoPerformancePanel } from './VideoPerformancePanel'
 import { usePerformanceState } from './performanceState'
@@ -257,11 +257,7 @@ function ProjectionButton({
 }
 
 function applySelectedSongToSetup(song: LibrarySong) {
-  setSongLines(song.items)
-  setSongIndex(-1)
-  setBlank(true)
-  setCurrentSongId(song.id)
-  setCurrentSongTitle(song.title)
+  setLoadedSong(song)
 }
 
 function ControlView() {
