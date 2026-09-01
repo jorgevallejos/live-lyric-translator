@@ -20,7 +20,8 @@ const runBombista = vi.fn()
 const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
 
-vi.mock('./platform', () => ({
+vi.mock('./platform', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   hasGigFolderAccess: () => true,
   canRunBombista: () => true,
   canHostTools: () => false,
@@ -114,7 +115,9 @@ describe('Setup home', () => {
 
   it('keeps a broken song listed, visibly broken', async () => {
     // Hiding it would hide the problem, and the fix is in the songs folder rather than here.
-    installLibrary([song('ok')])
+    // Both songs are referenced; the cache then says `libertad` failed to parse. A cache entry
+    // with no reference is dropped by hydration, so the reference is what keeps it listed.
+    installLibrary([song('ok'), song('libertad')])
     setLibraryEntries([
       { ref: { id: 'ok', path: 'ok.json' }, song: song('ok') },
       { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },

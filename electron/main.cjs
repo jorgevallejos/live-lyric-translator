@@ -361,6 +361,10 @@ const FILE_FILTERS = {
   video: { name: 'Video files', extensions: ['mp4', 'mov', 'webm', 'm4v', 'mkv'] },
   audio: { name: 'Audio files', extensions: ['m4a', 'mp3', 'wav', 'aif', 'aiff', 'flac', 'ogg'] },
   json: { name: 'Song files', extensions: ['json'] },
+  // **One picker for the words, taking either.** `bombista align` accepts
+  // SONG_JSON_OR_LYRICS_TXT and normalises both before its pipeline runs, so the branch belongs to
+  // Bombista rather than to a question on a screen — which is what the song door used to ask.
+  lyrics: { name: 'Lyrics or song file', extensions: ['txt', 'json'] },
 }
 
 ipcMain.handle('dialog:openFile', async (_event, kind) => {

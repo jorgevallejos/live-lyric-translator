@@ -16,7 +16,8 @@ import { installLibrary } from './testSupport/library'
 
 const projectionPlacement = vi.fn()
 
-vi.mock('./platform', () => ({
+vi.mock('./platform', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   projectionPlacement: (...a: unknown[]) => projectionPlacement(...a),
   hasGigFolderAccess: () => true,
   hasFolderPicker: () => true,

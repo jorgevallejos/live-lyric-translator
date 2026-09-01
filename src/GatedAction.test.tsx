@@ -108,13 +108,16 @@ describe('a gated action', () => {
     expect(screen.queryByTestId('setup-new-gig-reason')).toBeNull()
   })
 
-  it('governs exactly these three sites, and counting them is how the rule survives', () => {
+  it('governs exactly these sites, and counting them is how the rule survives', () => {
     // Same device as SONG_DOORS. Removing a site from this list without changing its screen is a
     // control that has gone back to vanishing; that is a deliberate act with a test to change.
     expect([...GATED_SITES]).toEqual([
       'setup-new-song-create',
       'setup-new-gig',
       'muralista-open',
+      'subflow-align',
+      'subflow-review',
+      'subflow-add',
     ])
   })
 })

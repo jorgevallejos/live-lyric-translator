@@ -36,13 +36,14 @@ export const DOOR_LABEL: Record<SongDoor, string> = {
  * outside the suite" reads as though the lyric itself were outsourced to a language model, which
  * is both wrong and faintly insulting to the person who wrote it. **Only the translations leave.**
  */
-export const SONG_SUBFLOW: readonly { name: string; detail: string }[] = [
-  { name: '1. New', detail: '`bombista new <id>` writes a skeleton into the songs folder. Skip it when the song file already exists.' },
-  { name: '2. Translations — outside the suite', detail: 'An LLM session writes the translations into the file. **Pregonero does not do this and never will**: no tool in the suite gets a language model. This step is named so it is not a gap you fall into.' },
-  { name: '3. Align', detail: '`bombista align` against the audio. This is why a song needs lyrics **and** audio: the timeline comes from matching one to the other.' },
-  { name: '4. Review and tempo', detail: 'Bombista’s review page, where the alignment is visible while the tempo is being set.' },
-  { name: '5. Validate', detail: '`bombista validate --for-performance` is the exit gate. Only a song that passes it belongs in a setlist.' },
-]
+/**
+ * **There is no list of the song flow's steps here any more** (2026-09-01).
+ *
+ * `SONG_SUBFLOW` used to be five phases rendered as an `<ol>` above the controls, back when the
+ * door laid the pipeline out and asked the person to run it. **The door is the steps now** — two
+ * pickers and three moves — so a list beside them would be a second description of the same thing,
+ * and the two would drift. If the flow needs explaining again, explain it where it happens.
+ */
 
 export const SONG_INPUT_RULE =
   'A song needs lyrics and audio. The timeline comes from aligning one against the other, so a song with no audio cannot leave this step — that is a fact about the work, not a rule Pregonero invented.'
