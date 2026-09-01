@@ -8,6 +8,8 @@ const { readGigFolder, writeGigFile, writeDebriefFile } = require('./gigFolder.c
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
+const { resolveBombista } = require('./bombistaBinary.cjs')
+const { listSongFiles } = require('./songsFolder.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
 const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
@@ -380,6 +382,11 @@ ipcMain.handle('dialog:openSongFiles', async () => {
 
 ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
 
+// **What songs are in the songs folder.** Until this existed the app had no way to look: the
+// library is a list of references added one at a time, so a machine whose songs folder held the
+// whole catalogue reported "No songs yet". `songs/` is the source of truth; this is how it is read.
+ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(String(folderPath)))
+
 // ── The gig folder. Every Electron call this round introduces lives behind `src/platform.ts`
 // on the renderer side; these are its four handlers. ──────────────────────────────────────────
 ipcMain.handle('dialog:openGigFolder', async () => {
@@ -408,8 +415,8 @@ ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPat
 
 ipcMain.handle('gig:writeDebrief', (_event, folderPath, text) => writeDebriefFile(folderPath, text))
 
-ipcMain.handle('song:validateForPerformance', (_event, songPath) =>
-  validateSongForPerformance(songPath)
+ipcMain.handle('song:validateForPerformance', (_event, songPath, bombistaPath) =>
+  validateSongForPerformance(songPath, { bombistaPath })
 )
 
 // What displays this machine has. Read-only: the setup confirmation fingerprints it so it can
@@ -419,11 +426,18 @@ ipcMain.handle('display:describe', () => describeDisplays(screen))
 // ── Bombista, and Muralista ───────────────────────────────────────────────────────────────────
 // **Pass a song file path, never a gig.** Bombista does not know Pregonero exists and does not
 // know gigs exist. Hosting its review page changes packaging, not knowledge.
-ipcMain.handle('bombista:run', (_event, subcommand, args) =>
-  runBombista(subcommand, Array.isArray(args) ? args : [])
+// **The binary is resolved, never inherited.** A Finder-launched app's PATH is
+// /usr/bin:/bin:/usr/sbin:/sbin and cannot see ~/.local/bin, where pipx puts a Python CLI — so
+// every one of these was `skipped` in exactly the launch mode a performer uses. The path
+// preferences holds travels with the call, so the main process stays stateless about settings.
+ipcMain.handle('bombista:run', (_event, subcommand, args, bombistaPath) =>
+  runBombista(subcommand, Array.isArray(args) ? args : [], { bombistaPath })
 )
 
-ipcMain.handle('bombista:version', () => bombistaVersion())
+ipcMain.handle('bombista:version', (_event, bombistaPath) => bombistaVersion({ bombistaPath }))
+
+/** Where Pregonero found it, and everywhere it looked. For preferences to say out loud. */
+ipcMain.handle('bombista:locate', (_event, bombistaPath) => resolveBombista(bombistaPath))
 
 /** Where `align` writes. Pregonero names the directory and never reaches into it. */
 ipcMain.handle('bombista:stagingDir', (_event, songId) => {
@@ -436,8 +450,27 @@ ipcMain.handle('bombista:stagingDir', (_event, songId) => {
   }
 })
 
+/**
+ * **Where Muralista's page is: inside this app.**
+ *
+ * It used to be a per-machine setting — a folder holding `mapper.html` that the user pointed at —
+ * on the reasoning that Pregonero must not carry a copy, because a copy is a fork. **The copy is
+ * not a fork when a hash test proves it current**, which is exactly how `warp.js` and Muralista's
+ * stand-ins are already carried, and a setting that has to be discovered before anything works is
+ * the dead-end shape this redesign exists to remove.
+ *
+ * `src/vendor` ships because `build.files` names it. **Muralista staying usable alone is a
+ * requirement about its own repo**, not about Pregonero holding a path to it, and it is untouched.
+ */
+const MURALISTA_ROOT = path.join(__dirname, '..', 'src', 'vendor')
+
 ipcMain.handle('tool:open', (_event, key, folder, page, title) =>
-  openToolWindow(String(key), String(folder), String(page), String(title || key))
+  openToolWindow(
+    String(key),
+    String(key) === 'muralista' ? MURALISTA_ROOT : String(folder),
+    String(page),
+    String(title || key)
+  )
 )
 
 /**
@@ -448,9 +481,9 @@ ipcMain.handle('tool:open', (_event, key, folder, page, title) =>
  * a path relative to the staging directory, so serving it from anywhere else gives a review page
  * that cannot play the two lines it exists to let you hear.
  */
-ipcMain.handle('bombista:review', async (_event, args) => {
+ipcMain.handle('bombista:review', async (_event, args, bombistaPath) => {
   stopBombistaServe()
-  const started = await startBombistaServe(Array.isArray(args) ? args : [])
+  const started = await startBombistaServe(Array.isArray(args) ? args : [], { bombistaPath })
   if (!started.ok) return { ok: false, error: started.error }
   bombistaServeChild = started.child
   const opened = await openToolUrl('bombista', started.url, 'Bombista — review')

@@ -17,7 +17,7 @@ import type { BombistaResult } from './electronApi'
  * **Step 1's subflow, hosted: `new`, a named gap, align, review and tempo, `validate`.**
  *
  * **Two entry points, one flow.** A new song starts at `bombista new` and leaves for an LLM session
- * that writes the words; an existing song starts by handing over the file and the audio. They
+ * that writes the translations; an existing song starts by handing over the file and the audio. They
  * converge there, so this asks **one question — does a song file exist yet?** — and everything
  * after the join is identical.
  *
@@ -161,9 +161,10 @@ export function SongSubflow({ songId, songPath }: Props) {
       </ol>
 
       <p className="subflow-gap" data-testid="subflow-gap">
-        The words are written in an LLM session <strong>outside the suite</strong>, in the file
-        itself. Pregonero names that step and does not perform it — no tool here gets a language
-        model, and none ever will.
+        The <strong>translations</strong> are written in an LLM session{' '}
+        <strong>outside the suite</strong>, in the file itself. Pregonero names that step and does
+        not perform it — no tool here gets a language model, and none ever will. The original lyrics
+        are not a step: they arrive with the song.
       </p>
 
       {target === null ? (

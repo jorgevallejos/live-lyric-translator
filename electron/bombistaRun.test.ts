@@ -2,6 +2,10 @@
  * Running Bombista is a **subprocess invocation**, and these tests are about the three things that
  * go wrong at a venue: the binary is not there, it takes too long, or it says no. None of them may
  * turn into "the app cannot run a gig".
+ *
+ * `command` is pinned wherever an assertion names the binary, because the module RESOLVES it now
+ * and would otherwise pick up whatever is installed on the machine running these tests. Which
+ * answer resolution gives is `bombistaBinary.test.ts`'s question, not this file's.
  */
 import { describe, it, expect, vi } from 'vitest'
 import { createRequire } from 'node:module'
@@ -28,7 +32,10 @@ function execFileReturning(result: { error?: unknown; stdout?: string; stderr?: 
 describe('running one Bombista subcommand', () => {
   it('passes the subcommand and the arguments through, and nothing else', async () => {
     const run = execFileReturning({ stdout: 'ok' })
-    await runBombista('validate', ['/songs/pimiento.json', '--for-performance'], { execFile: run })
+    await runBombista('validate', ['/songs/pimiento.json', '--for-performance'], {
+      execFile: run,
+      command: 'bombista',
+    })
     expect(run.mock.calls[0]![0]).toBe('bombista')
     expect(run.mock.calls[0]![1]).toEqual(['validate', '/songs/pimiento.json', '--for-performance'])
   })
@@ -54,9 +61,10 @@ describe('running one Bombista subcommand', () => {
   it('reports a missing binary as skipped, never as failed — a machine with no Python still performs', async () => {
     const r = await runBombista('align', ['a', 'b'], {
       execFile: execFileReturning({ error: { code: 'ENOENT' } }),
+      command: 'bombista',
     })
     expect(r.status).toBe('skipped')
-    expect(r.output).toMatch(/not on PATH/)
+    expect(r.output).toMatch(/could not be run/)
   })
 
   it('reports a timeout as skipped too', async () => {

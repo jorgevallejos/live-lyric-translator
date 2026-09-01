@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Muralista</title>
+  <!-- ============ BUILD TOKEN BOOTSTRAP ============
+       `python3 -m http.server` sends no cache headers, so Chrome is free to keep
+       serving an old mapper.js forever. Control and output are separate documents
+       with separate caches, so reloading one does nothing for the other - and a
+       stale output window fails silently: it still renders surfaces and still
+       understands the old message kinds, it just ignores anything new. It presents
+       as "the feature does nothing", which sends you debugging the wrong file.
+
+       So the subresources are injected here with a per-session `?v=` token instead
+       of being hard-linked: a cache-busted mapper.html URL does NOT bust a plain
+       <link>/<script> href, which is exactly how the stale mapper.js survived last
+       time. The token comes from the URL if present, otherwise it is minted now.
+       "Open output window" passes the control window's own token through, so both
+       windows run the same build by construction, not merely by luck. -->
+  <script>
+    (function () {
+      var v = new URLSearchParams(window.location.search).get("v") || String(Date.now());
+      window.MURALISTA_BUILD = v;
+
+      var css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "mapper.css?v=" + encodeURIComponent(v);
+      document.head.appendChild(css);
+
+      // mapper.js imports warp.js, and a relative specifier inside a module
+      // does NOT inherit the query string of the file doing the importing:
+      // "./warp.js" seen from "mapper.js?v=123" resolves to "warp.js" with no
+      // token at all. Which is exactly the stale-subresource bug again, and
+      // this time on the file whose numbers decide where every shape lands.
+      // An import map is the browser's own answer and needs no build step: it
+      // rewrites the specifier before the module graph is fetched, so
+      // mapper.js keeps a plain "./warp.js" and still gets the busted URL.
+      // It has to be in place BEFORE any module script starts loading, which
+      // is why it goes in here, synchronously, and not alongside the
+      // DOMContentLoaded injection below.
+      var imports = document.createElement("script");
+      imports.type = "importmap";
+      imports.textContent = JSON.stringify({
+        imports: { "./warp.js": "./warp.js?v=" + encodeURIComponent(v) },
+      });
+      document.head.appendChild(imports);
+
+      // mapper.js runs at top level against an already-parsed DOM - it used to
+      // sit at the end of <body>. A script element created in JS is async no
+      // matter what, and `defer` does not apply to it (defer is honoured only on
+      // parser-inserted scripts), so injecting it from <head> would race the
+      // parser and sometimes run before the DOM exists. Holding the injection
+      // until DOMContentLoaded reproduces the old end-of-body guarantee exactly.
+      //
+      // It is a MODULE now, because it imports warp.js. Strict mode is not a
+      // change - mapper.js has declared "use strict" since it was written. The
+      // one consequence worth knowing rather than rediscovering is that nothing
+      // mapper.js declares at top level lands on `window` any more, so the
+      // console can no longer poke at the app's internals. That does not change
+      // what gets painted, and this repo has verified what is PAINTED rather
+      // than what is reachable since the 2026-07-02 desk pass.
+      document.addEventListener("DOMContentLoaded", function () {
+        var js = document.createElement("script");
+        js.type = "module";
+        js.src = "mapper.js?v=" + encodeURIComponent(v);
+        document.body.appendChild(js);
+      });
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ============ CONTROL ROLE (plain URL) ============ -->
+  <div id="control-root" class="control-root" hidden>
+    <header class="header-bar">
+      <h1>Muralista</h1>
+      <div class="header-actions">
+        <div class="transport-group">
+          <button id="btn-play" type="button" title="Play all video layers">&#9654; Play</button>
+          <button id="btn-pause" type="button" title="Pause all video layers">&#9208; Pause</button>
+          <button id="btn-restart" type="button" title="Restart all video layers from the top">&#8635; Restart</button>
+        </div>
+        <button id="btn-open-output" type="button">Open output window</button>
+        <button id="btn-identify" type="button">Identify</button>
+        <button id="btn-export" type="button">Export</button>
+        <button id="btn-import" type="button">Import</button>
+        <input type="file" id="file-import" accept="application/json" hidden>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <aside class="sidebar">
+        <!-- One list, because there is one kind of thing on the wall. A
+             shape that holds black is a shape whose layer type is "fill", so
+             it lives here with everything else and takes part in the same
+             paint order. See SHAPES in mapper.js. -->
+        <div class="sidebar-header">
+          <h2>Shapes</h2>
+          <button id="btn-add-shape" type="button">+ Add shape</button>
+        </div>
+        <ul id="shape-list" class="surface-list"></ul>
+
+        <div class="sidebar-section">
+          <div class="sidebar-header">
+            <h2>Shape</h2>
+          </div>
+          <div id="layer-panel" class="layer-panel"></div>
+        </div>
+
+        <!-- Gig: the folder Pregonero wrote gig.json into, and the folder
+             Muralista writes visuals.json back into. ADDITIVE - with no gig
+             connected the tool maps a wall exactly as it always has, and the
+             four song-aware shape types simply are not offered. Muralista
+             reads `songs` and `venue` out of gig.json and nothing else, ever,
+             and never writes it. See GIG in mapper.js. -->
+        <div class="sidebar-section" id="gig-section" hidden>
+          <div class="sidebar-header">
+            <h2>Gig</h2>
+          </div>
+          <div class="backdrop-controls">
+            <button id="btn-gig-folder" type="button">Choose gig folder&hellip;</button>
+            <button id="btn-gig-folder-reconnect" type="button" hidden>Reconnect gig folder</button>
+            <button id="btn-gig-reload" type="button" hidden>Reload gig.json</button>
+            <button id="btn-gig-folder-clear" type="button" hidden>Clear</button>
+          </div>
+          <p id="gig-status" class="media-folder-status"></p>
+          <p id="gig-error" class="media-folder-failures" hidden></p>
+
+          <div id="gig-setup" hidden>
+            <div class="backdrop-controls">
+              <label class="backdrop-mode">Visual setup
+                <select id="select-visual-setup-mode">
+                  <option value="gig">Gig &mdash; the room</option>
+                  <option value="song">Song &mdash; a deviation</option>
+                </select>
+              </label>
+            </div>
+
+            <!-- Gig visual setup: which shape of each kind serves every song. -->
+            <div id="gig-assignments" class="setup-rows" hidden></div>
+
+            <!-- Song visual setup: the ONE place a song picker exists. A shape
+                 does not belong to a song; a song points at a shape. -->
+            <div id="song-setup" class="song-setup" hidden>
+              <div class="assignment-row">
+                <label for="select-visual-setup-song">Song</label>
+                <select id="select-visual-setup-song"></select>
+              </div>
+              <div id="song-assignments"></div>
+            </div>
+
+            <p id="visual-setup-hint" class="layer-hint"></p>
+
+            <div class="backdrop-controls">
+              <button id="btn-write-visuals" type="button">Save visuals.json</button>
+            </div>
+            <p id="visuals-status" class="visuals-status"></p>
+          </div>
+
+          <p class="layer-hint">Muralista owns <code>visuals.json</code> and writes it into this folder beside <code>gig.json</code>, which it only ever reads &mdash; song ids, song titles and the venue, and nothing below that line. Lyrics preview with a fixed dummy line, which is what keeps the line there.</p>
+        </div>
+
+        <!-- Media folder: where the layer sources above are actually read
+             from. Hidden until mapper.js confirms showDirectoryPicker exists
+             (Chrome only) - without it every name falls back to the served
+             directory silently, and a dead control is worse than no control.
+             See MEDIA FOLDER in mapper.js. -->
+        <div class="sidebar-section" id="media-folder-section" hidden>
+          <div class="sidebar-header">
+            <h2>Media folder</h2>
+          </div>
+          <div class="backdrop-controls">
+            <button id="btn-media-folder" type="button">Choose folder&hellip;</button>
+            <button id="btn-media-folder-reconnect" type="button" hidden>Reconnect media folder</button>
+            <button id="btn-media-folder-clear" type="button" hidden>Clear</button>
+          </div>
+          <p id="media-folder-status" class="media-folder-status"></p>
+          <p id="media-folder-failures" class="media-folder-failures" hidden></p>
+          <p class="layer-hint">Layer sources are looked up inside this folder, by name &mdash; the mapping stores the name, never the folder. A name the folder does not have falls back to the served directory, so a mapping made elsewhere still opens.</p>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-header">
+            <h2>Backdrop</h2>
+          </div>
+          <div class="backdrop-controls">
+            <label class="backdrop-mode">Source
+              <select id="select-backdrop-mode">
+                <option value="photo">Photo</option>
+                <option value="camera">Live camera</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="backdrop-photo-controls">
+            <div class="backdrop-controls">
+              <button id="btn-backdrop" type="button">Choose photo&hellip;</button>
+              <button id="btn-backdrop-clear" type="button">Clear</button>
+              <input type="file" id="file-backdrop" accept="image/*" hidden>
+            </div>
+            <p class="layer-hint">Authoring aid only (planning canvas) &mdash; shown at reduced opacity under the surface outlines, never sent to the output.</p>
+          </div>
+
+          <div id="backdrop-camera-controls" hidden>
+            <div class="backdrop-controls">
+              <button id="btn-camera-toggle" type="button">Enable camera</button>
+              <button id="btn-white-field" type="button" title="Make the output window paint a full white frame, so the projector&#39;s lit rectangle is visible">Show white</button>
+            </div>
+            <div class="backdrop-controls">
+              <!-- Populated whether or not a stream is running (see
+                   populateCameraDeviceList): without a granted permission the
+                   labels are blank, which is still a menu you can pick from
+                   and still a way out of a remembered camera that has gone. -->
+              <select id="select-camera-device" disabled>
+                <option value="">Looking for cameras&hellip;</option>
+              </select>
+            </div>
+            <div class="backdrop-controls">
+              <button id="btn-camera-calibrate" type="button" title="Place four handles on the corners of the projector&#39;s lit rectangle">Calibrate&hellip;</button>
+              <button id="btn-camera-calibrate-clear" type="button">Clear</button>
+            </div>
+            <p id="camera-status" class="camera-status"></p>
+            <p class="layer-hint">A webcam mounted beside the projector lens, rectified into output space and shown under the surface outlines &mdash; authoring aid only, never sent to the output. Exact on the wall plane; anything standing out from the wall reads displaced, so trace a performer&#39;s <em>shadow</em>, never the performer.</p>
+          </div>
+        </div>
+      </aside>
+
+      <main class="preview-area">
+        <div class="preview-box">
+          <img id="preview-backdrop" class="preview-backdrop" alt="" hidden>
+          <!-- Live camera backdrop. Rectified into output space by a matrix3d
+               built from project.cameraQuad (see CAMERA BACKDROP in mapper.js);
+               shown raw while those corners are being placed. Authoring only:
+               this element exists in the control role and nowhere else. -->
+          <video id="preview-camera" class="preview-camera" autoplay muted playsinline hidden></video>
+          <svg id="preview-svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet"></svg>
+          <!-- Countdown for "Adopt boundaries", shown here as well as on the
+               wall: the performer reads it off the wall, but whoever is still
+               at the desk should see the same number. -->
+          <div id="preview-countdown" class="preview-countdown" hidden></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ OUTPUT ROLE (?output) ============ -->
+  <div id="output-root" class="output-root" hidden>
+    <!-- One root div per shape lands here, in list order, holding either a
+         matrix3d-warped wrapper or a full-frame fill SVG (see WARP / OUTPUT
+         RENDERING in mapper.js). Fill shapes live in this same container and
+         this same order: nothing paints above everything by a rule any more.
+         The whole container sits BEFORE #output-white on purpose - the white
+         plate has to stay a clean plate, or "Adopt boundaries" would be
+         tracing a shadow through a shape's own fill. -->
+    <div id="output-surfaces" class="output-surfaces"></div>
+    <!-- White-field helper: a full-frame white plate the control window can
+         raise, so the projector's lit rectangle is visible while the camera
+         backdrop's calibration corners are placed. -->
+    <div id="output-white" class="output-white" hidden></div>
+    <!-- Countdown plate, and the dark plate: one element, because they are one
+         thing - what the wall shows while somebody walks into place. Opaque and
+         above the white field, so it covers both the plate and the mapped
+         content, and the sequence can swap what is underneath without a frame
+         of video reaching the wall. Removed outright before the second capture:
+         neither captured frame may contain it, which is what the settle after
+         it exists for. -->
+    <div id="output-countdown" class="output-countdown" hidden></div>
+    <!-- Identify overlay: unwarped screen-space labels at each surface's
+         centroid, shown briefly in response to a broadcast 'identify'. -->
+    <div id="output-identify" class="output-identify"></div>
+  </div>
+
+  <!-- mapper.js is injected by the build-token bootstrap in <head>. -->
+</body>
+</html>

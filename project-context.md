@@ -227,6 +227,104 @@ strategy depends on, silently ran the wrong build. Half an hour of defects were 
 before the header was noticed. **Anyone told to run from source must be told to build first**, and
 the README now says so.
 
+### Setup home, and where its state actually lives (R1, 2026-08-31)
+
+**The control view keeps one button, and songs and gigs became peers one level below it.** Setup
+home shows both lists in full, side by side; `Folders` came off the GIG column and is now
+**Preferences**, one screen for where the tools and the content live on this machine — songs,
+media, Muralista and the Bombista binary path. The design is
+`projects/tramoya-integration/project-context.md`; recorded here is what this repo now stores.
+
+**State outside git, named because the vault rule says to name it.**
+
+| What | Where | Why it is allowed to be stored |
+|---|---|---|
+| **The gig list** — which gigs this machine knows about | `localStorage`, key `pregoneroGigList`, a JSON array of absolute folder paths, most recently opened first | It is a **bookmark list**, like recent files. Losing it costs one trip to a folder picker. |
+| The Bombista binary override | `localStorage`, key `pregoneroBombistaPath` | A per-machine fact, like the folders beside it. Normally unset. |
+
+**The gig list stores paths and never readiness**, and that is an instruction rather than an
+observation. A stored verdict would go stale precisely when a gig folder is edited from outside
+Pregonero, which the escape hatch guarantees will happen — every tool in the suite is usable on its
+own by requirement. `libertad` is the standing argument: a flag written when it last passed would
+still read Ready today, and it is not. Each row's delta is computed on read, and **until that lands
+a row shows no verdict at all rather than a stale one.**
+
+**A row whose folder is gone stays in the list**, named, to be located or forgotten. A folder on a
+drive that is not plugged in is not a deleted gig, and a list that tidied itself would erase the
+evidence that something moved. Noticing that it is gone is still owed: `electron/gigFolder.cjs`
+does not check that the folder exists, so a moved folder and a fresh empty one are identical to it.
+
+**Two findings from planning this round, both of which would have surfaced late.**
+
+- **`bombista` was unreachable from a Finder-launched app.** The bridges called
+  `execFile('bombista', ...)`; a Finder launch inherits `/usr/bin:/bin:/usr/sbin:/sbin` and pipx
+  installs to `~/.local/bin`. The hosted song flow was dark in exactly the launch mode a performer
+  uses, and the symptom was `skipped` — the same word a machine with no Python gets. This is also
+  why the vault said "bombista is not on `PATH` on this machine" while `which bombista` answers:
+  both were true, of different processes. `electron/bombistaBinary.cjs` resolves it now, and
+  preferences says where it looked.
+- **`refreshGigReadiness` writes.** It creates `gig.json` when the folder has none and injects the
+  app's running order into a gig that has none. A gig list calling it per row would have created
+  files in every folder it drew. `src/gigFolderRead.ts` is the read-only path, and it exists before
+  the list is built rather than during.
+
+**One thing R1 could not close, and it is Bombista's.** A song made from a lyrics `.txt` and a
+recording cannot be finished from inside the app. `bombista align --emit songjson` writes a
+complete song file into the **staging** directory; `bombista promote` takes
+`click.Path(exists=True)` for its target and merges only the envelope keys, so it can neither
+create `songs/<id>.json` nor carry the words into a skeleton — and `back_up_and_replace` copies the
+original before replacing it, so it cannot write a file that does not exist. Pregonero must not
+move the file itself: it never writes a song file. **So the from-a-text-file entry point needs a
+Bombista change, and it is the one thing standing between this round and the walk it is judged
+by.** `bombista new` works and its song appears in the list, which is the no-audio branch and the
+honest state for a song not yet recorded.
+
+### Three-for-three in a week: two ways the app lied about itself (2026-08-31 → 09-01)
+
+**Named because a rule that caught the first two would have let the third through**, and because
+all three came from code that was correct, tested and green.
+
+| | What it said | What was true | Class |
+|---|---|---|---|
+| Setup step 1 | states a requirement, both buttons disabled, points at a terminal | the requirement was real, the action was elsewhere | **dead end** |
+| `New song`, no songs folder | swaps Create for a paragraph naming the fix | the paragraph was correct | **dead end** |
+| Setup home, songs folder set | **"No songs yet"** | thirteen song files in that folder | **false answer** |
+
+**Class one — a requirement stated with no action offered.** Every message was accurate. Each still
+read as a wall, because a screen with no control on it gives no evidence the capability exists at
+all. **The rule is `GatedAction.tsx`**: an action with an unmet precondition renders **disabled with
+the reason attached**, never absent, with a counted list of the sites it governs. The cure for the
+underlying cause is first run, which stops settings being discovered at the moment they block you;
+the rule stays useful afterwards, because *nearly unreachable* is not *unreachable*.
+
+**Class two — a confident answer that is false, and it is the worse one.** Nothing was disabled and
+nothing was missing. The app answered the question and the answer was wrong, because it was
+reporting on a hand-assembled list of individually chosen files while appearing to report on the
+folder it had just been pointed at. **A dead end is visible the moment you hit it** and sends you
+looking for what is blocked. **A false answer is invisible** — indistinguishable from the truth, and
+catchable only by someone who already knows better. Jorge caught it because he knew how many songs
+were in that folder.
+
+**The rule is about where an answer comes from, not how it is worded.** When a screen answers a
+question about the world — what songs exist, what gigs there are, whether a file is present — **the
+answer must be derived from the thing it is about, at the moment it is asked.** `songs/` is the
+source of truth and the library is a cache of it; the gig list stores paths and computes readiness
+on read; a shape's content is looked up when it is drawn. **An app-held list standing in for the
+world is the shape of this failure**, and no amount of better copy fixes it: *"No songs yet"* was a
+perfectly clear sentence.
+
+**Two questions for any new list before it ships.** *Can it disagree with the disk?* And *if it did,
+would anything say so?* Yes and no is this failure waiting to happen.
+
+**The corollary, ruled 2026-09-01: a control that silently undoes itself must not remain.** Once the
+library is seeded from the folder, removing a song from it came back on the next hydration — so the
+trash can went, along with the three store functions behind it, rather than being left looking
+functional. **A row vanishing while the file is still in the folder is the app disagreeing with the
+disk**, which is class two in a smaller costume. **Retiring a song means moving the file out of
+`songs/`.** Removing a song from a **setlist** is a different act and stays: gig-scoped, durable,
+stored in the snapshot, contradicted by nothing on disk. The two sat one trash can apart on the same
+screen.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

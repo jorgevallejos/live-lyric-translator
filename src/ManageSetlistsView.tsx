@@ -23,11 +23,9 @@ import {
   cloneSetlistStoreSnapshot,
   defaultReadSongFile,
   deleteSetlistInSnapshot,
-  deleteSongFromLibraryInSnapshot,
   getLibraryEntries,
   getLibraryEntriesForSnapshot,
   getOrderedEntriesForSetlistFromSnapshot,
-  getSetlistNamesContainingSongInSnapshot,
   loadSetlistStore,
   removeSongFromSetlistInSnapshot,
   renameSetlistInSnapshot,
@@ -46,15 +44,6 @@ import { publishSetlistToGig } from './gigSession'
 
 const BACK_DISCARD_DRAFT_CONFIRM =
   'You have unconfirmed changes. If you go back now, they will be lost. Continue?'
-
-function formatBlockedLibraryDeleteMessage(setlistNames: string[]): string {
-  const lines = setlistNames.map((n) => `• ${n}`)
-  return [
-    'This song is still used in one or more setlists. Remove it from those setlists before deleting it from the app.',
-    '',
-    ...lines,
-  ].join('\n')
-}
 
 /** The name to show for a library row: the song's title, or the file name when it could not be read. */
 function entryTitle(entry: LibraryEntry): string {
@@ -211,10 +200,29 @@ type LibrarySongRowProps = {
   onAdd: () => void
   addDisabled: boolean
   addLabel: string
-  onDelete: () => void
 }
 
-function LibrarySongRow({ entry, onAdd, addDisabled, addLabel, onDelete }: LibrarySongRowProps) {
+/**
+ * **A library row has one action, and it is add-to-setlist.**
+ *
+ * It used to carry a trash can that removed the song from the library. **That control is gone, and
+ * it is not coming back as a convenience** (2026-09-01):
+ *
+ * - **`songs/` is the source of truth and the library is a cache of it.** Hydration seeds a
+ *   reference for every song file in the songs folder, so a row deleted here reappears on the next
+ *   hydration. A control that silently undoes itself must not remain, looking functional.
+ * - **A row vanishing while the file is still in the folder is the app disagreeing with the
+ *   disk**, which is the failure this repo already refuses for an unreadable song: hiding it would
+ *   hide the problem, and the fix is in `songs/`.
+ * - **Retiring a song means moving the file out of `songs/`.** That is a decision about the
+ *   catalogue, made in Finder, not a thing to hide inside one app.
+ *
+ * **Removing a song from a SETLIST is a different act and it stays.** That is gig-scoped and
+ * durable: a setlist is an authored running order, the removal is stored in the snapshot, and
+ * nothing on disk contradicts it. The two were one trash can apart on the same screen, which is
+ * why the distinction is written here rather than assumed.
+ */
+function LibrarySongRow({ entry, onAdd, addDisabled, addLabel }: LibrarySongRowProps) {
   const title = entryTitle(entry)
   return (
     <li className={`manage-setlists-song-row${entry.song ? '' : ' manage-setlists-song-row--unreadable'}`}>
@@ -229,14 +237,6 @@ function LibrarySongRow({ entry, onAdd, addDisabled, addLabel, onDelete }: Libra
           disabled={addDisabled}
         >
           <span aria-hidden="true">+</span>
-        </button>
-        <button
-          type="button"
-          className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
-          aria-label={`Delete ${title} from library`}
-          onClick={onDelete}
-        >
-          <TrashCanIcon />
         </button>
       </div>
     </li>
@@ -399,16 +399,6 @@ export function ManageSetlistsView() {
 
   const handleRemoveSong = (setlistId: string, songId: string) => {
     setDraft((d) => removeSongFromSetlistInSnapshot(d, setlistId, songId) ?? d)
-    refresh()
-  }
-
-  const handleDeleteSongFromLibrary = (songId: string) => {
-    const names = getSetlistNamesContainingSongInSnapshot(draftRef.current, songId)
-    if (names.length > 0) {
-      window.alert(formatBlockedLibraryDeleteMessage(names))
-      return
-    }
-    setDraft((d) => deleteSongFromLibraryInSnapshot(d, songId) ?? d)
     refresh()
   }
 
@@ -666,7 +656,6 @@ export function ManageSetlistsView() {
                             ? `Add ${title} to setlist ${selectedSetlist.name}`
                             : `Add ${title} to selected setlist`
                         }
-                        onDelete={() => handleDeleteSongFromLibrary(entry.ref.id)}
                       />
                     )
                   })

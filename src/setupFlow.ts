@@ -9,7 +9,7 @@
  * ## The order, and why it is this order
  *
  * 1. **Prepare the songs** — first, because songs are **gig-independent** and are often done days
- *    ahead. `bombista new`, the words, alignment, review and tempo, `bombista validate`.
+ *    ahead. `bombista new`, translations, alignment, review and tempo, `bombista validate`.
  * 2. **Create the gig**, with a setlist drawn from those songs.
  * 3. **Gig visuals**: the room's shapes and the type of each. Serves every song.
  * 4. **Song visuals** — optional, deviating songs only, and reassignment only.

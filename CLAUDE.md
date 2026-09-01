@@ -58,6 +58,8 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
 | `gigFolderStore.ts` | localStorage | Which gig folder is open. Its own module so the Projection window can ask without pulling in the reader |
+| `gigListStore.ts` | localStorage | **Which gigs this machine knows about** — `pregoneroGigList`, an array of folder paths, most recent first. A bookmark list, and **paths only: readiness is never stored**, it is computed on read |
+| `gigFolderRead.ts` | — | **One gig folder's delta, read and never written.** The route Setup home's list uses. `refreshGigReadiness` is the *opening* path and it writes — it creates `gig.json` and injects a setlist — which is right for the gig you are opening and would create files in every folder a list drew |
 | `visualsBroadcast.ts` | localStorage | `visuals.json`, carried from the Control window to the Projection window. Re-parsed on read, so both refusals hold on both sides |
 | `shapeTextLayout.ts` | — | Pure: the quad's stretch, the layout box, the auto-fit, the text fields Muralista writes |
 | `videoTransport.ts` | localStorage | The play/pause/stop and seek channel. Nonce-carrying, because every consumer reacts to a transition |
@@ -91,9 +93,10 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
 - `electron/gigFolder.cjs`: One read of the gig folder — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write. A pointer that would leave the gig folder is refused, not followed (has its own tests)
 - `electron/gigFolder.cjs` also writes `debrief.md` — whole on save, never merged: Pregonero writes it and then Jorge edits it
-- `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary on `PATH` is `skipped` (has its own tests)
+- `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary found is `skipped` (has its own tests)
 - `electron/displays.cjs`: What displays this machine has, from Electron's `screen`. **Read-only, and a fingerprint to compare rather than a value to render from** — the setup confirmation uses it to notice the projector was unplugged (has its own tests)
 - `electron/bombistaRun.cjs`: One Bombista subcommand, as a subprocess. A fixed allow-list of subcommands, and a missing binary is `skipped` (has its own tests)
+- `electron/bombistaBinary.cjs`: **Where `bombista` is, because `PATH` is not enough.** An app launched from Finder inherits `/usr/bin:/bin:/usr/sbin:/sbin`, and a Python CLI installed with pipx lives in `~/.local/bin` — so every bridge was `skipped` in exactly the launch mode a performer uses, while the same app run from a terminal worked. Resolution order: the path preferences holds (**verbatim, never checked**, so a wrong setting fails naming itself), then `PATH` (a shell has already chosen which install it means), then the known install locations. Nothing found returns the bare name, so the `skipped` downstream is unchanged (has its own tests)
 - `electron/bombistaServe.cjs`: Starts `bombista serve` and reads the address it prints (has its own tests)
 - `electron/localhostServer.cjs`: A loopback static server for Muralista's page. Mounts a folder per tool; a request that would leave its mount is refused, not followed (has its own tests)
 - `electron/projectorDisplay.cjs`: Which display the projection window belongs on — the one that is not the laptop's own. **The one-display fallback is visible, never silent** (has its own tests)
@@ -193,6 +196,29 @@ a note, never as an arm block** — ten of the fourteen songs in `songs/` are pe
 pedal with no timeline at all, and a machine with no `bombista` on `PATH` must still be able to
 run a gig.
 
+### Setup home: songs and gigs are peers, one level below the stage
+
+**The control view is the performance surface and carries one button**, which leaves the stage and
+opens `#/setup`. `Folders` came off that column: where songs and media live on this machine is
+configuration rather than content, and it is **Preferences** now — one screen, one idea, holding
+the songs folder, the media folder, Muralista, and the Bombista binary path.
+
+**Setup home shows both lists in full, side by side**, gigs with New gig and songs with New song.
+Not a fork: a screen whose only content is two buttons is a signpost rather than a place, and
+putting songs behind a "manage songs" button hangs the long-lived thing off the ephemeral one —
+gigs come and go, songs last for years. **Landing on both lists shows the two facts that decide
+whether tonight works.**
+
+**Neither list truncates, and the narrow-width constraint does not apply here.** Setup is desk work
+done hours ahead on a real screen; only the control view has to survive an iPad on a stage. If this
+screen ever grows a fold or a "show more", the requirement changed and the change should be argued
+rather than absorbed.
+
+**The song flow ends with the song appearing in the list, and with nothing else** — no status, no
+badge, no completion label. `setlistStore.adoptSongFile` is the whole of it: it writes the
+*reference*, which Pregonero owns, and never the song file, which is Bombista's. A stored verdict
+could only ever describe a file that has since been edited, which is what `libertad` demonstrates.
+
 ### The setup flow: six ordered steps, and where the forward button greys
 
 `setupFlow.ts` is the guided path, and it is **pure rendering of the delta** — it decides nothing
@@ -262,6 +288,60 @@ confirmation again, which is cheap; refusing to open the gig over it would be a 
 **The reload boundary is doors, and it is satisfied by re-reading on open.** There is **no file
 watcher** and none is coming: on-open is trivially not mid-song, with no watcher to build and no
 boundary to police.
+
+### Two ways this app has lied to its user, and both are rules now
+
+Three times in one week the app told a person something untrue about itself. They fall into two
+classes, and **a rule that only caught the first would have let the third through** — which is why
+both are named.
+
+**Class one: a requirement stated with no action offered.** Setup step 1 stated what it needed,
+disabled both navigation buttons and pointed at a terminal. `New song` with no songs folder set
+swapped its Create button for a paragraph. Both messages were **correct**. Both read as walls,
+because a screen with no control on it gives no evidence the capability exists at all. **The rule is
+`GatedAction.tsx`**, below: an action with an unmet precondition renders disabled with the reason
+attached, never absent.
+
+**Class two: a confident answer that is false.** The songs folder was pointed at thirteen song files
+and Setup home said **"No songs yet"**. Nothing was disabled and nothing was missing; the app
+answered the question and the answer was wrong, because it was reporting on its own hand-assembled
+list while claiming to report on the folder. **This is the worse of the two.** A dead end is visible
+the moment you hit it and sends you looking for what is blocked. A false answer is invisible: it is
+indistinguishable from the truth, and the only way to catch it is to already know better.
+
+**The rule for class two is about where an answer comes from, not how it is worded.** When a screen
+answers a question about the world — what songs exist, what gigs there are, whether a file is
+present — **the answer must be derived from the thing it is about**, at the moment it is asked.
+`songs/` is the source of truth and the library is a cache of it; the gig list stores paths and
+computes readiness on read; a shape's content is looked up when it is drawn. **An app-held list
+standing in for the world is the shape of this failure**, and it is not fixed by better copy:
+"No songs yet" was a perfectly clear sentence.
+
+**Two tests for a new list before it ships.** Can it disagree with the disk? And if it did, would
+anything say so? If the answers are *yes* and *no*, it is this failure waiting to happen.
+
+### An action with an unmet precondition is disabled, never absent
+
+`GatedAction.tsx`, and **a test counts the sites**, because counting them is the only way this rule
+survives — the same device `SONG_DOORS` uses, for the same reason.
+
+**Where it came from.** The 2026-08-31 end-to-end run stopped at setup step 1: the step stated a
+requirement, disabled both navigation buttons, offered no action and pointed at a terminal. The
+setup redesign exists to remove that. Walking the redesign the same day, `New song` had no action
+because no songs folder was set — **the same shape, reappearing inside the fix for it.** The message
+was correct and named what to do, and it still read as a wall.
+
+**The lesson is not the setting.** A precondition discovered at the moment you need it is a dead end
+however well it is worded. The cure is to stop discovering settings when they are needed — first
+run, which is a later round. This is the other half, and it stays useful after the cure: **a
+vanished control reads as a wall; a disabled one with a sentence beside it reads as a next step.**
+The difference is whether the person can see that the thing they wanted is a thing the app does.
+
+**It is not an argument for enabling everything and failing on click.** The button is genuinely
+disabled and genuinely does nothing; what changes is that it is *there*, with the reason beside it
+rather than in its place — as text, not only as a `title`, because a tooltip is a reason nobody on
+an iPad ever sees. **Nor does it cover a control that is meaningless rather than blocked**: a
+*Close gig* button with no gig open is an action about nothing, and it stays absent.
 
 ### Two doors on a song, and only two
 
@@ -515,9 +595,33 @@ a sentence for a screen, and nothing renders from it.
 
 ### Routing
 
-Hash-based: `#/control`, `#/projection`, `#/songs`, `#/gig`, `#/folders`, `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
+Hash-based: `#/control`, `#/projection`, `#/setup` (Setup home), `#/songs`, `#/gig`, `#/preferences` (`#/folders` still resolves to it), `#/languages`, `#/setlists`, etc. `App.tsx` is the root component and orchestrates hooks + routing.
 
 ### The library is a cache, `songs/` is the source of truth
+
+**`songs/` is the source of truth and the library is a cache of it. Hydration seeds a reference for
+every song file in the songs folder** (`electron/songsFolder.cjs` lists it,
+`seedLibraryFromSongsFolder` in `setlistStore.ts` seeds from it). The library was a hand-assembled
+list of individually chosen files only because it predates there being a songs root to read — and
+on 2026-08-31 that cost a walk: the songs folder was pointed at thirteen songs and Setup home said
+**"No songs yet"**. Seeding is **additive and never removes**: an absolute reference from before the
+setting existed is left alone, and a file inside the folder is stored by name so the library
+survives the folder moving.
+
+**There is therefore no way to remove a song from the library, and that is deliberate.** The trash
+can on the manage-setlists screen and the three store functions behind it were removed on
+2026-09-01. A reference deleted there reappeared on the next hydration, and **a control that
+silently undoes itself must not remain, looking functional.** The deeper reason outlives the
+mechanics: **a row vanishing while the file is still in the folder is the app disagreeing with the
+disk**, which this repo already refuses for a song whose file will not read. **Retiring a song means
+moving the file out of `songs/`** — a decision about the catalogue, made in Finder.
+
+**Removing a song from a SETLIST is a different act and it stays.** Gig-scoped and durable: a
+setlist is an authored running order, the removal lives in the snapshot, and nothing on disk
+contradicts it. The two sat one trash can apart on the same screen, which is why the distinction is
+written down. If a *hide this song* feature is ever wanted, it is not a delete — it would be stored
+state about a file that still exists, and it would owe an answer about what the arm gate does with a
+hidden song. Say so rather than reinstating one.
 
 **Pregonero holds a reference to each song, never a copy, and never writes song data.** A library
 entry is `{ id, path }`; the song is read from `path` on every launch. Lyrics, translations, intro,

@@ -21,6 +21,8 @@ vi.mock('./platform', () => ({
   canHostTools: () => false,
   runBombista: vi.fn(),
   bombistaVersion: () => Promise.resolve({ present: false, version: null }),
+  locateBombista: () =>
+    Promise.resolve({ command: 'bombista', source: 'unresolved' as const, searched: [] }),
   bombistaStagingDir: vi.fn(),
   openTool: vi.fn(),
   openBombistaReview: vi.fn(),
@@ -40,7 +42,8 @@ vi.mock('./platform', () => ({
 }))
 
 const { FoldersView } = await import('./FoldersView')
-const { getMediaFolder, getSongsFolder, setMediaFolder } = await import('./contentFolders')
+const { getChosenMediaFolder, getMediaFolder, getSongsFolder, setMediaFolder } =
+  await import('./contentFolders')
 const { KEY_VISUALS_BROADCAST } = await import('./visualsBroadcast')
 const { GIG_FOLDER_KEY } = await import('./gigFolderStore')
 
@@ -121,14 +124,19 @@ describe('the folders screen', () => {
     expect(screen.getByTestId('folders-media-value').textContent).toContain('/vault/songs/video')
   })
 
-  it('remembers a chosen songs folder, separately', async () => {
+  it('remembers a chosen songs folder, and chooses nothing for media on its behalf', async () => {
+    // **Changed 2026-08-31.** This asserted the media folder stayed null. It derives now — the
+    // audio already lives in `<songs>/audio`, and one fewer setting is one fewer precondition to
+    // discover at the moment it blocks you. What still has to be true is that nothing was
+    // *chosen*: the default is in force, not stored, so it follows the songs folder if that moves.
     chooseFolderPath.mockResolvedValue('/vault/songs')
     render(<FoldersView />)
     await act(async () => {
       screen.getByTestId('folders-songs').querySelector('button')!.click()
     })
     await waitFor(() => expect(getSongsFolder()).toBe('/vault/songs'))
-    expect(getMediaFolder()).toBeNull()
+    expect(getChosenMediaFolder()).toBeNull()
+    expect(getMediaFolder()).toBe('/vault/songs/audio')
   })
 
   it('lists the logo the room names — the file that had no screen at all', async () => {

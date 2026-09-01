@@ -12,7 +12,7 @@
  *   control back* is courtesy: if the bridge is absent the button is absent.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, waitFor, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, act, cleanup, fireEvent } from '@testing-library/react'
 
 const runBombista = vi.fn()
 const bombistaStagingDir = vi.fn()
@@ -57,7 +57,7 @@ vi.mock('./platform', () => ({
 
 const { SongSubflow } = await import('./SongSubflow')
 const { MuralistaDoor, MURALISTA_KEY, MURALISTA_PAGE } = await import('./MuralistaDoor')
-const { setSongsFolder, setMuralistaFolder } = await import('./contentFolders')
+const { setSongsFolder } = await import('./contentFolders')
 
 function createStorage(): Storage {
   const store = new Map<string, string>()
@@ -282,36 +282,33 @@ describe('the song door: Bombista, hosted', () => {
 })
 
 describe('the visuals door: Muralista, hosted', () => {
-  it('asks for the folder rather than carrying a copy of the page', () => {
-    render(<MuralistaDoor />)
-    expect(screen.getByTestId('muralista-no-folder').textContent).toMatch(/does not carry a copy/)
-  })
-
-  it('remembers the chosen folder', async () => {
-    chooseFolderPath.mockResolvedValue('/tools/muralista/mapper')
-    render(<MuralistaDoor />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('muralista-choose-folder'))
-    })
-    await waitFor(() => expect(screen.getByTestId('muralista-hosted')).toBeTruthy())
-  })
-
-  it('opens mapper.html from that folder, in a window of its own', async () => {
-    setMuralistaFolder('/tools/muralista/mapper')
+  /**
+   * **Rewritten 2026-08-31: there is no folder to choose any more.** The page is vendored — four
+   * files at one tag with a hash test, the same device that already carries `warp.js` — so the two
+   * tests that asserted Pregonero *asks* for a folder and *remembers* it are gone rather than
+   * adjusted. A copy is not a fork when a test proves it current, and what the setting really did
+   * was make the visuals door do nothing until somebody discovered it.
+   */
+  it('opens mapper.html without asking where Muralista is', async () => {
     render(<MuralistaDoor />)
     await act(async () => {
       fireEvent.click(screen.getByTestId('muralista-open'))
     })
-    expect(openTool).toHaveBeenCalledWith(
-      MURALISTA_KEY,
-      '/tools/muralista/mapper',
-      MURALISTA_PAGE,
-      'Muralista'
-    )
+    // The folder argument is ignored for this key — the main process serves the vendored page out
+    // of the app itself — and it is still passed so the one IPC keeps one shape.
+    expect(openTool).toHaveBeenCalledWith(MURALISTA_KEY, '', MURALISTA_PAGE, 'Muralista')
+  })
+
+  it('never asks for a folder, and never says it does not carry a copy', () => {
+    render(<MuralistaDoor />)
+    expect(screen.queryByTestId('muralista-no-folder')).toBeNull()
+    expect(screen.queryByTestId('muralista-choose-folder')).toBeNull()
+    expect(screen.queryByTestId('muralista-forget-folder')).toBeNull()
   })
 
   it('is served over http on localhost, never file://', async () => {
-    setMuralistaFolder('/tools/muralista/mapper')
+    // Muralista's File System Access API needs a secure context, which `file://` is not — and
+    // vendoring the page changes where the bytes come from, never how they are served.
     render(<MuralistaDoor />)
     await act(async () => {
       fireEvent.click(screen.getByTestId('muralista-open'))
@@ -322,7 +319,6 @@ describe('the visuals door: Muralista, hosted', () => {
   })
 
   it('pass control back is courtesy: Done closes the window and re-checks', async () => {
-    setMuralistaFolder('/tools/muralista/mapper')
     render(<MuralistaDoor />)
     await act(async () => {
       fireEvent.click(screen.getByTestId('muralista-open'))
@@ -334,21 +330,25 @@ describe('the visuals door: Muralista, hosted', () => {
   })
 
   it('offers no Done button before anything is open — the courtesy has nothing to be courteous about', () => {
-    setMuralistaFolder('/tools/muralista/mapper')
     render(<MuralistaDoor />)
     expect(screen.queryByTestId('muralista-done')).toBeNull()
   })
 
-  it('with no bridge, the button is absent and Chrome is named instead', () => {
+  it('with no bridge, the button is disabled with its reason — and Chrome is still named', () => {
+    // **Changed 2026-08-31, and the change is the point.** This asserted the button was ABSENT,
+    // which is the defect the R1 walk found on `New song`: a screen with no control on it reads as
+    // a wall rather than as a fork in the road, however good the sentence beside it. The escape
+    // hatch is still the real answer here — Muralista is fully usable on its own by requirement —
+    // but it now sits under a visible, disabled action. See `GatedAction.tsx`.
     hosted = false
-    setMuralistaFolder('/tools/muralista/mapper')
     render(<MuralistaDoor />)
     expect(screen.getByTestId('muralista-unhosted').textContent).toMatch(/Chrome/)
-    expect(screen.queryByTestId('muralista-open')).toBeNull()
+    const button = screen.getByTestId('muralista-open') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(screen.getByTestId('muralista-open-reason').textContent).toMatch(/desktop app/)
   })
 
   it('says the file is the only channel, not a running connection', () => {
-    setMuralistaFolder('/tools/muralista/mapper')
     render(<MuralistaDoor />)
     expect(screen.getByTestId('muralista-hosted').textContent).toMatch(
       /Nothing passes between them while both are running/

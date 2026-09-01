@@ -1,0 +1,1403 @@
+/* Muralista — the control window, in Pregonero's clothes.
+   ==========================================================================
+   Muralista and Pregonero are one suite and should look it, so the values
+   below are LIFTED FROM pregonero/src/control.css rather than approximated:
+   the ink ground and its one step per level, the clay accent, the paper-on-ink
+   text ramp, hairline rules, and no radii anywhere. Where a name differs, the
+   Pregonero token it came from is named in the comment.
+
+   TWO THINGS THIS DELIBERATELY DOES NOT TAKE.
+
+   EB Garamond. Pregonero self-hosts it, but for its PROJECTION screen — its
+   own control window is explicit that it does not load a webfont, and neither
+   does this one. Control type is the same system sans and the same monospace
+   instrument voice.
+
+   "Contrast is a budget" — for the chrome only. It governs the panels, the
+   header and the type below, exactly as it does in Pregonero. It does NOT
+   govern the drawing layer, and that exception is the point of the second
+   block: see DRAWING LAYER below. */
+
+:root {
+  /* ---- Grounds. Pregonero: --app-bg, --panel-bg, --control-bg-raised,
+     --surface-hover-strong. Ink, one step per level, no gradients. */
+  --bg: #121211;
+  --bg-raised: #1a1a18;
+  --bg-row: #232320;
+  --bg-row-hover: #2c2a26;
+  --bg-disabled: #161615;
+
+  /* ---- Rules. Pregonero: --rule / --control-border, --control-border-soft,
+     --control-border-hover. Hairlines, not slabs - a border you notice is a
+     border spending contrast it has not earned. */
+  --border: #423e37;
+  --border-soft: #2c2a26;
+  --border-hover: #e6dfd1;
+
+  /* ---- Text. Pregonero: --text-primary, --text-secondary, --text-dim,
+     --text-disabled. Paper on ink, one dim, one dimmer, nothing between. */
+  --text: #e6dfd1;
+  --text-dim: #8b8478;
+  --text-faint: #635d54;
+  --text-disabled: #423e37;
+
+  /* ---- Accent. Pregonero's clay, and it stays one accent. */
+  --accent: #d98b7a;
+  --accent-dim: #8f5a4e;
+
+  /* ---- Selection. Pregonero: --state-selected-bg / --state-selected-border.
+     A choice is a BRIGHT HAIRLINE BOX, not a colour: status colour is
+     reserved for liveness, and "you picked this" is a question asked at the
+     desk with time to look. */
+  --selected-bg: #232320;
+  --selected-border: #e6dfd1;
+
+  /* ---- Live. Pregonero: --state-armed-*, --state-live. Green means
+     something is live on the wall right now. */
+  --state-live-bg: #1d3129;
+  --state-live-border: #4f7d63;
+  --state-live: #7cbb97;
+
+  /* ---- Fail. Pregonero: --state-fail. */
+  --danger: #ef7a70;
+  /* ---- Warn. Pregonero: --state-warn. */
+  --warn: #e0a437;
+
+  /* ---- Type. Pregonero: --font-ui, --font-control, --font-label. A
+     monospace instrument voice for anything operated or read as data, and
+     Chromium does not let form controls inherit font-family, so --font-control
+     is the only thing that reaches a button at all. */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-control: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-label: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---- Shape. Pregonero: every --radius-* is 0. No radii, anywhere. */
+  --radius: 0;
+
+  /* ======================================================================
+     DRAWING LAYER — the documented exception to the budget
+     ======================================================================
+     Shape outlines, corner handles and fills are drawn ON TOP OF A
+     LIVE CAMERA FEED OF AN ARBITRARY WALL. They are not chrome: they are the
+     instrument, and they have to stay findable over whitewash, brick, a lit
+     window or a projected image of themselves. Contrast discipline is a rule
+     about how much attention chrome may take from content; here the marks ARE
+     the content, and a hairline in clay over a bright wall is simply invisible.
+
+     So these keep Muralista's own high-contrast values rather than taking
+     Pregonero's. They are deliberately OUTSIDE the token ramp above so that
+     nobody later "tidies" them into it: --draw-surface is not --accent, and
+     the difference is the whole point. Each mark also carries its own dark
+     halo or fill at the point of use, so it survives a bright backdrop as
+     well as a dark one. */
+  --draw-surface: #5eead4;        /* selected quad + its corner handles */
+  --draw-surface-idle: #9aa3b8;   /* unselected quad outline */
+  --draw-camera: #f0a53a;         /* the camera calibration quad */
+  --draw-handle-fill: rgba(10, 10, 9, 0.85);
+  --draw-label: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* The hidden attribute must always win. Without this, any rule that sets
+   display (e.g. .control-root's display:flex) silently overrides the UA's
+   [hidden] { display:none } — which is exactly how the output window ended
+   up showing the control skeleton on top of (well, instead of) the output. */
+[hidden] {
+  display: none !important;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* THE RESTYLE STOPS AT THE CONTROL ROOT, AND THIS IS WHERE IT IS ENFORCED.
+   `body` is shared by both roles, so anything inherited from here reaches the
+   output window too - and the output window is not a UI, it is the projection.
+   `color` and `font-family` therefore stay pinned to the literal values the
+   output has always inherited, rather than following the chrome tokens: a
+   layer note, the countdown plate and the identify labels all take their type
+   from here, and the projector's pixels are not the restyle's to change.
+   `background` is safe to tokenise - body.role-output overrides it to #000. */
+body {
+  background: var(--bg);
+  color: #e6e8ee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* Pregonero's rule, and its reason: form controls do not inherit font-family
+   in Chromium - they get the UA font - so naming --font-control here is the
+   only thing that reaches a button at all. Everything you operate or read as
+   data takes the monospace instrument voice. */
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-control);
+}
+
+/* Pregonero's .ctrl-btn, to its own numbers: square, hairline, weight 600,
+   and a hover that brightens the BORDER rather than flooding the fill. */
+button {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5em 1em;
+  min-height: 2.5em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:hover:not(:disabled) {
+  background: var(--bg-row);
+  border-color: var(--border-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-faint);
+  background: var(--bg-disabled);
+  border-color: var(--border-soft);
+}
+
+/* The focus ring is the accent, and it is the accent's other job besides the
+   masthead - Pregonero: --control-border-focus. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* The per-row action buttons. Five or six of them sit across a 280px sidebar
+   beside a surface name, so they opt out of the .ctrl-btn minimum height AND
+   run tighter than the standard control: the monospace voice is wider than
+   the sans it replaced, and at the standard padding the name column collapses
+   to three characters. The name is the thing being read; these are the things
+   being aimed at, and they still clear a comfortable target. */
+button.icon-btn {
+  padding: 4px 5px;
+  min-height: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+button.danger:hover {
+  background: var(--danger);
+  color: #1a1a1a;
+  border-color: var(--danger);
+}
+
+/* ===== Control root ===== */
+
+/* The chrome's own voice, scoped to the role that has chrome - see the note
+   on `body` above for why it cannot live there. Everything below this rule
+   styles the control window and nothing else; the output role renders this
+   whole subtree at display:none. */
+.control-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+/* Pregonero's .control-masthead-wordmark: uppercase, weight 800, tight
+   tracking. The one place the app says what it is. */
+.header-bar h1 {
+  font-size: 15px;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transport-group {
+  display: flex;
+  gap: 6px;
+  padding-right: 10px;
+  margin-right: 4px;
+  border-right: 1px solid var(--border);
+}
+
+.main-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ===== Sidebar ===== */
+
+.sidebar {
+  width: 280px;
+  flex: none;
+  border-right: 1px solid var(--border);
+  background: var(--bg-raised);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+
+/* Pregonero's .control-setup-label / .ctrl-timed-label: the monospace label
+   voice, 600, uppercase, 0.04em. */
+.sidebar-header h2 {
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.surface-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.surface-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--bg-row);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.surface-row:hover {
+  background: var(--bg-row-hover);
+}
+
+/* Pregonero: --state-selected-bg / --state-selected-border. A choice is a
+   bright hairline box, never a colour - the colours mean liveness. */
+.surface-row.selected {
+  border-color: var(--selected-border);
+  background: var(--selected-bg);
+}
+
+.surface-row .surface-name {
+  flex: 1;
+  min-width: 5.5em; /* a name is why the row exists; it does not lose to chrome */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.surface-row.hidden-surface .surface-name {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.surface-row .surface-actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.surface-list-empty {
+  padding: 16px 10px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* ===== Sidebar: layer panel + backdrop (slice 3) ===== */
+
+.sidebar-section {
+  border-top: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.layer-panel {
+  padding: 0 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.layer-panel-empty {
+  padding: 0 16px 14px;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.layer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-field label {
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+/* Fields sit on Pregonero's --surface-inset (the app ground) rather than on
+   the panel, so a field reads as inset by its hairline alone - the panel and
+   the control share a ground there, and the border is what separates them. */
+.layer-field input[type="text"],
+.layer-field input[type="number"],
+.layer-field select {
+  font-family: var(--font-control);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+}
+
+/* Pregonero paints its one slider with accent-color and leaves the rest to
+   the UA. Clay here, not green: these set a value, they do not report a live
+   state. */
+.layer-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.layer-field textarea {
+  font-family: var(--font-control);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.layer-field input[type="color"] {
+  width: 48px;
+  height: 28px;
+  padding: 0;
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+/* Checkbox rows read as a row, not as the label-above-control column every
+   other field uses. */
+.layer-field-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-field-check label {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Pregonero's --font-numeric with tabular figures: a readout that shifts
+   width as you drag a slider is a readout you cannot watch. */
+.layer-opacity-value {
+  font-family: var(--font-control);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-dim);
+  align-self: flex-end;
+}
+
+/* Pregonero's .control-setup-hint takes --text-muted, not the dimmer step:
+   a hint is instructional text somebody reads at a desk, in a dark room, and
+   the dimmer ramp is for things meant to be available rather than read. */
+.layer-hint {
+  margin: 0 16px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.layer-field .layer-hint {
+  margin: 0;
+}
+
+/* =====================================================================
+   FORMAT BAR (text and song-lyrics shapes)
+   =====================================================================
+   THE PANEL HAD TO GET SMALLER, NOT LARGER. Eight labelled rows of text
+   options dominated the right bar, and v9 was about to add four more types to
+   the same column. So the formatting collapses to ONE COMPACT ROW - alignment,
+   colour, size, outline - and the two settings nobody touches twice in an
+   evening go behind a disclosure that starts closed.
+
+   HOUSE STYLE, AND IT IS NOT DECORATION: monochrome line glyphs, no fills, no
+   accent colours. THE ONE PLACE COLOUR IS SPENT IS THE SWATCH, which earns it
+   because there the colour IS the data - everywhere else a coloured icon would
+   be spending contrast on saying "this is a button". */
+/* ONE ROW, and it has to stay one row: the sizes below are what make the four
+   controls fit the 247px the panel actually has at this sidebar width, which is
+   the whole claim the bar is making. `flex-wrap` is the safety net for a
+   narrower window, not the intended layout. */
+.format-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* A segmented control is one object with hairlines between its parts, not
+   three buttons that happen to touch. */
+.format-seg {
+  display: flex;
+  border: 1px solid var(--border-soft);
+}
+
+.format-seg .format-btn + .format-btn {
+  border-left: 1px solid var(--border-soft);
+}
+
+.format-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.format-seg .format-btn {
+  border: 0;
+}
+
+.format-btn:hover {
+  color: var(--text);
+}
+
+/* Selection is a BRIGHT HAIRLINE plus paper ink, never a filled swatch - the
+   same rule the shape list uses, and for the same reason: colour is reserved
+   for liveness, and "you picked this" is a question asked at a desk. */
+.format-btn.active {
+  color: var(--text);
+  background: var(--selected-bg);
+  box-shadow: inset 0 0 0 1px var(--selected-border);
+}
+
+.format-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+}
+
+/* The one place colour is spent. A native colour input with its chrome taken
+   off, so the swatch itself is the control. */
+.format-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.format-swatch::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.format-swatch::-webkit-color-swatch {
+  border: 0;
+}
+
+/* A BARE STEPPER. No unit, because the value has none: it is a fraction of the
+   shape, and writing "px" next to it would invite exactly the reading the
+   whole text layer is built to avoid. */
+.format-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-soft);
+}
+
+.format-stepper .format-btn {
+  border: 0;
+  width: 22px;
+}
+
+.format-stepper-value {
+  min-width: 38px;
+  text-align: center;
+  font-family: var(--font-control);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* Closed by default, and it stays closed: aspect and outline width are tuned
+   once at a wall and then left alone. */
+.format-more {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 8px;
+}
+
+.format-more > summary {
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.format-more[open] > summary {
+  margin-bottom: 8px;
+}
+
+.format-more .layer-field + .layer-field {
+  margin-top: 8px;
+}
+
+/* =====================================================================
+   GIG (sidebar)
+   ===================================================================== */
+
+/* One row per song-aware type: which shape of that kind serves the gig, or
+   which one this song uses instead. The same widget at both levels on purpose -
+   they are the same question asked at two scopes. */
+.assignment-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.assignment-row label {
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.assignment-row select {
+  font-family: var(--font-control);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 5px 6px;
+  min-width: 0;
+}
+
+/* Song visual setup is a MODE the whole tool is in, not a field - the wall is
+   previewing one song while it is on. The bright hairline says so without
+   spending a status colour on it. */
+/* Gig visual setup's rows. Same layout as song setup's, without the bright
+   rule down the side: gig level is where the tool normally sits, and it is
+   song level that is a mode worth marking. */
+.setup-rows {
+  margin: 0 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.song-setup {
+  border-left: 2px solid var(--selected-border);
+  margin: 0 16px 8px;
+  padding-left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.visuals-status {
+  margin: 0 16px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: pre-line;
+}
+
+.backdrop-controls {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+  align-items: center;
+}
+
+.backdrop-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.backdrop-controls select {
+  flex: 1;
+  min-width: 0; /* let a long camera label shrink instead of widening the sidebar */
+  font-family: var(--font-control);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+}
+
+.backdrop-controls select:disabled {
+  color: var(--text-dim);
+}
+
+/* Two lines: what went wrong, named, and what to do about it. `pre-line` so
+   the name stays on its own line and reads at a glance in a dark room. */
+.camera-status {
+  margin: 0 16px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-line;
+  color: var(--danger);
+}
+
+/* A substitution is news, not a fault - the tool recovered and is saying so.
+   Red here would spend the danger colour on something that is working. */
+.camera-status.note {
+  color: var(--warn);
+}
+
+/* Which folder is connected, and how many sources come out of it. Dim, not
+   red: no folder chosen is a normal state, not a fault. */
+.media-folder-status {
+  margin: 0 16px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+/* The names a connected folder could not produce. Red, and one per line -
+   a wrapped run-on of filenames is unreadable at exactly the moment it is
+   needed, which is while typing the next one. */
+.media-folder-failures {
+  margin: 0 16px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--danger);
+  white-space: pre-wrap;
+}
+
+/* The white-field plate is live on the projector right now - the button has
+   to say so from across the room, not just read "Hide white". */
+/* Pregonero's --state-armed-*: green because something is live on the wall
+   this second, which is the one thing that earns a status colour. */
+#btn-white-field.active {
+  background: var(--state-live-bg);
+  border-color: var(--state-live-border);
+  color: var(--text);
+}
+
+/* ===== Preview area ===== */
+
+.preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  min-width: 0;
+}
+
+.preview-box {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.preview-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Live camera backdrop. object-fit:fill makes the camera frame cover the
+   element box exactly, which is what lets normalized camera space scale
+   straight into element pixels for the rectifying matrix3d (set inline by
+   applyCameraTransform); transform-origin 0 0 puts that matrix's source
+   domain at the box's own top-left, exactly as the output's surface
+   wrappers do. */
+.preview-camera {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0.4;
+  pointer-events: none;
+  transform-origin: 0 0;
+  background: #000;
+}
+
+/* While the calibration corners are being placed the feed is shown at full
+   strength: the thing being looked for is the edge of the projector's lit
+   rectangle, and 40% opacity is precisely what hides it. */
+.preview-camera.calibrating {
+  opacity: 1;
+}
+
+#preview-svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none; /* the drag listeners live here now, so the gesture guard does too */
+}
+
+/* ===== Shapes (preview) =====
+
+   Two polygons per shape, the same two whatever is inside it. The body carries
+   the contents and the gesture; the outline carries the stroke and the
+   selection. Splitting them is not decoration: a fill shape's body spends its
+   one stroke on the margin (applyMarginStroke), so the selected state needs a
+   stroke of its own to live on.
+
+   A fill overrides `fill`, `stroke` and `opacity` inline from its layer
+   colour. Everything else keeps the faint wash below, which is what makes an
+   otherwise empty quad findable and clickable over a camera feed. */
+.preview-shape-body {
+  fill: rgba(94, 234, 212, 0.06);
+  stroke: none;
+  cursor: move;
+  touch-action: none; /* stop the browser hijacking whole-shape drags as scroll/zoom */
+}
+
+.preview-shape-body.selected {
+  fill: rgba(94, 234, 212, 0.14);
+}
+
+/* Never a hit target: the body underneath owns the gesture, and an outline
+   stealing pointerdown would make the polygon's own edge un-draggable.
+   Lifted off the old chrome grey: it sits over a camera image, so it needs to
+   read against a wall, not against the panel behind it. */
+/* A shape the previewed song does not point at. It is DARK on the wall, so
+   the desk shows it as an outline with nothing in it rather than hiding it -
+   you still have to be able to select and edit a shape this song is not using.
+   Only ever seen in song visual setup; in gig visual setup nothing is dark. */
+.preview-shape-body.dark-for-song {
+  opacity: 0.12;
+}
+
+.preview-shape-outline.dark-for-song {
+  stroke-dasharray: 6 6;
+  opacity: 0.5;
+}
+
+.preview-layer-badge.dark-for-song {
+  opacity: 0.45;
+}
+
+.preview-shape-outline {
+  fill: none;
+  stroke: var(--draw-surface-idle);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.preview-shape-outline.selected {
+  stroke: var(--draw-surface);
+  stroke-width: 4;
+}
+
+.preview-layer-badge {
+  fill: var(--draw-label);
+  font-size: 20px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.65);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* The camera's calibration quad: the projector's lit rectangle as the camera
+   sees it. Deliberately not the surface accent - dragging these four handles
+   moves the whole coordinate frame, not one quad. */
+.camera-quad-outline {
+  fill: rgba(240, 165, 58, 0.1);
+  stroke: #f0a53a;
+  stroke-width: 3;
+  stroke-dasharray: 10 6;
+  pointer-events: none;
+}
+
+/* Section rule inside the shape panel, carrying the section's name. The panel
+   now runs from "what is inside this shape" through "the outline every shape
+   has" to "the capture that can replace it", and those are different kinds of
+   thing to be doing. */
+.panel-divider {
+  border-top: 1px solid var(--border);
+  margin: 16px 0 10px;
+  padding-top: 8px;
+  color: var(--text-dim);
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.adopt-status {
+  margin: 6px 0;
+  color: var(--accent);
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 1em;
+}
+
+.layer-hint.blocked {
+  color: #d9a441;
+}
+
+/* Countdown in the control window. Big, because it is read at a glance from
+   across the room on the way back from the wall. */
+.preview-countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22vh;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 0 24px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+/* Invisible thick line over each edge of the SELECTED shape's outline:
+   clicking one inserts a point there. pointer-events:all for the same reason
+   .corner-handle-hit needs it - a transparent stroke is not "painted", and
+   SVG's default visiblePainted hit-testing would skip it entirely. */
+.shape-edge-hit {
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: all;
+  cursor: copy;
+  touch-action: none;
+}
+
+/* ===== Outline point handles (calibration drag) =====
+
+   One idiom, one colour, one size, on every point of every shape. There were
+   two of these - a second, differently coloured set for the content frame -
+   and having to pick between two overlapping circles for every gesture is what
+   this file no longer asks anyone to do. */
+
+.corner-handle {
+  cursor: grab;
+}
+
+.corner-handle:active {
+  cursor: grabbing;
+}
+
+.corner-handle circle {
+  touch-action: none; /* stop the browser hijacking drags as scroll/zoom */
+}
+
+/* Invisible larger hit circle behind the visible dot (r=18 vs the visible
+   r=10) - widens what counts as "on the handle" for hurried, imprecise
+   projector-session use. pointer-events:all is required: a transparent fill
+   wouldn't otherwise be hit-tested (SVG's default is visiblePainted, which
+   only counts painted areas). */
+.corner-handle-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.corner-handle circle:not(.corner-handle-hit) {
+  fill: var(--draw-handle-fill);
+  stroke: var(--draw-surface);
+  stroke-width: 2;
+}
+
+.corner-handle.active circle:not(.corner-handle-hit) {
+  fill: var(--draw-surface);
+}
+
+.corner-handle.camera circle:not(.corner-handle-hit) {
+  stroke: var(--draw-camera);
+}
+
+.corner-handle text {
+  fill: var(--draw-label);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  user-select: none;
+}
+
+.corner-handle.active text {
+  fill: #0a0a09;
+}
+
+/* ===== Output root ===== */
+
+body.role-output {
+  background: #000;
+  cursor: none;
+  overflow: hidden;
+}
+
+.output-root {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  background: #000;
+  cursor: none;
+  overflow: hidden;
+}
+
+.output-surfaces {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Per-shape content wrapper: fixed 1000x1000 "unit square" content box,
+   warped onto the shape's CONTENT FRAME via an inline matrix3d (see mapper.js
+   WARP), and clipped by the outline on the .shape-root around it.
+   transform-origin 0 0 + top:0/left:0 makes the wrapper's own (0,0)-(1000,1000)
+   local pixel space the homography's source domain. */
+.surface-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.pattern-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.layer-video,
+.layer-image-webm {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  background: #000;
+}
+
+.layer-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+/* Text layer: real DOM text inside the warped wrapper, rasterized by the
+   browser AFTER the transform, so it stays crisp in a keystoned quad.
+
+   The background is TRANSPARENT and stays that way: the overlay case v1
+   needs is lyrics over a video layer, and a plate behind them would black
+   out the video the text is meant to sit on. Legibility comes from the
+   stroke and the shadow set inline by applyTextLayer instead.
+
+   Note, explicitly: the suite's "contrast is a budget" rule does NOT apply
+   to this surface. Everywhere else, restraint. Here, a line read from the
+   back of a dark room through a projector - legibility wins, and the outline
+   is not decoration. */
+.layer-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Unstretched defaults. mapper.js overrides width, padding and transform
+     per surface: the box is laid out as wide as the quad's stretch calls for
+     and counter-scaled back onto the unit square, which takes that stretch out
+     of the letterforms while leaving the fit measuring a space that still
+     means "the quad". See TEXT ASPECT in mapper.js.
+     Right/bottom are deliberately not set - an `inset: 0` here would
+     over-constrain the explicit width. */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center; /* vertically centred, always - not a control */
+  box-sizing: border-box; /* the inset is padding, set in px by mapper.js */
+  /* The counter-scale must pivot on the box's own top-left for that mapping
+     to be exact; the default 50% 50% would leave it centred but offset. */
+  transform-origin: 0 0;
+}
+
+.layer-text-inner {
+  width: 100%;
+  /* pre-wrap, not normal: the catalogue's lyric entries carry embedded
+     newlines and render as two lines. Collapsing them would silently turn a
+     two-line entry into one long line - and a layout tuned against that is
+     tuned against the wrong shape. Wrapping itself stays on word boundaries
+     (overflow-wrap: normal); auto-fit shrinks rather than breaking a word. */
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  line-height: 1.15;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  /* Stroke behind the fill. Without this, -webkit-text-stroke is centred on
+     the glyph outline and eats half its own width out of every stem, thinning
+     the font exactly where it is already weakest. Chrome-only, like the rest
+     of this tool. */
+  paint-order: stroke fill;
+}
+
+/* =====================================================================
+   SONG-AWARE LAYERS (output)
+   =====================================================================
+   THE WALL SPEAKS IN THE INSTRUMENT'S VOICE HERE, AND THAT WAS A DECISION.
+   The intro card and the contact panel are drawn in Pregonero's brutalist
+   control vocabulary - ink ground, paper and dim text, one clay accent, no
+   radii, monospace throughout - and control.css states outright that
+   projection typography is deliberately independent of it. Choosing it means
+   the audience sees the instrument's voice rather than the site's. That is a
+   decision about who the wall speaks AS, not a styling detail, and it was made
+   deliberately (2026-08-24).
+
+   The values are Pregonero's --app-bg, --text-primary, --text-secondary and
+   --accent, copied rather than referenced: this stylesheet is a different app
+   and a token that silently tracked another repo's redesign would be worse
+   than a number somebody has to change twice.
+
+   Every panel below is laid out at the counter-scaled width and scaled back
+   onto the unit square, exactly like .layer-text - see TEXT ASPECT in
+   mapper.js. mapper.js writes width, height, padding and transform; what is
+   here is everything that does not depend on the quad. */
+
+.layer-song-video,
+.layer-intro,
+.layer-contact {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Unstretched defaults, replaced per shape by layOutScaledBox(). */
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center; /* the block is vertically centred, always */
+  /* The counter-scale pivots on the box's own top-left, or the mapping onto
+     the unit square is centred instead of exact. */
+  transform-origin: 0 0;
+  background: #121211;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  text-align: left; /* LEFT-ALIGNED, NEVER CENTRED - see mapper.js */
+}
+
+/* A placeholder for content this tool is not allowed to see. The ground fills
+   the quad edge to edge because that is what the video will do: stretch-to-fill
+   is fixed v1 behaviour, so the ink IS the framing being tuned. */
+.layer-song-video {
+  justify-content: center;
+  /* Clipped rather than fitted: a label that shrank to fit a small quad would
+     say less than one the quad visibly cuts off. */
+  overflow: hidden;
+  box-shadow: inset 0 0 0 4px #423e37;
+}
+
+.song-video-label {
+  white-space: pre-line;
+  text-align: center;
+  color: #8b8478;
+  letter-spacing: 0.14em;
+  line-height: 1.5;
+}
+
+/* The intro card. Every measure is a multiple of --t, the title size, which is
+   the single number auto-fit searches over - so the proportions variant B1
+   fixed survive at any size the block lands on.
+
+   THIS IS WHERE THE PROPORTIONS LIVE, and the only place. mapper.js keeps two
+   of them (the ceiling the fit searches below, and the inset the layout box is
+   padded by) because JS is the only thing that reads those; everything else
+   would be a number written down twice. The reasoning behind each one is in
+   SONG INTRO TEMPLATE in mapper.js and in project-context.md. */
+.intro-block {
+  --t: 160px; /* replaced by the fit; a sane value for the instant before it */
+  width: 100%;
+}
+
+/* The clay rule and the translation share one line. */
+.intro-head {
+  display: flex;
+  align-items: center;
+  /* The one measure not in the spec: half the annotation's own size, so it
+     scales with the two things it separates rather than being a fixed gap. */
+  gap: calc(var(--t) * 0.1);
+}
+
+.intro-rule {
+  flex: 0 0 auto;
+  width: calc(var(--t) * 0.4);
+  height: calc(var(--t) * 0.04);
+  background: #d98b7a;
+}
+
+/* The translation, as an ANNOTATION above the title rather than a near-equal
+   second headline - which is what it actually is, and what frees the title to
+   be the only large thing on the wall. Case and tracking do the work the
+   italic used to. */
+.intro-annotation {
+  font-size: calc(var(--t) * 0.2);
+  line-height: 1.2;
+  letter-spacing: 0.18em; /* "wide-tracked"; the one tracking value not specified */
+  text-transform: uppercase;
+  color: #8b8478;
+}
+
+.intro-title {
+  margin-top: calc(var(--t) * 0.17);
+  font-size: var(--t);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: #e6dfd1;
+}
+
+/* THE FRAGILE PART: smallest on the wall, and carrying the sentence the room
+   is meant to leave with. First thing to check at a real wall. */
+.intro-tagline {
+  margin-top: calc(var(--t) * 0.3);
+  font-size: calc(var(--t) * 0.28);
+  line-height: 1.25;
+  color: #8b8478;
+}
+
+/* The contact panel: one line, and a QR beside it when a file was named. */
+.contact-block {
+  --t: 220px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--t) * 0.6);
+}
+
+/* Paper ground and real padding, because a QR needs its quiet zone to scan and
+   a code printed straight onto ink does not scan at all. It is square in the
+   layout box, which the counter-scale and the homography together land as a
+   square ON THE WALL - the correction earns its keep here more than anywhere,
+   since a squashed QR is not a style, it is a code that fails. */
+.contact-qr {
+  flex: 0 0 auto;
+  width: calc(var(--t) * 3.4);
+  height: calc(var(--t) * 3.4);
+  box-sizing: border-box;
+  padding: calc(var(--t) * 0.18);
+  background: #e6dfd1;
+  object-fit: contain;
+}
+
+/* ONE LINE, and nowrap is what makes that a promise rather than a description.
+   Without it a long line wraps to two and the "one line plus a QR" shape
+   quietly stops being what was designed; with it, auto-fit shrinks the line
+   until it fits on one, which is the behaviour the whole text layer already
+   has. sanitizeContactLayer collapses a pasted newline for the same reason,
+   one step earlier. */
+.contact-line {
+  font-size: var(--t);
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: #e6dfd1;
+  white-space: nowrap;
+}
+
+/* Media layer box: fills the warped wrapper; holds the <video>/<img> plus
+   an overlay note that appears when the media is missing or fails to load
+   (black-on-black failures are invisible at a projector). */
+.layer-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.layer-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-line;
+  padding: 60px;
+  background: rgba(120, 40, 20, 0.35);
+  border: 6px dashed rgba(248, 113, 113, 0.8);
+  color: #fca5a5;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+/* Per-shape root: a full-frame, untransformed box holding either the warped
+   wrapper below or a fill's SVG. Full-frame and untransformed is the whole
+   point - it is what lets clip-path take the outline in output pixels exactly
+   as the mapping stores it, with no inverse homography to keep in step with
+   the forward one. See OUTPUT RENDERING in mapper.js. */
+.shape-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* A fill shape's SVG. Never a hit target - the output window takes no input
+   but F and double-click, and those belong to the document. The viewBox is set
+   in real output pixels on every render (see renderOutputFill), with
+   preserveAspectRatio="none" so one output pixel is one user unit on both axes
+   and the margin's round joins stay round. */
+.output-fill-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Fill and stroke are set inline from the layer's colour - see
+   renderOutputFill. A colour here would outrank it and silently win. */
+.output-fill {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* White-field helper: above the surfaces, below nothing. Covers rather than
+   replaces, so dropping it leaves the output exactly as it was. */
+.output-white {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+/* THE COUNTDOWN IS ALSO THE DARK PLATE, and the two are one element because
+   they are one thing: this is what the wall shows while somebody walks into
+   place. It is opaque and full-frame, so raising it covers the white plate AND
+   the mapped content in a single change - which is what lets the sequence
+   swap the plate underneath it without a frame of video flashing up on the
+   wall (see steps 3 and 4 of adoptShapeBoundaries).
+
+   Light glyphs on black, inverted from the dark-on-white this used to be. A
+   performer stood in the beam for the whole count, and a full white field for
+   ten seconds is unpleasant enough that Jorge asked whether it was needed. It
+   is not: the shadow only exists at the two capture instants, and the
+   countdown sits between them. The glyphs cover a few percent of the frame,
+   which is enough to read from inside the beam and nothing like enough to
+   hurt. */
+.output-countdown {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60vh;
+  font-weight: 800;
+  line-height: 1;
+  background: #000;
+  color: #e6dfd1;
+  pointer-events: none;
+}
+
+.output-identify {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.identify-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 8px 14px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  white-space: pre-line;
+}

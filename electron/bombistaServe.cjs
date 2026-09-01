@@ -1,4 +1,5 @@
 const { spawn } = require('child_process')
+const { resolveBombista } = require('./bombistaBinary.cjs')
 
 /**
  * **`bombista serve` — Bombista's own review interface, in a window.**
@@ -36,7 +37,8 @@ function findUrl(text) {
  */
 function startBombistaServe(args, options = {}) {
   const spawnFn = options.spawn || spawn
-  const command = options.command || 'bombista'
+  // Resolved, not inherited: a Finder-launched app's PATH cannot see ~/.local/bin.
+  const command = options.command || resolveBombista(options.bombistaPath).command
   const timeout = options.timeout ?? 20_000
 
   return new Promise((resolve) => {
@@ -66,7 +68,7 @@ function startBombistaServe(args, options = {}) {
     child.stdout?.on('data', onChunk)
     child.stderr?.on('data', onChunk)
     child.on('error', (err) => {
-      finish({ ok: false, error: (err && err.message) || `${command} is not on PATH` })
+      finish({ ok: false, error: (err && err.message) || `${command} could not be run` })
     })
     child.on('exit', (code) => {
       finish({
