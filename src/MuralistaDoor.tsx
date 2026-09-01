@@ -28,27 +28,32 @@ import { GatedAction } from './GatedAction'
  * nothing else. Rendering the identical door twice on one screen was the alternative, and two
  * controls with the same name doing the same thing is how a screen stops being readable.
  *
- * **It names the folder in full, and this is a stopgap for something that should not be asked at
- * all** (2026-09-01). Pregonero created this gig's folder and knows where its `setup/` is, so
- * asking the person to navigate to it is the app making them supply an answer it already holds —
- * and it is worse than usual here, because that folder moved on 01/09, so anybody working from
- * memory now picks the wrong one. **Handing Muralista the folder is not possible from this side.**
- * Its page acquires the folder through `showDirectoryPicker`, and a `FileSystemDirectoryHandle` can
- * only be minted by that picker under a user gesture — Chromium admits no path-to-handle route, and
- * Electron 41 exposes no hook to answer or pre-seed the picker (its File System Access surface is
- * `setPermissionRequestHandler`, which grants access to a path already chosen, and the
- * `file-system-access-restricted` event). Removing the question needs Muralista to accept the
- * folder some other way, which is a change in its own repo. **Until then the exact path is on
- * screen, so the answer is copyable rather than remembered.**
+ * **Hosted, the folder is never asked for** (2026-09-01). Pregonero created this gig's folder and
+ * knows where its `setup/` is, so asking the person to navigate to it was the app making them
+ * supply an answer it already holds — and it was worse here than elsewhere, because that folder
+ * moved on 01/09, so anybody acting from memory supplied the wrong one and `visuals.json` landed
+ * where Pregonero never looks, with no error anywhere.
+ *
+ * **It could not be handed over as a folder, so it is handed over as an endpoint.** Muralista
+ * acquires a folder through `showDirectoryPicker`, and a `FileSystemDirectoryHandle` is only
+ * mintable by that picker under a user gesture — Chromium admits no path-to-handle route, and
+ * Electron 41 exposes no hook to answer or pre-seed it. So the door passes this gig's `setup/`
+ * path to the main process, which serves that folder and takes the one `PUT` of `visuals.json`
+ * back. **Rule 2 of the contract was amended for exactly this and nothing more**, and rule 1
+ * survives on the verbatim guard in `localhostServer.cjs`: the bytes go to disk unread, and
+ * Pregonero learns the mapping afterwards by reading the file, as it always has.
+ *
+ * **Standalone is untouched, which is rule 3.** With no host there is no parameter and Muralista
+ * picks its own folder — so the printed path stays on the unhosted branch, where it is the answer
+ * somebody has to type into a picker.
  */
 
 /**
- * **The folder to hand over, spelled out.**
+ * **The folder to hand over, spelled out** — on the standalone branch, where it is still asked for.
  *
- * Pregonero knows this path and cannot pass it, so the least it can do is not make anybody
- * remember it. The folder moved on 01/09: a person going where they went last time now lands one
- * level too high, picks the gig folder, and Muralista writes `visuals.json` somewhere Pregonero
- * will never look for it — a failure with no error anywhere.
+ * The folder moved on 01/09: a person going where they went last time lands one level too high,
+ * picks the gig folder, and Muralista writes `visuals.json` somewhere Pregonero will never look
+ * for it — a failure with no error anywhere.
  */
 function SetupFolderPath({ path }: { path: string | null }) {
   if (path === null) return null
@@ -130,10 +135,18 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
                 setBusy(true)
                 setError(null)
                 void (async () => {
-                  // The folder argument is ignored for this key: the main process serves the
-                  // vendored page out of the app itself. It is still passed so the one IPC keeps
-                  // one shape.
-                  const result = await openTool(MURALISTA_KEY, '', MURALISTA_PAGE, 'Muralista')
+                  // **The folder argument is this gig's `setup/`, not the page's.** The main
+                  // process serves the vendored page out of the app itself, so the argument
+                  // carries the thing that varies: where `gig.json` is and where `visuals.json`
+                  // goes. Joined here because `fileLayout.ts` is the only place the word `setup`
+                  // is written. With no gig open it is empty, and Muralista opens exactly as a
+                  // standalone one — no parameter, its own picker, its own write.
+                  const result = await openTool(
+                    MURALISTA_KEY,
+                    setupFolder ?? '',
+                    MURALISTA_PAGE,
+                    'Muralista'
+                  )
                   if (result.ok) setOpen(true)
                   else setError(result.error)
                   setBusy(false)
@@ -167,15 +180,25 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
               {error}
             </p>
           )}
-          <p className="gig-hint">
-            Hand it the <code>setup</code> folder inside this gig: <code>gig.json</code> is in there,
-            and <code>visuals.json</code> is written beside it. The rest of the gig folder is yours.
+          <p className="gig-hint" data-testid={gig ? 'muralista-endpoint-gig' : 'muralista-endpoint'}>
+            {setupFolder === null ? (
+              <>
+                No gig is open, so Muralista opens as it does on its own and asks where to write.
+                Open a gig first and it will not ask.
+              </>
+            ) : (
+              <>
+                It opens on this gig: <code>gig.json</code> is read from its <code>setup</code>{' '}
+                folder and <code>visuals.json</code> is written back beside it.{' '}
+                <strong>You are not asked where</strong> — Pregonero made that folder and knows it.
+              </>
+            )}
           </p>
-          <SetupFolderPath path={setupFolder} />
           <p className="gig-hint">
-            Muralista writes <code>visuals.json</code> and Pregonero reads it. Nothing passes between
-            them while both are running — <strong>Done</strong> only saves you closing the window and
-            re-checking, which happens on the next open anyway.
+            Muralista decides every byte of <code>visuals.json</code>; Pregonero puts them on disk
+            without reading them and learns the room afterwards by reading the file.{' '}
+            <strong>Done</strong> only saves you closing the window and re-checking, which happens
+            on the next open anyway.
           </p>
         </div>
       )}

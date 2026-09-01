@@ -311,26 +311,63 @@ describe('the visuals door: Muralista, hosted', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('muralista-open'))
     })
-    // The folder argument is ignored for this key — the main process serves the vendored page out
-    // of the app itself — and it is still passed so the one IPC keeps one shape.
+    // The page comes out of the app itself; the folder argument carries the gig, and with no gig
+    // open there is none.
     expect(openTool).toHaveBeenCalledWith(MURALISTA_KEY, '', MURALISTA_PAGE, 'Muralista')
   })
 
-  it('never asks for a folder, and never says it does not carry a copy', () => {
+  /**
+   * **The gig's `setup/` folder goes with the open**, and this is the whole of the visuals step's
+   * "never asks for a folder" (journey step 9.3).
+   *
+   * Pregonero made this folder and knows it; a `FileSystemDirectoryHandle` cannot be handed to a
+   * page, so the path goes to the main process, which serves that folder and takes the one write
+   * back. **The path is joined here** — `fileLayout.ts` is the only place the word `setup` is
+   * written, and the main process stays ignorant of the suite's conventions.
+   */
+  it('hands the open gig’s setup folder to the tool, so nobody is asked for it', async () => {
+    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
     render(<MuralistaDoor />)
-    expect(screen.queryByTestId('muralista-no-folder')).toBeNull()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('muralista-open'))
+    })
+    expect(openTool).toHaveBeenCalledWith(
+      MURALISTA_KEY,
+      '/gigs/2026-09-04-de-poel/setup',
+      MURALISTA_PAGE,
+      'Muralista'
+    )
+  })
+
+  it('does not print a path to be typed in when it is hosted', () => {
+    // The path was a stopgap for a question that is now not asked. It stays on the standalone
+    // branch, where somebody does have to type it into a picker.
+    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
+    render(<MuralistaDoor />)
+    expect(screen.queryByTestId('muralista-setup-folder')).toBeNull()
+    expect(screen.getByTestId('muralista-endpoint').textContent).toMatch(/not asked where/i)
+  })
+
+  it('says so when there is no gig to open on, rather than opening on nothing quietly', () => {
+    render(<MuralistaDoor />)
+    expect(screen.getByTestId('muralista-endpoint').textContent).toMatch(/No gig is open/)
+  })
+
+  it('never asks where Muralista is, and never says it does not carry a copy', () => {
+    render(<MuralistaDoor />)
     expect(screen.queryByTestId('muralista-choose-folder')).toBeNull()
     expect(screen.queryByTestId('muralista-forget-folder')).toBeNull()
   })
 
   /**
-   * **The folder Muralista must be handed is on screen, in full.**
+   * **The standalone branch still names the folder in full, and that is where it belongs.**
    *
-   * Pregonero made this gig's folder and knows where its `setup/` is; it cannot pass a
-   * `FileSystemDirectoryHandle` to a page, so the least it can do is stop anybody having to
-   * remember the path. It moved on 01/09, which is exactly when memory is wrong.
+   * With no bridge, Muralista is opened in Chrome and handed a folder through its own picker — so
+   * the path is an answer somebody has to type, and it moved on 01/09, which is exactly when
+   * memory is wrong. Rule 3 of the contract: standalone is untouched by the write path.
    */
-  it('names the setup folder of the open gig, rather than leaving it to be remembered', () => {
+  it('names the setup folder in full when there is no bridge to open the tool with', () => {
+    hosted = false
     localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
     render(<MuralistaDoor />)
     expect(screen.getByTestId('muralista-setup-folder').textContent).toBe(
@@ -339,6 +376,7 @@ describe('the visuals door: Muralista, hosted', () => {
   })
 
   it('says nothing about a folder when no gig is open', () => {
+    hosted = false
     render(<MuralistaDoor />)
     expect(screen.queryByTestId('muralista-setup-folder')).toBeNull()
   })
@@ -385,11 +423,13 @@ describe('the visuals door: Muralista, hosted', () => {
     expect(screen.getByTestId('muralista-open-reason').textContent).toMatch(/desktop app/)
   })
 
-  it('says the file is the only channel, not a running connection', () => {
+  it('says the file is still the truth, and that Pregonero does not read what it writes', () => {
+    // **The verbatim guard is what keeps rule 1 alive** now that Pregonero performs the write, so
+    // the door says it rather than leaving it as a claim in a comment.
     render(<MuralistaDoor />)
-    expect(screen.getByTestId('muralista-hosted').textContent).toMatch(
-      /Nothing passes between them while both are running/
-    )
+    const said = screen.getByTestId('muralista-hosted').textContent ?? ''
+    expect(said).toMatch(/without reading them/)
+    expect(said).toMatch(/Muralista decides every byte/)
   })
 })
 

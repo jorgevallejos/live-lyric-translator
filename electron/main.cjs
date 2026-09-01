@@ -224,20 +224,36 @@ function createProjectionWindow(loadWindow) {
 const toolServer = createLocalhostServer()
 const toolWindows = new Map()
 
-async function openToolWindow(key, folder, page, title) {
-  const existing = toolWindows.get(key)
-  if (existing && !existing.isDestroyed()) {
-    existing.focus()
-    return { ok: true, url: existing.__pregoneroUrl }
-  }
+/**
+ * **The gig's `setup/` folder, served to a hosted tool** — read for `gig.json`, and writable for
+ * exactly one name.
+ *
+ * Its own mount rather than a second use of the tool's, because the two folders are opposites: one
+ * holds the app's own vendored page and is read-only forever, the other is the person's gig and
+ * takes the one write. The name is Pregonero's and never crosses: the page is told a **relative**
+ * URL, so all a hosted tool knows is that something served it and accepts a write there.
+ */
+const GIG_MOUNT = 'gig-setup'
+const VISUALS_FILE_NAME = 'visuals.json'
+
+async function openToolWindow(key, folder, page, title, gigFolder) {
   let port
   try {
     port = await toolServer.start()
   } catch (err) {
     return { ok: false, error: (err && err.message) || String(err) }
   }
+  // **Mounted before the reuse check.** Reopening the door on a different gig has to repoint the
+  // folder; the window's URL names the mount, not the path, so repointing is the whole update.
+  if (gigFolder) toolServer.mount(GIG_MOUNT, gigFolder, VISUALS_FILE_NAME)
+  const existing = toolWindows.get(key)
+  if (existing && !existing.isDestroyed()) {
+    existing.focus()
+    return { ok: true, url: existing.__pregoneroUrl }
+  }
   toolServer.mount(key, folder)
-  const url = `http://127.0.0.1:${port}/${key}/${page}`
+  const query = gigFolder ? `?gig=/${GIG_MOUNT}/` : ''
+  const url = `http://127.0.0.1:${port}/${key}/${page}${query}`
 
   const win = new BrowserWindow({
     width: 1400,
@@ -488,14 +504,28 @@ ipcMain.handle('bombista:stagingDir', (_event, songId) => {
  */
 const MURALISTA_ROOT = path.join(__dirname, '..', 'src', 'vendor')
 
-ipcMain.handle('tool:open', (_event, key, folder, page, title) =>
-  openToolWindow(
-    String(key),
-    String(key) === 'muralista' ? MURALISTA_ROOT : String(folder),
+/**
+ * **`folder` means two different things depending on the tool, and for Muralista it is the gig.**
+ *
+ * Muralista's page comes out of `MURALISTA_ROOT` — the app serves its own vendored copy — so the
+ * argument is free for the thing that actually varies: which gig's `setup/` folder this window is
+ * pointed at. The renderer joins that path, because `fileLayout.ts` is the only place the word
+ * `setup` is written and the main process stays ignorant of the suite's conventions.
+ *
+ * **No folder, no parameter**, and the page behaves exactly as a standalone one: it picks its own
+ * folder and writes through its own handle. That is contract rule 3, and it is untouched.
+ */
+ipcMain.handle('tool:open', (_event, key, folder, page, title) => {
+  const name = String(key)
+  const muralista = name === 'muralista'
+  return openToolWindow(
+    name,
+    muralista ? MURALISTA_ROOT : String(folder),
     String(page),
-    String(title || key)
+    String(title || key),
+    muralista && folder ? String(folder) : null
   )
-)
+})
 
 /**
  * Starts `bombista serve` and opens a window on the address it prints.

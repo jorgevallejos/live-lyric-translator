@@ -2,8 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.6.0",
-  "sha256": "57b95c48fa95acd08a1ad181a6b8d8bcfefcd6811d901910ccd1148b34dc77c2",
-  "fixtures": ["LYRICS_PREVIEW_TEXT", "INTRO_PLACEHOLDER"],
-  "vendoredOn": "2026-08-27"
+  "tag": "v1.7.0",
+  "sha256": "04533a15a0ba0bbe079cd84cb6ad486b909b9c85b33ec845173e0de506262960",
+  "fixtures": [
+    "LYRICS_PREVIEW_TEXT",
+    "INTRO_PLACEHOLDER"
+  ],
+  "vendoredOn": "2026-09-01",
+  "note": "Re-vendored at v1.7.0 for the page, not for the stand-ins: v1.7.0 added the hosted gig endpoint and left LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER untouched. The digest moved because the file did; the two values this repo reads out of it did not."
 }

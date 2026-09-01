@@ -10,9 +10,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const require_ = createRequire(import.meta.url)
-const { createLocalhostServer, resolveRequest } = require_('./localhostServer.cjs') as {
+const { createLocalhostServer, resolveRequest, MAX_WRITE_BYTES } = require_(
+  './localhostServer.cjs'
+) as {
+  MAX_WRITE_BYTES: number
   createLocalhostServer: (o?: unknown) => {
-    mount: (name: string, folder: string) => void
+    mount: (name: string, folder: string, writableFile?: string) => void
     unmount: (name: string) => void
     start: () => Promise<number>
     stop: () => void
@@ -101,6 +104,142 @@ describe('the running server', () => {
       expect(port).toBeGreaterThan(0)
       // The address is what makes the context secure; the scheme is what makes the media rules sane.
       expect(`http://127.0.0.1:${port}`).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    } finally {
+      server.stop()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+/**
+ * **The one write path.** Rule 2 of the contract, as amended on 2026-09-01: when Pregonero hosts a
+ * preparing tool it may also be that tool's write path — it receives bytes and puts them on disk
+ * unread.
+ *
+ * **Rule 1 survives because of the verbatim guard**, and these are what say so out loud: bytes in,
+ * the same bytes on disk, nothing parsed and nothing repaired. The rest is refusals, because the
+ * other half of the amendment is that this accepts *the visuals file at the expected place* and
+ * nothing else at all.
+ */
+describe('the write path', () => {
+  async function withServer(
+    run: (port: number, dir: string) => Promise<void>,
+    writableFile: string | undefined = 'visuals.json'
+  ) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pregonero-write-'))
+    const server = createLocalhostServer()
+    server.mount('gig', dir, writableFile)
+    server.mount('page', dir)
+    const port = await server.start()
+    try {
+      await run(port, dir)
+    } finally {
+      server.stop()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  it('writes the received bytes verbatim, and does not read them', async () => {
+    await withServer(async (port, dir) => {
+      // Not valid JSON, on purpose. **A parser here would be rule 1 broken rather than bent**, so
+      // the proof that there is none is that nonsense arrives on disk exactly as it was sent.
+      const body = '{ this is not json at all \u00e9\n'
+      const res = await fetch(`http://127.0.0.1:${port}/gig/visuals.json`, {
+        method: 'PUT',
+        body,
+      })
+      expect(res.status).toBe(204)
+      expect(fs.readFileSync(path.join(dir, 'visuals.json'), 'utf8')).toBe(body)
+    })
+  })
+
+  it('overwrites rather than merging: the file is whatever was last sent', async () => {
+    await withServer(async (port, dir) => {
+      const put = (body: string) =>
+        fetch(`http://127.0.0.1:${port}/gig/visuals.json`, { method: 'PUT', body })
+      await put('{"shapes":[1,2,3]}')
+      await put('{"shapes":[]}')
+      expect(fs.readFileSync(path.join(dir, 'visuals.json'), 'utf8')).toBe('{"shapes":[]}')
+    })
+  })
+
+  it('refuses a mount that was not declared writable', async () => {
+    await withServer(async (port, dir) => {
+      const res = await fetch(`http://127.0.0.1:${port}/page/visuals.json`, {
+        method: 'PUT',
+        body: '{}',
+      })
+      expect(res.status).toBe(405)
+      expect(fs.existsSync(path.join(dir, 'visuals.json'))).toBe(false)
+    })
+  })
+
+  it('refuses any name but the one the mount accepts', async () => {
+    await withServer(async (port, dir) => {
+      for (const name of ['gig.json', 'visuals.json.bak', 'Visuals.json', 'anything']) {
+        const res = await fetch(`http://127.0.0.1:${port}/gig/${name}`, {
+          method: 'PUT',
+          body: '{}',
+        })
+        expect(`${name}:${res.status}`).toBe(`${name}:403`)
+      }
+      expect(fs.readdirSync(dir)).toEqual([])
+    })
+  })
+
+  it('refuses the right name anywhere but directly in the mount', async () => {
+    await withServer(async (port) => {
+      for (const url of ['/gig/sub/visuals.json', '/gig', '/gig/', '/gig/../visuals.json']) {
+        const res = await fetch(`http://127.0.0.1:${port}${url}`, { method: 'PUT', body: '{}' })
+        expect(`${url}:${res.status}`).toBe(`${url}:404`)
+      }
+    })
+  })
+
+  it('refuses a body over the cap without writing a truncated one', async () => {
+    await withServer(async (port, dir) => {
+      const tooBig = 'x'.repeat(MAX_WRITE_BYTES + 1024)
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/gig/visuals.json`, {
+          method: 'PUT',
+          body: tooBig,
+        })
+        expect(res.status).toBe(413)
+      } catch {
+        // The socket is destroyed on refusal, which fetch may surface as a network error. Either
+        // way the assertion that matters is the next line: nothing partial reached the disk.
+      }
+      expect(fs.existsSync(path.join(dir, 'visuals.json'))).toBe(false)
+    })
+  })
+
+  it('refuses every method that is not a read or that one write', async () => {
+    await withServer(async (port, dir) => {
+      for (const method of ['POST', 'DELETE', 'PATCH']) {
+        const res = await fetch(`http://127.0.0.1:${port}/gig/visuals.json`, {
+          method,
+          body: '{}',
+        })
+        expect(`${method}:${res.status}`).toBe(`${method}:405`)
+      }
+      expect(fs.existsSync(path.join(dir, 'visuals.json'))).toBe(false)
+    })
+  })
+
+  it('leaves a mount read-only when it is re-mounted without the writable name', async () => {
+    // Repointing a mount is how the gig folder changes between gigs. Dropping the opt-in must
+    // drop the write with it, or a name could stay writable after the reason for it is gone.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pregonero-write-'))
+    const server = createLocalhostServer()
+    server.mount('gig', dir, 'visuals.json')
+    server.mount('gig', dir)
+    const port = await server.start()
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/gig/visuals.json`, {
+        method: 'PUT',
+        body: '{}',
+      })
+      expect(res.status).toBe(405)
     } finally {
       server.stop()
       fs.rmSync(dir, { recursive: true, force: true })
