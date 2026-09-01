@@ -7,6 +7,7 @@
  * exists — the same seam the real app goes through.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { installRequiredFolders } from './testSupport/folders'
 import { render, screen, act, waitFor, within, cleanup, fireEvent } from '@testing-library/react'
 import type { SongItem } from './songState'
 import { setBlank, setCurrentSongId, setProjectionLanguage, setSingingLanguage, setSongIndex, setSongLines } from './songState'
@@ -125,6 +126,7 @@ function folderRead(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   localStorage.clear()
+  installRequiredFolders()
   sessionStorage.clear()
   dropLibraryCache()
   vi.clearAllMocks()

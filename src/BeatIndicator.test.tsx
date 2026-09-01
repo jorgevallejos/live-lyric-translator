@@ -11,6 +11,7 @@
  * untouched by the beat clock.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { installRequiredFolders } from './testSupport/folders'
 import { render, screen, act, waitFor, within, cleanup } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import App from './App'
@@ -68,6 +69,7 @@ const WAIT_TIMEOUT = 3000
 function clearStorage() {
   sessionStorage.clear()
   localStorage.clear()
+  installRequiredFolders()
 }
 
 function getArmButton() {

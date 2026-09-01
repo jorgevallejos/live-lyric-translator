@@ -8,6 +8,7 @@
  * blank wall, at a venue, with people arriving.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { installRequiredFolders } from './testSupport/folders'
 import { render, screen, act, waitFor, cleanup } from '@testing-library/react'
 import type { SongItem } from './songState'
 import type { LibrarySong } from './setlistStore'
@@ -85,6 +86,7 @@ const LINES: SongItem[] = [{ languages: { es: 'Hola', en: 'Hello' } }]
 
 beforeEach(() => {
   localStorage.clear()
+  installRequiredFolders()
   sessionStorage.clear()
   vi.clearAllMocks()
   installLibrary([{ id: 'duelo', title: 'Duelo', items: LINES } as LibrarySong])

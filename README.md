@@ -43,6 +43,30 @@ Verify:
 npm test
 ```
 
+## First run, and how to get back to it
+
+The first time Pregonero opens it asks for two folders — **songs** and **gigs** — and shows nothing
+else until both are chosen. Every launch after that goes straight to the control screen. They can
+be changed later in Preferences.
+
+**To see that screen again, quit Pregonero and delete its stored state:**
+
+```bash
+rm -rf "$HOME/Library/Application Support/Pregonero/Local Storage"
+```
+
+**Quit the app first.** Chromium holds that database open while it runs and rewrites it on exit, so
+deleting it under a running app does nothing.
+
+Reinstalling does **not** do this. The state lives in the app's data directory, not in the bundle,
+so a fresh copy of the app finds the same folders already set. This one command is the only way
+back.
+
+It wipes everything in browser storage, not only the two folders: the song library's references,
+the gig list, the remembered gig, the media and Bombista settings. Nothing on disk is touched —
+`songs/`, the gig folders and every file in them are untouched, and the library rebuilds itself
+from the songs folder as soon as you choose it again.
+
 ## A worked example
 
 Getting one song onto the projection screen. The song below is *Pimiento* — nineteen lines, sung in Spanish, projected in English.

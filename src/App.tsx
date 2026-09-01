@@ -70,6 +70,8 @@ import { GigView } from './GigView'
 import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
 import { SetupHomeView } from './SetupHomeView'
+import { FirstRunView } from './FirstRunView'
+import { hasRequiredFolders } from './contentFolders'
 import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import {
   getProjectionStatusText,
@@ -2271,6 +2273,13 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     return 'loading'
   })
   const [songLibError, setSongLibError] = useState<string | null>(null)
+  /**
+   * **First run, and it is checked before anything on the control side renders.**
+   *
+   * Read once into state rather than on every render so that choosing the folders re-renders
+   * through `setFoldersReady` — and so a stale read cannot put the screen back after it is done.
+   */
+  const [foldersReady, setFoldersReady] = useState(hasRequiredFolders)
 
   useEffect(() => {
     if (isProjectionRoute) {
@@ -2339,6 +2348,19 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [initialHash])
+
+  // **The folder request replaces the main screen, and comes before every other return.** Above
+  // the hydration screen deliberately: that one would otherwise flash first, and "the first thing
+  // on screen is the folder request" is the requirement. The Projection window is untouched — it
+  // is a second window with no preload, and it has nothing to ask for.
+  if (!isProjectionRoute && !foldersReady) {
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <FirstRunView onDone={() => setFoldersReady(true)} />
+      </>
+    )
+  }
 
   if (!isProjectionRoute && songLibState === 'loading') {
     return (
