@@ -56,7 +56,7 @@ vi.mock('./platform', async (importOriginal) => ({
   describeDisplays: vi.fn().mockResolvedValue({ count: 0, displays: [], fingerprint: '' }),
 }))
 
-const { SongSubflow } = await import('./SongSubflow')
+const { SongSubflow, wordsStem } = await import('./SongSubflow')
 const { MuralistaDoor, MURALISTA_KEY, MURALISTA_PAGE } = await import('./MuralistaDoor')
 const { setSongsFolder } = await import('./contentFolders')
 
@@ -89,74 +89,85 @@ beforeEach(() => {
 })
 
 afterEach(cleanup)
-
-describe('the song door: Bombista, hosted', () => {
-  it('asks one question when the file does not exist yet — two entry points, one flow', () => {
-    render(<SongSubflow songId="pimiento" songPath={null} />)
-    expect(screen.getByTestId('subflow-question').textContent).toBe('Does a song file exist yet?')
-    expect(screen.getByTestId('subflow-have-file')).toBeTruthy()
-    expect(screen.getByTestId('subflow-new')).toBeTruthy()
-  })
-
-  it('goes straight into the flow when the file is already there', () => {
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
+describe('the song door: one door, two pickers, three moves', () => {
+  /**
+   * **Rewritten 2026-09-01.** The old door opened with *does a song file exist yet?* and laid the
+   * pipeline out as six controls — `new`, a named gap, align, review, promote, validate. Jorge
+   * stopped the R1 walk rather than test it, which was right: it implemented a design already
+   * replaced. These tests are the replacement, and the first one is the whole point of it.
+   */
+  it('asks no question about whether the song exists — one door, either way', () => {
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    expect(screen.queryByTestId('subflow-question')).toBeNull()
     expect(screen.queryByTestId('subflow-entry')).toBeNull()
-    expect(screen.getByTestId('subflow-flow')).toBeTruthy()
+    expect(screen.getByTestId('subflow-choose-words')).toBeTruthy()
+    expect(screen.getByTestId('subflow-choose-audio')).toBeTruthy()
   })
 
-  it('says at the entry that a song needs lyrics and audio', () => {
-    render(<SongSubflow songId="pimiento" songPath={null} />)
-    expect(screen.getByTestId('subflow-entry').textContent).toMatch(/needs lyrics and audio/)
+  it('is the same door for a song that already exists', () => {
+    render(<SongSubflow songId="pimiento" songPath="/vault/songs/pimiento.json" />)
+    expect(screen.getByTestId('subflow-choose-words')).toBeTruthy()
+    expect(screen.getByTestId('subflow-choose-audio')).toBeTruthy()
   })
 
-  it('names the LLM session as a gap outside the suite, and never performs it', () => {
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    expect(screen.getByTestId('subflow-gap').textContent).toMatch(/outside the suite/)
-    expect(screen.getByTestId('subflow-gap').textContent).toMatch(/no tool here gets a language model/)
-  })
-
-  it('writes a new skeleton into the songs folder under the canonical name', async () => {
-    setSongsFolder('/vault/songs')
-    render(<SongSubflow songId="pimiento" songPath={null} />)
+  it('takes a lyrics .txt or a song .json through one picker', async () => {
+    // The branch belongs to Bombista: `align` accepts SONG_JSON_OR_LYRICS_TXT and normalises both.
+    chooseFilePath.mockResolvedValue('/takes/libertad/libertad.txt')
+    render(<SongSubflow songId="libertad" songPath={null} />)
     await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-new'))
+      fireEvent.click(screen.getByTestId('subflow-choose-words'))
     })
-    expect(runBombista).toHaveBeenCalledWith('new', ['pimiento', '-o', '/vault/songs/pimiento.json'])
+    expect(chooseFilePath).toHaveBeenCalledWith('lyrics')
   })
 
-  it('cannot write a skeleton with no songs folder, and says why rather than picking a path', () => {
-    render(<SongSubflow songId="pimiento" songPath={null} />)
-    expect((screen.getByTestId('subflow-new') as HTMLButtonElement).disabled).toBe(true)
+  it('says at the entry that a song needs words and a recording', () => {
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    expect(screen.getByTestId('subflow-flow').textContent).toMatch(/needs lyrics and audio/)
   })
 
-  it('will not align without audio, because the timeline comes from aligning one against the other', () => {
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    expect((screen.getByTestId('subflow-align') as HTMLButtonElement).disabled).toBe(true)
+  it('holds Align until both are chosen, disabled with the reason', () => {
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    const align = screen.getByTestId('subflow-align') as HTMLButtonElement
+    expect(align.disabled).toBe(true)
+    expect(screen.getByTestId('subflow-align-reason').textContent).toMatch(/words and a recording/)
   })
 
-  it('aligns the chosen audio against the song file, into a directory Pregonero names', async () => {
-    chooseFilePath.mockResolvedValue('/vault/songs/audio/pimiento.m4a')
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
+  it('aligns with --emit songjson, which is what promote can land as a new song', async () => {
+    setSongsFolder('/vault/songs')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/libertad.txt')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/take.mp3')
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subflow-choose-words'))
+    })
     await act(async () => {
       fireEvent.click(screen.getByTestId('subflow-choose-audio'))
     })
     await act(async () => {
       fireEvent.click(screen.getByTestId('subflow-align'))
     })
-    expect(chooseFilePath).toHaveBeenCalledWith('audio')
     expect(runBombista).toHaveBeenCalledWith('align', [
-      '/vault/songs/audio/pimiento.m4a',
-      '/songs/pimiento.json',
+      '/takes/libertad/take.mp3',
+      '/takes/libertad/libertad.txt',
       '-o',
       '/staging/pimiento',
+      '--emit',
+      'songjson',
       '--emit',
       'html',
     ])
   })
 
-  it('promotes by calling promote — there is no file-replacement step in this repo', async () => {
-    chooseFilePath.mockResolvedValue('/audio/pimiento.m4a')
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
+  it('lands the song at the canonical name inside the songs folder, and never asks for a path', async () => {
+    // The id comes from the words file — `align` names its output `<stem>-song.json` and `promote`
+    // will only create `<stem>.json` from it, so this is read rather than chosen.
+    setSongsFolder('/vault/songs')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/libertad.txt')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/take.mp3')
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subflow-choose-words'))
+    })
     await act(async () => {
       fireEvent.click(screen.getByTestId('subflow-choose-audio'))
     })
@@ -164,121 +175,88 @@ describe('the song door: Bombista, hosted', () => {
       fireEvent.click(screen.getByTestId('subflow-align'))
     })
     await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-promote'))
+      fireEvent.click(screen.getByTestId('subflow-add'))
     })
     expect(runBombista).toHaveBeenCalledWith('promote', [
-      '/staging/pimiento/pimiento-timeline.json',
-      '/songs/pimiento.json',
+      '/staging/pimiento/libertad-song.json',
+      '/vault/songs/libertad.json',
     ])
+  })
+
+  it('promotes into the existing file for a song that already exists — same button, no branch', async () => {
+    setSongsFolder('/vault/songs')
+    chooseFilePath.mockResolvedValueOnce('/takes/pimiento/take.mp3')
+    render(<SongSubflow songId="pimiento" songPath="/vault/songs/pimiento.json" />)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subflow-choose-audio'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subflow-align'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subflow-add'))
+    })
+    expect(runBombista).toHaveBeenCalledWith('promote', [
+      '/staging/pimiento/pimiento-song.json',
+      '/vault/songs/pimiento.json',
+    ])
+  })
+
+  it('never runs `bombista new` — that is the no-audio branch, and it lives on Setup home', async () => {
+    setSongsFolder('/vault/songs')
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    const subcommands = runBombista.mock.calls.map((c) => c[0])
+    expect(subcommands).not.toContain('new')
   })
 
   it('shows what promote printed — the per-line diff is Bombista’s, not a summary of it', async () => {
-    chooseFilePath.mockResolvedValue('/audio/pimiento.m4a')
+    setSongsFolder('/vault/songs')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/libertad.txt')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/take.mp3')
     runBombista.mockResolvedValue({
       status: 'ok',
-      output: 'line 19: 92.40 -> 91.20\nline 20: unchanged',
+      output: 'created: /vault/songs/libertad.json\ntimeline added (24 entries)',
       code: 0,
     })
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-choose-audio'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-align'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-promote'))
-    })
-    expect(screen.getByTestId('bombista-bombista promote').textContent).toMatch(/92\.40 -> 91\.20/)
-  })
-
-  it('opens Bombista’s own review page — with the staging dir, the song and the audio', async () => {
-    chooseFilePath.mockResolvedValue('/audio/pimiento.m4a')
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-choose-audio'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-align'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-review'))
-    })
-    expect(openBombistaReview).toHaveBeenCalledWith([
-      '/staging/pimiento',
-      '/songs/pimiento.json',
-      '--audio',
-      '/audio/pimiento.m4a',
-    ])
-  })
-
-  it('offers Done only once the review window is open, and closing it re-checks', async () => {
-    chooseFilePath.mockResolvedValue('/audio/pimiento.m4a')
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-choose-audio'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-align'))
-    })
-    expect(screen.queryByTestId('subflow-review-done')).toBeNull()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-review'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-review-done'))
-    })
-    expect(closeTool).toHaveBeenCalledWith('bombista')
-  })
-
-  it('names the reason when the review server will not start, rather than a blank window', async () => {
-    chooseFilePath.mockResolvedValue('/audio/pimiento.m4a')
-    openBombistaReview.mockResolvedValue({ ok: false, error: 'bombista is not on PATH' })
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-choose-audio'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-align'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-review'))
-    })
-    expect(screen.getByTestId('subflow-review-error').textContent).toMatch(/not on PATH/)
-  })
-
-  it('validates for performance, which is the exit gate of this step', async () => {
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-validate'))
-    })
-    expect(runBombista).toHaveBeenCalledWith('validate', ['/songs/pimiento.json', '--for-performance'])
-  })
-
-  it('hands Bombista a song file path and never a gig — no argument mentions one', async () => {
-    chooseFilePath.mockResolvedValue('/audio/pimiento.m4a')
-    render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('subflow-choose-audio'))
-    })
-    for (const id of ['subflow-align', 'subflow-promote', 'subflow-validate']) {
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    for (const id of ['subflow-choose-words', 'subflow-choose-audio', 'subflow-align', 'subflow-add']) {
       await act(async () => {
         fireEvent.click(screen.getByTestId(id))
       })
     }
-    for (const call of runBombista.mock.calls) {
-      const argv = JSON.stringify(call)
-      expect(argv).not.toMatch(/gig/i)
-      expect(argv).not.toMatch(/visuals/i)
-      expect(argv).not.toMatch(/setlist/i)
-    }
+    expect(screen.getByTestId('bombista-bombista promote').textContent).toMatch(/timeline added/)
   })
 
-  it('with no bridge, the buttons are absent and the terminal is named instead', () => {
+  it('names the reason when the review server will not start, rather than a blank window', async () => {
+    setSongsFolder('/vault/songs')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/libertad.txt')
+    chooseFilePath.mockResolvedValueOnce('/takes/libertad/take.mp3')
+    openBombistaReview.mockResolvedValue({ ok: false, error: 'bombista could not be run' })
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    for (const id of ['subflow-choose-words', 'subflow-choose-audio', 'subflow-align', 'subflow-review']) {
+      await act(async () => {
+        fireEvent.click(screen.getByTestId(id))
+      })
+    }
+    expect(screen.getByTestId('subflow-problem').textContent).toMatch(/could not be run/)
+  })
+
+  it('names Translations as the gap, and never performs it', () => {
+    render(<SongSubflow songId="libertad" songPath={null} />)
+    const gap = screen.getByTestId('subflow-gap').textContent ?? ''
+    expect(gap).toMatch(/Translations/)
+    expect(gap).toMatch(/outside the suite/)
+    expect(gap).toMatch(/no tool here gets a language model/)
+  })
+
+  it('with no bridge, says so and offers no controls that cannot work', () => {
     hosted = false
     render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)
     expect(screen.getByTestId('subflow-unhosted').textContent).toMatch(/Run it in a terminal/)
     expect(screen.queryByTestId('subflow-align')).toBeNull()
+    // **Step 0 is named whether or not Bombista is installed** — a fact about the work, not about
+    // this machine's tooling. The first version of this door dropped it on this branch.
+    expect(screen.getByTestId('subflow-gap').textContent).toMatch(/Translations/)
   })
 })
 
@@ -354,5 +332,18 @@ describe('the visuals door: Muralista, hosted', () => {
     expect(screen.getByTestId('muralista-hosted').textContent).toMatch(
       /Nothing passes between them while both are running/
     )
+  })
+})
+
+describe('the words file’s stem', () => {
+  it('strips any extension, not only .json', () => {
+    // `songIdFromPath` strips `.json` and only `.json` — right for a library reference, wrong for
+    // the words, which are as often a `.txt`. The failure is silent: `align` would have written
+    // `libertad.txt-song.json` and `promote` been asked for `libertad.txt.json`, both legal file
+    // names and neither of them the song. Caught by a test before it reached a walk.
+    expect(wordsStem('/takes/libertad/libertad.txt')).toBe('libertad')
+    expect(wordsStem('/vault/songs/pimiento.json')).toBe('pimiento')
+    expect(wordsStem('/takes/no-extension')).toBe('no-extension')
+    expect(wordsStem('/takes/.hidden')).toBe('.hidden')
   })
 })
