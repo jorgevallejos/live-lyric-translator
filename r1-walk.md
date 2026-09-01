@@ -83,6 +83,9 @@ Then, with the songs folder pointed back at the real `songs/`:
 - **Expect:** all thirteen songs are listed, without adding a single one by hand. This is the
   defect you found: the library was a list of individually chosen songs and could not see a folder.
 - **Expect:** `libertad` among them, visibly broken, with its reason. Not hidden.
+- **Expect, on the manage-setlists screen:** a library row has **one** action, and it is
+  add-to-setlist. The trash can is gone. `Remove <song> from setlist` is still there and still
+  works — that is the durable, gig-scoped act, and it is the one that must not have gone with it.
 
 ## 5 — SKIP. You were right to stop here.
 
