@@ -158,9 +158,11 @@ describe('the song door: one door, two pickers, three moves', () => {
     ])
   })
 
-  it('lands the song at the canonical name inside the songs folder, and never asks for a path', async () => {
+  it('lands the song at the canonical name inside <songs>/song-performance, never asking for a path', async () => {
     // The id comes from the words file — `align` names its output `<stem>-song.json` and `promote`
-    // will only create `<stem>.json` from it, so this is read rather than chosen.
+    // will only create `<stem>.json` from it, so this is read rather than chosen. **The folder is
+    // the catalogue's `song-performance/`, not its root**: the song file is the author's, and it
+    // sits beside `audio/` and `lyrics/` in a folder named after the format.
     setSongsFolder('/vault/songs')
     chooseFilePath.mockResolvedValueOnce('/takes/libertad/libertad.txt')
     chooseFilePath.mockResolvedValueOnce('/takes/libertad/take.mp3')
@@ -179,7 +181,7 @@ describe('the song door: one door, two pickers, three moves', () => {
     })
     expect(runBombista).toHaveBeenCalledWith('promote', [
       '/staging/pimiento/libertad-song.json',
-      '/vault/songs/libertad.json',
+      '/vault/songs/song-performance/libertad.json',
     ])
   })
 

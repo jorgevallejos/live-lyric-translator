@@ -78,8 +78,10 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
             onClick={() => undefined}
           />
           <p className="gig-hint">
-            Open <code>mapper.html</code> in Chrome and hand it this gig folder — it is fully usable
-            on its own, and Pregonero discovers the room on the next re-check.
+            Open <code>mapper.html</code> in Chrome and hand it the <code>setup</code> folder inside
+            this gig — that is where <code>gig.json</code> is, and where{' '}
+            <code>visuals.json</code> goes beside it. Muralista is fully usable on its own, and
+            Pregonero discovers the room on the next re-check.
           </p>
         </div>
       ) : (
@@ -131,6 +133,10 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
               {error}
             </p>
           )}
+          <p className="gig-hint">
+            Hand it the <code>setup</code> folder inside this gig: <code>gig.json</code> is in there,
+            and <code>visuals.json</code> is written beside it. The rest of the gig folder is yours.
+          </p>
           <p className="gig-hint">
             Muralista writes <code>visuals.json</code> and Pregonero reads it. Nothing passes between
             them while both are running — <strong>Done</strong> only saves you closing the window and

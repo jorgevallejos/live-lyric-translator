@@ -16,26 +16,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('projection-closed', handler)
     return () => ipcRenderer.removeListener('projection-closed', handler)
   },
-  /** Native file-picker, filtered to `video` (default), `audio` or `json`. Absolute path, or null. */
-  openFileDialog: (kind) => ipcRenderer.invoke('dialog:openFile', kind),
+  /**
+   * Native file-picker, filtered to `video` (default), `audio`, `json` or `lyrics`. Absolute path,
+   * or null. `defaultPath` is where it opens — the renderer remembers that per picker.
+   */
+  openFileDialog: (kind, defaultPath) => ipcRenderer.invoke('dialog:openFile', kind, defaultPath),
   /** Returns { exists, size } for the file at the given absolute path. */
   getFileStats: (filePath) => ipcRenderer.invoke('fs:getFileStats', filePath),
   /** Opens a native multi-select picker filtered to JSON. Resolves to absolute paths, [] if cancelled. */
-  openSongFileDialog: () => ipcRenderer.invoke('dialog:openSongFiles'),
+  openSongFileDialog: (defaultPath) => ipcRenderer.invoke('dialog:openSongFiles', defaultPath),
   /** Reads a song file as UTF-8. Resolves to { ok: true, text } or { ok: false, error }. */
   readSongFile: (filePath) => ipcRenderer.invoke('fs:readSongFile', filePath),
   /** Native directory picker for the gig folder. Resolves to an absolute path or null. */
-  openGigFolderDialog: () => ipcRenderer.invoke('dialog:openGigFolder'),
+  openGigFolderDialog: (defaultPath) => ipcRenderer.invoke('dialog:openGigFolder', defaultPath),
   /** Native directory picker for any folder this machine remembers. Absolute path, or null. */
-  openFolderDialog: (title) => ipcRenderer.invoke('dialog:openFolder', title),
-  /** One read of the gig folder: gig.json and the file its visuals pointer names. */
+  openFolderDialog: (title, defaultPath) =>
+    ipcRenderer.invoke('dialog:openFolder', title, defaultPath),
+  /** One read of `<gig>/setup`: gig.json and the file its visuals pointer names, beside it. */
   readGigFolder: (folderPath, visualsPointer) =>
     ipcRenderer.invoke('gig:read', folderPath, visualsPointer),
   /** Makes a gig's folder under the gigs root. A name, never a path. */
   createGigFolder: (gigsRoot, name) => ipcRenderer.invoke('gig:createFolder', gigsRoot, name),
-  /** Writes gig.json. Pregonero is its only writer. */
+  /** Writes gig.json into `<gig>/setup`, making it if needed. Pregonero is its only writer. */
   writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
-  /** Writes debrief.md into the gig folder. Pregonero writes it, then Jorge edits it. */
+  /** Writes debrief.md at the gig folder's root — the author's half. He finishes it. */
   writeDebriefFile: (folderPath, text) => ipcRenderer.invoke('gig:writeDebrief', folderPath, text),
   /**
    * Runs one Bombista subcommand. **A song file path, never a gig** — Bombista does not know
@@ -58,7 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Starts `bombista serve` and opens a window on the address it prints. */
   openBombistaReview: (args, bombistaPath) =>
     ipcRenderer.invoke('bombista:review', args, bombistaPath),
-  /** The song files in the songs folder. `songs/` is the source of truth; the library caches it. */
+  /** The song files in `<songs>/song-performance`. The folder is the truth; the library caches it. */
   listSongsFolder: (folderPath) => ipcRenderer.invoke('fs:listSongsFolder', folderPath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),

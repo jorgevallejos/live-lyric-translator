@@ -43,7 +43,7 @@ vi.mock('./platform', async (importOriginal) => ({
 }))
 
 const { FoldersView } = await import('./FoldersView')
-const { getChosenMediaFolder, getMediaFolder, getSongsFolder, setMediaFolder } =
+const { getGigsFolder, getMediaFolder, getSongsFolder, setMediaFolder } =
   await import('./contentFolders')
 const { KEY_VISUALS_BROADCAST } = await import('./visualsBroadcast')
 const { GIG_FOLDER_KEY } = await import('./gigFolderStore')
@@ -108,11 +108,24 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('the folders screen', () => {
-  it('shows both folders as unset to begin with', async () => {
+  it('shows all three folders as unset to begin with', async () => {
     render(<FoldersView />)
     expect(screen.getByTestId('folders-songs-value').textContent).toContain('Not set')
+    expect(screen.getByTestId('folders-gigs-value').textContent).toContain('Not set')
     expect(screen.getByTestId('folders-media-value').textContent).toContain('Not set')
     await waitFor(() => expect(screen.getByTestId('folders-source-tragedia.mp4')).toBeTruthy())
+  })
+
+  // **Preferences is where a setting is changed, never where you find out it exists.** The gigs
+  // root was asked for on first run and then had nowhere to be changed at all.
+  it('remembers a chosen gigs folder', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/gigs')
+    render(<FoldersView />)
+    await act(async () => {
+      screen.getByTestId('folders-gigs').querySelector('button')!.click()
+    })
+    await waitFor(() => expect(getGigsFolder()).toBe('/vault/gigs'))
+    expect(screen.getByTestId('folders-gigs-value').textContent).toContain('/vault/gigs')
   })
 
   it('remembers a chosen media folder', async () => {
@@ -125,19 +138,19 @@ describe('the folders screen', () => {
     expect(screen.getByTestId('folders-media-value').textContent).toContain('/vault/songs/video')
   })
 
-  it('remembers a chosen songs folder, and chooses nothing for media on its behalf', async () => {
-    // **Changed 2026-08-31.** This asserted the media folder stayed null. It derives now — the
-    // audio already lives in `<songs>/audio`, and one fewer setting is one fewer precondition to
-    // discover at the moment it blocks you. What still has to be true is that nothing was
-    // *chosen*: the default is in force, not stored, so it follows the songs folder if that moves.
+  it('remembers a chosen songs folder, and answers nothing about media on its behalf', async () => {
+    // **Changed twice.** It once asserted null, then `<songs>/audio` when the media folder was
+    // defaulted there. The default is gone (2026-09-01): audio and video are not one thing, and
+    // defaulting made the catalogue load-bearing for media a user may keep anywhere. Choosing a
+    // catalogue answers the catalogue question and no other.
     chooseFolderPath.mockResolvedValue('/vault/songs')
     render(<FoldersView />)
     await act(async () => {
       screen.getByTestId('folders-songs').querySelector('button')!.click()
     })
     await waitFor(() => expect(getSongsFolder()).toBe('/vault/songs'))
-    expect(getChosenMediaFolder()).toBeNull()
-    expect(getMediaFolder()).toBe('/vault/songs/audio')
+    expect(getMediaFolder()).toBeNull()
+    expect(screen.getByTestId('folders-media-value').textContent).toContain('Not set')
   })
 
   it('lists the logo the room names — the file that had no screen at all', async () => {

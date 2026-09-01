@@ -19,6 +19,7 @@ const chooseGigFolderPath = vi.fn()
 const runBombista = vi.fn()
 const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
+const listSongsFolder = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -29,6 +30,7 @@ vi.mock('./platform', async (importOriginal) => ({
   runBombista: (...a: unknown[]) => runBombista(...a),
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
+  listSongsFolder: (...a: unknown[]) => listSongsFolder(...a),
   writeGigFile: () => Promise.resolve({ ok: true }),
   fileExists: () => Promise.resolve(true),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
@@ -67,6 +69,7 @@ beforeEach(() => {
     ok: true,
     text: JSON.stringify({ title: 'Nuevo', lyrics: [{ es: 'línea' }] }),
   })
+  listSongsFolder.mockResolvedValue({ files: [], problem: null })
 })
 
 async function renderHome() {
@@ -126,6 +129,50 @@ describe('Setup home', () => {
     expect(screen.getByTestId('setup-song-broken-libertad').textContent).toContain('24 lines')
   })
 
+  // ── The listing reports what it could not read, and does not block ────────────────────────
+
+  it('says nothing when the catalogue read cleanly', async () => {
+    installLibrary([song('ok')])
+    setLibraryEntries([{ ref: { id: 'ok', path: 'ok.json' }, song: song('ok') }])
+    await renderHome()
+    expect(screen.queryByTestId('setup-songs-report')).toBeNull()
+  })
+
+  it('names the song files that would not read, and points repairs at Bombista', async () => {
+    installLibrary([song('ok'), song('libertad')])
+    setLibraryEntries([
+      { ref: { id: 'ok', path: 'ok.json' }, song: song('ok') },
+      { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
+    ])
+    await renderHome()
+    const report = screen.getByTestId('setup-songs-unreadable').textContent!
+    expect(report).toContain('libertad.json')
+    expect(report).not.toContain('ok.json')
+    expect(report).toContain('Bombista')
+  })
+
+  it('reports and does not block: the list, New song and the gigs are all still there', async () => {
+    // A modal that has to be cleared before you can go on is closer to the step-1 dead end this
+    // redesign exists to remove than it is to a report.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: [], problem: 'EACCES: permission denied' })
+    installLibrary([song('ok')])
+    setLibraryEntries([{ ref: { id: 'ok', path: 'ok.json' }, song: song('ok') }])
+    await renderHome()
+    await waitFor(() =>
+      expect(screen.getByTestId('setup-songs-folder-problem').textContent).toContain('EACCES')
+    )
+    expect(screen.getByTestId('setup-song-row-ok')).toBeTruthy()
+    expect(screen.getByTestId('setup-new-song')).toBeTruthy()
+    expect(screen.getByTestId('setup-home-gigs')).toBeTruthy()
+  })
+
+  it('has no folder to complain about before a catalogue is chosen', async () => {
+    await renderHome()
+    expect(listSongsFolder).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('setup-songs-folder-problem')).toBeNull()
+  })
+
   it('forgets a gig row without touching any other', async () => {
     localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a', '/gigs/b']))
     await renderHome()
@@ -162,7 +209,13 @@ describe('Setup home', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-new-song-create'))
     })
-    expect(runBombista).toHaveBeenCalledWith('new', ['nuevo', '-o', '/songs/nuevo.json'])
+    // **`song-performance/`, not the songs root.** Bombista makes that folder the first time it
+    // writes into it, which is the only thing that ever creates it.
+    expect(runBombista).toHaveBeenCalledWith('new', [
+      'nuevo',
+      '-o',
+      '/songs/song-performance/nuevo.json',
+    ])
     await waitFor(() => expect(screen.getByTestId('setup-song-row-nuevo')).toBeTruthy())
     // **No status on the row itself.** Scoped to the row's own label rather than everything nested
     // under it, because the door now opens inside the row and the door has prose of its own.
@@ -195,7 +248,11 @@ describe('Setup home', () => {
       fireEvent.click(screen.getByTestId('setup-new-song-create'))
     })
     // The skeleton is still what runs underneath: it is what carries the fields a .txt cannot.
-    expect(runBombista).toHaveBeenCalledWith('new', ['libertad', '-o', '/songs/libertad.json'])
+    expect(runBombista).toHaveBeenCalledWith('new', [
+      'libertad',
+      '-o',
+      '/songs/song-performance/libertad.json',
+    ])
     // And the door is open on it, without a second click on a row that did not exist a moment ago.
     await waitFor(() => expect(screen.getByTestId('subflow-flow')).toBeTruthy())
     expect(screen.getByTestId('subflow-choose-words')).toBeTruthy()

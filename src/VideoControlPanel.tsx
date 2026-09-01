@@ -3,6 +3,7 @@ import { getLyricText, isLyricLine, isSection, type SongItem, type MediaFile, ty
 import { videoCueLookup } from './videoCueLookup'
 import { absolutePathToMediaUrl, validateVideoForImport, setMediaPath, type MediaValidationWarning } from './mediaPathStore'
 import { setVideoSeekTarget } from './videoTransport'
+import { chooseFilePath } from './platform'
 
 interface Props {
   absolutePath: string | null
@@ -120,7 +121,7 @@ export function VideoControlPanel({
   const handleLocateVideo = async () => {
     const api = window.electronAPI
     if (!api) return
-    const chosen = await api.openFileDialog()
+    const chosen = await chooseFilePath('video')
     if (!chosen) return
     const stats = await api.getFileStats(chosen)
     const warnings = validateVideoForImport(chosen, stats.exists ? stats.size : undefined)

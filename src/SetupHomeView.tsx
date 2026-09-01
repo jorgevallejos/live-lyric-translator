@@ -8,9 +8,15 @@ import {
   adoptSongFile,
   type LibraryEntry,
 } from './setlistStore'
-import { getSongsFolder, resolveSongPath } from './contentFolders'
+import { getSongFilesFolder, getSongsFolder, resolveSongPath } from './contentFolders'
 import { hasLyricLines } from './songState'
-import { chooseGigFolderPath, hasGigFolderAccess, canRunBombista, runBombista } from './platform'
+import {
+  chooseGigFolderPath,
+  hasGigFolderAccess,
+  canRunBombista,
+  listSongsFolder,
+  runBombista,
+} from './platform'
 import { joinPath } from './paths'
 import { SongSubflow } from './SongSubflow'
 import { SONG_INPUT_RULE } from './SongDoors'
@@ -128,8 +134,9 @@ function SongRow({ entry, expanded, onToggle }: { entry: LibraryEntry; expanded:
 /**
  * **New song, and it does not stop at the skeleton** (2026-09-01).
  *
- * `bombista new` writes a legal song file with no timing into the songs folder, under the
- * canonical name — **the user never picks a path**. That is the honest state for a song that is
+ * `bombista new` writes a legal song file with no timing into `<songs>/song-performance`, under the
+ * canonical name — **the user never picks a path**. Bombista makes that folder if it is not there,
+ * which is the only thing that ever creates it: first run points at a catalogue and creates nothing. That is the honest state for a song that is
  * not recorded yet, and the reference is taken into the library straight away, so the song is in
  * the list from that moment. There is still no status, no badge and no completion label: whether
  * it can go into tonight's setlist is asked at the moment a surface draws it.
@@ -155,7 +162,7 @@ function NewSong({ onCreated }: { onCreated: (songId: string) => void }) {
   const [songId, setSongId] = useState('')
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
-  const songsFolder = getSongsFolder()
+  const songsFolder = getSongFilesFolder()
   const hosted = canRunBombista()
 
   const id = songId.trim()
@@ -232,7 +239,8 @@ function NewSong({ onCreated }: { onCreated: (songId: string) => void }) {
             />
           </label>
           <p className="gig-hint">
-            The file’s name, and the song’s id. It lands in the songs folder as{' '}
+            The file’s name, and the song’s id. It lands in your catalogue’s{' '}
+            <code>song-performance</code> folder as{' '}
             <code>{legal ? `${id}.json` : '<name>.json'}</code> — you never pick a path, because a
             song is played at many gigs and there is only ever one copy of it.
           </p>
@@ -281,11 +289,45 @@ function NewSong({ onCreated }: { onCreated: (songId: string) => void }) {
   )
 }
 
+/**
+ * **What the catalogue holds, and what it would not read.**
+ *
+ * A song file that will not parse is already one visibly broken row, and it stays one: hiding it
+ * would hide the problem. What was missing is the folder-level answer — the app read
+ * `<songs>/song-performance` and, if the read itself failed, said **"No songs yet"**, which is the
+ * app disagreeing with the disk in the quietest possible way.
+ *
+ * **It reports and does not block.** A modal that has to be cleared before you can go on is closer
+ * to the step-1 dead end this whole redesign exists to remove than it is to a report. Repairs point
+ * at Bombista, because Pregonero cannot fix a song file and will not pretend to.
+ */
+function SongsProblems({ folderProblem, broken }: { folderProblem: string | null; broken: string[] }) {
+  if (folderProblem === null && broken.length === 0) return null
+  return (
+    <div className="setup-home-report" data-testid="setup-songs-report">
+      {folderProblem !== null && (
+        <p className="setup-song-problem" data-testid="setup-songs-folder-problem">
+          Your catalogue’s <code>song-performance</code> folder would not read: {folderProblem}
+        </p>
+      )}
+      {broken.length > 0 && (
+        <p className="setup-song-problem" data-testid="setup-songs-unreadable">
+          {broken.length === 1 ? 'One song file will not read' : `${broken.length} song files will not read`}
+          : {broken.join(', ')}. They stay in the list, named, so the problem is visible.{' '}
+          <strong>Bombista</strong> is where a song file is repaired — Pregonero reads them and
+          writes none.
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function SetupHomeView() {
   const [gigs, setGigs] = useState<string[]>(getGigList)
   const [songs, setSongs] = useState<LibraryEntry[]>(getLibraryEntries)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [folderProblem, setFolderProblem] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     setGigs(getGigList())
@@ -299,6 +341,8 @@ export function SetupHomeView() {
     void (async () => {
       await ensureSongLibraryHydrated()
       await refreshGigReadiness()
+      const root = getSongsFolder()
+      setFolderProblem(root === null ? null : (await listSongsFolder(root)).problem)
       reload()
     })()
   }, [reload])
@@ -369,8 +413,10 @@ export function SetupHomeView() {
           </div>
           {gigs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-gigs">
-              No gigs yet. A gig is a folder inside your gigs folder: <code>gig.json</code> is
-              Pregonero’s and <code>visuals.json</code> is Muralista’s, written beside it.
+              No gigs yet. A gig is a folder inside your gigs folder, and it is yours — the poster,
+              the contract, the stage plan. The two files the tools write live in a{' '}
+              <code>setup</code> folder inside it: <code>gig.json</code> is Pregonero’s and{' '}
+              <code>visuals.json</code> is Muralista’s, beside it.
             </p>
           ) : (
             <ul className="setup-home-list">
@@ -430,10 +476,15 @@ export function SetupHomeView() {
               }}
             />
           </div>
+          <SongsProblems
+            folderProblem={folderProblem}
+            broken={songs.filter((entry) => !entry.song).map((entry) => `${entry.ref.id}.json`)}
+          />
           {songs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-songs">
-              No songs yet. Songs are gig-independent and are usually done days ahead, which is why
-              they are here rather than inside a gig.
+              No songs yet. Song files live in your catalogue’s <code>song-performance</code>{' '}
+              folder, beside <code>audio</code> and <code>lyrics</code>. Songs are gig-independent
+              and are usually done days ahead, which is why they are here rather than inside a gig.
             </p>
           ) : (
             <ul className="setup-home-list">

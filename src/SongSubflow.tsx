@@ -8,7 +8,7 @@ import {
   runBombista,
 } from './platform'
 import { refreshGigReadiness } from './gigSession'
-import { getSongsFolder } from './contentFolders'
+import { getSongFilesFolder } from './contentFolders'
 import { joinPath } from './paths'
 import { adoptSongFile } from './setlistStore'
 import { SONG_INPUT_RULE } from './SongDoors'
@@ -37,8 +37,9 @@ import type { BombistaResult } from './electronApi'
  * paths, and takes the *reference* into the library afterwards. `back_up_and_replace` is the one
  * song-write path and it is Bombista's.
  *
- * **Where the song lands is not a question either.** The canonical name, inside the configured
- * songs folder, computed from the words file. Bombista refuses a target that is not the canonical
+ * **Where the song lands is not a question either.** The canonical name, inside
+ * `<songs>/song-performance` — the author's catalogue, in the folder named after the format —
+ * computed from the words file. Bombista refuses a target that is not the canonical
  * name; Pregonero is the side that knows which folder, so it supplies it. The user never picks a
  * path, because a song is played at many gigs and there is only ever one copy of it.
  *
@@ -109,7 +110,7 @@ export function SongSubflow({ songId, songPath, skeleton = false }: Props) {
   const [problem, setProblem] = useState<string | null>(null)
 
   const hosted = canRunBombista()
-  const songsFolder = getSongsFolder()
+  const songsFolder = getSongFilesFolder()
 
   /**
    * The id, and therefore the file name, comes from the words file. `align` names its output

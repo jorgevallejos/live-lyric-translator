@@ -101,7 +101,7 @@ describe('readGigReadiness', () => {
         gigPresent: true,
         gigText: gigJson({
           setlist: ['duelo'],
-          songs: [{ id: 'duelo', title: 'Duelo', file: '../../songs/duelo.json' }],
+          songs: [{ id: 'duelo', title: 'Duelo', file: '../../../songs/song-performance/duelo.json' }],
         }),
       })
     )
@@ -137,7 +137,7 @@ describe('readGigReadiness', () => {
         gigPresent: true,
         gigText: gigJson({
           setlist: ['duelo'],
-          songs: [{ id: 'duelo', title: 'Duelo', file: '../../songs/duelo.json' }],
+          songs: [{ id: 'duelo', title: 'Duelo', file: '../../../songs/song-performance/duelo.json' }],
         }),
       })
     )
@@ -152,7 +152,7 @@ describe('readGigReadiness', () => {
         gigPresent: true,
         gigText: gigJson({
           setlist: ['duelo'],
-          songs: [{ id: 'duelo', title: 'Duelo', file: '../../songs/duelo.json' }],
+          songs: [{ id: 'duelo', title: 'Duelo', file: '../../../songs/song-performance/duelo.json' }],
         }),
       })
     )

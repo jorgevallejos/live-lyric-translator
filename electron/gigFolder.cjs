@@ -6,14 +6,25 @@ const DEBRIEF_FILE_NAME = 'debrief.md'
 const DEFAULT_VISUALS_FILE_NAME = 'visuals.json'
 
 /**
- * The gig folder, from the main process.
+ * **The machine's two files in a gig, from the main process.**
+ *
+ * `folderPath` is `<gig>/setup` — the renderer joins it (`src/fileLayout.ts`), the way it already
+ * joins every other path this process is handed. **A gig folder belongs to the author**: the poster,
+ * the contract, the stage plan and `debrief.md` are his and sit at its root, and `gig.json` and
+ * `visuals.json` are guests quarantined one level in. Nothing here knows that; it is handed the
+ * folder the two files are in and reads them.
  *
  * One read returns everything the renderer needs to compute readiness, because the alternative is
- * three round trips that can each see a different moment. Nothing here decides whether a gig is
- * ready — that is `src/gigReadiness.ts`'s job and only its job. This reports what is on disk.
+ * round trips that can each see a different moment. It stays one read and one directory: the only
+ * files it has ever returned are the pair, and the pair moved together. Nothing here decides whether
+ * a gig is ready — that is `src/gigReadiness.ts`'s job and only its job. This reports what is on
+ * disk.
  *
- * `visualsPointer` is `gig.json`'s own `visuals` field when it has one; it is resolved against the
- * gig folder, and a pointer escaping that folder is refused rather than followed.
+ * `visualsPointer` is `gig.json`'s own `visuals` field when it has one. It is resolved **against the
+ * folder `gig.json` itself is in**, and a pointer escaping that folder is refused rather than
+ * followed — so `visuals.json` must sit beside `gig.json`, and a pointer at `../poster.png` is now a
+ * refusal. That is the containment the contract wants: the two files are a pair, and a visuals
+ * pointer reaching out into the author's half of the folder is not one.
  */
 function readGigFolder(folderPath, options = {}) {
   const readFileSync = options.readFileSync || fs.readFileSync
@@ -42,7 +53,7 @@ function readGigFolder(folderPath, options = {}) {
 
   const visualsPath = resolveInsideFolder(folderPath, visualsPointer)
   if (visualsPath === null) {
-    result.visualsError = `The visuals pointer "${visualsPointer}" leaves the gig folder.`
+    result.visualsError = `The visuals pointer "${visualsPointer}" leaves the folder gig.json is in.`
     return result
   }
   if (existsSync(visualsPath)) {
@@ -57,9 +68,9 @@ function readGigFolder(folderPath, options = {}) {
 }
 
 /**
- * Resolves a relative pointer against the gig folder. Null when it would escape it: a gig folder
- * is a folder somebody hands over on a stick, and a pointer out of it is a file that will not
- * travel with the gig.
+ * Resolves a relative pointer against the folder the pair lives in. Null when it would escape it: a
+ * gig folder is a folder somebody hands over on a stick, and a pointer out of the pair's own folder
+ * is a file that is not part of the pair.
  */
 function resolveInsideFolder(folderPath, pointer) {
   const resolved = path.resolve(folderPath, pointer)
@@ -110,10 +121,19 @@ function createGigFolder(gigsRoot, name, options = {}) {
   }
 }
 
-/** Writes `gig.json`. Pregonero is its only writer, so there is no merge and nothing to reconcile. */
+/**
+ * Writes `gig.json` into the folder it is handed. Pregonero is its only writer, so there is no merge
+ * and nothing to reconcile.
+ *
+ * **The folder is made if it is not there.** That folder is the machine's own (`<gig>/setup`), so
+ * creating it is this process making room for its own file rather than reaching into the author's:
+ * the gig folder itself is created by `createGigFolder`, once, when the gig is named.
+ */
 function writeGigFile(folderPath, text, options = {}) {
   const writeFileSync = options.writeFileSync || fs.writeFileSync
+  const mkdirSync = options.mkdirSync || fs.mkdirSync
   try {
+    mkdirSync(folderPath, { recursive: true })
     writeFileSync(path.join(folderPath, GIG_FILE_NAME), text, 'utf8')
     return { ok: true }
   } catch (err) {
@@ -122,8 +142,13 @@ function writeGigFile(folderPath, text, options = {}) {
 }
 
 /**
- * Writes `debrief.md`. Pregonero writes it and then Jorge edits it, which is why it is written
- * whole on save rather than merged: the file is his from the moment it lands, and a tool that
+ * Writes `debrief.md` **at the gig folder's root**, where the poster and the contract are. It is
+ * the one file Pregonero writes that is not the machine's: Jorge reads and finishes it, and burying
+ * the human-facing document inside `setup/` gets it wrong the first time anyone goes looking months
+ * later.
+ *
+ * Pregonero writes it and then Jorge edits it, which is why it is written whole on save rather than
+ * merged: the file is his from the moment it lands, and a tool that
  * silently reconciled his edits with its own idea of the night would be the worst of both.
  */
 function writeDebriefFile(folderPath, text, options = {}) {

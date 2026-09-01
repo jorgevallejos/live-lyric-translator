@@ -63,9 +63,10 @@ so a fresh copy of the app finds the same folders already set. This one command 
 back.
 
 It wipes everything in browser storage, not only the two folders: the song library's references,
-the gig list, the remembered gig, the media and Bombista settings. Nothing on disk is touched —
-`songs/`, the gig folders and every file in them are untouched, and the library rebuilds itself
-from the songs folder as soon as you choose it again.
+the gig list, the remembered gig, the media and Bombista settings, and where each file picker was
+last open. Nothing on disk is touched — your catalogue, the gig folders and every file in them are
+untouched, and the library rebuilds itself from `<songs>/song-performance/` as soon as you choose
+the catalogue again.
 
 ## A worked example
 

@@ -14,6 +14,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { chooseSongFilePaths } from './platform'
 import {
   addSongRefToSnapshot,
   addSongToSetlistInSnapshot,
@@ -454,7 +455,7 @@ export function ManageSetlistsView() {
       return
     }
     void (async () => {
-      const paths = await api.openSongFileDialog()
+      const paths = await chooseSongFilePaths()
       if (!paths.length) return
       let snapshot = draftRef.current
       let addedCount = 0

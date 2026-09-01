@@ -69,7 +69,9 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `gigReadiness.ts` | — | **The one readiness function**: given a gig folder it returns the delta, per setup step and per song. Pure |
 | `gigFile.ts` | — | `gig.json` — parse, serialise, create, and project the setlist into it. Pregonero is its only writer |
 | `visualsFile.ts` | — | `visuals.json` — Muralista's file, read-only here. Version and gig-id refusals, and **the lookup** (type + song → a *set* of shapes) |
-| `platform.ts` | — | **The one module that knows Electron exists** for gig work: the folder picker, reading and writing files in it, `bombista` |
+| `platform.ts` | — | **The one module that knows Electron exists** for gig work: the folder picker, reading and writing files in it, `bombista`. Also **where the layout joins happen** — it is handed the songs root and the gig folder and hands the main process `<songs>/song-performance` and `<gig>/setup` |
+| `fileLayout.ts` | — | **Where each file lives inside the two folders, and who owns it.** The only place `song-performance` and `setup` are written down |
+| `pickerMemory.ts` | localStorage | **Where each picker was last open**, per picker. A convenience with nothing in Preferences: remembering where a dialog opened is not remembering an answer |
 
 Pure logic is extracted into `*State.ts` / `*Lookup.ts` / `*Scheduler.ts` modules (no side effects, fully unit-tested). React hooks (`use*.ts`) wire them to components and own side effects: storage reads/writes, WebSocket broadcasts, Electron IPC. Timer-driven hooks include `useBeatClock` (count-in).
 
@@ -91,8 +93,8 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/preload.cjs`: Context bridge exposing IPC methods to the renderer (`window.electronAPI`)
 - `electron/closeProjectionWindow.cjs`: Safe projection window closure logic (has its own tests)
 - `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
-- `electron/gigFolder.cjs`: One read of the gig folder — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write. A pointer that would leave the gig folder is refused, not followed (has its own tests)
-- `electron/gigFolder.cjs` also writes `debrief.md` — whole on save, never merged: Pregonero writes it and then Jorge edits it
+- `electron/gigFolder.cjs`: One read of the folder the machine's two files are in — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write, which makes that folder if it is absent. A pointer that would leave it is refused, not followed. It is handed `<gig>/setup`; the renderer joins that (has its own tests)
+- `electron/gigFolder.cjs` also writes `debrief.md`, at the **gig folder's root** — whole on save, never merged: Pregonero writes it and then Jorge edits it
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary found is `skipped` (has its own tests)
 - `electron/displays.cjs`: What displays this machine has, from Electron's `screen`. **Read-only, and a fingerprint to compare rather than a value to render from** — the setup confirmation uses it to notice the projector was unplugged (has its own tests)
 - `electron/bombistaRun.cjs`: One Bombista subcommand, as a subprocess. A fixed allow-list of subcommands, and a missing binary is `skipped` (has its own tests)
@@ -100,7 +102,33 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/bombistaServe.cjs`: Starts `bombista serve` and reads the address it prints (has its own tests)
 - `electron/localhostServer.cjs`: A loopback static server for Muralista's page. Mounts a folder per tool; a request that would leave its mount is refused, not followed (has its own tests)
 - `electron/projectorDisplay.cjs`: Which display the projection window belongs on — the one that is not the laptop's own. **The one-display fallback is visible, never silent** (has its own tests)
-- `dialog:openFolder` is the picker for any folder this machine remembers — the songs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
+- `dialog:openFolder` is the picker for any folder this machine remembers — the songs root, the gigs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
+- **Every picker takes a `defaultPath` and reopens where it last was**, per picker (`src/pickerMemory.ts` remembers the folder each one was in, and hands it over on the next call). A convenience, not a setting: nothing in Preferences, and safe because remembering *where a dialog opened* is not remembering *an answer* — the dialog shows you where you are and you can walk away from it.
+
+### Where each file lives, and who owns it
+
+**One question, asked twice: is this file the author's, or the machine's?** `src/fileLayout.ts` is
+the only place either answer is written down as a path.
+
+- **A song file is the author's**, so it stays in his catalogue: `<songs>/song-performance/`, a
+  folder named after the format the way `audio/` and `lyrics/` are — never `setup/`, which means the
+  machine's bookkeeping one level down and would collide with the other meaning.
+- **`gig.json` and `visuals.json` are the machine's**, so they are quarantined inside a folder that
+  is the author's: `<gig>/setup/`. The poster, the contract, the stage plan and `debrief.md` stay at
+  the gig folder's root. **The ownership boundary is visible in Finder** instead of being a rule to
+  remember.
+
+**The join happens once, at the `platform.ts` boundary.** Every module above it holds the songs root
+and the gig folder, and the main process is handed folders that are already joined — so it stays
+ignorant of the suite's conventions, and `gigIdFromFolderPath` (a gig's id is its folder's name)
+cannot be handed `<gig>/setup` and name every gig `setup`.
+
+**There is no Tramoya folder and none is created.** The app's own bookkeeping — the gig list, the
+Bombista path, the preferences — is per-machine, is not Jorge's, and lives in Application Support.
+The word `tramoya` is the suite's name in its own repo and never appears on screen.
+
+**Nothing was migrated.** No fallback reads the old locations, and no compatibility path was written:
+where a stored value was the wrong shape it is removed and the app makes the right one.
 
 ### Where this machine keeps things: the songs folder and the media folder
 
@@ -109,6 +137,14 @@ what turns that name into bytes. That is Muralista's model, adopted deliberately
 directory handle because a page cannot hold a path, Pregonero has Electron and holds the path, and
 the rule either side of that difference is the same — **the files stay portable and the folder is a
 fact about this machine.**
+
+**The media folder has no default** (2026-09-01). It briefly defaulted to `<songs>/audio`, which
+quietly made the catalogue load-bearing for media: a machine keeping video elsewhere got a
+resolution failure it never agreed to. **Audio and video are not one thing called media** — the
+alignment audio is consumed once at setup to derive a timeline and is never needed again, a
+transient input picked at the door needing no configured home, while the performance media is played
+on the wall and must resolve at arming. Absence is reported at setup validation and again at arming,
+which is where it was already reported.
 
 `src/contentFolders.ts` holds both, one `localStorage` key each. `resolveMediaPath` in
 `mediaPathStore.ts` is **the one answer to "where is the file called X"**: the per-source link
@@ -129,16 +165,19 @@ answer is a file that is not there (`ShapeStatic` drops the element on `onError`
 a wall says less than an empty shape does, and the fix is in the folder.
 
 **The songs folder is the same idea one level up.** A library reference added while it is set is
-stored by name, so the library survives the folder moving; `resolveSongPath` turns either form into
-a path. **Nothing migrates** — an absolute reference is returned untouched, and a bare name with no
+stored by name — relative to `<songs>/song-performance`, which is where song files live — so the
+library survives the catalogue moving; `resolveSongPath` turns either form into a path. **Nothing migrates** — an absolute reference is returned untouched, and a bare name with no
 songs folder set is handed back unchanged, which is exactly what the app did before the setting
 existed.
 
 ### The gig, and the one readiness function
 
-**A gig is a folder.** Pregonero remembers which one across launches; the folder holds `gig.json`
-(Pregonero writes it, and is its only writer), `visuals.json` (Muralista writes it, Pregonero only
-reads it) and later `debrief.md`. The authoritative description of both files lives in the vault at
+**A gig is a folder, and it is the performer's.** Pregonero remembers which one across launches. At
+its root are the poster, the contract, the stage plan and later `debrief.md`; **the two files the
+tools write live in `<gig>/setup/`** — `gig.json` (Pregonero writes it, and is its only writer) and
+`visuals.json` (Muralista writes it, Pregonero only reads it), beside each other as the contract
+requires. Muralista is handed `<gig>/setup/` and needs no code change for it: it takes a folder and
+reads `gig.json` from its root. The authoritative description of both files lives in the vault at
 `projects/tramoya-integration/docs/gig-file.md`; the field names Pregonero reads from
 `visuals.json` are Muralista's own — `visualsVersion`, `gigId`, `shapes`, and a shape's type at
 `shape.layer.type`.
@@ -185,9 +224,10 @@ is which side of the read is authoritative:
   carries what replaced what, and the gig screen says it. An id the file names that this machine
   cannot turn into a song is named too, rather than vanishing from the setlist.
 
-`file` is **written** relative to the gig folder (`../../songs/libertad.json`) so the folder can be
-handed over on a stick; an absolute one is still read without complaint. `src/paths.ts` is the posix
-path arithmetic behind both.
+`file` is **written relative to `gig.json` itself** — `../../../songs/song-performance/libertad.json`
+from `<gig>/setup/` — so the folder can be handed over on a stick; an absolute one is still read
+without complaint. `src/paths.ts` is the posix path arithmetic behind both, and `src/fileLayout.ts`
+is where the `setup/` in that path comes from.
 
 **Completeness, not correctness.** Pregonero checks that the pointer resolves, the files parse,
 every setlist song resolves to a shape for each type it needs, and the content those types require
@@ -201,7 +241,16 @@ run a gig.
 **The control view is the performance surface and carries one button**, which leaves the stage and
 opens `#/setup`. `Folders` came off that column: where songs and media live on this machine is
 configuration rather than content, and it is **Preferences** now — one screen, one idea, holding
-the songs folder, the media folder, Muralista, and the Bombista binary path.
+the songs root, the gigs root, the media folder and the Bombista binary path. **Preferences is where
+they are changed, never where you find out they exist**: first run asks for the two folders before
+anything else is reachable.
+
+**The songs list reports what it could not read, and does not block.** A song file that will not
+parse stays listed as one visibly broken row, and above the list a report names them and points
+repairs at Bombista — plus a line when `<songs>/song-performance` itself refused to be read, which
+used to render as "No songs yet" with the folder full of songs. **A modal that has to be cleared
+before you can go on is closer to the step-1 dead end this redesign exists to remove than it is to a
+report.**
 
 **Setup home shows both lists in full, side by side**, gigs with New gig and songs with New song.
 Not a fork: a screen whose only content is two buttons is a signpost rather than a place, and
@@ -599,8 +648,9 @@ Hash-based: `#/control`, `#/projection`, `#/setup` (Setup home), `#/songs`, `#/g
 
 ### The library is a cache, `songs/` is the source of truth
 
-**`songs/` is the source of truth and the library is a cache of it. Hydration seeds a reference for
-every song file in the songs folder** (`electron/songsFolder.cjs` lists it,
+**`<songs>/song-performance/` is the source of truth and the library is a cache of it. Hydration
+seeds a reference for every song file in it** (`electron/songsFolder.cjs` lists the folder it is
+handed,
 `seedLibraryFromSongsFolder` in `setlistStore.ts` seeds from it). The library was a hand-assembled
 list of individually chosen files only because it predates there being a songs root to read — and
 on 2026-08-31 that cost a walk: the songs folder was pointed at thirteen songs and Setup home said
@@ -614,7 +664,8 @@ can on the manage-setlists screen and the three store functions behind it were r
 silently undoes itself must not remain, looking functional.** The deeper reason outlives the
 mechanics: **a row vanishing while the file is still in the folder is the app disagreeing with the
 disk**, which this repo already refuses for a song whose file will not read. **Retiring a song means
-moving the file out of `songs/`** — a decision about the catalogue, made in Finder.
+moving the file out of `<songs>/song-performance/`** — a decision about the catalogue, made in
+Finder.
 
 **Removing a song from a SETLIST is a different act and it stays.** Gig-scoped and durable: a
 setlist is an authored running order, the removal lives in the snapshot, and nothing on disk
@@ -639,8 +690,8 @@ reference's `path` is absolute, or a name relative to the configured songs folde
 
 **A reference whose file will not read stays in the library** as a visibly broken row naming the
 path. It is not a song the app can perform — `getLibrarySongs`, `getOrderedSongsForActiveSetlist`
-and `getLibrarySongById` all skip it — but hiding it would hide the problem, and the fix is in
-`songs/`. `libertad.json` is the live example: its timeline has 20 entries against 24 lyric lines,
+and `getLibrarySongById` all skip it — but hiding it would hide the problem, and the fix is in the
+catalogue. `libertad.json` is the live example: its timeline has 20 entries against 24 lyric lines,
 so `parseSongFile` rejects it today.
 
 **Anything older than v8 is discarded on load, setlists included** — one code path, no migration

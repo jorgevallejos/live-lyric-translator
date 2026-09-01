@@ -96,6 +96,61 @@ describe('first run', () => {
     expect(localStorage.getItem(SONGS_FOLDER_KEY)).toBeNull()
   })
 
+  // ── Two questions, not one asked twice ────────────────────────────────────────────────────
+
+  it('asks two different questions, named by what they find', async () => {
+    // Both were phrased "choose a folder", which is exactly why the second read as redundant. One
+    // finds a catalogue; the other finds a body of work.
+    await launch()
+    expect(screen.getByTestId('first-run-songs').textContent).toContain('Where your songs live')
+    expect(screen.getByTestId('first-run-songs').textContent).toContain('Your catalogue')
+    expect(screen.getByTestId('first-run-gigs').textContent).toContain('Where your gigs live')
+    expect(screen.getByTestId('first-run-gigs').textContent).toContain('Your body of work')
+  })
+
+  it('says nothing is created, because nothing is', async () => {
+    await launch()
+    expect(screen.getByTestId('first-run-lede').textContent).toMatch(/[Nn]othing is created/)
+  })
+
+  it('never says tramoya — that word is the repo’s, not a user’s', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run').textContent!.toLowerCase()).not.toContain('tramoya')
+  })
+
+  // ── It shows the shape rather than explaining it ──────────────────────────────────────────
+
+  it('shows nothing until there is something to show', async () => {
+    await launch()
+    expect(screen.queryByTestId('first-run-shape')).toBeNull()
+  })
+
+  it('draws the catalogue’s half as soon as the catalogue is answered', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/songs')
+    await launch()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-songs-choose'))
+    })
+    const shape = screen.getByTestId('first-run-shape').textContent!
+    expect(shape).toContain('songs/')
+    expect(shape).toContain('song-performance/')
+    // The gig half is not drawn yet: the shape is the answers so far, not a diagram of the design.
+    expect(shape).not.toContain('setup/')
+  })
+
+  it('draws the gig half, ownership and all, when the gigs folder is the one already set', async () => {
+    // Arriving with the catalogue still unanswered: the half that is known is the half drawn.
+    localStorage.setItem(GIGS_FOLDER_KEY, '/vault/gigs')
+    await launch()
+    const shape = screen.getByTestId('first-run-shape').textContent!
+    expect(shape).toContain('gigs/')
+    expect(shape).toContain('setup/')
+    expect(shape).toContain('gig.json and visuals.json')
+    expect(shape).toContain('the poster, the contract, the debrief')
+    expect(shape).not.toContain('song-performance/')
+  })
+
   it('never blocks the projection window, which has nothing to ask for', async () => {
     await act(async () => {
       render(<App initialHash="#/projection" />)

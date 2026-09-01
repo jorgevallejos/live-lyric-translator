@@ -864,8 +864,9 @@ export function GigView() {
         <section className="gig-identity">
           {readiness.folderPath === null ? (
             <p className="gig-empty" data-testid="gig-none">
-              No gig open. Name one below and the app makes its folder inside your gigs folder —
-              Pregonero writes <code>gig.json</code> into it, and Muralista writes{' '}
+              No gig open. Name one below and the app makes its folder inside your gigs folder. The
+              folder is yours — the poster, the contract, the stage plan. Pregonero writes{' '}
+              <code>gig.json</code> into a <code>setup</code> folder inside it, and Muralista writes{' '}
               <code>visuals.json</code> beside it.
             </p>
           ) : (
@@ -931,8 +932,9 @@ export function GigView() {
             {readiness.adoption.unresolved.length > 0 && (
               <p className="gig-hint" data-testid="gig-adoption-unresolved">
                 Named in the setlist with no file this machine knows:{' '}
-                {readiness.adoption.unresolved.join(', ')}. Point the songs folder at them, or give
-                each one a <code>file</code> in <code>gig.json</code>.
+                {readiness.adoption.unresolved.join(', ')}. Put them in your catalogue’s{' '}
+                <code>song-performance</code> folder, or give each one a <code>file</code> in{' '}
+                <code>gig.json</code>.
               </p>
             )}
           </section>

@@ -37,7 +37,7 @@ const {
   writeGigFile: (
     folderPath: string,
     text: string,
-    options?: { writeFileSync?: unknown }
+    options?: { writeFileSync?: unknown; mkdirSync?: unknown }
   ) => { ok: boolean; error?: string }
   writeDebriefFile: (
     folderPath: string,
@@ -145,10 +145,13 @@ describe('readGigFolder', () => {
     expect(r.visualsPresent).toBe(true)
   })
 
-  it('refuses a pointer that leaves the gig folder', () => {
+  it('refuses a pointer that leaves the folder gig.json is in', () => {
+    // **Narrowed with the move to `<gig>/setup`** (2026-09-01): the base is the folder the pair
+    // lives in, so `../poster.png` — the author's half of the gig folder — is now a refusal too.
+    // That is the containment the contract wants: `visuals.json` sits beside `gig.json`.
     const r = readGigFolder(dir, { visualsPointer: '../elsewhere/visuals.json' })
     expect(r.visualsPresent).toBe(false)
-    expect(r.visualsError).toMatch(/leaves the gig folder/)
+    expect(r.visualsError).toMatch(/leaves the folder gig\.json is in/)
   })
 
   it('reports a read failure as a value, never as a throw', () => {
@@ -182,6 +185,16 @@ describe('writeGigFile', () => {
   it('writes gig.json into the folder', () => {
     expect(writeGigFile(dir, '{"gigVersion":1,"id":"g"}\n')).toEqual({ ok: true })
     expect(readFileSync(join(dir, 'gig.json'), 'utf8')).toBe('{"gigVersion":1,"id":"g"}\n')
+  })
+
+  it('makes the folder it writes into', () => {
+    // It is handed `<gig>/setup`, which is the machine's own corner of a folder that belongs to the
+    // author. Making it is this process making room for its own file; the gig folder itself is
+    // created once, by `createGigFolder`, when the gig is named.
+    const setup = join(dir, 'setup')
+    expect(existsSync(setup)).toBe(false)
+    expect(writeGigFile(setup, '{"gigVersion":1,"id":"g"}\n')).toEqual({ ok: true })
+    expect(readFileSync(join(setup, 'gig.json'), 'utf8')).toBe('{"gigVersion":1,"id":"g"}\n')
   })
 
   it('reports a write failure as a value', () => {

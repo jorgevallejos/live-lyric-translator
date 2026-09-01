@@ -372,46 +372,55 @@ const FILE_FILTERS = {
   lyrics: { name: 'Lyrics or song file', extensions: ['txt', 'json'] },
 }
 
-ipcMain.handle('dialog:openFile', async (_event, kind) => {
+// **`defaultPath` is where the picker opens.** The renderer remembers it per picker
+// (`src/pickerMemory.ts`) and hands it over on every call, the way it hands over every other
+// per-machine fact — this process stays stateless about them. Undefined means the OS decides,
+// which is what happens the first time each picker is used.
+ipcMain.handle('dialog:openFile', async (_event, kind, defaultPath) => {
   const filter = FILE_FILTERS[kind] || FILE_FILTERS.video
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
     filters: [filter],
+    ...(defaultPath ? { defaultPath: String(defaultPath) } : {}),
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
 
-ipcMain.handle('dialog:openSongFiles', async () => {
+ipcMain.handle('dialog:openSongFiles', async (_event, defaultPath) => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
     filters: [{ name: 'Song files', extensions: ['json'] }],
+    ...(defaultPath ? { defaultPath: String(defaultPath) } : {}),
   })
   return result.canceled ? [] : result.filePaths
 })
 
 ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
 
-// **What songs are in the songs folder.** Until this existed the app had no way to look: the
-// library is a list of references added one at a time, so a machine whose songs folder held the
-// whole catalogue reported "No songs yet". `songs/` is the source of truth; this is how it is read.
+// **What song files are in `<songs>/song-performance`.** The renderer joins that folder and hands
+// it over. Until this existed the app had no way to look: the library is a list of references added
+// one at a time, so a machine whose catalogue held thirteen songs reported "No songs yet". The
+// folder is the source of truth; this is how it is read.
 ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(String(folderPath)))
 
 // ── The gig folder. Every Electron call this round introduces lives behind `src/platform.ts`
 // on the renderer side; these are its four handlers. ──────────────────────────────────────────
-ipcMain.handle('dialog:openGigFolder', async () => {
+ipcMain.handle('dialog:openGigFolder', async (_event, defaultPath) => {
   const result = await dialog.showOpenDialog({
     title: 'Choose the gig folder',
     properties: ['openDirectory', 'createDirectory'],
+    ...(defaultPath ? { defaultPath: String(defaultPath) } : {}),
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
 
-// Any folder this machine is asked to remember — the songs root, the media folder. The gig
-// folder keeps its own handler because its picker offers to create one; these never do.
-ipcMain.handle('dialog:openFolder', async (_event, title) => {
+// Any folder this machine is asked to remember — the songs root, the gigs root, the media folder.
+// The gig folder keeps its own handler because its picker offers to create one; these never do.
+ipcMain.handle('dialog:openFolder', async (_event, title, defaultPath) => {
   const result = await dialog.showOpenDialog({
     title: typeof title === 'string' && title ? title : 'Choose a folder',
     properties: ['openDirectory'],
+    ...(defaultPath ? { defaultPath: String(defaultPath) } : {}),
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })

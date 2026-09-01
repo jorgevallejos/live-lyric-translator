@@ -5,32 +5,52 @@ import {
   setGigsFolder,
   setSongsFolder,
 } from './contentFolders'
+import { GIG_SETUP_FOLDER, SONG_FILES_FOLDER } from './fileLayout'
 import { chooseFolderPath, hasFolderPicker } from './platform'
 
 /**
- * **First run: the two folders, asked once, before anything else.**
+ * **First run: two folders you already have, asked once, before anything else.**
  *
  * **It replaces the main screen; it does not sit behind a button and does not appear after the
  * main screen has rendered.** `App` checks `hasRequiredFolders()` before it renders anything on the
  * control side — before the library-hydration screen, which is the one that would otherwise flash
  * first. A launch with either folder unset shows this and nothing else.
  *
- * **Once both are chosen it is gone, and every later launch goes straight through.** There is no
- * "skip", because the whole point is that a setting stops being something you discover at the
- * moment it blocks you.
+ * **They are two different questions, not two file pickers.** *Where your songs live* finds a
+ * **catalogue**; *where your gigs live* finds a **body of work**. Both were phrased "choose a
+ * folder", which is exactly why the second one read as the first one asked twice.
  *
- * **Preferences remains where these are changed.** This screen is where they are first set.
+ * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
+ * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
+ * a song there; `setup/` is made the first time a gig is written. Neither is a question.
+ *
+ * **It shows the shape rather than explaining it**, and it draws each half as that half is
+ * answered. A first-run screen earns its explanation with the thing it is about to work with, not
+ * with prose — and the shape is where the ownership boundary this round exists for becomes visible:
+ * what the suite writes into each folder, and what stays yours.
+ *
+ * **There is no Tramoya folder and the word never appears here.** The app's own bookkeeping — the
+ * gig list, the Bombista path, the preferences — is per-machine, is not Jorge's, and lives where
+ * macOS puts it. `tramoya` is the suite's name in its own repo, not a user's vocabulary.
+ *
+ * **Once both are chosen it is gone, and every later launch goes straight through.** It leaves the
+ * moment the second answer lands: a confirming click would be a step that decides nothing. There is
+ * no "skip", because the whole point is that a setting stops being something you discover at the
+ * moment it blocks you. **Preferences is where they are changed** — never where you find out they
+ * exist.
  */
 
-function FolderRow({
-  label,
+function FolderQuestion({
+  question,
+  finds,
   hint,
   value,
   onChoose,
   disabled,
   testId,
 }: {
-  label: string
+  question: string
+  finds: string
   hint: string
   value: string | null
   onChoose: () => void
@@ -39,9 +59,10 @@ function FolderRow({
 }) {
   return (
     <div className="first-run-row" data-testid={testId}>
-      <span className="folders-row-label">{label}</span>
+      <span className="folders-row-label">{question}</span>
+      <span className="first-run-finds">{finds}</span>
       <span className="folders-row-value" data-testid={`${testId}-value`}>
-        {value ?? 'Not set'}
+        {value ?? 'Not chosen yet'}
       </span>
       <p className="gig-hint">{hint}</p>
       <button
@@ -51,9 +72,51 @@ function FolderRow({
         disabled={disabled}
         onClick={onChoose}
       >
-        {value === null ? 'Choose…' : 'Choose another folder'}
+        {value === null ? 'Find it…' : 'Choose another folder'}
       </button>
     </div>
+  )
+}
+
+/** The last segment of a path, which is what a folder is called when you are looking at it. */
+function folderName(path: string): string {
+  const parts = path.split('/').filter((p) => p.length > 0)
+  return parts[parts.length - 1] ?? path
+}
+
+/**
+ * The shape, drawn from the answers so far. **Owned and ours are labelled on every line**, because
+ * that is the whole of what this screen is telling you: the two folders are yours, and the suite
+ * writes into one named place inside each.
+ */
+function Shape({ songs, gigs }: { songs: string | null; gigs: string | null }) {
+  if (songs === null && gigs === null) return null
+  return (
+    <pre className="first-run-shape" data-testid="first-run-shape">
+      {songs !== null && (
+        <>
+          {`${folderName(songs)}/`}
+          <span className="first-run-shape-note">  your catalogue</span>
+          {`\n  audio/  lyrics/  …`}
+          <span className="first-run-shape-note">  your material, any structure you like</span>
+          {`\n  ${SONG_FILES_FOLDER}/`}
+          <span className="first-run-shape-note">  the song files — written by the suite, yours</span>
+          {'\n'}
+        </>
+      )}
+      {songs !== null && gigs !== null && '\n'}
+      {gigs !== null && (
+        <>
+          {`${folderName(gigs)}/`}
+          <span className="first-run-shape-note">  your gigs</span>
+          {`\n  a gig/`}
+          <span className="first-run-shape-note">  yours: the poster, the contract, the debrief</span>
+          {`\n    ${GIG_SETUP_FOLDER}/`}
+          <span className="first-run-shape-note">  ours: gig.json and visuals.json</span>
+          {'\n'}
+        </>
+      )}
+    </pre>
   )
 }
 
@@ -66,13 +129,14 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
 
   const choose = (
     title: string,
+    picker: 'songs-folder' | 'gigs-folder',
     store: (path: string | null) => void,
     hold: (path: string | null) => void,
     other: string | null
   ) => {
     setBusy(true)
     void (async () => {
-      const chosen = await chooseFolderPath(title)
+      const chosen = await chooseFolderPath(title, picker)
       if (chosen) {
         store(chosen)
         hold(chosen)
@@ -87,13 +151,13 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
   return (
     <div className="songs-screen first-run-screen" data-testid="first-run">
       <header className="songs-top-bar">
-        <h1 className="songs-title">Where do you keep things?</h1>
+        <h1 className="songs-title">Two folders you already have</h1>
       </header>
 
       <main className="songs-body first-run-body">
         <p className="gig-hint" data-testid="first-run-lede">
-          Two folders, asked once. Pregonero opens as usual from here on, and you can change them
-          later in preferences.
+          Point at them once. Nothing is created and nothing is moved — Pregonero opens as usual from
+          here on, and you can change them later in preferences.
         </p>
 
         {!canPick && (
@@ -102,25 +166,31 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
           </p>
         )}
 
-        <FolderRow
+        <FolderQuestion
           testId="first-run-songs"
-          label="Songs"
-          hint="The folder holding your song files. Every song file in it is listed in the app."
+          question="Where your songs live"
+          finds="Your catalogue"
+          hint="The folder your songs are already in — the recordings, the lyrics, the artwork. The suite reads and writes one folder inside it, and touches nothing else."
           value={songs}
           disabled={busy || !canPick}
           onChoose={() =>
-            choose('Choose the songs folder', setSongsFolder, setSongs, gigs)
+            choose('Where your songs live', 'songs-folder', setSongsFolder, setSongs, gigs)
           }
         />
 
-        <FolderRow
+        <FolderQuestion
           testId="first-run-gigs"
-          label="Gigs"
-          hint="The folder your gigs live in. A gig is a folder inside it."
+          question="Where your gigs live"
+          finds="Your body of work"
+          hint="The folder your gigs are already in, one folder per night. New gigs are made in here, and each one stays yours."
           value={gigs}
           disabled={busy || !canPick}
-          onChoose={() => choose('Choose the gigs folder', setGigsFolder, setGigs, songs)}
+          onChoose={() =>
+            choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs, songs)
+          }
         />
+
+        <Shape songs={songs} gigs={gigs} />
       </main>
     </div>
   )

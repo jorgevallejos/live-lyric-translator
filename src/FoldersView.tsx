@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   getBombistaPath,
-  defaultMediaFolder,
-  getChosenMediaFolder,
+  getGigsFolder,
+  getMediaFolder,
   getSongsFolder,
   setBombistaPath,
+  setGigsFolder,
   setMediaFolder,
   setSongsFolder,
 } from './contentFolders'
@@ -14,6 +15,7 @@ import { ensureSongLibraryHydrated, getLibraryEntries } from './setlistStore'
 import { useBroadcastVisuals } from './visualsBroadcast'
 import {
   bombistaVersion,
+  chooseFilePath,
   chooseFolderPath,
   fileExists,
   hasFolderPicker,
@@ -23,8 +25,8 @@ import type { BombistaLocation } from './electronApi'
 import { refreshGigReadiness } from './gigSession'
 
 /**
- * **Where this machine keeps things** — the songs root, the media folder, and what every name in
- * the files currently resolves to.
+ * **Where this machine keeps things** — the songs root, the gigs root, the media folder, and what
+ * every name in the files currently resolves to.
  *
  * It is its own screen, and that is the point of it. Linking a file used to be possible in exactly
  * one place, the song library's *Locate video…* button, which only ever offers a song's own
@@ -86,7 +88,8 @@ function FolderRow({
 export function FoldersView() {
   const visuals = useBroadcastVisuals()
   const [songsFolder, setSongsFolderState] = useState<string | null>(getSongsFolder)
-  const [mediaFolder, setMediaFolderState] = useState<string | null>(getChosenMediaFolder)
+  const [gigsFolder, setGigsFolderState] = useState<string | null>(getGigsFolder)
+  const [mediaFolder, setMediaFolderState] = useState<string | null>(getMediaFolder)
   const [bombista, setBombista] = useState<{ present: boolean; version: string | null } | null>(null)
   const [bombistaWhere, setBombistaWhere] = useState<BombistaLocation | null>(null)
   const [bombistaPath, setBombistaPathState] = useState<string | null>(getBombistaPath)
@@ -140,7 +143,7 @@ export function FoldersView() {
   const chooseSongs = () => {
     setBusy(true)
     void (async () => {
-      const chosen = await chooseFolderPath('Choose the songs folder')
+      const chosen = await chooseFolderPath('Where your songs live', 'songs-folder')
       if (chosen) {
         setSongsFolder(chosen)
         setSongsFolderState(chosen)
@@ -153,10 +156,22 @@ export function FoldersView() {
     })()
   }
 
+  const chooseGigs = () => {
+    setBusy(true)
+    void (async () => {
+      const chosen = await chooseFolderPath('Where your gigs live', 'gigs-folder')
+      if (chosen) {
+        setGigsFolder(chosen)
+        setGigsFolderState(chosen)
+      }
+      setBusy(false)
+    })()
+  }
+
   const chooseMedia = () => {
     setBusy(true)
     void (async () => {
-      const chosen = await chooseFolderPath('Choose the media folder')
+      const chosen = await chooseFolderPath('Choose the media folder', 'media-folder')
       if (chosen) {
         setMediaFolder(chosen)
         setMediaFolderState(chosen)
@@ -174,7 +189,7 @@ export function FoldersView() {
     if (!api) return
     setBusy(true)
     void (async () => {
-      const chosen = await api.openFileDialog()
+      const chosen = await chooseFilePath('video')
       if (chosen) {
         setMediaPath(src, chosen)
         recheck()
@@ -225,15 +240,33 @@ export function FoldersView() {
               setSongsFolderState(null)
             }}
           />
+          {/* **The gigs root is changed here, and it is only ever discovered on first run.**
+              Preferences is where a setting is changed, never where you find out it exists. */}
+          <FolderRow
+            testId="folders-gigs"
+            label="Gigs"
+            hint="Where your gigs live, one folder per night. New gigs are made in here; each one is yours, and the two files the tools write sit in a setup folder inside it."
+            value={gigsFolder}
+            disabled={busy || !canPick}
+            onChoose={chooseGigs}
+            onClear={() => {
+              setGigsFolder(null)
+              setGigsFolderState(null)
+            }}
+          />
+          {/* **No default, deliberately** (2026-09-01). It used to default to `<songs>/audio`, which
+              quietly made the catalogue load-bearing for media: a machine keeping video elsewhere
+              got a resolution failure it never agreed to. Alignment audio is a transient input
+              picked at the door and needs no home at all; performance media is what this answers
+              for, and it lives wherever it lives. */}
           <FolderRow
             testId="folders-media"
             label="Media"
-            hint="Where a name in a file is looked for — videos, images, QR codes. Defaults to the audio folder inside the songs folder, which is where the audio already lives; set one here only for a machine where it is somewhere else. A per-source link still wins either way."
-            value={mediaFolder ?? defaultMediaFolder()}
+            hint="Where a name in a file is looked for — the videos, images and QR codes played on the wall. Not the recordings you align against: those are handed over at the door and need no home. A per-source link still wins over this."
+            value={mediaFolder}
             disabled={busy || !canPick}
             onChoose={chooseMedia}
             onClear={() => {
-              // Clearing returns to `<songs>/audio` rather than to nothing.
               setMediaFolder(null)
               setMediaFolderState(null)
               void refreshGigReadiness()
