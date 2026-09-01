@@ -26,6 +26,8 @@ import {
   deleteSetlistInSnapshot,
   getLibraryEntries,
   getLibraryEntriesForSnapshot,
+  isInCatalogue,
+  noteCatalogueAdoption,
   getOrderedEntriesForSetlistFromSnapshot,
   loadSetlistStore,
   removeSongFromSetlistInSnapshot,
@@ -297,7 +299,12 @@ export function ManageSetlistsView() {
     ? getOrderedEntriesForSetlistFromSnapshot(draft, selectedSetlist.id)
     : []
   const selectedSetlistSongIds = new Set(selectedSetlist?.songIds ?? [])
-  const libraryEntries = getLibraryEntriesForSnapshot(draft)
+  // **The library column is the catalogue** (Jorge, 2026-09-01: a song that disappears disappears
+  // from everywhere it is offered). This column says *you can use this*, so a reference whose file
+  // has left `song-performance/` is not in it — it was the known second surface still drawing the
+  // whole stored library. The setlist column beside it is untouched: that is what was **recorded**,
+  // it keeps its ids, and it shows what it cannot resolve.
+  const libraryEntries = getLibraryEntriesForSnapshot(draft).filter((e) => isInCatalogue(e.ref.id))
   const visibleLibraryEntries = selectedSetlist
     ? libraryEntries.filter((e) => !selectedSetlistSongIds.has(e.ref.id))
     : libraryEntries
@@ -471,6 +478,10 @@ export function ManageSetlistsView() {
         }
         snapshot = next
         addedCount++
+        // A file picked out of `song-performance/` is in the catalogue the moment it is added,
+        // without waiting for the folder to be listed again — otherwise the column that now
+        // filters on the catalogue would swallow the song just added to it.
+        noteCatalogueAdoption(ref)
         const entry = await resolveSongRef(ref, defaultReadSongFile)
         if (!entry.song) unreadable++
         resolved.push(entry)

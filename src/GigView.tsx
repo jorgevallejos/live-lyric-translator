@@ -22,6 +22,7 @@ import type { GigReadiness, SongReadiness, StepStatus } from './gigReadiness'
 import {
   addSongToSetlist,
   getActiveSetlistId,
+  getCatalogueEntries,
   getLibraryEntries,
   getOrderedEntriesForActiveSetlist,
   moveSongInSetlist,
@@ -348,7 +349,11 @@ function StepSetlist({
   const setlistId = getActiveSetlistId()
   const inSetlist = getOrderedEntriesForActiveSetlist()
   const chosen = new Set(inSetlist.map((entry) => entry.ref.id))
-  const library = getLibraryEntries().filter((entry) => !chosen.has(entry.ref.id))
+  // **The catalogue, not the library** — this table says *you can use this*, and a song whose file
+  // has left the folder cannot be used. The table beside it is the opposite kind of list: the
+  // setlist keeps its ids and reports what it cannot resolve, because it is the record of a
+  // decision about a night and deleting a song must not rewrite it.
+  const library = getCatalogueEntries().filter((entry) => !chosen.has(entry.ref.id))
   const noteFor = (songId: string) =>
     readiness.songs.find((song) => song.songId === songId)?.notes ?? []
 

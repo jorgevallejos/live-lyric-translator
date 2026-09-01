@@ -186,31 +186,120 @@ describe('Setup home', () => {
     expect(screen.queryByTestId('setup-song-row-vidas')).toBeNull()
   })
 
-  it('says once, above the list, what is no longer in the catalogue', async () => {
+  // ── The vanished notice is a popup, and it fires on discovery ────────────────────────────
+  //
+  // Jorge's call, 2026-09-01. *The files were removed* is an event; *these files are absent* is a
+  // state, and only the first is worth interrupting for. The standing line above the list was
+  // reporting the state, every arrival, forever.
+
+  it('names in a popup what is no longer in the catalogue, and nothing else', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
     listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
     installLibrary([song('duelo'), song('vidas')])
     await renderHome()
-    await waitFor(() => expect(screen.getByTestId('setup-songs-gone')).toBeTruthy())
-    const notice = screen.getByTestId('setup-songs-gone').textContent!
-    expect(notice).toContain('vidas.json')
-    expect(notice).not.toContain('duelo.json')
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    const named = screen.getByTestId('setup-songs-gone-list').textContent!
+    expect(named).toContain('vidas.json')
+    expect(named).not.toContain('duelo.json')
     // **Absent is not broken.** The wrong report is the one that fired on the walk.
     expect(screen.queryByTestId('setup-songs-unreadable')).toBeNull()
   })
 
-  it('draws the whole emptied catalogue as one notice, never as a wall of broken rows', async () => {
+  it('says it once: the next arrival, with the same songs still gone, is silent', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    cleanup()
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+    // Still gone, and still not in the list — the state is unchanged, only the interruption stops.
+    expect(screen.queryByTestId('setup-song-row-vidas')).toBeNull()
+  })
+
+  it('says it again when another song goes', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    cleanup()
+    listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    const named = screen.getByTestId('setup-songs-gone-list').textContent!
+    expect(named).toContain('duelo.json')
+    // The one already announced is not announced twice, even in the company of a new one.
+    expect(named).not.toContain('vidas.json')
+  })
+
+  it('announces a song that came back and went again', async () => {
+    // The drive was unplugged, plugged back in, and unplugged again. Two events, two popups.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    cleanup()
+    listSongsFolder.mockResolvedValue({
+      files: ['duelo.json', 'vidas.json'],
+      problem: null,
+      answered: true,
+    })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-vidas')).toBeTruthy())
+    cleanup()
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    expect(screen.getByTestId('setup-songs-gone-list').textContent).toContain('vidas.json')
+  })
+
+  it('says nothing about a folder it could not look at', async () => {
+    // No Electron, no answer. Nothing is missing from a folder nobody read, and recording that as
+    // "nothing is gone" would re-announce every song the next time the catalogue *was* read.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    cleanup()
+    listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: false })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+    cleanup()
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+  })
+
+  it('draws the whole emptied catalogue as one popup, never as a wall of broken rows', async () => {
     // The screen that produced this round, in miniature.
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
     listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
     const twelve = Array.from({ length: 12 }, (_, i) => song(`song-${i}`))
     installLibrary(twelve)
     await renderHome()
-    await waitFor(() => expect(screen.getByTestId('setup-songs-gone')).toBeTruthy())
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
     for (const s of twelve) expect(screen.queryByTestId(`setup-song-row-${s.id}`)).toBeNull()
     expect(screen.queryByTestId('setup-songs-unreadable')).toBeNull()
     // "No songs yet" would be false: they were there a moment ago.
     expect(screen.getByTestId('setup-home-no-songs').textContent).toContain('Nothing in the catalogue')
+  })
+
+  it('the popup is dismissed and does not come back on this arrival', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+    expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy()
   })
 
   it('still keeps a song that is there and will not parse, listed and named', async () => {
@@ -228,7 +317,7 @@ describe('Setup home', () => {
     await renderHome()
     await waitFor(() => expect(screen.getByTestId('setup-song-row-libertad')).toBeTruthy())
     expect(screen.getByTestId('setup-songs-unreadable').textContent).toContain('libertad.json')
-    expect(screen.queryByTestId('setup-songs-gone')).toBeNull()
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
   })
 
   it('has no folder to complain about before a catalogue is chosen', async () => {

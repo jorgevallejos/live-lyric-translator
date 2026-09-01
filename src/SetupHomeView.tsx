@@ -4,11 +4,13 @@ import { getRememberedGigFolder } from './gigFolderStore'
 import { forgetGig, getGigList, replaceGigPath } from './gigListStore'
 import {
   ensureSongLibraryHydrated,
+  catalogueWasRead,
   getCatalogueEntries,
   getEntriesNotInCatalogue,
   adoptSongFile,
   type LibraryEntry,
 } from './setlistStore'
+import { newlyVanished, recordVanishedAnnounced } from './vanishedSongs'
 import { getSongFilesFolder, getSongsFolder, resolveSongPath } from './contentFolders'
 import { hasLyricLines } from './songState'
 import {
@@ -291,52 +293,84 @@ function NewSong({ onCreated }: { onCreated: (songId: string) => void }) {
 }
 
 /**
- * **What the catalogue holds, what it would not read, and what left it.**
+ * **The songs that have gone, named, once, on the arrival where it is discovered.**
  *
- * Three different sentences, because they are three different facts and saying one about another is
+ * **A popup, and this is Jorge's call (2026-09-01)** — it replaces the standing line this report
+ * used to carry above the list. The reasoning is that *the files were removed* is an **event** and
+ * *these files are absent* is a **state**: only the first is worth interrupting for, and a line
+ * that reprinted itself on every arrival was reporting the second. `vanishedSongs.ts` is what
+ * keeps the difference.
+ *
+ * **It is not decoration.** A catalogue on a drive that is not mounted would otherwise empty the
+ * Songs list in silence — a confident wrong answer, invisible unless you already knew how many
+ * songs you had.
+ *
+ * **It names the songs and does no more than that.** No repair to offer, nothing to decide, no
+ * button that forgets them: the references are kept, and they come back the moment the folder lists
+ * their files again.
+ */
+function VanishedSongsPopup({ songs, onDismiss }: { songs: string[]; onDismiss: () => void }) {
+  if (songs.length === 0) return null
+  return (
+    <div className="ctrl-timeline-save-overlay" data-testid="setup-songs-gone-popup">
+      <div
+        className="ctrl-timeline-save-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Songs no longer in your catalogue"
+      >
+        <p className="ctrl-timeline-save-message">
+          {songs.length === 1
+            ? 'One song is no longer in your catalogue:'
+            : `${songs.length} songs are no longer in your catalogue:`}
+        </p>
+        <ul className="setup-songs-gone-list" data-testid="setup-songs-gone-list">
+          {songs.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+        <div className="ctrl-timeline-save-actions">
+          <button type="button" className="ctrl-btn" onClick={onDismiss}>
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * **What the catalogue holds and what it would not read.**
+ *
+ * Two different sentences, because they are two different facts and saying one about another is
  * what produced the screen that motivated this. A song file that will not parse is one visibly
  * broken row and stays one: hiding it would hide the problem. A folder that refuses to be read at
  * all used to render as **"No songs yet"** — the app disagreeing with the disk in the quietest
  * possible way.
  *
- * **And a file that is gone is none of the above.** Twelve song files deleted from the catalogue on
- * 2026-09-01 produced twelve rows, each carrying an ENOENT, above a red report saying twelve song
- * files would not read. **Absent is not broken**: what is gone is not listed, and the fact that it
- * went is said once, here, naming it.
+ * **And a file that is gone is neither of the above.** Twelve song files deleted from the catalogue
+ * on 2026-09-01 produced twelve rows, each carrying an ENOENT, above a red report saying twelve
+ * song files would not read. **Absent is not broken**: what is gone is not listed, and the fact
+ * that it went is `VanishedSongsPopup`'s to say, once.
  *
- * **That notice is not decoration.** A catalogue on a drive that is not mounted would otherwise
- * empty the Songs list in silence — a confident wrong answer, invisible unless you already knew how
- * many songs you had.
- *
- * **It reports and does not block.** A modal that has to be cleared before you can go on is closer
- * to the step-1 dead end this whole redesign exists to remove than it is to a report. Repairs point
- * at Bombista, because Pregonero cannot fix a song file and will not pretend to.
+ * **This one reports and does not block.** A modal that has to be cleared before you can go on is
+ * closer to the step-1 dead end this whole redesign exists to remove than it is to a report; what
+ * is on this screen is a standing condition, and the popup beside it is the one event. Repairs
+ * point at Bombista, because Pregonero cannot fix a song file and will not pretend to.
  */
 function SongsProblems({
   folderProblem,
   broken,
-  gone,
 }: {
   folderProblem: string | null
   broken: string[]
-  gone: string[]
 }) {
-  if (folderProblem === null && broken.length === 0 && gone.length === 0) return null
+  if (folderProblem === null && broken.length === 0) return null
   return (
     <div className="setup-home-report" data-testid="setup-songs-report">
       {folderProblem !== null && (
         <p className="setup-song-problem" data-testid="setup-songs-folder-problem">
           Your catalogue’s <code>song-performance</code> folder would not read: {folderProblem}
-        </p>
-      )}
-      {gone.length > 0 && (
-        <p className="setup-song-problem" data-testid="setup-songs-gone">
-          {gone.length === 1
-            ? 'One song this app was holding is no longer in your catalogue'
-            : `${gone.length} songs this app was holding are no longer in your catalogue`}
-          : {gone.join(', ')}. The list below is the folder, so they are not in it.{' '}
-          <strong>Nothing has been forgotten</strong> — put the files back, or plug the drive in,
-          and they are here again.
         </p>
       )}
       {broken.length > 0 && (
@@ -360,6 +394,9 @@ export function SetupHomeView() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [folderProblem, setFolderProblem] = useState<string | null>(null)
+  // **What the popup will say, decided once per arrival.** Held apart from `gone` because it is a
+  // different question: `gone` is the standing set, this is the part of it that is news.
+  const [vanished, setVanished] = useState<string[]>([])
 
   const reload = useCallback(() => {
     setGigs(getGigList())
@@ -376,6 +413,15 @@ export function SetupHomeView() {
       await refreshGigReadiness()
       const root = getSongsFolder()
       setFolderProblem(root === null ? null : (await listSongsFolder(root)).problem)
+      // **The announcement is made here, on the arrival that discovered it**, and the record is
+      // written the moment it is decided rather than when the popup is dismissed: a person who
+      // quits with it on screen has still been told, and being told twice about one removal is the
+      // thing this replaced.
+      if (catalogueWasRead()) {
+        const goneIds = getEntriesNotInCatalogue().map((entry) => entry.ref.id)
+        setVanished(newlyVanished(goneIds).map((id) => `${id}.json`))
+        recordVanishedAnnounced(goneIds)
+      }
       reload()
     })()
   }, [reload])
@@ -397,6 +443,7 @@ export function SetupHomeView() {
 
   return (
     <div className="songs-screen setup-home-screen">
+      <VanishedSongsPopup songs={vanished} onDismiss={() => setVanished([])} />
       <header className="songs-top-bar">
         <button
           type="button"
@@ -512,7 +559,6 @@ export function SetupHomeView() {
           <SongsProblems
             folderProblem={folderProblem}
             broken={songs.filter((entry) => !entry.song).map((entry) => `${entry.ref.id}.json`)}
-            gone={gone.map((entry) => `${entry.ref.id}.json`)}
           />
           {songs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-songs">

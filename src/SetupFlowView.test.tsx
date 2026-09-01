@@ -11,7 +11,7 @@ import { installRequiredFolders } from './testSupport/folders'
 import { render, screen, act, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import type { SongItem } from './songState'
 import { dropLibraryCache, type LibrarySong } from './setlistStore'
-import { installLibrary } from './testSupport/library'
+import { installCatalogue, installLibrary } from './testSupport/library'
 
 const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
@@ -767,6 +767,46 @@ describe('step 2: the setlist, as two tables', () => {
     })
     await waitFor(() => expect(screen.getByTestId('setup-setlist-row-vidas')).toBeTruthy(), WAIT)
     await waitFor(() => expect(writeGigFile.mock.calls.length).toBeGreaterThan(before), WAIT)
+  })
+
+  /**
+   * **A song that disappears disappears from everywhere it is offered** (Jorge, 2026-09-01).
+   *
+   * This table is journey step 9.2 and the whole of *offered* on the walk: it says *you can use
+   * this*. The table beside it is the opposite kind of list — what was **recorded** about a night —
+   * and it keeps its ids and reports what it cannot resolve, because deleting a song must not
+   * rewrite history.
+   */
+  it('does not offer a song whose file has left the catalogue', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({ gigPresent: true, gigText: gigJson(['duelo']) })
+    )
+    await installCatalogue([song('duelo', 'Duelo'), song('vidas', 'Vidas')], ['duelo.json'])
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
+    })
+    expect(screen.queryByTestId('setup-library-row-vidas')).toBeNull()
+    // The one still in the folder is still on offer, so this is the filter and not an empty table.
+    expect(screen.getByTestId('setup-setlist-row-duelo')).toBeTruthy()
+  })
+
+  it('keeps a vanished song in the running order it was already in', async () => {
+    // **Recorded, not offered.** The gig's setlist is the record of a decision about a night: it
+    // keeps its ids and reports what it cannot resolve, and deleting a song does not rewrite it.
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({ gigPresent: true, gigText: gigJson(['duelo', 'vidas']) })
+    )
+    await installCatalogue([song('duelo', 'Duelo'), song('vidas', 'Vidas')], ['duelo.json'])
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('gig-id')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
+    })
+    expect(screen.getByTestId('setup-setlist-row-vidas')).toBeTruthy()
   })
 
   it('says the setlist is empty rather than looking broken', async () => {
