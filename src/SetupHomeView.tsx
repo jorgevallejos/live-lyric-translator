@@ -4,7 +4,8 @@ import { getRememberedGigFolder } from './gigFolderStore'
 import { forgetGig, getGigList, replaceGigPath } from './gigListStore'
 import {
   ensureSongLibraryHydrated,
-  getLibraryEntries,
+  getCatalogueEntries,
+  getEntriesNotInCatalogue,
   adoptSongFile,
   type LibraryEntry,
 } from './setlistStore'
@@ -290,19 +291,37 @@ function NewSong({ onCreated }: { onCreated: (songId: string) => void }) {
 }
 
 /**
- * **What the catalogue holds, and what it would not read.**
+ * **What the catalogue holds, what it would not read, and what left it.**
  *
- * A song file that will not parse is already one visibly broken row, and it stays one: hiding it
- * would hide the problem. What was missing is the folder-level answer — the app read
- * `<songs>/song-performance` and, if the read itself failed, said **"No songs yet"**, which is the
- * app disagreeing with the disk in the quietest possible way.
+ * Three different sentences, because they are three different facts and saying one about another is
+ * what produced the screen that motivated this. A song file that will not parse is one visibly
+ * broken row and stays one: hiding it would hide the problem. A folder that refuses to be read at
+ * all used to render as **"No songs yet"** — the app disagreeing with the disk in the quietest
+ * possible way.
+ *
+ * **And a file that is gone is none of the above.** Twelve song files deleted from the catalogue on
+ * 2026-09-01 produced twelve rows, each carrying an ENOENT, above a red report saying twelve song
+ * files would not read. **Absent is not broken**: what is gone is not listed, and the fact that it
+ * went is said once, here, naming it.
+ *
+ * **That notice is not decoration.** A catalogue on a drive that is not mounted would otherwise
+ * empty the Songs list in silence — a confident wrong answer, invisible unless you already knew how
+ * many songs you had.
  *
  * **It reports and does not block.** A modal that has to be cleared before you can go on is closer
  * to the step-1 dead end this whole redesign exists to remove than it is to a report. Repairs point
  * at Bombista, because Pregonero cannot fix a song file and will not pretend to.
  */
-function SongsProblems({ folderProblem, broken }: { folderProblem: string | null; broken: string[] }) {
-  if (folderProblem === null && broken.length === 0) return null
+function SongsProblems({
+  folderProblem,
+  broken,
+  gone,
+}: {
+  folderProblem: string | null
+  broken: string[]
+  gone: string[]
+}) {
+  if (folderProblem === null && broken.length === 0 && gone.length === 0) return null
   return (
     <div className="setup-home-report" data-testid="setup-songs-report">
       {folderProblem !== null && (
@@ -310,12 +329,22 @@ function SongsProblems({ folderProblem, broken }: { folderProblem: string | null
           Your catalogue’s <code>song-performance</code> folder would not read: {folderProblem}
         </p>
       )}
+      {gone.length > 0 && (
+        <p className="setup-song-problem" data-testid="setup-songs-gone">
+          {gone.length === 1
+            ? 'One song this app was holding is no longer in your catalogue'
+            : `${gone.length} songs this app was holding are no longer in your catalogue`}
+          : {gone.join(', ')}. The list below is the folder, so they are not in it.{' '}
+          <strong>Nothing has been forgotten</strong> — put the files back, or plug the drive in,
+          and they are here again.
+        </p>
+      )}
       {broken.length > 0 && (
         <p className="setup-song-problem" data-testid="setup-songs-unreadable">
           {broken.length === 1 ? 'One song file will not read' : `${broken.length} song files will not read`}
-          : {broken.join(', ')}. They stay in the list, named, so the problem is visible.{' '}
-          <strong>Bombista</strong> is where a song file is repaired — Pregonero reads them and
-          writes none.
+          : {broken.join(', ')}. They are in the folder, so they stay in the list, named, and the
+          problem is visible. <strong>Bombista</strong> is where a song file is repaired — Pregonero
+          reads them and writes none.
         </p>
       )}
     </div>
@@ -324,14 +353,18 @@ function SongsProblems({ folderProblem, broken }: { folderProblem: string | null
 
 export function SetupHomeView() {
   const [gigs, setGigs] = useState<string[]>(getGigList)
-  const [songs, setSongs] = useState<LibraryEntry[]>(getLibraryEntries)
+  // **The Songs list is the catalogue, not the library.** Arriving re-reads the folder and this is
+  // what that read said; a reference the folder did not list is in `gone`, never in a row.
+  const [songs, setSongs] = useState<LibraryEntry[]>(getCatalogueEntries)
+  const [gone, setGone] = useState<LibraryEntry[]>(getEntriesNotInCatalogue)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [folderProblem, setFolderProblem] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     setGigs(getGigList())
-    setSongs(getLibraryEntries())
+    setSongs(getCatalogueEntries())
+    setGone(getEntriesNotInCatalogue())
   }, [])
 
   // Arriving here is a door, so the files are re-read — the songs folder as well as the gig. Same
@@ -479,12 +512,16 @@ export function SetupHomeView() {
           <SongsProblems
             folderProblem={folderProblem}
             broken={songs.filter((entry) => !entry.song).map((entry) => `${entry.ref.id}.json`)}
+            gone={gone.map((entry) => `${entry.ref.id}.json`)}
           />
           {songs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-songs">
-              No songs yet. Song files live in your catalogue’s <code>song-performance</code>{' '}
-              folder, beside <code>audio</code> and <code>lyrics</code>. Songs are gig-independent
-              and are usually done days ahead, which is why they are here rather than inside a gig.
+              {/* **"Yet" is a claim, and it is false when songs have just left.** The notice above
+                  names them; this line must not talk past it. */}
+              {gone.length === 0 ? 'No songs yet. ' : 'Nothing in the catalogue now. '}
+              Song files live in your catalogue’s <code>song-performance</code> folder, beside{' '}
+              <code>audio</code> and <code>lyrics</code>. Songs are gig-independent and are usually
+              done days ahead, which is why they are here rather than inside a gig.
             </p>
           ) : (
             <ul className="setup-home-list">

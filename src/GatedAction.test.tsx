@@ -120,6 +120,7 @@ describe('a gated action', () => {
       'subflow-align',
       'subflow-review',
       'subflow-add',
+      'first-run-confirm',
     ])
   })
 })

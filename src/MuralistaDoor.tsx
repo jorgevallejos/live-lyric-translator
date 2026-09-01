@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { canHostTools, closeTool, openTool } from './platform'
-import { refreshGigReadiness } from './gigSession'
+import { refreshGigReadiness, getRememberedGigFolder } from './gigSession'
+import { gigSetupFolder } from './fileLayout'
 import { GatedAction } from './GatedAction'
 
 /**
@@ -26,7 +27,37 @@ import { GatedAction } from './GatedAction'
  * somewhere else* — so the scope changes the sentence above the button and the ids beside it, and
  * nothing else. Rendering the identical door twice on one screen was the alternative, and two
  * controls with the same name doing the same thing is how a screen stops being readable.
+ *
+ * **It names the folder in full, and this is a stopgap for something that should not be asked at
+ * all** (2026-09-01). Pregonero created this gig's folder and knows where its `setup/` is, so
+ * asking the person to navigate to it is the app making them supply an answer it already holds —
+ * and it is worse than usual here, because that folder moved on 01/09, so anybody working from
+ * memory now picks the wrong one. **Handing Muralista the folder is not possible from this side.**
+ * Its page acquires the folder through `showDirectoryPicker`, and a `FileSystemDirectoryHandle` can
+ * only be minted by that picker under a user gesture — Chromium admits no path-to-handle route, and
+ * Electron 41 exposes no hook to answer or pre-seed the picker (its File System Access surface is
+ * `setPermissionRequestHandler`, which grants access to a path already chosen, and the
+ * `file-system-access-restricted` event). Removing the question needs Muralista to accept the
+ * folder some other way, which is a change in its own repo. **Until then the exact path is on
+ * screen, so the answer is copyable rather than remembered.**
  */
+
+/**
+ * **The folder to hand over, spelled out.**
+ *
+ * Pregonero knows this path and cannot pass it, so the least it can do is not make anybody
+ * remember it. The folder moved on 01/09: a person going where they went last time now lands one
+ * level too high, picks the gig folder, and Muralista writes `visuals.json` somewhere Pregonero
+ * will never look for it — a failure with no error anywhere.
+ */
+function SetupFolderPath({ path }: { path: string | null }) {
+  if (path === null) return null
+  return (
+    <p className="folders-source-path" data-testid="muralista-setup-folder">
+      {path}
+    </p>
+  )
+}
 
 export const MURALISTA_KEY = 'muralista'
 export const MURALISTA_PAGE = 'mapper.html'
@@ -43,6 +74,8 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
   const gig = scope === 'gig'
   const testId = gig ? 'gig-visuals-door' : 'door-body-visuals'
   const site = gig ? 'muralista-open-gig' : 'muralista-open'
+  const gigFolder = getRememberedGigFolder()
+  const setupFolder = gigFolder === null ? null : gigSetupFolder(gigFolder)
 
   return (
     <div data-testid={testId}>
@@ -83,6 +116,7 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
             <code>visuals.json</code> goes beside it. Muralista is fully usable on its own, and
             Pregonero discovers the room on the next re-check.
           </p>
+          <SetupFolderPath path={setupFolder} />
         </div>
       ) : (
         <div data-testid={gig ? 'muralista-hosted-gig' : 'muralista-hosted'}>
@@ -137,6 +171,7 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
             Hand it the <code>setup</code> folder inside this gig: <code>gig.json</code> is in there,
             and <code>visuals.json</code> is written beside it. The rest of the gig folder is yours.
           </p>
+          <SetupFolderPath path={setupFolder} />
           <p className="gig-hint">
             Muralista writes <code>visuals.json</code> and Pregonero reads it. Nothing passes between
             them while both are running — <strong>Done</strong> only saves you closing the window and

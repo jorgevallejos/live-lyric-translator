@@ -13,6 +13,7 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, cleanup, fireEvent } from '@testing-library/react'
+import { GIG_FOLDER_KEY } from './gigFolderStore'
 
 const runBombista = vi.fn()
 const bombistaStagingDir = vi.fn()
@@ -320,6 +321,26 @@ describe('the visuals door: Muralista, hosted', () => {
     expect(screen.queryByTestId('muralista-no-folder')).toBeNull()
     expect(screen.queryByTestId('muralista-choose-folder')).toBeNull()
     expect(screen.queryByTestId('muralista-forget-folder')).toBeNull()
+  })
+
+  /**
+   * **The folder Muralista must be handed is on screen, in full.**
+   *
+   * Pregonero made this gig's folder and knows where its `setup/` is; it cannot pass a
+   * `FileSystemDirectoryHandle` to a page, so the least it can do is stop anybody having to
+   * remember the path. It moved on 01/09, which is exactly when memory is wrong.
+   */
+  it('names the setup folder of the open gig, rather than leaving it to be remembered', () => {
+    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
+    render(<MuralistaDoor />)
+    expect(screen.getByTestId('muralista-setup-folder').textContent).toBe(
+      '/gigs/2026-09-04-de-poel/setup'
+    )
+  })
+
+  it('says nothing about a folder when no gig is open', () => {
+    render(<MuralistaDoor />)
+    expect(screen.queryByTestId('muralista-setup-folder')).toBeNull()
   })
 
   it('is served over http on localhost, never file://', async () => {

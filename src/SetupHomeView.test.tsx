@@ -69,7 +69,7 @@ beforeEach(() => {
     ok: true,
     text: JSON.stringify({ title: 'Nuevo', lyrics: [{ es: 'línea' }] }),
   })
-  listSongsFolder.mockResolvedValue({ files: [], problem: null })
+  listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
 })
 
 async function renderHome() {
@@ -151,20 +151,84 @@ describe('Setup home', () => {
     expect(report).toContain('Bombista')
   })
 
-  it('reports and does not block: the list, New song and the gigs are all still there', async () => {
+  it('reports and does not block: New song and the gigs are all still there', async () => {
     // A modal that has to be cleared before you can go on is closer to the step-1 dead end this
-    // redesign exists to remove than it is to a report.
+    // redesign exists to remove than it is to a report. **The list does empty**, because a folder
+    // that will not read is a folder with no known contents — and the notice below says so.
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
-    listSongsFolder.mockResolvedValue({ files: [], problem: 'EACCES: permission denied' })
+    listSongsFolder.mockResolvedValue({
+      files: [],
+      problem: 'EACCES: permission denied',
+      answered: true,
+    })
     installLibrary([song('ok')])
     setLibraryEntries([{ ref: { id: 'ok', path: 'ok.json' }, song: song('ok') }])
     await renderHome()
     await waitFor(() =>
       expect(screen.getByTestId('setup-songs-folder-problem').textContent).toContain('EACCES')
     )
-    expect(screen.getByTestId('setup-song-row-ok')).toBeTruthy()
     expect(screen.getByTestId('setup-new-song')).toBeTruthy()
     expect(screen.getByTestId('setup-home-gigs')).toBeTruthy()
+  })
+
+  // ── The list is the folder, and absent is not broken ──────────────────────────────────────
+  //
+  // Found by walking v0.24.0 on 2026-09-01. Twelve song files were removed from the catalogue and
+  // Setup home drew twelve rows, each with an ENOENT beside it, under a red report saying twelve
+  // song files would not read. The list was the stored library, which hydration only ever adds to.
+
+  it('lists what the folder holds now, not what it was holding before', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.queryByTestId('setup-song-row-vidas')).toBeNull()
+  })
+
+  it('says once, above the list, what is no longer in the catalogue', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone')).toBeTruthy())
+    const notice = screen.getByTestId('setup-songs-gone').textContent!
+    expect(notice).toContain('vidas.json')
+    expect(notice).not.toContain('duelo.json')
+    // **Absent is not broken.** The wrong report is the one that fired on the walk.
+    expect(screen.queryByTestId('setup-songs-unreadable')).toBeNull()
+  })
+
+  it('draws the whole emptied catalogue as one notice, never as a wall of broken rows', async () => {
+    // The screen that produced this round, in miniature.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+    const twelve = Array.from({ length: 12 }, (_, i) => song(`song-${i}`))
+    installLibrary(twelve)
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone')).toBeTruthy())
+    for (const s of twelve) expect(screen.queryByTestId(`setup-song-row-${s.id}`)).toBeNull()
+    expect(screen.queryByTestId('setup-songs-unreadable')).toBeNull()
+    // "No songs yet" would be false: they were there a moment ago.
+    expect(screen.getByTestId('setup-home-no-songs').textContent).toContain('Nothing in the catalogue')
+  })
+
+  it('still keeps a song that is there and will not parse, listed and named', async () => {
+    // The older ruling, unchanged: what is in the folder and broken stays visible.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({
+      files: ['libertad.json'],
+      problem: null,
+      answered: true,
+    })
+    installLibrary([song('libertad')])
+    setLibraryEntries([
+      { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
+    ])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-libertad')).toBeTruthy())
+    expect(screen.getByTestId('setup-songs-unreadable').textContent).toContain('libertad.json')
+    expect(screen.queryByTestId('setup-songs-gone')).toBeNull()
   })
 
   it('has no folder to complain about before a catalogue is chosen', async () => {

@@ -60,6 +60,8 @@ export const GATED_SITES = [
   'subflow-review',
   /** The song door → Add to the library, before there is anything to add. */
   'subflow-add',
+  /** First run → Use these folders, until both questions have an answer. */
+  'first-run-confirm',
 ] as const
 
 export type GatedSite = (typeof GATED_SITES)[number]

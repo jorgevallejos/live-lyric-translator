@@ -7,6 +7,7 @@ import {
 } from './contentFolders'
 import { GIG_SETUP_FOLDER, SONG_FILES_FOLDER } from './fileLayout'
 import { chooseFolderPath, hasFolderPicker } from './platform'
+import { GatedAction } from './GatedAction'
 
 /**
  * **First run: two folders you already have, asked once, before anything else.**
@@ -33,11 +34,17 @@ import { chooseFolderPath, hasFolderPicker } from './platform'
  * gig list, the Bombista path, the preferences — is per-machine, is not Jorge's, and lives where
  * macOS puts it. `tramoya` is the suite's name in its own repo, not a user's vocabulary.
  *
- * **Once both are chosen it is gone, and every later launch goes straight through.** It leaves the
- * moment the second answer lands: a confirming click would be a step that decides nothing. There is
- * no "skip", because the whole point is that a setting stops being something you discover at the
- * moment it blocks you. **Preferences is where they are changed** — never where you find out they
- * exist.
+ * **It waits to be dismissed** (2026-09-01, reversing #83). That round argued a confirming click
+ * would be a step that decides nothing, and the first walk of `v0.24.0` found what it decides:
+ * **when the person is done.** Answering a file dialog is not being finished — you may want to
+ * re-check the first answer having seen the second, or read what the screen says about what goes
+ * where — and being thrown to the control view mid-thought is the app deciding on your behalf.
+ * Both answers stay changeable until the button is pressed, and pressing it is what leaves.
+ *
+ * **Once both are chosen and confirmed it is gone, and every later launch goes straight through.**
+ * There is no "skip", because the whole point is that a setting stops being something you discover
+ * at the moment it blocks you. **Preferences is where they are changed** — never where you find out
+ * they exist.
  */
 
 function FolderQuestion({
@@ -131,8 +138,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
     title: string,
     picker: 'songs-folder' | 'gigs-folder',
     store: (path: string | null) => void,
-    hold: (path: string | null) => void,
-    other: string | null
+    hold: (path: string | null) => void
   ) => {
     setBusy(true)
     void (async () => {
@@ -140,13 +146,22 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
       if (chosen) {
         store(chosen)
         hold(chosen)
-        // **Both chosen means done.** The screen has one job and it is finished the moment the
-        // second folder lands; asking for a confirming click would be a step that decides nothing.
-        if (other !== null) onDone()
       }
       setBusy(false)
     })()
   }
+
+  // **The answers are already stored; the button is about leaving.** Each choice is written the
+  // moment it is made, so a launch interrupted halfway comes back to one question answered rather
+  // than to nothing — what waits is the screen, not the record of what was said on it.
+  const unanswered =
+    songs === null && gigs === null
+      ? 'Both questions need an answer before Pregonero has anywhere to read or write.'
+      : songs === null
+        ? 'Where your songs live has not been answered yet.'
+        : gigs === null
+          ? 'Where your gigs live has not been answered yet.'
+          : null
 
   return (
     <div className="songs-screen first-run-screen" data-testid="first-run">
@@ -174,7 +189,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
           value={songs}
           disabled={busy || !canPick}
           onChoose={() =>
-            choose('Where your songs live', 'songs-folder', setSongsFolder, setSongs, gigs)
+            choose('Where your songs live', 'songs-folder', setSongsFolder, setSongs)
           }
         />
 
@@ -186,11 +201,21 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
           value={gigs}
           disabled={busy || !canPick}
           onChoose={() =>
-            choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs, songs)
+            choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs)
           }
         />
 
         <Shape songs={songs} gigs={gigs} />
+
+        <div className="gig-actions">
+          <GatedAction
+            site="first-run-confirm"
+            label="Use these folders"
+            busy={busy}
+            blockedBy={unanswered}
+            onClick={onDone}
+          />
+        </div>
       </main>
     </div>
   )

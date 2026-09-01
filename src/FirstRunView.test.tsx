@@ -65,15 +65,69 @@ describe('first run', () => {
     expect(screen.queryByTestId('first-run')).toBeNull()
   })
 
-  it('leaves the screen the moment the second folder is chosen', async () => {
+  // ── It waits to be dismissed (reversing #83) ───────────────────────────────────────────────
+  //
+  // Answering the second file dialog is not being finished, and the walk that found this was
+  // thrown to the control view mid-thought. What the confirming click decides is *when the person
+  // is done*, which is not nothing.
+
+  it('stays put when the second folder is chosen, with both answers on screen', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
     chooseFolderPath.mockResolvedValue('/vault/gigs')
     await launch()
     await act(async () => {
       fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
     })
-    await waitFor(() => expect(screen.queryByTestId('first-run')).toBeNull())
+    expect(screen.getByTestId('first-run')).toBeTruthy()
     expect(localStorage.getItem(GIGS_FOLDER_KEY)).toBe('/vault/gigs')
+    expect(screen.getByTestId('first-run-songs-value').textContent).toBe('/vault/songs')
+    expect(screen.getByTestId('first-run-gigs-value').textContent).toBe('/vault/gigs')
+  })
+
+  it('leaves when the person says so, and not before', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    chooseFolderPath.mockResolvedValue('/vault/gigs')
+    await launch()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-confirm'))
+    })
+    await waitFor(() => expect(screen.queryByTestId('first-run')).toBeNull())
+  })
+
+  it('holds the exit disabled, naming the question still unanswered', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-confirm').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByTestId('first-run-confirm-reason').textContent).toContain('Both questions')
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-songs-choose'))
+    })
+    expect(screen.getByTestId('first-run-confirm').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByTestId('first-run-confirm-reason').textContent).toContain(
+      'Where your gigs live'
+    )
+  })
+
+  it('lets the first answer be re-checked after the second has landed', async () => {
+    // The whole point of waiting: having seen where the gigs go, you may want the catalogue to be
+    // a different folder. Being ejected on the second answer is what made that impossible.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    chooseFolderPath.mockResolvedValue('/vault/gigs')
+    await launch()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
+    })
+    chooseFolderPath.mockResolvedValue('/elsewhere/songs')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-songs-choose'))
+    })
+    expect(screen.getByTestId('first-run')).toBeTruthy()
+    expect(screen.getByTestId('first-run-songs-value').textContent).toBe('/elsewhere/songs')
+    expect(localStorage.getItem(SONGS_FOLDER_KEY)).toBe('/elsewhere/songs')
   })
 
   it('stays while only one has been chosen', async () => {
