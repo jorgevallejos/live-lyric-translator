@@ -46,15 +46,28 @@ import type { BombistaResult } from './electronApi'
  * badge, no completion label. Whether it can go into tonight's setlist is asked at the moment a
  * surface draws it.
  *
- * **`bombista new` is not in this door.** It writes a legal song file with no timing, which is the
- * honest state for a song that is **not recorded yet**, and it lives on Setup home's *New song*.
- * This door needs audio by definition: the timeline comes from aligning words against it.
+ * **`bombista new` is not in this door, and it is not a second door either** (2026-09-01). It
+ * writes a legal song file with no timing, which is the honest state for a song that is **not
+ * recorded yet**, and it lives on Setup home's *New song* — which then **continues straight into
+ * this door** on the song it just made. One flow, from a name to a song in the list. What the
+ * skeleton is for survives that: it carries `artist`, `notes` and `title_translations`, which a
+ * `.txt` cannot and which `bombista validate` requires, and `promote` merges into it rather than
+ * over it.
  */
 
 type Props = {
   songId: string
   /** The song's file on this machine, or null when it does not exist yet. */
   songPath: string | null
+  /**
+   * **The file exists but carries no words yet** — a `bombista new` skeleton.
+   *
+   * The words picker prefills from `songPath`, because for a song that already has words that file
+   * *is* the words. A skeleton is not: prefilling from one would arm **Align** over a file with
+   * nothing in it to align, one click away, on exactly the walk this door was widened to serve.
+   * So the picker starts empty and asks, which is what the person is holding a `.txt` for.
+   */
+  skeleton?: boolean
 }
 
 function ResultBlock({ label, result }: { label: string; result: BombistaResult }) {
@@ -86,8 +99,8 @@ export function wordsStem(path: string): string {
   return dot > 0 ? name.slice(0, dot) : name
 }
 
-export function SongSubflow({ songId, songPath }: Props) {
-  const [words, setWords] = useState<string | null>(songPath)
+export function SongSubflow({ songId, songPath, skeleton = false }: Props) {
+  const [words, setWords] = useState<string | null>(skeleton ? null : songPath)
   const [audio, setAudio] = useState<string | null>(null)
   const [staging, setStaging] = useState<string | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -175,6 +188,14 @@ export function SongSubflow({ songId, songPath }: Props) {
           {words === null ? 'No words yet' : fileName(words)} ·{' '}
           {audio === null ? 'no recording yet' : fileName(audio)}
         </p>
+        {skeleton && (
+          <p className="gig-hint" data-testid="subflow-skeleton">
+            <code>{fileName(songPath ?? `${songId}.json`)}</code> is already here, carrying the
+            artist, the notes and the title translations — <strong>and no words yet</strong>. Hand
+            over the lyrics and the recording; <code>promote</code> merges the timeline into that
+            file rather than over it, so none of it is lost.
+          </p>
+        )}
         <p className="gig-hint">
           The words can be a lyrics <code>.txt</code> or a song <code>.json</code>.{' '}
           <strong>Bombista takes either</strong>, so it is not a question you have to answer — a new

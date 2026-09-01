@@ -164,7 +164,79 @@ describe('Setup home', () => {
     })
     expect(runBombista).toHaveBeenCalledWith('new', ['nuevo', '-o', '/songs/nuevo.json'])
     await waitFor(() => expect(screen.getByTestId('setup-song-row-nuevo')).toBeTruthy())
-    expect(screen.getByTestId('setup-song-row-nuevo').textContent).not.toMatch(/ready|complete|done/i)
+    // **No status on the row itself.** Scoped to the row's own label rather than everything nested
+    // under it, because the door now opens inside the row and the door has prose of its own.
+    const name = screen.getByTestId('setup-song-row-nuevo').querySelector('.setup-home-row-name')!
+    expect(name.textContent).toBe('Nuevo')
+  })
+
+  /**
+   * **Journey step 6 and 7: from a name to the door, without a second button.**
+   *
+   * The walk starts from nothing, holding a lyrics file and a recording and no JSON. Before this,
+   * `New song` stopped at the skeleton and the door opened from a *row* — so there was no row to
+   * click and the one button on the screen asked for neither file. Two doors, and the visible one
+   * was not the one that does the work.
+   */
+  it('continues into the song door on the song it just made', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    runBombista.mockResolvedValue({ status: 'ok', output: 'wrote: /songs/libertad.json', code: 0 })
+    // What `bombista new` writes: artist, notes and title translations, and no words.
+    readSongFileText.mockResolvedValue({
+      ok: true,
+      text: JSON.stringify({ title: 'libertad', notes: 'capo 2', lyrics: [] }),
+    })
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song'))
+    })
+    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'libertad' } })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song-create'))
+    })
+    // The skeleton is still what runs underneath: it is what carries the fields a .txt cannot.
+    expect(runBombista).toHaveBeenCalledWith('new', ['libertad', '-o', '/songs/libertad.json'])
+    // And the door is open on it, without a second click on a row that did not exist a moment ago.
+    await waitFor(() => expect(screen.getByTestId('subflow-flow')).toBeTruthy())
+    expect(screen.getByTestId('subflow-choose-words')).toBeTruthy()
+    expect(screen.getByTestId('subflow-choose-audio')).toBeTruthy()
+  })
+
+  it('opens that door asking for the words, not holding the skeleton as if it were them', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    runBombista.mockResolvedValue({ status: 'ok', output: 'wrote: /songs/libertad.json', code: 0 })
+    readSongFileText.mockResolvedValue({
+      ok: true,
+      text: JSON.stringify({ title: 'libertad', lyrics: [] }),
+    })
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song'))
+    })
+    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'libertad' } })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song-create'))
+    })
+    await waitFor(() => expect(screen.getByTestId('subflow-inputs-summary')).toBeTruthy())
+    expect(screen.getByTestId('subflow-inputs-summary').textContent).toMatch(/No words yet/)
+  })
+
+  it('does not open a door on a song that failed to be made', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    runBombista.mockResolvedValue({
+      status: 'failed',
+      output: '/songs/nuevo.json: already exists — refusing to overwrite',
+      code: 1,
+    })
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song'))
+    })
+    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'nuevo' } })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-new-song-create'))
+    })
+    expect(screen.queryByTestId('subflow-flow')).toBeNull()
   })
 
   it('shows Create disabled with its reason when no songs folder is set — never absent', async () => {

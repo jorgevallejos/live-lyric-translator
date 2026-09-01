@@ -249,6 +249,41 @@ describe('the song door: one door, two pickers, three moves', () => {
     expect(gap).toMatch(/no tool here gets a language model/)
   })
 
+  /**
+   * **The skeleton, and why the words picker does not prefill from it** (2026-09-01).
+   *
+   * `New song` now continues into this door on the song it just made, so the common way to arrive
+   * here is on a file that exists and has no words in it. Prefilling the picker from it would arm
+   * **Align** over a file with nothing to align, one click away, on the from-nothing walk.
+   */
+  it('does not offer a skeleton as the words, because a skeleton is not the words', () => {
+    render(<SongSubflow songId="libertad" songPath="/songs/libertad.json" skeleton />)
+    expect(screen.getByTestId('subflow-inputs-summary').textContent).toMatch(/No words yet/)
+    const align = screen.getByTestId('subflow-align') as HTMLButtonElement
+    expect(align.disabled).toBe(true)
+  })
+
+  it('says the skeleton is there and what it carries, so the empty picker is not a mystery', () => {
+    render(<SongSubflow songId="libertad" songPath="/songs/libertad.json" skeleton />)
+    const said = screen.getByTestId('subflow-skeleton').textContent ?? ''
+    expect(said).toMatch(/libertad\.json/)
+    expect(said).toMatch(/no words yet/i)
+    // The two-step underneath, said where it matters: nothing the skeleton carries is lost.
+    expect(said).toMatch(/merges/)
+  })
+
+  it('still lands the song on the skeleton, so promote merges rather than writing a second file', () => {
+    render(<SongSubflow songId="libertad" songPath="/songs/libertad.json" skeleton />)
+    expect(screen.getByTestId('subflow-target').textContent).toMatch(/\/songs\/libertad\.json/)
+  })
+
+  it('a song that already has its words still opens with them', () => {
+    // The prefill is not gone, only the case where the file is not the words.
+    render(<SongSubflow songId="pimiento" songPath="/vault/songs/pimiento.json" />)
+    expect(screen.getByTestId('subflow-inputs-summary').textContent).toMatch(/pimiento\.json/)
+    expect(screen.queryByTestId('subflow-skeleton')).toBeNull()
+  })
+
   it('with no bridge, says so and offers no controls that cannot work', () => {
     hosted = false
     render(<SongSubflow songId="pimiento" songPath="/songs/pimiento.json" />)

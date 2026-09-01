@@ -11,6 +11,7 @@ import { MuralistaDoor } from './MuralistaDoor'
 import { resolveSongPath } from './contentFolders'
 import type { GigReadiness, SongReadiness, StepStatus } from './gigReadiness'
 import { getLibraryEntries } from './setlistStore'
+import { hasLyricLines } from './songState'
 
 /**
  * **The setup flow** — the guided path through the six ordered steps, and the third and fourth
@@ -84,7 +85,17 @@ function StepRow({
  * handed a file path and its exit code is read, Muralista writes `visuals.json` and Pregonero reads
  * it on the next open. **The file is the only channel.**
  */
-function DoorBody({ door, songId, songPath }: { door: SongDoor; songId: string; songPath: string | null }) {
+function DoorBody({
+  door,
+  songId,
+  songPath,
+  skeleton,
+}: {
+  door: SongDoor
+  songId: string
+  songPath: string | null
+  skeleton: boolean
+}) {
   if (door === 'song') {
     return (
       <div data-testid="door-body-song">
@@ -92,7 +103,7 @@ function DoorBody({ door, songId, songPath }: { door: SongDoor; songId: string; 
           Everything inside a song file is <strong>Bombista’s</strong> — the words, the timeline, the
           tempo, the media it names. Pregonero reads them and writes none of them.
         </p>
-        <SongSubflow songId={songId} songPath={songPath} />
+        <SongSubflow songId={songId} songPath={songPath} skeleton={skeleton} />
       </div>
     )
   }
@@ -103,11 +114,14 @@ function SongRow({
   songId,
   title,
   songPath,
+  skeleton = false,
   children,
 }: {
   songId: string
   title: string
   songPath: string | null
+  /** The song file is there but carries no words yet. See `SongSubflow`. */
+  skeleton?: boolean
   children?: React.ReactNode
 }) {
   return (
@@ -117,7 +131,9 @@ function SongRow({
       <SongDoors
         songId={songId}
         title={title}
-        renderDoor={(door) => <DoorBody door={door} songId={songId} songPath={songPath} />}
+        renderDoor={(door) => (
+          <DoorBody door={door} songId={songId} songPath={songPath} skeleton={skeleton} />
+        )}
       />
     </li>
   )
@@ -138,6 +154,7 @@ function StepOne() {
               songId={entry.ref.id}
               title={entry.song?.title ?? entry.ref.id}
               songPath={resolveSongPath(entry.ref.path)}
+              skeleton={entry.song !== undefined && !hasLyricLines(entry.song)}
             >
               {!entry.song && (
                 <span className="setup-song-problem">{entry.error ?? 'Will not read.'}</span>
@@ -212,7 +229,11 @@ function StepThree() {
 function StepFour({ songs }: { songs: readonly SongReadiness[] }) {
   // The setlist's own rows, so a song's door hands Bombista the file this machine actually reads.
   const songPaths: Record<string, string> = {}
-  for (const entry of getLibraryEntries()) songPaths[entry.ref.id] = resolveSongPath(entry.ref.path)
+  const skeletons = new Set<string>()
+  for (const entry of getLibraryEntries()) {
+    songPaths[entry.ref.id] = resolveSongPath(entry.ref.path)
+    if (entry.song !== undefined && !hasLyricLines(entry.song)) skeletons.add(entry.ref.id)
+  }
   return (
     <div data-testid="setup-body-4">
       <p className="gig-hint">
@@ -230,6 +251,7 @@ function StepFour({ songs }: { songs: readonly SongReadiness[] }) {
               songId={song.songId}
               title={song.title}
               songPath={songPaths[song.songId] ?? null}
+              skeleton={skeletons.has(song.songId)}
             >
               {song.missing.length > 0 && (
                 <span className="setup-song-problem">{song.missing.join('; ')}</span>

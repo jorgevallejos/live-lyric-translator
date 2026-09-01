@@ -9,6 +9,7 @@ import {
   type LibraryEntry,
 } from './setlistStore'
 import { getSongsFolder, resolveSongPath } from './contentFolders'
+import { hasLyricLines } from './songState'
 import { chooseGigFolderPath, hasGigFolderAccess, canRunBombista, runBombista } from './platform'
 import { joinPath } from './paths'
 import { SongSubflow } from './SongSubflow'
@@ -113,7 +114,11 @@ function SongRow({ entry, expanded, onToggle }: { entry: LibraryEntry; expanded:
       )}
       {expanded && (
         <div className="setup-home-row-body">
-          <SongSubflow songId={entry.ref.id} songPath={resolveSongPath(entry.ref.path)} />
+          <SongSubflow
+            songId={entry.ref.id}
+            songPath={resolveSongPath(entry.ref.path)}
+            skeleton={entry.song !== undefined && !hasLyricLines(entry.song)}
+          />
         </div>
       )}
     </li>
@@ -121,15 +126,31 @@ function SongRow({ entry, expanded, onToggle }: { entry: LibraryEntry; expanded:
 }
 
 /**
- * **New song, and what it can honestly do today.**
+ * **New song, and it does not stop at the skeleton** (2026-09-01).
  *
  * `bombista new` writes a legal song file with no timing into the songs folder, under the
  * canonical name — **the user never picks a path**. That is the honest state for a song that is
- * not recorded yet, and the reference is taken into the library straight away, so **the flow ends
- * by the song appearing in the list**. There is no status, no badge and no completion label:
- * whether it can go into tonight's setlist is asked at the moment a surface draws it.
+ * not recorded yet, and the reference is taken into the library straight away, so the song is in
+ * the list from that moment. There is still no status, no badge and no completion label: whether
+ * it can go into tonight's setlist is asked at the moment a surface draws it.
+ *
+ * **Then it continues straight into the song door on the song it just made.** Before this, the
+ * button stopped at the skeleton and the door opened from a *row* — so a walk that starts from
+ * nothing, holding a lyrics file and a recording and no JSON, found no row to click and the one
+ * button on the screen asked for neither file. **Two doors, and the visible one was not the one
+ * that does the work.**
+ *
+ * **The two-step underneath survives, and it has to.** The skeleton is what supplies `artist`,
+ * `notes` and `title_translations`; a `.txt` carries none of the three and `bombista validate`
+ * requires all of them. What changed is that both halves are one flow with one button, not that
+ * the first half went away — `bombista new`'s no-audio branch is still exactly what runs, and a
+ * song can still be created and left.
+ *
+ * **The door it continues into is the door**, reached by opening the new song's row. Routing into
+ * it rather than reimplementing it is the point: a second implementation is how the two would
+ * drift back apart.
  */
-function NewSong({ onCreated }: { onCreated: () => void }) {
+function NewSong({ onCreated }: { onCreated: (songId: string) => void }) {
   const [open, setOpen] = useState(false)
   const [songId, setSongId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -157,7 +178,7 @@ function NewSong({ onCreated }: { onCreated: () => void }) {
       setBusy(false)
       setSongId('')
       setOpen(false)
-      onCreated()
+      onCreated(id)
     })()
   }
 
@@ -379,7 +400,14 @@ export function SetupHomeView() {
         <section className="setup-home-column" data-testid="setup-home-songs">
           <div className="setup-home-column-head">
             <h2 className="gig-section-title">Songs</h2>
-            <NewSong onCreated={reload} />
+            <NewSong
+              onCreated={(id) => {
+                reload()
+                // **Continuing, not announcing.** The song is in the list and its door is open,
+                // which is the next thing to do rather than a report that something happened.
+                setExpanded(id)
+              }}
+            />
           </div>
           {songs.length === 0 ? (
             <p className="gig-empty" data-testid="setup-home-no-songs">

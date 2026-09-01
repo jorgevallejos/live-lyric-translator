@@ -36,7 +36,7 @@
  */
 
 import type { LibrarySong } from './setlistStore'
-import { isLyricLine } from './songState'
+import { hasLyricLines } from './songState'
 import type { GigFile, SetupFingerprints } from './gigFile'
 import { resolveShapesForType, type VisualsFile } from './visualsFile'
 
@@ -241,10 +241,6 @@ function compareFingerprints(
   return moved
 }
 
-function lyricLineCount(song: LibrarySong): number {
-  return song.items.filter(isLyricLine).length
-}
-
 /** The types this song actually points content at, given the gig's shapes and its own reassignment. */
 function resolvedTypesFor(visuals: VisualsFile, songId: string): string[] {
   return PER_SONG_TYPES.filter((type) => resolveShapesForType(visuals, type, songId).length > 0)
@@ -272,7 +268,7 @@ function contentMissingFor(
   mediaResolution: Readonly<Record<string, MediaResolution>>
 ): string[] {
   const missing: string[] = []
-  if (types.includes('song-lyrics') && lyricLineCount(song) === 0) {
+  if (types.includes('song-lyrics') && !hasLyricLines(song)) {
     missing.push('has a lyrics shape but no lyric lines')
   }
   if (types.includes('song-video')) {
