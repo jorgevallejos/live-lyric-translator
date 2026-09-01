@@ -697,7 +697,9 @@ function StepConfirm({
           title={checksPass ? undefined : 'The checks above have to pass first.'}
           onClick={onConfirm}
         >
-          {confirmation === null ? 'Confirm setup' : 'Confirm setup again'}
+          {confirmation === null
+            ? 'Confirm setup and go to the control view'
+            : 'Confirm setup again and go to the control view'}
         </button>
         <button
           type="button"
@@ -712,7 +714,8 @@ function StepConfirm({
       <p className="gig-hint">
         Confirming records that these checks passed and what they passed against — the song files,
         the room, the displays. It never records a matrix, a layout or a pixel size, and it blocks
-        nothing. <strong>Review setup</strong> goes back to the first step with everything as it is;
+        nothing. It is also the way out of setup: the confirmation is written and the app lands on
+        the control view, which is where the gig is performed from. <strong>Review setup</strong> goes back to the first step with everything as it is;
         nothing is ever retyped, because nothing was typed, and re-entering re-checks the files.
       </p>
     </div>
@@ -803,6 +806,25 @@ export function GigView() {
     setSelected(1)
     setBusy(true)
     void refreshGigReadiness().finally(() => setBusy(false))
+  }
+
+  /**
+   * **Confirming is the exit from setup.** The walk is *confirm, and land back on the control
+   * view*; this used to write the confirmation and stay on step 4, leaving the walker to find
+   * `Back` for themselves — a navigation nobody names, at the one point where the flow is over.
+   *
+   * **It leaves only if the confirmation was actually recorded.** A failed write keeps you here,
+   * in front of the problem: navigating away would report success by arriving somewhere.
+   */
+  const confirmSetupAndLeave = () => {
+    setBusy(true)
+    void confirmSetup()
+      .then((next) => {
+        if (next.confirmation !== null && !next.confirmation.stale) {
+          window.location.hash = '#/'
+        }
+      })
+      .finally(() => setBusy(false))
   }
 
   /** A setlist edit is a write to `gig.json`, and it is what makes step 2 mean anything. */
@@ -959,7 +981,7 @@ export function GigView() {
             step={step.step}
             readiness={readiness}
             busy={busy}
-            onConfirm={run(confirmSetup)}
+            onConfirm={confirmSetupAndLeave}
             onReview={reviewSetup}
             onCreated={() => setSelected(1)}
             onSaveIdentity={(identity) => run(() => saveGigIdentity(identity))()}

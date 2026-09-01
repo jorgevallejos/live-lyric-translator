@@ -380,6 +380,21 @@ describe('two doors on a song, and only two', () => {
     }
   })
 
+  /**
+   * **One component, two scopes** — the loose end from merging the old steps 3 and 4. The gig half
+   * carries the room's door once; the song half's door only exists inside a song's row, and the
+   * per-song sentence about reusing a shape must not appear at gig level, where there is no song.
+   */
+  it('puts the room door on the visuals step once, with no per-song prose in it', async () => {
+    await openVisuals()
+    expect(screen.getAllByTestId('gig-visuals-door')).toHaveLength(1)
+    expect(screen.queryByTestId('door-body-visuals')).toBeNull()
+    const gigDoor = screen.getByTestId('gig-visuals-door')
+    expect(gigDoor.textContent).toMatch(/One setup serves every song/)
+    expect(gigDoor.textContent).not.toMatch(/If no shape fits/)
+    expect(gigDoor.textContent).not.toMatch(/step 3/i)
+  })
+
   it('sends the song door to Bombista and the visuals door to Muralista', async () => {
     await openVisuals()
     await act(async () => {
@@ -583,6 +598,37 @@ describe('confirming setup', () => {
     expect(text).toMatch(/lapsed/)
     expect(text).toMatch(/displays have changed/)
     expect(text).toMatch(/re-mapped/)
+  })
+
+  /**
+   * Journey step 10: *select it, confirm, and land back on the control view.* The confirmation is
+   * the exit; before this it wrote the confirmation and stayed, and reaching the stage was a
+   * second, unnamed click on `Back`.
+   */
+  it('confirming lands back on the control view', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-confirm')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('setup-confirm').textContent).toMatch(/control view/)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-confirm'))
+    })
+    await waitFor(() => expect(window.location.hash).toBe('#/'), WAIT)
+  })
+
+  /** A write that failed keeps you in front of the problem: arriving somewhere would report success. */
+  it('stays on the confirmation step when the confirmation could not be written', async () => {
+    readyGig()
+    await renderSetup()
+    await waitFor(() => expect(screen.getByTestId('setup-confirm')).toBeTruthy(), WAIT)
+    writeGigFile.mockResolvedValue({ ok: false, error: 'Read-only volume' })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-confirm'))
+    })
+    await waitFor(() => expect(writeGigFile).toHaveBeenCalled(), WAIT)
+    expect(window.location.hash).not.toBe('#/')
+    // Still on Setup, where the failure is reported — the flow reopens on the step that broke.
+    expect(screen.getByTestId('setup-step-page')).toBeTruthy()
   })
 
   it('review setup goes back to the first step and re-reads the folder', async () => {
