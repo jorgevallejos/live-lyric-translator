@@ -1,16 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
-import { chooseGigFolder, closeGig, confirmSetup, refreshGigReadiness } from './gigSession'
+import {
+  chooseGigFolder,
+  closeGig,
+  confirmSetup,
+  createGig,
+  publishSetlistToGig,
+  refreshGigReadiness,
+  saveGigIdentity,
+} from './gigSession'
 import { useGigReadiness } from './useGigReadiness'
 import { hasGigFolderAccess } from './platform'
 import { useBroadcastVisuals } from './visualsBroadcast'
 import { shapeTypeOf, shapeIsVisible, type VisualShape } from './visualsFile'
 import { currentStep, flowSteps, type FlowStep } from './setupFlow'
-import { SongDoors, SONG_INPUT_RULE, type SongDoor } from './SongDoors'
+import { SongDoors, type SongDoor } from './SongDoors'
+import { GatedAction } from './GatedAction'
 import { SongSubflow } from './SongSubflow'
 import { MuralistaDoor } from './MuralistaDoor'
-import { resolveSongPath } from './contentFolders'
+import { getGigsFolder, resolveSongPath } from './contentFolders'
 import type { GigReadiness, SongReadiness, StepStatus } from './gigReadiness'
-import { getLibraryEntries } from './setlistStore'
+import {
+  addSongToSetlist,
+  getActiveSetlistId,
+  getLibraryEntries,
+  getOrderedEntriesForActiveSetlist,
+  moveSongInSetlist,
+  removeSongFromSetlist,
+} from './setlistStore'
+import { hasLyricLines } from './songState'
 
 /**
  * **The setup flow** — the guided path through the six ordered steps, and the third and fourth
@@ -84,7 +101,17 @@ function StepRow({
  * handed a file path and its exit code is read, Muralista writes `visuals.json` and Pregonero reads
  * it on the next open. **The file is the only channel.**
  */
-function DoorBody({ door, songId, songPath }: { door: SongDoor; songId: string; songPath: string | null }) {
+function DoorBody({
+  door,
+  songId,
+  songPath,
+  skeleton,
+}: {
+  door: SongDoor
+  songId: string
+  songPath: string | null
+  skeleton: boolean
+}) {
   if (door === 'song') {
     return (
       <div data-testid="door-body-song">
@@ -92,7 +119,7 @@ function DoorBody({ door, songId, songPath }: { door: SongDoor; songId: string; 
           Everything inside a song file is <strong>Bombista’s</strong> — the words, the timeline, the
           tempo, the media it names. Pregonero reads them and writes none of them.
         </p>
-        <SongSubflow songId={songId} songPath={songPath} />
+        <SongSubflow songId={songId} songPath={songPath} skeleton={skeleton} />
       </div>
     )
   }
@@ -103,11 +130,14 @@ function SongRow({
   songId,
   title,
   songPath,
+  skeleton = false,
   children,
 }: {
   songId: string
   title: string
   songPath: string | null
+  /** The song file is there but carries no words yet. See `SongSubflow`. */
+  skeleton?: boolean
   children?: React.ReactNode
 }) {
   return (
@@ -117,67 +147,330 @@ function SongRow({
       <SongDoors
         songId={songId}
         title={title}
-        renderDoor={(door) => <DoorBody door={door} songId={songId} songPath={songPath} />}
+        renderDoor={(door) => (
+          <DoorBody door={door} songId={songId} songPath={songPath} skeleton={skeleton} />
+        )}
       />
     </li>
   )
 }
 
-function StepOne() {
-  const entries = getLibraryEntries()
+/**
+ * **Step 1: the gig, and there is no folder question.**
+ *
+ * `New gig` used to open a directory picker, so the first thing asked of somebody making their
+ * first gig was where on their disk it should live — a filesystem decision, before the gig had a
+ * venue or a date. **First run records the gigs root once and the app makes the folder inside it**,
+ * named by what is typed here. Picking a folder survives as *Import*, one act further away,
+ * because a gig that already exists somewhere else is a different thing from a gig being made.
+ *
+ * **This is the only step that writes something a person typed.** Every other step is derived from
+ * files that another tool owns, which is why nothing here is ever "prefilled" — it is read.
+ */
+function NewGigForm({ busy, onCreated }: { busy: boolean; onCreated: () => void }) {
+  const [name, setName] = useState('')
+  const [venue, setVenue] = useState('')
+  const [city, setCity] = useState('')
+  const [date, setDate] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+
+  const gigsFolder = getGigsFolder()
+  const trimmed = name.trim()
+  const legal = trimmed.length > 0 && !trimmed.includes('/') && !trimmed.includes('\\')
+
+  const blockedBy =
+    gigsFolder === null
+      ? 'There is no gigs folder yet, so there is nowhere for a gig to be created. It is asked for once, on first run.'
+      : !legal
+        ? 'Give it a name first. It becomes the folder’s name and the gig’s id.'
+        : null
+
   return (
     <div data-testid="setup-body-1">
-      <p className="gig-hint">{SONG_INPUT_RULE}</p>
-      {entries.length === 0 ? (
-        <p className="gig-empty">No songs in the library yet.</p>
-      ) : (
-        <ul className="setup-songs">
-          {entries.map((entry) => (
-            <SongRow
-              key={entry.ref.id}
-              songId={entry.ref.id}
-              title={entry.song?.title ?? entry.ref.id}
-              songPath={resolveSongPath(entry.ref.path)}
-            >
-              {!entry.song && (
-                <span className="setup-song-problem">{entry.error ?? 'Will not read.'}</span>
-              )}
-            </SongRow>
-          ))}
-        </ul>
-      )}
+      <div className="setup-home-new" data-testid="setup-new-gig-form">
+        <label className="setup-home-field">
+          <span>Name it</span>
+          <input
+            type="text"
+            value={name}
+            placeholder="2026-09-12-bar-eduard"
+            data-testid="setup-gig-name"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label className="setup-home-field">
+          <span>Venue</span>
+          <input
+            type="text"
+            value={venue}
+            data-testid="setup-gig-venue-input"
+            onChange={(e) => setVenue(e.target.value)}
+          />
+        </label>
+        <label className="setup-home-field">
+          <span>City</span>
+          <input
+            type="text"
+            value={city}
+            data-testid="setup-gig-city-input"
+            onChange={(e) => setCity(e.target.value)}
+          />
+        </label>
+        <label className="setup-home-field">
+          <span>Date</span>
+          <input
+            type="date"
+            value={date}
+            data-testid="setup-gig-date-input"
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </label>
+        <p className="gig-hint" data-testid="setup-gig-lands">
+          It lands as{' '}
+          <code>{gigsFolder === null ? '<gigs folder>' : gigsFolder}/{legal ? trimmed : '<name>'}</code>{' '}
+          — you never pick a path. The name is the gig’s id, and it is the one thing about a gig
+          that is never rewritten: <code>visuals.json</code> is checked against it.
+        </p>
+        <div className="gig-actions">
+          <GatedAction
+            site="setup-create-gig"
+            label="Create the gig"
+            blockedBy={blockedBy}
+            busy={busy || working}
+            onClick={() => {
+              setWorking(true)
+              setProblem(null)
+              void createGig(trimmed, { date, venue: { name: venue, city } })
+                .then((result) => {
+                  if (result.ok) onCreated()
+                  else setProblem(result.error)
+                })
+                .finally(() => setWorking(false))
+            }}
+          />
+        </div>
+        {problem !== null && (
+          <p className="setup-song-problem" data-testid="setup-create-gig-problem">
+            {problem}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
 
-function StepTwo({ readiness }: { readiness: GigReadiness }) {
+/** The gig's date and venue once it exists. Its name is its folder's, and is not editable here. */
+function GigIdentityForm({
+  readiness,
+  busy,
+  onSave,
+}: {
+  readiness: GigReadiness
+  busy: boolean
+  onSave: (identity: { date: string; venue: { name: string; city: string } }) => void
+}) {
+  const [venue, setVenue] = useState(readiness.venue?.name ?? '')
+  const [city, setCity] = useState(readiness.venue?.city ?? '')
+  const [date, setDate] = useState(readiness.date ?? '')
+
   return (
-    <div data-testid="setup-body-2">
+    <div data-testid="setup-body-1">
       <dl className="setup-facts">
-        <dt>Date</dt>
-        <dd data-testid="setup-gig-date">{readiness.date ?? 'Not set'}</dd>
-        <dt>Venue</dt>
-        <dd data-testid="setup-gig-venue">{readiness.venue?.name ?? 'Not set'}</dd>
-        <dt>Setlist</dt>
-        <dd data-testid="setup-gig-setlist">
-          {readiness.songs.length === 0
-            ? 'Empty'
-            : readiness.songs.map((song) => song.title).join(', ')}
-        </dd>
+        <dt>Name</dt>
+        <dd data-testid="setup-gig-name-fixed">{readiness.gigId ?? 'Unnamed gig'}</dd>
       </dl>
       <p className="gig-hint">
+        The name is the folder’s name, and a gig is never renamed from in here:{' '}
+        <code>visuals.json</code> records which gig it maps and is checked against this.
+      </p>
+      <label className="setup-home-field">
+        <span>Venue</span>
+        <input
+          type="text"
+          value={venue}
+          data-testid="setup-gig-venue-input"
+          onChange={(e) => setVenue(e.target.value)}
+        />
+      </label>
+      <label className="setup-home-field">
+        <span>City</span>
+        <input
+          type="text"
+          value={city}
+          data-testid="setup-gig-city-input"
+          onChange={(e) => setCity(e.target.value)}
+        />
+      </label>
+      <label className="setup-home-field">
+        <span>Date</span>
+        <input
+          type="date"
+          value={date}
+          data-testid="setup-gig-date-input"
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </label>
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn ctrl-setup-link"
+          data-testid="setup-save-gig"
+          disabled={busy}
+          onClick={() => onSave({ date, venue: { name: venue, city } })}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * **Step 2: the setlist, as two tables.** This gig's running order on the left, the rest of the
+ * library on the right.
+ *
+ * **A song that Bombista refuses stays here, named, and does not hold the flow.** That is the whole
+ * point of this round: the six-step version pushed every `bombista:` finding into this step's
+ * blockers, so a setlist holding `libertad` greyed the forward button on a screen that cannot
+ * repair a song. The finding is reported here and the repair is one screen away, in the song's own
+ * door on Setup home.
+ */
+function StepSetlist({
+  readiness,
+  busy,
+  onChange,
+}: {
+  readiness: GigReadiness
+  busy: boolean
+  onChange: () => void
+}) {
+  const setlistId = getActiveSetlistId()
+  const inSetlist = getOrderedEntriesForActiveSetlist()
+  const chosen = new Set(inSetlist.map((entry) => entry.ref.id))
+  const library = getLibraryEntries().filter((entry) => !chosen.has(entry.ref.id))
+  const noteFor = (songId: string) =>
+    readiness.songs.find((song) => song.songId === songId)?.notes ?? []
+
+  return (
+    <div className="setup-setlist" data-testid="setup-body-2">
+      <div className="setup-setlist-tables">
+        <section className="setup-setlist-table" data-testid="setup-setlist-chosen">
+          <h3 className="gig-section-title">This gig, in order</h3>
+          {inSetlist.length === 0 ? (
+            <p className="gig-empty" data-testid="setup-setlist-empty">
+              Nothing in it yet. Add a song from the library beside it.
+            </p>
+          ) : (
+            <ol className="setup-setlist-rows">
+              {inSetlist.map((entry, index) => (
+                <li key={entry.ref.id} data-testid={`setup-setlist-row-${entry.ref.id}`}>
+                  <span className="setup-song-title">{entry.song?.title ?? entry.ref.id}</span>
+                  <div className="setup-home-row-actions">
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-setup-link"
+                      disabled={busy || index === 0}
+                      aria-label={`Move ${entry.song?.title ?? entry.ref.id} earlier`}
+                      onClick={() => {
+                        moveSongInSetlist(setlistId, entry.ref.id, 'up')
+                        onChange()
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-setup-link"
+                      disabled={busy || index === inSetlist.length - 1}
+                      aria-label={`Move ${entry.song?.title ?? entry.ref.id} later`}
+                      onClick={() => {
+                        moveSongInSetlist(setlistId, entry.ref.id, 'down')
+                        onChange()
+                      }}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="ctrl-btn ctrl-setup-link"
+                      disabled={busy}
+                      data-testid={`setup-setlist-remove-${entry.ref.id}`}
+                      onClick={() => {
+                        removeSongFromSetlist(setlistId, entry.ref.id)
+                        onChange()
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  {!entry.song && (
+                    <span className="setup-song-problem">{entry.error ?? 'Will not read.'}</span>
+                  )}
+                  {noteFor(entry.ref.id).length > 0 && (
+                    <ul className="gig-step-notes" data-testid={`setup-setlist-note-${entry.ref.id}`}>
+                      {noteFor(entry.ref.id).map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="setup-setlist-table" data-testid="setup-setlist-library">
+          <h3 className="gig-section-title">The library</h3>
+          {library.length === 0 ? (
+            <p className="gig-empty" data-testid="setup-setlist-library-empty">
+              {chosen.size === 0
+                ? 'No songs yet. Songs are made on the Setup screen, where they are gig-independent and last for years.'
+                : 'Every song in the library is in this gig.'}
+            </p>
+          ) : (
+            <ul className="setup-setlist-rows">
+              {library.map((entry) => (
+                <li key={entry.ref.id} data-testid={`setup-library-row-${entry.ref.id}`}>
+                  <span className="setup-song-title">{entry.song?.title ?? entry.ref.id}</span>
+                  <button
+                    type="button"
+                    className="ctrl-btn ctrl-setup-link"
+                    disabled={busy}
+                    data-testid={`setup-setlist-add-${entry.ref.id}`}
+                    onClick={() => {
+                      addSongToSetlist(setlistId, entry.ref.id)
+                      onChange()
+                    }}
+                  >
+                    Add
+                  </button>
+                  {!entry.song && (
+                    <span className="setup-song-problem">{entry.error ?? 'Will not read.'}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <p className="gig-hint">
         The running order lives in <code>gig.json</code> and is what this app performs. Changing it
-        here writes the file; changing the file changes what is performed.
+        here writes the file; changing the file changes what is performed.{' '}
+        <strong>A song Bombista has a finding about stays in the list and is named</strong> — it is
+        fixed in its own door, on the Setup screen, not here.
       </p>
       <div className="gig-actions">
         <button
           type="button"
           className="ctrl-btn ctrl-setup-link"
+          data-testid="setup-manage-setlists"
           onClick={() => {
             window.location.hash = '#/songs/manage-setlists'
           }}
         >
-          Edit the setlist
+          Manage setlists
         </button>
       </div>
     </div>
@@ -188,56 +481,79 @@ function shapeLabel(shape: VisualShape): string {
   return `${shape.name ?? shape.id} — ${shapeTypeOf(shape)}`
 }
 
-function StepThree() {
+/**
+ * **Step 3: the visuals, in two parts — and one of them is optional.**
+ *
+ * The gig's own shapes are required: every song needs a lyrics shape unless it names its own. The
+ * songs that deviate are not, and **the common case is a song that is fully set up by doing nothing
+ * at all**. That split used to be two steps with the second listed in `OPTIONAL_STEPS`; it is one
+ * step now, and the optionality is carried by the delta — required work in `missing`, the rest in
+ * `notes` — so nothing on this screen has to know which half is which.
+ */
+function StepVisuals({ songs }: { songs: readonly SongReadiness[] }) {
   const visuals = useBroadcastVisuals()
   const shapes = (visuals?.shapes ?? []).filter(shapeIsVisible)
-  return (
-    <div data-testid="setup-body-3">
-      {shapes.length === 0 ? (
-        <p className="gig-empty" data-testid="setup-no-shapes">
-          No room mapped yet. Shapes and their types are authored in Muralista, at the wall, which is
-          the only place those decisions can honestly be made.
-        </p>
-      ) : (
-        <ul className="setup-shapes" data-testid="setup-shapes">
-          {shapes.map((shape) => (
-            <li key={shape.id}>{shapeLabel(shape)}</li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
-function StepFour({ songs }: { songs: readonly SongReadiness[] }) {
   // The setlist's own rows, so a song's door hands Bombista the file this machine actually reads.
   const songPaths: Record<string, string> = {}
-  for (const entry of getLibraryEntries()) songPaths[entry.ref.id] = resolveSongPath(entry.ref.path)
+  const skeletons = new Set<string>()
+  for (const entry of getLibraryEntries()) {
+    songPaths[entry.ref.id] = resolveSongPath(entry.ref.path)
+    if (entry.song !== undefined && !hasLyricLines(entry.song)) skeletons.add(entry.ref.id)
+  }
+  const deviating = songs.filter((song) => !song.ready)
+
   return (
-    <div data-testid="setup-body-4">
-      <p className="gig-hint">
-        Most songs need nothing here. A song with no visual setup of its own uses the gig-level
-        shapes, which already carry the lyrics and intro every song needs — so the common case is a
-        song that is fully set up by doing nothing at all.
-      </p>
-      {songs.length === 0 ? (
-        <p className="gig-empty">This gig has no setlist yet.</p>
-      ) : (
-        <ul className="setup-songs">
-          {songs.map((song) => (
-            <SongRow
-              key={song.songId}
-              songId={song.songId}
-              title={song.title}
-              songPath={songPaths[song.songId] ?? null}
-            >
-              {song.missing.length > 0 && (
-                <span className="setup-song-problem">{song.missing.join('; ')}</span>
-              )}
-            </SongRow>
-          ))}
-        </ul>
-      )}
+    <div data-testid="setup-body-3">
+      <section className="setup-visuals-half">
+        <h3 className="gig-section-title">The gig’s shapes</h3>
+        {shapes.length === 0 ? (
+          <p className="gig-empty" data-testid="setup-no-shapes">
+            No room mapped yet. Shapes and their types are authored in Muralista, at the wall, which
+            is the only place those decisions can honestly be made.
+          </p>
+        ) : (
+          <ul className="setup-shapes" data-testid="setup-shapes">
+            {shapes.map((shape) => (
+              <li key={shape.id}>{shapeLabel(shape)}</li>
+            ))}
+          </ul>
+        )}
+        <MuralistaDoor scope="gig" />
+      </section>
+
+      <section className="setup-visuals-half" data-testid="setup-song-visuals">
+        <h3 className="gig-section-title">Songs that deviate</h3>
+        <p className="gig-hint">
+          <strong>Most songs need nothing here.</strong> A song with no visual setup of its own uses
+          the gig-level shapes, which already carry the lyrics and intro every song needs — so the
+          common case is a song that is fully set up by doing nothing at all, and this half never
+          holds the flow.
+        </p>
+        {songs.length === 0 ? (
+          <p className="gig-empty">This gig has no setlist yet.</p>
+        ) : deviating.length === 0 ? (
+          <p className="gig-hint" data-testid="setup-no-deviating">
+            No song in this setlist deviates. There is nothing to do here.
+          </p>
+        ) : (
+          <ul className="setup-songs">
+            {deviating.map((song) => (
+              <SongRow
+                key={song.songId}
+                songId={song.songId}
+                title={song.title}
+                songPath={songPaths[song.songId] ?? null}
+                skeleton={skeletons.has(song.songId)}
+              >
+                {song.missing.length > 0 && (
+                  <span className="setup-song-problem">{song.missing.join('; ')}</span>
+                )}
+              </SongRow>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }
@@ -273,19 +589,8 @@ function RigChecklist({ testId }: { testId: string }) {
   )
 }
 
-function StepFive() {
-  return (
-    <div data-testid="setup-body-5">
-      <p className="gig-hint">
-        This step reconfirms; it does not discover. Anything new here was missed by an earlier gate.
-      </p>
-      <RigChecklist testId="setup-rig" />
-    </div>
-  )
-}
-
 /**
- * **Step 6: setup confirmed — a milestone, not a lock.**
+ * **Step 4: setup confirmed — a milestone, not a lock.**
  *
  * It blocks nothing and freezes nothing. Arming an unconfirmed gig warns; it never refuses, and the
  * hard gate stays per-song completeness, which is a different thing.
@@ -296,25 +601,51 @@ function StepFive() {
  * **It records that the checks passed — never a warp matrix, a layout or a pixel size.** Save the
  * recipe, not the cake: setting up at the venue with the projector attached does not change that,
  * because the window can still move and `docs/warp-contract.md` is binding regardless.
+ *
+ * **"Readiness at the venue" is not a step any more, it is this step's instruction.** As a step of
+ * its own it discovered nothing and owned no work — everything it re-checked had already been
+ * checked by the step that could act on it. What was real about it is here: you are standing in the
+ * room, the rig is in front of you, and the projection wants recalibrating against the actual wall
+ * before you say yes.
  */
-function StepSix({
+function StepConfirm({
   readiness,
   onConfirm,
   onReview,
+  onBackToVisuals,
   busy,
 }: {
   readiness: GigReadiness
   onConfirm: () => void
   onReview: () => void
+  onBackToVisuals: () => void
   busy: boolean
 }) {
   const blocked = readiness.songs.filter((song) => !song.ready)
-  const earlier = readiness.steps.filter((s) => s.step < 6)
+  const earlier = readiness.steps.filter((s) => s.step < 4)
   const checksPass = earlier.every((s) => s.status === 'complete')
   const confirmation = readiness.confirmation
 
   return (
-    <div data-testid="setup-body-6">
+    <div data-testid="setup-body-4">
+      <p className="gig-hint" data-testid="setup-recalibrate">
+        <strong>Do this standing in the room.</strong> Put the projection on the wall and look at
+        the edges: if the image has moved off the surfaces you mapped, go back and drag the corners
+        until it sits on them again. Everything below was checked against the files; only you can
+        check it against the wall.
+      </p>
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn ctrl-setup-link"
+          data-testid="setup-back-to-visuals"
+          disabled={busy}
+          onClick={onBackToVisuals}
+        >
+          Back to the visuals
+        </button>
+      </div>
+
       <section className="setup-evidence" data-testid="setup-evidence">
         <h3 className="gig-section-title">What is true right now</h3>
         <ul>
@@ -333,7 +664,7 @@ function StepSix({
         </p>
       </section>
 
-      <RigChecklist testId="setup-rig-6" />
+      <RigChecklist testId="setup-rig" />
 
       {confirmation === null ? (
         <p className="gig-hint" data-testid="setup-confirmation-state">
@@ -381,8 +712,8 @@ function StepSix({
       <p className="gig-hint">
         Confirming records that these checks passed and what they passed against — the song files,
         the room, the displays. It never records a matrix, a layout or a pixel size, and it blocks
-        nothing. <strong>Review setup</strong> goes back to step 2 with everything as it is; nothing
-        is ever retyped, and re-entering re-checks the files.
+        nothing. <strong>Review setup</strong> goes back to the first step with everything as it is;
+        nothing is ever retyped, because nothing was typed, and re-entering re-checks the files.
       </p>
     </div>
   )
@@ -393,20 +724,48 @@ function StepBody({
   readiness,
   onConfirm,
   onReview,
+  onCreated,
+  onSaveIdentity,
+  onSetlistChanged,
+  onBackToVisuals,
   busy,
 }: {
   step: number
   readiness: GigReadiness
   onConfirm: () => void
   onReview: () => void
+  onCreated: () => void
+  onSaveIdentity: (identity: { date: string; venue: { name: string; city: string } }) => void
+  onSetlistChanged: () => void
+  onBackToVisuals: () => void
   busy: boolean
 }) {
-  if (step === 1) return <StepOne />
-  if (step === 2) return <StepTwo readiness={readiness} />
-  if (step === 3) return <StepThree />
-  if (step === 4) return <StepFour songs={readiness.songs} />
-  if (step === 5) return <StepFive />
-  return <StepSix readiness={readiness} onConfirm={onConfirm} onReview={onReview} busy={busy} />
+  if (step === 1) {
+    // **With no gig open, step 1 is where one is made.** The flow does not need a gig to start;
+    // starting it is what makes one.
+    return readiness.folderPath === null ? (
+      <NewGigForm busy={busy} onCreated={onCreated} />
+    ) : (
+      <GigIdentityForm
+        // Remounted per gig, so switching gigs re-reads rather than keeping the last gig's fields.
+        key={readiness.gigId ?? readiness.folderPath}
+        readiness={readiness}
+        busy={busy}
+        onSave={onSaveIdentity}
+      />
+    )
+  }
+  if (step === 2) return <StepSetlist readiness={readiness} busy={busy} onChange={onSetlistChanged} />
+  if (step === 3) return <StepVisuals songs={readiness.songs} />
+  return (
+    <StepConfirm
+      readiness={readiness}
+      onConfirm={onConfirm}
+      onReview={onReview}
+      onBackToVisuals={onBackToVisuals}
+      busy={busy}
+    />
+  )
 }
 
 export function GigView() {
@@ -432,17 +791,24 @@ export function GigView() {
   }
 
   /**
-   * **Review setup returns to step 2, not step 1.** Song preparation is gig-independent, so
-   * re-entering a gig's setup starts at the gig.
+   * **Review setup returns to step 1 of four.** It used to return to step 2 of six, to skip the
+   * library step in front of it; there is no library step in front of it now, and the first step
+   * is the gig itself.
    *
-   * Nothing is retyped, because nothing was typed into the flow in the first place: every step is
-   * derived from the files, so "prefilled" is what it always is. **Re-entering re-checks**, which
-   * is the same on-open re-read the rest of the app does — no watcher, and no boundary to police.
+   * Nothing is retyped. The date and the venue are read out of `gig.json`, and every other step is
+   * derived from files, so "prefilled" is what this flow always is. **Re-entering re-checks**,
+   * which is the same on-open re-read the rest of the app does — no watcher, no boundary to police.
    */
   const reviewSetup = () => {
-    setSelected(2)
+    setSelected(1)
     setBusy(true)
     void refreshGigReadiness().finally(() => setBusy(false))
+  }
+
+  /** A setlist edit is a write to `gig.json`, and it is what makes step 2 mean anything. */
+  const setlistChanged = () => {
+    setBusy(true)
+    void publishSetlistToGig().finally(() => setBusy(false))
   }
 
   const canReachFolder = hasGigFolderAccess()
@@ -476,9 +842,9 @@ export function GigView() {
         <section className="gig-identity">
           {readiness.folderPath === null ? (
             <p className="gig-empty" data-testid="gig-none">
-              No gig folder yet. Choose the folder that holds this gig — Pregonero writes{' '}
-              <code>gig.json</code> into it, and Muralista writes <code>visuals.json</code> beside
-              it.
+              No gig open. Name one below and the app makes its folder inside your gigs folder —
+              Pregonero writes <code>gig.json</code> into it, and Muralista writes{' '}
+              <code>visuals.json</code> beside it.
             </p>
           ) : (
             <>
@@ -491,14 +857,18 @@ export function GigView() {
             </>
           )}
           <div className="gig-actions">
+            {/* **Picking a folder is the import path now, and nothing else.** A gig made here is
+                named, not placed; this is for one that already exists somewhere else — a stick, a
+                shared drive — which is the portability case the two-file split protects. */}
             {canReachFolder ? (
               <button
                 type="button"
                 className="ctrl-btn ctrl-setup-link"
+                data-testid="gig-import"
                 disabled={busy}
                 onClick={run(chooseGigFolder)}
               >
-                {readiness.folderPath === null ? 'Choose gig folder' : 'Choose another folder'}
+                Import a gig from elsewhere…
               </button>
             ) : (
               <p className="gig-empty">A gig folder can only be opened from the desktop app.</p>
@@ -591,6 +961,10 @@ export function GigView() {
             busy={busy}
             onConfirm={run(confirmSetup)}
             onReview={reviewSetup}
+            onCreated={() => setSelected(1)}
+            onSaveIdentity={(identity) => run(() => saveGigIdentity(identity))()}
+            onSetlistChanged={setlistChanged}
+            onBackToVisuals={() => setSelected(3)}
           />
 
           {step.escapeHatch !== null && (

@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** One read of the gig folder: gig.json and the file its visuals pointer names. */
   readGigFolder: (folderPath, visualsPointer) =>
     ipcRenderer.invoke('gig:read', folderPath, visualsPointer),
+  /** Makes a gig's folder under the gigs root. A name, never a path. */
+  createGigFolder: (gigsRoot, name) => ipcRenderer.invoke('gig:createFolder', gigsRoot, name),
   /** Writes gig.json. Pregonero is its only writer. */
   writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
   /** Writes debrief.md into the gig folder. Pregonero writes it, then Jorge edits it. */

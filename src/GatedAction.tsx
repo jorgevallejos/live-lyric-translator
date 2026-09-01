@@ -46,10 +46,14 @@ import type { ReactNode } from 'react'
 export const GATED_SITES = [
   /** Setup home → New song → Create, when no songs folder is set or `bombista` cannot be run. */
   'setup-new-song-create',
-  /** Setup home → New gig, when there is no Electron to open a folder picker. */
+  /** Setup home → New gig, when there is no Electron and so no gig can be made at all. */
   'setup-new-gig',
-  /** The visuals door → Open Muralista, when tool hosting is unavailable. */
+  /** The gig flow, step 1 → Create the gig, before there is a gigs folder or a legal name. */
+  'setup-create-gig',
+  /** A song's visuals door → Open Muralista, when tool hosting is unavailable. */
   'muralista-open',
+  /** The gig's own visuals half → Open Muralista, same door and same block, different question. */
+  'muralista-open-gig',
   /** The song door → Align, before both the words and the recording are chosen. */
   'subflow-align',
   /** The song door → Review and tempo, before there is an alignment to review. */

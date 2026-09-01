@@ -73,6 +73,7 @@ import { SetupHomeView } from './SetupHomeView'
 import { FirstRunView } from './FirstRunView'
 import { hasRequiredFolders } from './contentFolders'
 import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
+import { LAST_STEP } from './setupFlow'
 import {
   getProjectionStatusText,
   getStoredScreenSize,
@@ -210,7 +211,7 @@ function gigSummaryText(readiness: GigReadiness): string {
   const blocked = readiness.songs.filter((song) => !song.ready).length
   // The confirmation is a milestone, not a lock: unconfirmed and lapsed both read as a warning
   // here, and neither of them stops anything. The hard gate is the line above.
-  const pending = readiness.steps.filter((step) => step.status !== 'complete' && step.step < 6)
+  const pending = readiness.steps.filter((step) => step.status !== 'complete' && step.step < LAST_STEP)
   if (blocked > 0) {
     return `${blocked} song${blocked === 1 ? '' : 's'} cannot be armed.`
   }

@@ -19,37 +19,60 @@ import { GatedAction } from './GatedAction'
  * absent the button is absent**, and you open Muralista in a browser as you do today: it is fully
  * usable without Pregonero by requirement, and that is what makes the setup flow's strictness
  * affordable.
+ *
+ * **Two scopes, one door** (2026-09-01). Merging gig visuals and song visuals into one step put
+ * both on the same screen, and they are the same tool: Muralista maps the room and assigns the
+ * shapes. What differs is what you came to it for — *map this room* against *this one song sits
+ * somewhere else* — so the scope changes the sentence above the button and the ids beside it, and
+ * nothing else. Rendering the identical door twice on one screen was the alternative, and two
+ * controls with the same name doing the same thing is how a screen stops being readable.
  */
 
 export const MURALISTA_KEY = 'muralista'
 export const MURALISTA_PAGE = 'mapper.html'
 
-export function MuralistaDoor() {
+/** Which question brought you to Muralista. It changes the words and the ids, and nothing else. */
+export type MuralistaScope = 'gig' | 'song'
+
+export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {}) {
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const hosted = canHostTools()
+  const gig = scope === 'gig'
+  const testId = gig ? 'gig-visuals-door' : 'door-body-visuals'
+  const site = gig ? 'muralista-open-gig' : 'muralista-open'
 
   return (
-    <div data-testid="door-body-visuals">
-      <p className="gig-hint">
-        Where a song’s content lands on the wall is <strong>Muralista’s</strong>. A song reassigns —
-        it picks which existing shape of a kind it uses — and never holds its own geometry, because
-        re-mapping the room would leave it silently on the old position.
-      </p>
-      <p className="gig-hint">
-        If no shape fits, go back to step 3 and add one at gig level. Shapes stay at gig level; this
-        extends the set, it never gives a song a room of its own.
-      </p>
+    <div data-testid={testId}>
+      {gig ? (
+        <p className="gig-hint">
+          The room is <strong>Muralista’s</strong>: the shapes on the wall and the type of each,
+          mapped standing in front of it, which is the only place those decisions can honestly be
+          made. One setup serves every song in the gig.
+        </p>
+      ) : (
+        <>
+          <p className="gig-hint">
+            Where a song’s content lands on the wall is <strong>Muralista’s</strong>. A song
+            reassigns — it picks which existing shape of a kind it uses — and never holds its own
+            geometry, because re-mapping the room would leave it silently on the old position.
+          </p>
+          <p className="gig-hint">
+            If no shape fits, add one at gig level in the half above. Shapes stay at gig level; this
+            extends the set, it never gives a song a room of its own.
+          </p>
+        </>
+      )}
 
       {!hosted ? (
         // **Disabled, not absent.** The escape hatch below is the real answer here — Muralista is
         // fully usable on its own by requirement — but a screen with no control on it reads as a
         // wall rather than as a fork in the road. See `GatedAction`.
-        <div data-testid="muralista-unhosted">
+        <div data-testid={gig ? 'muralista-unhosted-gig' : 'muralista-unhosted'}>
           <GatedAction
-            site="muralista-open"
+            site={site}
             label="Open Muralista"
             blockedBy="Muralista can only be hosted from the desktop app, not from a browser tab."
             onClick={() => undefined}
@@ -60,12 +83,12 @@ export function MuralistaDoor() {
           </p>
         </div>
       ) : (
-        <div data-testid="muralista-hosted">
+        <div data-testid={gig ? 'muralista-hosted-gig' : 'muralista-hosted'}>
           <div className="gig-actions">
             <button
               type="button"
               className="ctrl-btn ctrl-setup-link"
-              data-testid="muralista-open"
+              data-testid={site}
               disabled={busy}
               onClick={() => {
                 setBusy(true)
@@ -87,7 +110,7 @@ export function MuralistaDoor() {
               <button
                 type="button"
                 className="ctrl-btn ctrl-setup-link"
-                data-testid="muralista-done"
+                data-testid={gig ? 'muralista-done-gig' : 'muralista-done'}
                 disabled={busy}
                 onClick={() => {
                   setBusy(true)
@@ -104,7 +127,7 @@ export function MuralistaDoor() {
             )}
           </div>
           {error !== null && (
-            <p className="setup-song-problem" data-testid="muralista-error">
+            <p className="setup-song-problem" data-testid={gig ? 'muralista-error-gig' : 'muralista-error'}>
               {error}
             </p>
           )}

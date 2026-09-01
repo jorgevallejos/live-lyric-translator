@@ -186,7 +186,11 @@ describe('the report when a gig is opened', () => {
   it('offers to choose a folder when there is no gig', async () => {
     await renderAt('#/gig')
     expect(screen.getByTestId('gig-none')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Choose gig folder' })).toBeTruthy()
+    // **No folder question.** A gig is named here and the app makes its folder; picking one is
+    // the import path, which is a different act and reads as one.
+    expect(screen.queryByRole('button', { name: 'Choose gig folder' })).toBeNull()
+    expect(screen.getByTestId('setup-gig-name')).toBeTruthy()
+    expect(screen.getByTestId('gig-import')).toBeTruthy()
   })
 
   it('names the gig and the folder once one is open', async () => {

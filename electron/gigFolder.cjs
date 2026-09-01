@@ -68,6 +68,48 @@ function resolveInsideFolder(folderPath, pointer) {
   return resolved
 }
 
+/**
+ * **Makes a gig's folder under the gigs root.** The name is the folder's name and the gig's id.
+ *
+ * This is what replaced the folder question. `New gig` used to open a directory picker, so the
+ * first thing asked of somebody making their first gig was where on their disk it should live —
+ * a filesystem decision, before the gig had a venue or a date. First run records the gigs root
+ * once; this puts the gig inside it. **Picking a folder survives only for importing a gig from
+ * elsewhere**, which is the portability case the two-file split exists to protect.
+ *
+ * **The name is one folder segment and is never interpreted.** A separator, a `.` or a `..` is
+ * refused by name rather than sanitised into something else: a gig quietly created somewhere
+ * other than where it was asked for is worse than a refusal that says so.
+ *
+ * **An existing folder is refused, not adopted.** Opening a gig that is already there is what the
+ * gig list is for, and creating over one would be the first step towards writing into a stranger's
+ * folder.
+ */
+function createGigFolder(gigsRoot, name, options = {}) {
+  const mkdirSync = options.mkdirSync || fs.mkdirSync
+  const existsSync = options.existsSync || fs.existsSync
+
+  const trimmed = typeof name === 'string' ? name.trim() : ''
+  if (trimmed === '') return { ok: false, error: 'A gig needs a name.' }
+  if (trimmed === '.' || trimmed === '..' || trimmed.includes('/') || trimmed.includes('\\')) {
+    return {
+      ok: false,
+      error: `"${trimmed}" is not a folder name. A gig's name is one folder inside the gigs folder, with no slashes in it.`,
+    }
+  }
+
+  const folderPath = path.join(gigsRoot, trimmed)
+  if (existsSync(folderPath)) {
+    return { ok: false, error: `There is already something called "${trimmed}" in the gigs folder.` }
+  }
+  try {
+    mkdirSync(folderPath, { recursive: true })
+    return { ok: true, folderPath }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+}
+
 /** Writes `gig.json`. Pregonero is its only writer, so there is no merge and nothing to reconcile. */
 function writeGigFile(folderPath, text, options = {}) {
   const writeFileSync = options.writeFileSync || fs.writeFileSync
@@ -96,6 +138,7 @@ function writeDebriefFile(folderPath, text, options = {}) {
 
 module.exports = {
   readGigFolder,
+  createGigFolder,
   writeGigFile,
   writeDebriefFile,
   resolveInsideFolder,
