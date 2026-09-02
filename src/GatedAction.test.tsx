@@ -83,8 +83,8 @@ describe('a gated action', () => {
   it('offers a way to satisfy the precondition when there is one', () => {
     render(
       <GatedAction
-        site="setup-new-song-create"
-        label="Create"
+        site="setup-new-song"
+        label="New"
         blockedBy="There is no songs folder yet."
         onClick={vi.fn()}
         remedy={<button type="button">Open preferences</button>}
@@ -112,15 +112,12 @@ describe('a gated action', () => {
     // Same device as SONG_DOORS. Removing a site from this list without changing its screen is a
     // control that has gone back to vanishing; that is a deliberate act with a test to change.
     expect([...GATED_SITES]).toEqual([
-      'setup-new-song-create',
+      'setup-new-song',
       'setup-new-gig',
       'setup-import-gig',
       'setup-create-gig',
       'muralista-open',
       'muralista-open-gig',
-      'subflow-align',
-      'subflow-review',
-      'subflow-add',
       'first-run-confirm',
     ])
   })

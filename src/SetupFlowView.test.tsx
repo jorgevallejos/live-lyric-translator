@@ -400,7 +400,9 @@ describe('two doors on a song, and only two', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('song-doors-duelo-song'))
     })
-    expect(screen.getByTestId('door-body-song').textContent).toMatch(/Bombista/)
+    // **The song door leads to the song flow**, which is Bombista's own three pages inside
+    // Pregonero's window (2026-09-02, step 6). It held a copy of the flow until then.
+    expect(screen.getByTestId('door-song-open-duelo')).toBeTruthy()
     await act(async () => {
       fireEvent.click(screen.getByTestId('song-doors-duelo-visuals'))
     })
@@ -441,15 +443,13 @@ describe('step 0 is named, not hidden', () => {
     })
   }
 
-  it('names Translations as the gap, outside the suite', async () => {
-    // **Rewritten 2026-09-01 with the door.** It used to read the phases out of an `<ol>` the door
-    // rendered above its controls. The door is the steps now, so the list is gone rather than kept
-    // as a second description that would drift from the buttons beside it.
+  it('does not name Translations here, because the song flow does now', async () => {
+    // **The note moved on 2026-09-02**, to the one line under the flow's own page. It lodged in
+    // this door for three rounds only because the flow had no Pregonero surface to put it on, and
+    // a second copy on a screen where no song is being made is the shape that drifts.
     await openSongDoor()
-    const gap = screen.getByTestId('subflow-gap').textContent ?? ''
-    expect(gap).toMatch(/Translations/)
-    expect(gap).toMatch(/outside the suite/)
-    expect(gap).toMatch(/no tool here gets a language model/)
+    expect(screen.queryByTestId('subflow-gap')).toBeNull()
+    expect(screen.getByTestId('door-body-song').textContent).not.toMatch(/Translations/)
   })
 
   it('says in the door that a song needs lyrics and audio', async () => {

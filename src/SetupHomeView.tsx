@@ -8,24 +8,23 @@ import {
   getCatalogueEntries,
   getEntriesNotInCatalogue,
   getUnreadableCatalogueEntries,
-  adoptSongFile,
   type LibraryEntry,
 } from './setlistStore'
 import { newlyVanished, recordVanishedAnnounced } from './vanishedSongs'
 import { unreadableFolders, unreadableSongs } from './launchAnnouncements'
 import { getGigsFolder, getSongFilesFolder, getSongsFolder, resolveSongPath } from './contentFolders'
-import { hasLyricLines } from './songState'
 import {
+  bombistaStagingDir,
   chooseGigFolderPath,
+  deleteSongFile,
   folderReadable,
   hasGigFolderAccess,
   canRunBombista,
   listSongsFolder,
-  runBombista,
 } from './platform'
-import { joinPath } from './paths'
-import { SongSubflow } from './SongSubflow'
-import { SONG_INPUT_RULE } from './SongDoors'
+import { setSongFlowRequest } from './songFlowState'
+import { gigsUsingSong, type GigUse } from './songUsage'
+import { PencilIcon, TrashCanIcon } from './RowIcons'
 import { GatedAction } from './GatedAction'
 
 /**
@@ -150,205 +149,215 @@ function GigRow({
   )
 }
 
-function SongRow({ entry, expanded, onToggle }: { entry: LibraryEntry; expanded: boolean; onToggle: () => void }) {
+/**
+ * **A row is the way into the flow for a song that already exists** (2026-09-02, step 6).
+ *
+ * It used to expand into a panel holding the whole of Bombista's process, flattened onto half of
+ * a screen. **Editing is the same flow as making one** — Bombista's page 1 prefills every field
+ * from an SP JSON, which is what lets one flow serve both — so the row does what `New` does, and
+ * the panel is gone.
+ *
+ * **The actions are on the row, in the marks the app already uses** (2026-09-02, walking
+ * `v0.34.0`). `Edit` was a labelled button stacked under the title, which made a two-line row out
+ * of a one-line fact and left no room for a second action. A pencil and a bin on the title's own
+ * line is what `ManageSetlistsView` already does, and the icons are now literally the same ones —
+ * see `RowIcons`.
+ *
+ * **`manual only` is a property, not a warning.** A song with no timeline is a legitimate song: it
+ * goes in setlists and is advanced by hand, which is what this app was built to do before it could
+ * do anything else. So it sits on the row like a mode, in the muted grey of a fact — not in
+ * `--state-warn`, and not as a line telling you something is missing. **Where a message goes is
+ * decided by what caused it**, and nothing caused this.
+ */
+function SongRow({
+  entry,
+  busy,
+  onOpen,
+  onDelete,
+}: {
+  entry: LibraryEntry
+  busy: boolean
+  onOpen: () => void
+  onDelete: () => void
+}) {
   const title = entry.song?.title ?? entry.ref.id
+  const manualOnly = (entry.song?.timeline?.length ?? 0) === 0
   return (
-    <li className="setup-home-row" data-testid={`setup-song-row-${entry.ref.id}`}>
-      <button
-        type="button"
-        className="setup-home-row-open"
-        aria-expanded={expanded}
-        onClick={onToggle}
-      >
-        <span className="setup-home-row-name">{title}</span>
-      </button>
+    <li className="setup-home-row setup-song-row" data-testid={`setup-song-row-${entry.ref.id}`}>
+      <span className="setup-home-row-name">{title}</span>
+      {manualOnly && (
+        <span className="setup-song-mode" data-testid={`setup-song-mode-${entry.ref.id}`}>
+          manual only
+        </span>
+      )}
       {/* **No mark for a file that will not read, because such a file is not a row here at all.**
           It is named once in a popup and then dropped — see `UnreadableSongsPopup`. */}
-      {expanded && (
-        <div className="setup-home-row-body">
-          <SongSubflow
-            songId={entry.ref.id}
-            songPath={resolveSongPath(entry.ref.path)}
-            skeleton={entry.song !== undefined && !hasLyricLines(entry.song)}
-          />
-        </div>
-      )}
+      <div className="setup-home-row-actions">
+        <button
+          type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn"
+          disabled={busy}
+          aria-label={`Edit ${title}`}
+          title="Edit"
+          data-testid={`setup-song-open-${entry.ref.id}`}
+          onClick={onOpen}
+        >
+          <PencilIcon />
+        </button>
+        <button
+          type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
+          disabled={busy}
+          aria-label={`Delete ${title}`}
+          title="Delete"
+          data-testid={`setup-song-delete-${entry.ref.id}`}
+          onClick={onDelete}
+        >
+          <TrashCanIcon />
+        </button>
+      </div>
     </li>
   )
 }
 
 /**
- * **New song, and it does not stop at the skeleton** (2026-09-01).
+ * **Deleting a song is never silent, and the dialog is about what survives.**
  *
- * `bombista new` writes a legal song file with no timing into `<songs>/song-performance`, under the
- * canonical name — **the user never picks a path**. Bombista makes that folder if it is not there,
- * which is the only thing that ever creates it: first run points at a catalogue and creates nothing. That is the honest state for a song that is
- * not recorded yet, and the reference is taken into the library straight away, so the song is in
- * the list from that moment. There is still no status, no badge and no completion label: whether
- * it can go into tonight's setlist is asked at the moment a surface draws it.
+ * Jorge, 2026-09-02. Two facts, and the second is the one worth interrupting for: **the song file
+ * goes and the lyrics and the recordings do not.** They are the author's, they live in other
+ * folders, and a person about to press this needs to know that the thing they spent an afternoon
+ * on is not what is at stake.
  *
- * **Then it continues straight into the song door on the song it just made.** Before this, the
- * button stopped at the skeleton and the door opened from a *row* — so a walk that starts from
- * nothing, holding a lyrics file and a recording and no JSON, found no row to click and the one
- * button on the screen asked for neither file. **Two doors, and the visible one was not the one
- * that does the work.**
+ * **A song in a gig is named, and not blocked.** A gig's setlist keeps its ids and reports what it
+ * cannot resolve, so the record of that night stays truthful either way; refusing would make the
+ * catalogue hostage to its own history. So the nights are listed and the button still says
+ * `Delete`.
  *
- * **The two-step underneath survives, and it has to.** The skeleton is what supplies `artist`,
- * `notes` and `title_translations`; a `.txt` carries none of the three and `bombista validate`
- * requires all of them. What changed is that both halves are one flow with one button, not that
- * the first half went away — `bombista new`'s no-audio branch is still exactly what runs, and a
- * song can still be created and left.
+ * **This is the second of the three popups the app allows** — an outside-caused fact you must
+ * know, a destructive action needing consent, and a commitment whose consequence is off screen.
+ * Three is the ceiling, and a fourth kind means something was misclassified.
+ */
+function DeleteSongPopup({
+  title,
+  file,
+  uses,
+  busy,
+  problem,
+  onCancel,
+  onConfirm,
+}: {
+  title: string
+  file: string
+  uses: GigUse[] | null
+  busy: boolean
+  problem: string | null
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="ctrl-timeline-save-overlay" data-testid="setup-song-delete-popup">
+      <div
+        className="ctrl-timeline-save-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Delete ${title}`}
+      >
+        <p className="ctrl-timeline-save-message" data-testid="setup-song-delete-title">
+          Delete {title}?
+        </p>
+        <p className="setup-song-delete-what" data-testid="setup-song-delete-what">
+          <code>{file}</code> goes to the Trash. <strong>Your lyrics and your recordings stay
+          where they are</strong> — Pregonero does not touch them.
+        </p>
+        {uses !== null && uses.length > 0 && (
+          <div className="setup-song-delete-uses" data-testid="setup-song-delete-uses">
+            <p className="setup-song-delete-uses-head">
+              {uses.length === 1 ? 'It is in one gig’s setlist:' : `It is in ${uses.length} gigs’ setlists:`}
+            </p>
+            <ul className="setup-songs-gone-list">
+              {uses.map((use) => (
+                <li key={use.path}>{use.name}</li>
+              ))}
+            </ul>
+            {/* Named, not blocked: the night's record keeps its ids and says what it cannot find. */}
+            <p className="setup-song-delete-uses-foot">
+              Those setlists keep their record of the night and will report the song as missing.
+            </p>
+          </div>
+        )}
+        {problem !== null && (
+          <p className="setup-song-problem" data-testid="setup-song-delete-problem">
+            {problem}
+          </p>
+        )}
+        <div className="ctrl-timeline-save-actions">
+          <button type="button" className="ctrl-btn" disabled={busy} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ctrl-btn setup-song-delete-confirm"
+            disabled={busy}
+            data-testid="setup-song-delete-confirm"
+            onClick={onConfirm}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * **`New` goes straight into the flow, and nothing is written first** (2026-09-02, step 6).
  *
- * **The door it continues into is the door**, reached by opening the new song's row. Routing into
- * it rather than reimplementing it is the point: a second implementation is how the two would
- * drift back apart.
+ * **What it replaced.** `New song` opened a form on this screen, asked for a name, and ran
+ * `bombista new` to write a skeleton into the catalogue. Three things were wrong with that and
+ * they were one thing: the step asks to *arrive in a flow*, and this kept you here; the name was a
+ * question whose answer already exists in the lyrics file you are about to hand over; and the
+ * skeleton it wrote carried one placeholder lyric line, which is what made the walk of 2026-09-02
+ * fail at step 7 — `promote` merges only the timeline envelope into a song that exists, so the
+ * words never reached it and the count guard refused. **Nothing is created up front now**, so
+ * `promote` takes its create path and carries the whole song.
+ *
+ * **The button is the whole control.** No form, no field, no `Create`. The flow's first screen is
+ * Bombista's page 1, which is where the words, the recording, the general information and the
+ * tempo are collected — the metadata the skeleton existed to supply.
  */
 function NewSong({
-  onCreated,
   blockedBy,
   describedBy,
+  onStart,
 }: {
-  onCreated: (songId: string) => void
   /** The half's own block — a songs folder that cannot be read — which outranks every other. */
   blockedBy: string | null
   /** Where that reason is already written: the line in the frame below. */
   describedBy: string
+  onStart: () => void
 }) {
-  const [open, setOpen] = useState(false)
-  const [songId, setSongId] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
   const songsFolder = getSongFilesFolder()
   const hosted = canRunBombista()
 
-  const id = songId.trim()
-  const legal = id.length > 0 && !id.includes('/') && !id.includes('\\')
-
-  const create = () => {
-    if (!legal || songsFolder === null) return
-    setBusy(true)
-    setProblem(null)
-    void (async () => {
-      const target = joinPath(songsFolder, `${id}.json`)
-      const result = await runBombista('new', [id, '-o', target])
-      if (result.status !== 'ok') {
-        setProblem(result.output || 'bombista new did not write a file.')
-        setBusy(false)
-        return
-      }
-      await adoptSongFile(target)
-      void refreshGigReadiness()
-      setBusy(false)
-      setSongId('')
-      setOpen(false)
-      onCreated(id)
-    })()
-  }
-
-  // **The precondition never removes the action.** It disables it and says why — see
-  // `GatedAction`. This form used to replace Create with a paragraph, and the walk that found it
-  // stopped here reading a correct sentence as a wall.
-  const cannotCreate =
+  const cannot =
     blockedBy !== null
       ? blockedBy
       : songsFolder === null
-      ? 'There is no songs folder yet, so there is nowhere for a song to land.'
-      : !hosted
-        ? 'bombista cannot be run from here. Run bombista new in a terminal — it is fully usable on its own — and come back; Pregonero re-reads the files when you return.'
-        : !legal
-          ? 'Give it a name first. It becomes the file’s name and the song’s id.'
+        ? 'There is no songs folder yet, so there is nowhere for a song to land.'
+        : !hosted
+          ? 'bombista cannot be run from here. Run bombista serve in a terminal — it is fully usable on its own — and come back; Pregonero re-reads the files when you return.'
           : null
 
-  // **Every button in a blocked half is disabled**, this one included — the reason is the line in
-  // the frame below, which it points at rather than restating.
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="ctrl-btn ctrl-setup-link"
-        data-testid="setup-new-song"
-        disabled={blockedBy !== null}
-        title={blockedBy ?? undefined}
-        aria-describedby={blockedBy !== null ? describedBy : undefined}
-        onClick={() => setOpen(true)}
-      >
-        New
-      </button>
-    )
-  }
-
+  // **The precondition never removes the action.** It disables it and says why — see
+  // `GatedAction`. The reason for a blocked half is the line in the frame, written once.
   return (
-    <div className="setup-home-new" data-testid="setup-new-song-form">
-      <p className="gig-hint">{SONG_INPUT_RULE}</p>
-      {songsFolder === null && (
-        <p className="setup-song-problem" data-testid="setup-new-song-no-folder">
-          Set the songs folder in preferences.
-        </p>
-      )}
-      {(
-        <>
-          <label className="setup-home-field">
-            <span>Name it</span>
-            <input
-              type="text"
-              value={songId}
-              // **A shape, never a plausible instance.** This said `hasta-calmar-el-alma` — a real
-              // id out of the catalogue — and on 2026-08-31 it was read as a name already typed,
-              // with Create disabled beside it saying "give it a name first". A placeholder that
-              // could be an answer is indistinguishable from one.
-              placeholder="lowercase-with-hyphens"
-              data-testid="setup-new-song-id"
-              onChange={(e) => setSongId(e.target.value)}
-            />
-          </label>
-          <p className="gig-hint">
-            The file’s name, and the song’s id. It lands in your catalogue’s{' '}
-            <code>song-performance</code> folder as{' '}
-            <code>{legal ? `${id}.json` : '<name>.json'}</code> — you never pick a path, because a
-            song is played at many gigs and there is only ever one copy of it.
-          </p>
-          <div className="gig-actions">
-            <GatedAction
-              site="setup-new-song-create"
-              label="Create"
-              blockedBy={cannotCreate}
-              busy={busy}
-              onClick={create}
-              remedy={
-                songsFolder === null ? (
-                  <button
-                    type="button"
-                    className="setup-home-row-open"
-                    data-testid="setup-new-song-to-preferences"
-                    onClick={() => {
-                      window.location.hash = '#/preferences'
-                    }}
-                  >
-                    Open preferences
-                  </button>
-                ) : undefined
-              }
-            />
-            <button
-              type="button"
-              className="ctrl-btn ctrl-setup-link"
-              disabled={busy}
-              onClick={() => {
-                setOpen(false)
-                setProblem(null)
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
-      {problem !== null && (
-        <p className="setup-song-problem" data-testid="setup-new-song-problem">
-          {problem}
-        </p>
-      )}
-    </div>
+    <GatedAction
+      site="setup-new-song"
+      label="New"
+      blockedBy={cannot}
+      describedBy={blockedBy !== null ? describedBy : undefined}
+      onClick={onStart}
+    />
   )
 }
 
@@ -538,8 +547,17 @@ export function SetupHomeView() {
   // what that read said; a reference the folder did not list is in `gone`, never in a row, and a
   // file that will not read is in the popup, never in a row either.
   const [songs, setSongs] = useState<LibraryEntry[]>(getCatalogueEntries)
-  const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [flowProblem, setFlowProblem] = useState<string | null>(null)
+  // **What the delete dialog is about**, and null when there is no dialog. `uses` arrives after it
+  // opens: the gig files are read on the press, and the dialog is up before that read returns
+  // rather than after — an empty pause between a click and a dialog reads as a dropped click.
+  const [deleting, setDeleting] = useState<{
+    entry: LibraryEntry
+    uses: GigUse[] | null
+    problem: string | null
+  } | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   // **The standing condition, per half.** True for as long as the folder refuses; what happens once
   // is the popup in the queue below.
   const [songsFolderProblem, setSongsFolderProblem] = useState(false)
@@ -635,6 +653,70 @@ export function SetupHomeView() {
   }
 
   const outsideElectron = 'A gig folder can only be reached from the desktop app, not from a browser tab.'
+
+  /**
+   * **Into the song flow, from either side of it.**
+   *
+   * `New` passes no song and the flow makes one; a row passes its song and the flow edits it.
+   * **They are the same flow** — Bombista's page 1 prefills every field from an SP JSON — and the
+   * only thing that differs here is which staging directory it works in. A song being edited keeps
+   * its own, so a second pass over the same recording skips the transcription; a new song gets one
+   * that is not keyed to anything, because there is no id yet and asking for one is the question
+   * this round removed.
+   */
+  /**
+   * **The gigs are read on the press**, not held. An index of which songs are in which setlists
+   * would be a second copy of what the gig files say, and this is asked once, at the moment
+   * somebody is about to do something irreversible.
+   */
+  const askToDelete = (entry: LibraryEntry) => {
+    setDeleting({ entry, uses: null, problem: null })
+    void gigsUsingSong(entry.ref.id).then((uses) => {
+      setDeleting((current) => (current?.entry.ref.id === entry.ref.id ? { ...current, uses } : current))
+    })
+  }
+
+  const confirmDelete = () => {
+    if (deleting === null) return
+    const entry = deleting.entry
+    setDeleteBusy(true)
+    void (async () => {
+      const result = await deleteSongFile(resolveSongPath(entry.ref.path))
+      setDeleteBusy(false)
+      if (!result.ok) {
+        setDeleting((current) => (current === null ? null : { ...current, problem: result.error }))
+        return
+      }
+      setDeleting(null)
+      // **The list is the folder, so re-reading it is the whole of the update.** Nothing here
+      // removes a row by hand: the file is gone, so the next read does not list it.
+      await ensureSongLibraryHydrated()
+      void refreshGigReadiness()
+      reload()
+    })()
+  }
+
+  const enterSongFlow = (entry: LibraryEntry | null) => {
+    setBusy(true)
+    void (async () => {
+      const key = entry === null ? '_new' : entry.ref.id
+      const staging = await bombistaStagingDir(key)
+      setBusy(false)
+      if (staging === null) {
+        setFlowProblem('Could not name a working directory for the song flow.')
+        return
+      }
+      setSongFlowRequest({
+        staging,
+        // A second before now: file modification times are coarser than this clock, and a file
+        // written in the same tick as the flow started must not read as older than it.
+        startedAt: Date.now() - 1000,
+        songPath: entry === null ? null : resolveSongPath(entry.ref.path),
+        title: entry === null ? 'New song' : (entry.song?.title ?? entry.ref.id),
+      })
+      window.location.hash = '#/song'
+    })()
+  }
   // **The frame line is the reason, and the buttons point at it.** One sentence per half rather
   // than the same sentence under every disabled control — see `GatedAction`'s `describedBy`.
   const gigsBlocked = !canReachFolder ? outsideElectron : gigsFolderProblem ? GIGS_FOLDER_LINE : null
@@ -653,6 +735,19 @@ export function SetupHomeView() {
       )}
       {showing?.kind === 'unreadable' && (
         <UnreadableSongsPopup files={showing.files} onClose={closeTop} />
+      )}
+      {/* The consent dialog is not in the queue: the queue is what the app has to say on arrival,
+          and this is the answer to a press that has just happened. */}
+      {deleting !== null && (
+        <DeleteSongPopup
+          title={deleting.entry.song?.title ?? deleting.entry.ref.id}
+          file={basename(deleting.entry.ref.path)}
+          uses={deleting.uses}
+          busy={deleteBusy}
+          problem={deleting.problem}
+          onCancel={() => setDeleting(null)}
+          onConfirm={confirmDelete}
+        />
       )}
       <header className="songs-top-bar">
         <button
@@ -764,14 +859,14 @@ export function SetupHomeView() {
               <NewSong
                 blockedBy={songsFolderProblem ? SONGS_FOLDER_LINE : null}
                 describedBy={SONGS_FRAME_LINE_ID}
-                onCreated={(id) => {
-                  reload()
-                  // **Continuing, not announcing.** The song is in the list and its door is open,
-                  // which is the next thing to do rather than a report that something happened.
-                  setExpanded(id)
-                }}
+                onStart={() => enterSongFlow(null)}
               />
             </div>
+            {flowProblem !== null && (
+              <p className="setup-song-problem" data-testid="setup-song-flow-problem">
+                {flowProblem}
+              </p>
+            )}
             <div className="setup-home-frame" data-testid="setup-home-songs-frame">
               {songsFolderProblem ? (
                 // **`No songs yet.` is never shown when the app failed to look**, because it would
@@ -794,10 +889,9 @@ export function SetupHomeView() {
                     <SongRow
                       key={entry.ref.id}
                       entry={entry}
-                      expanded={expanded === entry.ref.id}
-                      onToggle={() =>
-                        setExpanded((current) => (current === entry.ref.id ? null : entry.ref.id))
-                      }
+                      busy={busy}
+                      onOpen={() => enterSongFlow(entry)}
+                      onDelete={() => askToDelete(entry)}
                     />
                   ))}
                 </ul>

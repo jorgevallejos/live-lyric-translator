@@ -70,6 +70,7 @@ import { GigView } from './GigView'
 import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
 import { SetupHomeView } from './SetupHomeView'
+import { SongFlowView } from './SongFlowView'
 import { FirstRunView } from './FirstRunView'
 import { hasRequiredFolders } from './contentFolders'
 import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
@@ -2402,6 +2403,13 @@ function App({ initialHash }: { initialHash?: string } = {}) {
       <>
         <ConcertSessionTimerRunner />
         <SetupHomeView />
+      </>
+    )
+  if (hash === '#/song')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <SongFlowView />
       </>
     )
   if (hash === '#/gig')

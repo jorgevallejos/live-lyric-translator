@@ -13,9 +13,10 @@ import { hasGigFolderAccess } from './platform'
 import { useBroadcastVisuals } from './visualsBroadcast'
 import { shapeTypeOf, shapeIsVisible, type VisualShape } from './visualsFile'
 import { currentStep, flowSteps, type FlowStep } from './setupFlow'
-import { SongDoors, type SongDoor } from './SongDoors'
+import { SongDoors, SONG_INPUT_RULE, type SongDoor } from './SongDoors'
 import { GatedAction } from './GatedAction'
-import { SongSubflow } from './SongSubflow'
+import { setSongFlowRequest } from './songFlowState'
+import { bombistaStagingDir } from './platform'
 import { MuralistaDoor } from './MuralistaDoor'
 import { getGigsFolder, resolveSongPath } from './contentFolders'
 import type { GigReadiness, SongReadiness, StepStatus } from './gigReadiness'
@@ -28,7 +29,6 @@ import {
   moveSongInSetlist,
   removeSongFromSetlist,
 } from './setlistStore'
-import { hasLyricLines } from './songState'
 
 /**
  * **The setup flow** — the guided path through the six ordered steps, and the third and fourth
@@ -106,21 +106,44 @@ function DoorBody({
   door,
   songId,
   songPath,
-  skeleton,
 }: {
   door: SongDoor
   songId: string
   songPath: string | null
-  skeleton: boolean
 }) {
   if (door === 'song') {
+    // **The song flow is one flow, and it is not in half of a screen** (2026-09-02, step 6). This
+    // door held a copy of it — two pickers and three `bombista` calls laid out beside the setlist.
+    // It now goes to the same screen `New` and a Backstage row go to, which is Bombista's own
+    // three pages inside Pregonero's window. **This door is not step 6's work**; what step 6 owes
+    // it is not leaving a second implementation behind.
     return (
       <div data-testid="door-body-song">
-        <p className="gig-hint">
-          Everything inside a song file is <strong>Bombista’s</strong> — the words, the timeline, the
-          tempo, the media it names. Pregonero reads them and writes none of them.
-        </p>
-        <SongSubflow songId={songId} songPath={songPath} skeleton={skeleton} />
+        <p className="gig-hint">{SONG_INPUT_RULE}</p>
+        <button
+          type="button"
+          className="ctrl-btn ctrl-setup-link"
+          data-testid={`door-song-open-${songId}`}
+          onClick={() => {
+            void (async () => {
+              const staging = await bombistaStagingDir(songId)
+              if (staging === null) return
+              setSongFlowRequest({
+                staging,
+                startedAt: Date.now() - 1000,
+                songPath,
+                title: songId,
+              })
+              window.location.hash = '#/song'
+            })()
+          }}
+        >
+          Open the song flow
+        </button>
+        {/* **The Translations note is not here any more** (2026-09-02). It lodged in this door
+            for three rounds because the song flow had no Pregonero surface to put it on. It has
+            one now — the line under the flow's own page — and a second copy on a screen where no
+            song is being made would be the two-descriptions-that-drift shape. */}
       </div>
     )
   }
@@ -131,14 +154,11 @@ function SongRow({
   songId,
   title,
   songPath,
-  skeleton = false,
   children,
 }: {
   songId: string
   title: string
   songPath: string | null
-  /** The song file is there but carries no words yet. See `SongSubflow`. */
-  skeleton?: boolean
   children?: React.ReactNode
 }) {
   return (
@@ -149,7 +169,7 @@ function SongRow({
         songId={songId}
         title={title}
         renderDoor={(door) => (
-          <DoorBody door={door} songId={songId} songPath={songPath} skeleton={skeleton} />
+          <DoorBody door={door} songId={songId} songPath={songPath} />
         )}
       />
     </li>
@@ -501,10 +521,8 @@ function StepVisuals({ songs }: { songs: readonly SongReadiness[] }) {
 
   // The setlist's own rows, so a song's door hands Bombista the file this machine actually reads.
   const songPaths: Record<string, string> = {}
-  const skeletons = new Set<string>()
   for (const entry of getLibraryEntries()) {
     songPaths[entry.ref.id] = resolveSongPath(entry.ref.path)
-    if (entry.song !== undefined && !hasLyricLines(entry.song)) skeletons.add(entry.ref.id)
   }
   const deviating = songs.filter((song) => !song.ready)
 
@@ -549,7 +567,6 @@ function StepVisuals({ songs }: { songs: readonly SongReadiness[] }) {
                 songId={song.songId}
                 title={song.title}
                 songPath={songPaths[song.songId] ?? null}
-                skeleton={skeletons.has(song.songId)}
               >
                 {song.missing.length > 0 && (
                   <span className="setup-song-problem">{song.missing.join('; ')}</span>

@@ -44,8 +44,12 @@ import type { ReactNode } from 'react'
  * has quietly gone back to vanishing.
  */
 export const GATED_SITES = [
-  /** Setup home → New song → Create, when no songs folder is set or `bombista` cannot be run. */
-  'setup-new-song-create',
+  /**
+   * Backstage → Songs → New, when no songs folder is set, the folder cannot be read, or
+   * `bombista` cannot be run. It was `setup-new-song-create` until 2026-09-02, on a form that
+   * asked for a name and wrote a skeleton; both are gone and the button enters the flow.
+   */
+  'setup-new-song',
   /** Setup home → New gig, when there is no Electron and so no gig can be made at all. */
   'setup-new-gig',
   /**
@@ -60,12 +64,6 @@ export const GATED_SITES = [
   'muralista-open',
   /** The gig's own visuals half → Open Muralista, same door and same block, different question. */
   'muralista-open-gig',
-  /** The song door → Align, before both the words and the recording are chosen. */
-  'subflow-align',
-  /** The song door → Review and tempo, before there is an alignment to review. */
-  'subflow-review',
-  /** The song door → Add to the library, before there is anything to add. */
-  'subflow-add',
   /** First run → Confirm, until both questions have an answer. */
   'first-run-confirm',
 ] as const

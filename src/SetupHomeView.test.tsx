@@ -15,6 +15,7 @@ import { GIG_LIST_KEY, getGigList } from './gigListStore'
 import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 import { setLibraryEntries, type LibrarySong } from './setlistStore'
 import { forgetLaunchAnnouncements } from './launchAnnouncements'
+import { clearSongFlowRequest, getSongFlowRequest } from './songFlowState'
 
 const chooseGigFolderPath = vi.fn()
 const runBombista = vi.fn()
@@ -22,6 +23,8 @@ const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
 const listSongsFolder = vi.fn()
 const folderReadable = vi.fn()
+const bombistaStagingDir = vi.fn()
+const deleteSongFile = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -34,12 +37,13 @@ vi.mock('./platform', async (importOriginal) => ({
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   listSongsFolder: (...a: unknown[]) => listSongsFolder(...a),
   folderReadable: (...a: unknown[]) => folderReadable(...a),
+  deleteSongFile: (...a: unknown[]) => deleteSongFile(...a),
   writeGigFile: () => Promise.resolve({ ok: true }),
   fileExists: () => Promise.resolve(true),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
   describeDisplays: () => Promise.resolve({ count: 1, displays: [], fingerprint: 'f' }),
   bombistaVersion: () => Promise.resolve({ present: true, version: 'bombista 1.1.0' }),
-  bombistaStagingDir: vi.fn(),
+  bombistaStagingDir: (...a: unknown[]) => bombistaStagingDir(...a),
   openBombistaReview: vi.fn(),
   closeTool: vi.fn(),
   chooseFilePath: vi.fn(),
@@ -48,6 +52,11 @@ vi.mock('./platform', async (importOriginal) => ({
 
 function song(id: string): LibrarySong {
   return { id, title: id, items: [{ languages: { es: 'línea' } }] } as LibrarySong
+}
+
+/** A song Bombista has given a timeline: the other half of the `manual only` question. */
+function timedSong(id: string): LibrarySong {
+  return { ...song(id), timeline: [{ start: 0, end: 1 }] } as LibrarySong
 }
 
 beforeAll(ensureStorage)
@@ -61,6 +70,10 @@ beforeEach(() => {
   // Announcements about unreadable files and folders are launch-scoped and in memory, so each test
   // is a launch. Everything else about them would test the record rather than the screen.
   forgetLaunchAnnouncements()
+  clearSongFlowRequest()
+  window.location.hash = '#/setup'
+  bombistaStagingDir.mockResolvedValue('/staging/x')
+  deleteSongFile.mockResolvedValue({ ok: true })
   vi.clearAllMocks()
   readGigFolder.mockResolvedValue({
     folderPath: '/gigs/x',
@@ -540,141 +553,82 @@ describe('Setup home', () => {
     expect(getGigList()).toEqual(['/gigs/b'])
   })
 
-  it('says where a new song will land, and never asks for a path', async () => {
-    // Bombista's output lands in the songs folder under the canonical name. The decision is
-    // removed rather than explained: a song is played at many gigs and there is one copy of it.
+  // ── `New` goes straight into the flow, and nothing is written first ──────────────────────
+  //
+  // journey-setup step 6, 2026-09-02. `New song` used to open a form here, ask for a name and run
+  // `bombista new` to write a skeleton into the catalogue. The step asks to *arrive in a flow*;
+  // this kept you on the screen. And the skeleton it wrote carried one placeholder lyric line,
+  // which is what made the walk fail at step 7.
+
+  it('takes New straight into the song flow, and asks for nothing on the way', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    bombistaStagingDir.mockResolvedValue('/staging/_new')
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-new-song'))
     })
-    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'nuevo' } })
-    expect(screen.getByTestId('setup-new-song-form').textContent).toContain('nuevo.json')
+    await waitFor(() => expect(window.location.hash).toBe('#/song'))
+    expect(getSongFlowRequest()!.staging).toBe('/staging/_new')
+    // Making one, not editing one: the flow has no song until it ends.
+    expect(getSongFlowRequest()!.songPath).toBeNull()
   })
 
-  it('makes a song by running bombista new, and it appears in the list', async () => {
-    // **The flow ends with the song appearing in the list, and with nothing else.** No status, no
-    // badge, no completion label — see the readiness rule.
+  it('writes no song file before the flow, and never runs `bombista new`', async () => {
+    // **The step 7 blocker, closed by removing its cause.** `promote` merges only the timeline
+    // envelope into a song that already exists, so the words in the candidate never reached a
+    // skeleton and the count guard refused. Nothing exists up front now, so promote creates.
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
-    runBombista.mockResolvedValue({ status: 'ok', output: 'wrote: /songs/nuevo.json', code: 0 })
+    bombistaStagingDir.mockResolvedValue('/staging/_new')
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-new-song'))
     })
-    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'nuevo' } })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song-create'))
-    })
-    // **`song-performance/`, not the songs root.** Bombista makes that folder the first time it
-    // writes into it, which is the only thing that ever creates it.
-    expect(runBombista).toHaveBeenCalledWith('new', [
-      'nuevo',
-      '-o',
-      '/songs/song-performance/nuevo.json',
-    ])
-    await waitFor(() => expect(screen.getByTestId('setup-song-row-nuevo')).toBeTruthy())
-    // **No status on the row itself.** Scoped to the row's own label rather than everything nested
-    // under it, because the door now opens inside the row and the door has prose of its own.
-    const name = screen.getByTestId('setup-song-row-nuevo').querySelector('.setup-home-row-name')!
-    expect(name.textContent).toBe('Nuevo')
-  })
-
-  /**
-   * **Journey step 6 and 7: from a name to the door, without a second button.**
-   *
-   * The walk starts from nothing, holding a lyrics file and a recording and no JSON. Before this,
-   * `New song` stopped at the skeleton and the door opened from a *row* — so there was no row to
-   * click and the one button on the screen asked for neither file. Two doors, and the visible one
-   * was not the one that does the work.
-   */
-  it('continues into the song door on the song it just made', async () => {
-    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
-    runBombista.mockResolvedValue({ status: 'ok', output: 'wrote: /songs/libertad.json', code: 0 })
-    // What `bombista new` writes: artist, notes and title translations, and no words.
-    readSongFileText.mockResolvedValue({
-      ok: true,
-      text: JSON.stringify({ title: 'libertad', notes: 'capo 2', lyrics: [] }),
-    })
-    await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song'))
-    })
-    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'libertad' } })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song-create'))
-    })
-    // The skeleton is still what runs underneath: it is what carries the fields a .txt cannot.
-    expect(runBombista).toHaveBeenCalledWith('new', [
-      'libertad',
-      '-o',
-      '/songs/song-performance/libertad.json',
-    ])
-    // And the door is open on it, without a second click on a row that did not exist a moment ago.
-    await waitFor(() => expect(screen.getByTestId('subflow-flow')).toBeTruthy())
-    expect(screen.getByTestId('subflow-choose-words')).toBeTruthy()
-    expect(screen.getByTestId('subflow-choose-audio')).toBeTruthy()
-  })
-
-  it('opens that door asking for the words, not holding the skeleton as if it were them', async () => {
-    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
-    runBombista.mockResolvedValue({ status: 'ok', output: 'wrote: /songs/libertad.json', code: 0 })
-    readSongFileText.mockResolvedValue({
-      ok: true,
-      text: JSON.stringify({ title: 'libertad', lyrics: [] }),
-    })
-    await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song'))
-    })
-    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'libertad' } })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song-create'))
-    })
-    await waitFor(() => expect(screen.getByTestId('subflow-inputs-summary')).toBeTruthy())
-    expect(screen.getByTestId('subflow-inputs-summary').textContent).toMatch(/No words yet/)
-  })
-
-  it('does not open a door on a song that failed to be made', async () => {
-    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
-    runBombista.mockResolvedValue({
-      status: 'failed',
-      output: '/songs/nuevo.json: already exists — refusing to overwrite',
-      code: 1,
-    })
-    await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song'))
-    })
-    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'nuevo' } })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song-create'))
-    })
-    expect(screen.queryByTestId('subflow-flow')).toBeNull()
-  })
-
-  it('shows Create disabled with its reason when no songs folder is set — never absent', async () => {
-    // **The defect the walk found, and the rule that replaced it.** This form used to swap Create
-    // for a paragraph. The paragraph was correct and still read as a wall: with no control on
-    // screen there is no evidence the app makes songs at all. See `GatedAction.tsx`.
-    await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song'))
-    })
-    const create = screen.getByTestId('setup-new-song-create') as HTMLButtonElement
-    expect(create).toBeTruthy()
-    expect(create.disabled).toBe(true)
-    expect(screen.getByTestId('setup-new-song-create-reason').textContent).toContain(
-      'no songs folder'
-    )
+    await waitFor(() => expect(window.location.hash).toBe('#/song'))
     expect(runBombista).not.toHaveBeenCalled()
   })
 
-  it('offers the way to preferences beside the reason, so the reason is a next step', async () => {
+  it('asks for no name, because the flow reads it off the words that are handed over', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    bombistaStagingDir.mockResolvedValue('/staging/_new')
     await renderHome()
+    expect(screen.queryByTestId('setup-new-song-id')).toBeNull()
+    expect(screen.queryByTestId('setup-new-song-create')).toBeNull()
+    expect(screen.getByTestId('setup-new-song').textContent).toBe('New')
+  })
+
+  it('shows New disabled with its reason when no songs folder is set — never absent', async () => {
+    // **The defect the walk found, and the rule that replaced it.** With no control on screen
+    // there is no evidence the app makes songs at all. See `GatedAction.tsx`.
+    await renderHome()
+    const button = screen.getByTestId('setup-new-song') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(screen.getByTestId('setup-new-song-reason').textContent).toContain('no songs folder')
+  })
+
+  it('enters the same flow from a row, on the song that row is', async () => {
+    // **Editing is the same flow.** Bombista's page 1 prefills every field from an SP JSON, which
+    // is what lets one flow serve both — so a row does what `New` does, with a song.
+    bombistaStagingDir.mockResolvedValue('/staging/duelo')
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
     await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song'))
+      fireEvent.click(screen.getByTestId('setup-song-open-duelo'))
     })
-    expect(screen.getByTestId('setup-new-song-to-preferences')).toBeTruthy()
+    await waitFor(() => expect(window.location.hash).toBe('#/song'))
+    const request = getSongFlowRequest()!
+    // Its own staging directory, so a second pass over the same recording skips transcription.
+    expect(bombistaStagingDir).toHaveBeenCalledWith('duelo')
+    expect(request.staging).toBe('/staging/duelo')
+    expect(request.songPath).toContain('duelo')
+  })
+
+  it('has no song panel inside a row any more', async () => {
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.queryByTestId('subflow-flow')).toBeNull()
+    expect(screen.queryByTestId('subflow-choose-words')).toBeNull()
   })
 
   /**
@@ -719,23 +673,171 @@ describe('Setup home', () => {
     vi.resetModules()
   })
 
-  it('reports a refusal from bombista instead of pretending a song was made', async () => {
-    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
-    runBombista.mockResolvedValue({
-      status: 'failed',
-      output: '/songs/nuevo.json: already exists — refusing to overwrite',
-      code: 1,
-    })
+
+  // ── The row carries its own actions, in the marks the app already uses ───────────────────
+  //
+  // Walked on v0.34.0, 2026-09-02. `Edit` was a labelled button stacked under the title, which
+  // made a two-line row out of a one-line fact and left nowhere for a second action to go.
+
+  it('puts a pencil and a bin on the title’s own line', async () => {
+    installLibrary([song('duelo')])
     await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    const row = screen.getByTestId('setup-song-row-duelo')
+    const edit = screen.getByTestId('setup-song-open-duelo')
+    const bin = screen.getByTestId('setup-song-delete-duelo')
+    // The mark is decoration to a screen reader; the button beside it carries the name.
+    expect(edit.getAttribute('aria-label')).toBe('Edit duelo')
+    expect(bin.getAttribute('aria-label')).toBe('Delete duelo')
+    expect(edit.querySelector('svg')).toBeTruthy()
+    expect(bin.querySelector('svg')).toBeTruthy()
+    // Not a labelled button any more: the row is one line.
+    expect(row.textContent).not.toContain('Edit')
+  })
+
+  // ── `manual only` is a property, not a warning ───────────────────────────────────────────
+  //
+  // A song with no timeline is a legitimate song: it goes in setlists and is advanced by hand,
+  // which this app did before it did anything else.
+
+  it('shows manual only on a song with no timeline', async () => {
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.getByTestId('setup-song-mode-duelo').textContent).toBe('manual only')
+  })
+
+  it('says nothing about the mode of a song that has a timeline', async () => {
+    installLibrary([timedSong('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    expect(screen.queryByTestId('setup-song-mode-duelo')).toBeNull()
+  })
+
+  it('does not dress the mode as something being wrong', async () => {
+    // `--state-warn` would say a complete song is missing something. It is a mode, like a key.
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    const mode = screen.getByTestId('setup-song-mode-duelo')
+    expect(mode.className).toBe('setup-song-mode')
+    expect(mode.textContent).not.toMatch(/not ready|missing|warning/i)
+  })
+
+  // ── Deleting a song, never silently ──────────────────────────────────────────────────────
+
+  it('asks first, and names what goes and what stays', async () => {
+    // The second fact is the one worth interrupting for: the thing somebody spent an afternoon on
+    // is not what is at stake.
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
     await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song'))
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
     })
-    fireEvent.change(screen.getByTestId('setup-new-song-id'), { target: { value: 'nuevo' } })
+    expect(screen.getByTestId('setup-song-delete-title').textContent).toBe('Delete duelo?')
+    const what = screen.getByTestId('setup-song-delete-what').textContent!
+    expect(what).toContain('duelo.json')
+    expect(what).toMatch(/lyrics and your recordings stay/)
+    expect(deleteSongFile).not.toHaveBeenCalled()
+  })
+
+  it('deletes only on the second press, and the list is the folder afterwards', async () => {
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
     await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-new-song-create'))
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
     })
-    expect(screen.getByTestId('setup-new-song-problem').textContent).toContain('already exists')
-    expect(screen.queryByTestId('setup-song-row-nuevo')).toBeNull()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-confirm'))
+    })
+    expect(deleteSongFile).toHaveBeenCalledTimes(1)
+    expect(deleteSongFile.mock.calls[0]![0]).toContain('duelo.json')
+    // Nothing removes a row by hand: the file is gone, so the next read does not list it.
+    expect(screen.queryByTestId('setup-song-delete-popup')).toBeNull()
+  })
+
+  it('cancels without touching anything', async () => {
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    })
+    expect(deleteSongFile).not.toHaveBeenCalled()
+    expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy()
+  })
+
+  it('names the gigs a song is in, and still lets it go', async () => {
+    // A gig's setlist keeps its ids and reports what it cannot resolve, so the record of the night
+    // stays truthful either way. Blocking would make the catalogue hostage to its own history.
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/2026-09-12-bar-eduard']))
+    readGigFolder.mockResolvedValue({
+      folderPath: '/gigs/2026-09-12-bar-eduard',
+      gigText: JSON.stringify({
+        gigVersion: 1,
+        id: 'g1',
+        venue: { name: 'Bar Eduard' },
+        setlist: ['duelo'],
+      }),
+      gigError: null,
+      gigPresent: true,
+      visualsText: null,
+      visualsError: null,
+      visualsPresent: false,
+    })
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await waitFor(() => expect(screen.getByTestId('setup-song-delete-uses')).toBeTruthy())
+    expect(screen.getByTestId('setup-song-delete-uses').textContent).toContain('Bar Eduard')
+    // Named, not blocked.
+    expect((screen.getByTestId('setup-song-delete-confirm') as HTMLButtonElement).disabled).toBe(
+      false
+    )
+  })
+
+  it('says nothing about gigs when the song is in none', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    readGigFolder.mockResolvedValue({
+      folderPath: '/gigs/a',
+      gigText: JSON.stringify({ gigVersion: 1, id: 'g1', setlist: ['otro'] }),
+      gigError: null,
+      gigPresent: true,
+      visualsText: null,
+      visualsError: null,
+      visualsPresent: false,
+    })
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await waitFor(() => expect(screen.getByTestId('setup-song-delete-what')).toBeTruthy())
+    expect(screen.queryByTestId('setup-song-delete-uses')).toBeNull()
+  })
+
+  it('says why a delete did not happen, in the dialog that asked for it', async () => {
+    deleteSongFile.mockResolvedValue({ ok: false, error: 'EPERM: operation not permitted' })
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-confirm'))
+    })
+    expect(screen.getByTestId('setup-song-delete-problem').textContent).toContain('EPERM')
+    expect(screen.getByTestId('setup-song-delete-popup')).toBeTruthy()
   })
 
   it('leads to preferences, which is where the folders went', async () => {
