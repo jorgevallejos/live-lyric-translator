@@ -59,13 +59,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   locateBombista: (bombistaPath) => ipcRenderer.invoke('bombista:locate', bombistaPath),
   /** The directory `align` writes into for a song. Pregonero names it and never reaches into it. */
   bombistaStagingDir: (songId) => ipcRenderer.invoke('bombista:stagingDir', songId),
-  /** Starts `bombista serve` and opens a window on the address it prints. */
-  openBombistaReview: (args, bombistaPath) =>
-    ipcRenderer.invoke('bombista:review', args, bombistaPath),
+  /** Starts `bombista serve` and hands back the address it prints. Opens no window. */
+  startBombistaFlow: (args, bombistaPath) =>
+    ipcRenderer.invoke('bombista:startFlow', args, bombistaPath),
+  /** Stops it. */
+  stopBombistaFlow: () => ipcRenderer.invoke('bombista:stopFlow'),
+  /** The `<stem>.json` `Save to the catalogue` wrote into a staging directory, or null. */
+  emittedSong: (stagingDir, since) => ipcRenderer.invoke('bombista:emitted', stagingDir, since),
   /** The song files in `<songs>/song-performance`. The folder is the truth; the library caches it. */
   listSongsFolder: (folderPath) => ipcRenderer.invoke('fs:listSongsFolder', folderPath),
   /** Whether a folder can be read at all. { ok: true } or { ok: false, error }. */
   folderReadable: (folderPath) => ipcRenderer.invoke('fs:folderReadable', folderPath),
+  /** Moves one song file to the Trash. { ok: true } or { ok: false, error }. */
+  deleteSongFile: (filePath) => ipcRenderer.invoke('fs:deleteSongFile', filePath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
   closeTool: (key) => ipcRenderer.invoke('tool:close', key),

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, screen } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, screen, shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const { WebSocketServer } = require('ws')
@@ -16,6 +16,7 @@ const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
 const { resolveBombista } = require('./bombistaBinary.cjs')
 const { listSongFiles } = require('./songsFolder.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
+const { emittedSongIn } = require('./emittedSong.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
 const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
 
@@ -276,33 +277,6 @@ async function openToolWindow(key, folder, page, title, gigFolder) {
   return { ok: true, url }
 }
 
-/**
- * Opens a window on an address somebody else is serving — `bombista serve`'s.
- *
- * Same window model, no mount: the page is Bombista's, served by Bombista, and Pregonero only
- * decides where the window is.
- */
-async function openToolUrl(key, url, title) {
-  const existing = toolWindows.get(key)
-  if (existing && !existing.isDestroyed()) {
-    existing.focus()
-    return { ok: true, url: existing.__pregoneroUrl }
-  }
-  const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    title,
-    webPreferences: { nodeIntegration: false, contextIsolation: true },
-  })
-  win.__pregoneroUrl = url
-  toolWindows.set(key, win)
-  win.on('closed', () => {
-    if (toolWindows.get(key) === win) toolWindows.delete(key)
-  })
-  await win.loadURL(url)
-  return { ok: true, url }
-}
-
 function closeToolWindow(key) {
   const win = toolWindows.get(key)
   if (win && !win.isDestroyed()) win.close()
@@ -424,6 +398,26 @@ ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(Strin
 // and that is not a problem, while the catalogue ROOT being gone makes that absence meaningless —
 // a drive that is not plugged in reads as an empty catalogue unless somebody asks about the root.
 // `readdirSync` rather than `existsSync`: moved, renamed and unreadable are one answer here.
+/**
+ * **Deleting a song file, and it goes to the Trash rather than out of existence.**
+ *
+ * The one place Pregonero removes a song file. **It is a `shell.trashItem`, not an `unlink`**: this
+ * app has already lost six irreplaceable backups to a delete that was described as a move, and a
+ * song file carries a timeline nothing can recompute without the recording it was measured from.
+ * The Trash is the system's own undo, it costs nothing, and it is what the confirmation names.
+ *
+ * **Only the song file.** The lyrics and the recordings are the author's, they live in other
+ * folders, and nothing here goes near them.
+ */
+ipcMain.handle('fs:deleteSongFile', async (_event, filePath) => {
+  try {
+    await shell.trashItem(String(filePath))
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+})
+
 ipcMain.handle('fs:folderReadable', (_event, folderPath) => {
   try {
     fs.readdirSync(String(folderPath))
@@ -493,7 +487,10 @@ ipcMain.handle('bombista:version', (_event, bombistaPath) => bombistaVersion({ b
 /** Where Pregonero found it, and everywhere it looked. For preferences to say out loud. */
 ipcMain.handle('bombista:locate', (_event, bombistaPath) => resolveBombista(bombistaPath))
 
-/** Where `align` writes. Pregonero names the directory and never reaches into it. */
+/**
+ * **Where a Bombista run works.** Pregonero names the directory, hands it over, and reads one file
+ * back out of it — see `emittedSong.cjs`. It never reaches into it for anything else.
+ */
 ipcMain.handle('bombista:stagingDir', (_event, songId) => {
   const dir = path.join(app.getPath('userData'), 'bombista-staging', String(songId || 'song'))
   try {
@@ -542,21 +539,38 @@ ipcMain.handle('tool:open', (_event, key, folder, page, title) => {
 })
 
 /**
- * Starts `bombista serve` and opens a window on the address it prints.
+ * **Starts `bombista serve` and hands back the address it prints. It opens no window.**
  *
- * **A subprocess and a window, and nothing else.** Bombista serves its own review page — which is
- * why it is not hosted from Pregonero's server: the static `--emit html` page names its audio with
- * a path relative to the staging directory, so serving it from anywhere else gives a review page
- * that cannot play the two lines it exists to let you hear.
+ * It used to open a second BrowserWindow on that address, and that window is what step 6 removes
+ * (journey-setup, 2026-09-02): the whole flow happens in Pregonero's own window, screens changing
+ * inside it. The renderer puts the address in a frame.
+ *
+ * **The boundary is untouched, and this is where that is visible.** A subprocess is started with a
+ * directory, an address is read off its stdout, and nothing else passes. Bombista serves its own
+ * pages — which is also why they are not hosted from Pregonero's server: the static review page
+ * names its audio relative to the staging directory, so serving it from anywhere else gives a page
+ * that cannot play the lines it exists to let you hear. Bombista does not know Pregonero exists.
  */
-ipcMain.handle('bombista:review', async (_event, args, bombistaPath) => {
+ipcMain.handle('bombista:startFlow', async (_event, args, bombistaPath) => {
   stopBombistaServe()
   const started = await startBombistaServe(Array.isArray(args) ? args : [], { bombistaPath })
   if (!started.ok) return { ok: false, error: started.error }
   bombistaServeChild = started.child
-  const opened = await openToolUrl('bombista', started.url, 'Bombista — review')
-  return opened.ok ? { ok: true, url: started.url } : opened
+  return { ok: true, url: started.url }
 })
+
+/** The flow is over — leaving the screen, cancelling, or the song landing in the catalogue. */
+ipcMain.handle('bombista:stopFlow', () => {
+  stopBombistaServe()
+})
+
+/**
+ * **What `Save to the catalogue` wrote, if it has been pressed yet.** See `emittedSong.cjs`: a
+ * directory in and a file path out is the whole of how the flow's end reaches Pregonero.
+ */
+ipcMain.handle('bombista:emitted', (_event, stagingDir, since) =>
+  emittedSongIn(String(stagingDir), Number(since) || 0)
+)
 
 ipcMain.handle('tool:close', (_event, key) => {
   closeToolWindow(String(key))
