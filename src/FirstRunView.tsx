@@ -26,6 +26,26 @@ import { GatedAction } from './GatedAction'
  * block — label in caps, the path in mono as the loudest thing in it, one paragraph, its picker —
  * and `Confirm` sits below both on the same grid, the only control that leaves.
  *
+ * **The pair is centred in the screen, the title names the moment, and the pickers say `Choose`**
+ * (2026-09-02, the third walk, on `v0.26.0`). The layout held, so what changed is what sat wrong
+ * around it: two columns pinned to the top of an empty screen read as the head of a document with
+ * the rest still to come, when the pair *is* the content; `Two folders you already have` states the
+ * question the columns already ask, where `Pregonero kickoff` names the moment instead; and
+ * `Find it…` asked for a search when the button opens a picker.
+ *
+ * **Colour marks what has been answered** (2026-09-02, the fourth walk, on the build carrying the
+ * three above). The screen was legible and monochrome, so nothing on it said which half was done:
+ * a chosen path and `Not chosen yet` sat in the same slot at the same size, differing only in
+ * dimness, and `Confirm` looked the same the instant before it became pressable as it did while it
+ * was dead. **A chosen path renders in `--state-ok` and `Confirm` joins it once both are in**, so
+ * the colour is what marks an answered question; **`Choose` renders in `--state-warn` while its
+ * folder is unanswered**, and goes back to the ordinary dark grey once picked, where it already
+ * reads `Choose another folder`. Two yellow buttons at rest, three green marks once answered. The
+ * contrast objection — two warning-coloured buttons on a screen where nothing is wrong — was
+ * raised and overruled: it is recorded as decided, not as a caveat. Both are tokens `control.css`
+ * already has; **no new colour enters the palette for this screen**, and the line under the title
+ * comes out so the colour is the only thing dividing the screen.
+ *
  * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
  * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
  * a song there; `setup/` is made the first time a gig is written. Neither is a question.
@@ -92,10 +112,13 @@ function FolderColumn({
         type="button"
         className="ctrl-btn ctrl-setup-link"
         data-testid={`${testId}-choose`}
+        // The same flag the path slot carries, for the same reason: what is unanswered is a state
+        // of the column, and both of its marks — the dimmed path, the yellow picker — read off it.
+        data-unset={value === null ? 'true' : undefined}
         disabled={disabled}
         onClick={onChoose}
       >
-        {value === null ? 'Find it…' : 'Choose another folder'}
+        {value === null ? 'Choose' : 'Choose another folder'}
       </button>
     </section>
   )
@@ -140,7 +163,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
   return (
     <div className="songs-screen first-run-screen" data-testid="first-run">
       <header className="songs-top-bar">
-        <h1 className="songs-title">Two folders you already have</h1>
+        <h1 className="songs-title">Pregonero kickoff</h1>
       </header>
 
       <main className="songs-body first-run-body">

@@ -7,6 +7,8 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
 import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 
@@ -198,10 +200,109 @@ describe('first run', () => {
   })
 
   it('leaves by a button called Confirm', async () => {
-    // The same word as the confirmation at the end of the gig flow: committing an answer reads
-    // the same at both moments. It replaces `Use these folders`.
+    // It replaces `Use these folders`. The reason first given for the word — that it matches the
+    // end of the gig flow — was false: that button reads `Confirm setup and go to the control
+    // view` (`GigView.tsx`). `Confirm` stands on its own; making the two rhyme is a later decision
+    // that has not been taken.
     await launch()
     expect(screen.getByTestId('first-run-confirm').textContent).toBe('Confirm')
+  })
+
+  // ── The third walk, v0.26.0: the title names the moment, the pickers say Choose ────────────
+
+  it('is titled by the moment, not by the question the columns already ask', async () => {
+    await launch()
+    expect(screen.getByTestId('first-run').textContent).toContain('Pregonero kickoff')
+    expect(screen.getByTestId('first-run').textContent).not.toContain(
+      'Two folders you already have'
+    )
+  })
+
+  it('offers Choose in each unanswered column, and Choose another folder once answered', async () => {
+    // `Find it…` asked for a search; the button opens a picker.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-gigs-choose').textContent).toBe('Choose')
+    expect(screen.getByTestId('first-run-songs-choose').textContent).toBe('Choose another folder')
+    expect(screen.getByTestId('first-run').textContent).not.toContain('Find it')
+  })
+
+  // ── The fourth walk: colour marks what has been answered ──────────────────────────────────
+  //
+  // The screen was legible and monochrome, so nothing on it said which half was done. These read
+  // the stylesheet, the way the control view's layout rules are asserted — this round is colour,
+  // and colour is invisible to a render assertion in jsdom. What the DOM can carry is the *state*
+  // the colour hangs off, so that is asserted against the rendered tree.
+
+  const css = () => readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+  const rule = (selector: string, sheet: string) => {
+    const found = sheet.match(
+      new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`)
+    )
+    if (!found) throw new Error(`rule not found: ${selector}`)
+    return found[1]
+  }
+
+  it('draws no line under the title, because there is no navigation to separate', async () => {
+    await launch()
+    expect(rule('.first-run-screen .songs-top-bar', css())).toMatch(/border-bottom:\s*none/)
+  })
+
+  it('renders a chosen path in the app’s green, and an unanswered one still dimmed', () => {
+    const sheet = css()
+    expect(rule('.first-run-path', sheet)).toMatch(/color:\s*var\(--state-ok\)/)
+    // The dimmed treatment is what makes the green mean *answered* rather than just mean *path*.
+    expect(rule(".first-run-path[data-unset='true']", sheet)).toMatch(/color:\s*var\(--text-dim\)/)
+  })
+
+  it('turns Confirm green once it can be pressed, and leaves it alone while it cannot', () => {
+    const sheet = css()
+    const enabled = rule('.first-run-confirm-row .ctrl-btn.ctrl-setup-link:not(:disabled)', sheet)
+    expect(enabled).toMatch(/color:\s*var\(--state-ok\)/)
+    expect(enabled).toMatch(/border-color:\s*var\(--state-ok\)/)
+    // Nothing claims the disabled state: it keeps the generic treatment, which is what makes the
+    // turn legible when it happens.
+    expect(sheet).not.toMatch(/\.first-run-confirm-row .ctrl-btn\.ctrl-setup-link:disabled\s*\{/)
+  })
+
+  it('draws an unanswered Choose in the app’s yellow, and lets an answered one go dark', () => {
+    const unanswered = rule(
+      ".first-run-column .ctrl-btn.ctrl-setup-link[data-unset='true']:not(:disabled)",
+      css()
+    )
+    expect(unanswered).toMatch(/color:\s*var\(--state-warn\)/)
+    expect(unanswered).toMatch(/border-color:\s*var\(--state-warn\)/)
+  })
+
+  it('takes its colours from the tokens already in the palette, not from new hex', () => {
+    // The one rule the walk set for this round: no new colour enters for this screen.
+    const sheet = css()
+    const block = sheet.slice(
+      sheet.indexOf('/* ---- First run: the two folders'),
+      sheet.indexOf('/* ---- Setup home: gigs and songs')
+    )
+    expect(block.length).toBeGreaterThan(0)
+    expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+  })
+
+  it('marks an unanswered column on its picker as well as on its path slot', async () => {
+    // The DOM half of the colour: one flag per column, which both marks read off.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-gigs-choose').getAttribute('data-unset')).toBe('true')
+    expect(screen.getByTestId('first-run-gigs-value').getAttribute('data-unset')).toBe('true')
+    expect(screen.getByTestId('first-run-songs-choose').hasAttribute('data-unset')).toBe(false)
+    expect(screen.getByTestId('first-run-songs-value').hasAttribute('data-unset')).toBe(false)
+  })
+
+  it('drops the unanswered mark from the picker the moment the folder is chosen', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-songs-choose').getAttribute('data-unset')).toBe('true')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-songs-choose'))
+    })
+    expect(screen.getByTestId('first-run-songs-choose').hasAttribute('data-unset')).toBe(false)
   })
 
   it('never says tramoya — that word is the repo’s, not a user’s', async () => {
