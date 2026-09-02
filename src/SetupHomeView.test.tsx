@@ -12,14 +12,16 @@ import { SetupHomeView } from './SetupHomeView'
 import { ensureStorage } from './testSupport/storage'
 import { installLibrary } from './testSupport/library'
 import { GIG_LIST_KEY, getGigList } from './gigListStore'
-import { SONGS_FOLDER_KEY } from './contentFolders'
+import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 import { setLibraryEntries, type LibrarySong } from './setlistStore'
+import { forgetLaunchAnnouncements } from './launchAnnouncements'
 
 const chooseGigFolderPath = vi.fn()
 const runBombista = vi.fn()
 const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
 const listSongsFolder = vi.fn()
+const folderReadable = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -31,6 +33,7 @@ vi.mock('./platform', async (importOriginal) => ({
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   listSongsFolder: (...a: unknown[]) => listSongsFolder(...a),
+  folderReadable: (...a: unknown[]) => folderReadable(...a),
   writeGigFile: () => Promise.resolve({ ok: true }),
   fileExists: () => Promise.resolve(true),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
@@ -55,6 +58,9 @@ beforeEach(() => {
   // The resolved library is an in-memory cache and outlives localStorage.clear(), so a song made
   // in one test would otherwise still be listed in the next.
   setLibraryEntries([])
+  // Announcements about unreadable files and folders are launch-scoped and in memory, so each test
+  // is a launch. Everything else about them would test the record rather than the screen.
+  forgetLaunchAnnouncements()
   vi.clearAllMocks()
   readGigFolder.mockResolvedValue({
     folderPath: '/gigs/x',
@@ -70,6 +76,7 @@ beforeEach(() => {
     text: JSON.stringify({ title: 'Nuevo', lyrics: [{ es: 'línea' }] }),
   })
   listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+  folderReadable.mockResolvedValue({ readable: true, answered: true, problem: null })
 })
 
 async function renderHome() {
@@ -88,6 +95,59 @@ describe('Setup home', () => {
     expect(screen.getByTestId('setup-new-song')).toBeTruthy()
     expect(screen.getByTestId('setup-home-no-gigs')).toBeTruthy()
     expect(screen.getByTestId('setup-home-no-songs')).toBeTruthy()
+  })
+
+  // ── The screen holds two lists and the means to make or import one. Nothing else ──────────
+  //
+  // Jorge, 2026-09-02, walking the screen: it was correct and read like a document. Two columns of
+  // prose with lists in them, ownership sentences included.
+
+  it('has a frame for each list, there whether or not the list is', async () => {
+    // The frame is the operational surface and its contents are what change. A list that appears
+    // only once it has something in it reshapes the screen the first time it is used.
+    await renderHome()
+    expect(screen.getByTestId('setup-home-gigs-frame')).toBeTruthy()
+    expect(screen.getByTestId('setup-home-songs-frame')).toBeTruthy()
+    expect(screen.getByTestId('setup-home-no-gigs').textContent).toBe('No gigs yet.')
+    expect(screen.getByTestId('setup-home-no-songs').textContent).toBe('No songs yet.')
+    // The empty line is inside its frame, not floating beside it.
+    expect(
+      screen.getByTestId('setup-home-gigs-frame').contains(screen.getByTestId('setup-home-no-gigs'))
+    ).toBe(true)
+  })
+
+  it('names the buttons New and Import, and the heading carries the noun', async () => {
+    await renderHome()
+    expect(screen.getByTestId('setup-new-gig').textContent).toBe('New')
+    expect(screen.getByTestId('setup-import-gig').textContent).toBe('Import')
+    expect(screen.getByTestId('setup-new-song').textContent).toBe('New')
+    expect(screen.getByTestId('setup-home-gigs').textContent).toContain('Gigs')
+    expect(screen.getByTestId('setup-home-songs').textContent).toContain('Songs')
+  })
+
+  it('has no Import in the songs column, and its absence is a decision', async () => {
+    // Raised as a new capability and DEFERRED by Jorge on 2026-09-02: what importing a song means
+    // when the list is the folder is an open design question. Not a layout move waiting to happen.
+    await renderHome()
+    const songsColumn = screen.getByTestId('setup-home-songs')
+    const labels = [...songsColumn.querySelectorAll('button')].map((b) => b.textContent)
+    expect(labels).not.toContain('Import')
+  })
+
+  it('carries no explanatory prose in either column', async () => {
+    // Including the ownership sentences. Both are true and both are internal detail from where the
+    // user stands; they live in the docs.
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    installLibrary([song('duelo')])
+    await renderHome()
+    const gigs = screen.getByTestId('setup-home-gigs').textContent!
+    const songs = screen.getByTestId('setup-home-songs').textContent!
+    expect(gigs).not.toContain('Forget is Pregonero forgetting')
+    expect(gigs).not.toContain('drive that is not plugged in')
+    expect(songs).not.toContain('Bombista’s')
+    expect(songs).not.toContain('gig-independent')
+    // `Import a gig from elsewhere…` was a footnote under the empty state; it is a sibling now.
+    expect(gigs).not.toContain('from elsewhere')
   })
 
   it('shows every song, and never truncates the list', async () => {
@@ -116,59 +176,196 @@ describe('Setup home', () => {
     expect(row.textContent).not.toMatch(/ready/i)
   })
 
-  it('keeps a broken song listed, visibly broken', async () => {
-    // Hiding it would hide the problem, and the fix is in the songs folder rather than here.
-    // Both songs are referenced; the cache then says `libertad` failed to parse. A cache entry
-    // with no reference is dropped by hydration, so the reference is what keeps it listed.
+  // ── A file that will not read: one popup, then dropped ───────────────────────────────────
+  //
+  // Jorge's call, 2026-09-02, walking the screen. It was a red row that stayed red for as long as
+  // the file did — a standing accusation on a screen whose job is the two lists that decide
+  // tonight. A file somebody changed outside Pregonero is an outside problem: said once, then
+  // ignored.
+
+  it('drops a song file that will not read, and marks nothing', async () => {
     installLibrary([song('ok'), song('libertad')])
     setLibraryEntries([
       { ref: { id: 'ok', path: 'ok.json' }, song: song('ok') },
       { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
     ])
     await renderHome()
-    expect(screen.getByTestId('setup-song-broken-libertad').textContent).toContain('24 lines')
+    expect(screen.getByTestId('setup-song-row-ok')).toBeTruthy()
+    expect(screen.queryByTestId('setup-song-row-libertad')).toBeNull()
+    expect(screen.queryByTestId('setup-song-broken-libertad')).toBeNull()
+    expect(screen.queryByTestId('setup-songs-report')).toBeNull()
   })
 
-  // ── The listing reports what it could not read, and does not block ────────────────────────
+  it('names the file and its own reason, and offers no repair', async () => {
+    // **The file, not the song** — the title inside may be the unreadable part. **The validator's
+    // reason**, which is the difference between knowing something is wrong and knowing what is.
+    // **No route to Bombista**: Pregonero cannot know whether the file is repairable at all.
+    installLibrary([song('ok'), song('libertad')])
+    setLibraryEntries([
+      { ref: { id: 'ok', path: 'ok.json' }, song: song('ok') },
+      { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
+    ])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-unreadable-popup')).toBeTruthy())
+    expect(screen.getByTestId('setup-songs-unreadable-title').textContent).toBe(
+      'One song file will not read'
+    )
+    const named = screen.getByTestId('setup-songs-unreadable-list').textContent!
+    expect(named).toContain('libertad.json')
+    expect(named).toContain('24 lines against 20')
+    expect(named).not.toContain('ok.json')
+    expect(screen.getByTestId('setup-songs-unreadable-note').textContent).toBe(
+      'The file is untouched and stays where it is. It is not in Pregonero’s song list, so it cannot be added to a gig.'
+    )
+    expect(screen.getByTestId('setup-songs-unreadable-popup').textContent).not.toContain('Bombista')
+  })
+
+  it('counts them in the title, one line each', async () => {
+    installLibrary([song('libertad'), song('paso')])
+    setLibraryEntries([
+      { ref: { id: 'libertad', path: 'libertad.json' }, error: 'no lyric line' },
+      { ref: { id: 'paso', path: 'paso.json' }, error: 'unexpected token' },
+    ])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-unreadable-popup')).toBeTruthy())
+    expect(screen.getByTestId('setup-songs-unreadable-title').textContent).toBe(
+      '2 song files will not read'
+    )
+    const rows = screen.getByTestId('setup-songs-unreadable-list').querySelectorAll('li')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.textContent).toContain('no lyric line')
+    expect(rows[1]!.textContent).toContain('unexpected token')
+    // **The plural has its own sentence.** The singular one shipped under a plural title on the
+    // 2026-09-02 walk, saying *the file* over a list of two.
+    expect(screen.getByTestId('setup-songs-unreadable-note').textContent).toBe(
+      'The files are untouched and stay where they are. They are not in Pregonero’s song list, so they cannot be added to a gig.'
+    )
+  })
+
+  it('says it once per launch, not once per visit', async () => {
+    // Nothing tells the app the file was repaired, so the record is in memory and a relaunch says
+    // it again. What it must not do is say it on every arrival at this screen.
+    installLibrary([song('libertad')])
+    setLibraryEntries([
+      { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
+    ])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-unreadable-popup')).toBeTruthy())
+    cleanup()
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-home-no-songs')).toBeTruthy())
+    expect(screen.queryByTestId('setup-songs-unreadable-popup')).toBeNull()
+  })
+
+  it('closes, and does not come back on this arrival', async () => {
+    installLibrary([song('libertad')])
+    setLibraryEntries([
+      { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
+    ])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-unreadable-popup')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByTestId('setup-songs-unreadable-popup')).toBeNull()
+  })
 
   it('says nothing when the catalogue read cleanly', async () => {
     installLibrary([song('ok')])
     setLibraryEntries([{ ref: { id: 'ok', path: 'ok.json' }, song: song('ok') }])
     await renderHome()
-    expect(screen.queryByTestId('setup-songs-report')).toBeNull()
+    expect(screen.queryByTestId('setup-songs-unreadable-popup')).toBeNull()
   })
 
-  it('names the song files that would not read, and points repairs at Bombista', async () => {
-    installLibrary([song('ok'), song('libertad')])
-    setLibraryEntries([
-      { ref: { id: 'ok', path: 'ok.json' }, song: song('ok') },
-      { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
-    ])
-    await renderHome()
-    const report = screen.getByTestId('setup-songs-unreadable').textContent!
-    expect(report).toContain('libertad.json')
-    expect(report).not.toContain('ok.json')
-    expect(report).toContain('Bombista')
-  })
+  // ── A folder that cannot be read: a popup, then a half that says why it is dead ──────────
+  //
+  // Jorge, 2026-09-02, on the same rule as the unreadable file: a condition made outside the tools
+  // is an event to be told about once, not a state to live with in the page. What outlives the
+  // dialog is the half's disabled buttons and the one line in its frame.
 
-  it('reports and does not block: New song and the gigs are all still there', async () => {
-    // A modal that has to be cleared before you can go on is closer to the step-1 dead end this
-    // redesign exists to remove than it is to a report. **The list does empty**, because a folder
-    // that will not read is a folder with no known contents — and the notice below says so.
+  it('names the songs folder in a popup, with the path and where to set it', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
     listSongsFolder.mockResolvedValue({
       files: [],
-      problem: 'EACCES: permission denied',
-      answered: true,
+      problem: 'ENOENT: /songs',
+      answered: false,
     })
-    installLibrary([song('ok')])
-    setLibraryEntries([{ ref: { id: 'ok', path: 'ok.json' }, song: song('ok') }])
     await renderHome()
-    await waitFor(() =>
-      expect(screen.getByTestId('setup-songs-folder-problem').textContent).toContain('EACCES')
+    await waitFor(() => expect(screen.getByTestId('setup-songs-folder-popup')).toBeTruthy())
+    expect(screen.getByTestId('setup-songs-folder-popup-title').textContent).toBe(
+      'The songs folder cannot be read'
     )
-    expect(screen.getByTestId('setup-new-song')).toBeTruthy()
-    expect(screen.getByTestId('setup-home-gigs')).toBeTruthy()
+    expect(screen.getByTestId('setup-songs-folder-popup-path').textContent).toBe('/songs')
+    const popup = screen.getByTestId('setup-songs-folder-popup').textContent!
+    expect(popup).toContain('moved or renamed')
+    expect(popup).toContain('drive that is not connected')
+    expect(popup).toContain('Preferences')
+    // **Not the errno.** Moved, renamed and unplugged take the same next step, so naming which one
+    // it was buys the reader nothing they can act on.
+    expect(popup).not.toContain('ENOENT')
+  })
+
+  it('disables every button in the blocked half, and says why once, in the frame', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: [], problem: 'ENOENT: /songs', answered: false })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-home-songs-folder-line')).toBeTruthy())
+    const line = screen.getByTestId('setup-home-songs-folder-line')
+    expect(line.textContent).toBe('Songs folder cannot be read. Set it in Preferences.')
+    // **`No songs yet.` is never shown when the app failed to look**: it would claim the folder is
+    // empty on the strength of a read that did not happen.
+    expect(screen.queryByTestId('setup-home-no-songs')).toBeNull()
+    const newSong = screen.getByTestId('setup-new-song') as HTMLButtonElement
+    expect(newSong.disabled).toBe(true)
+    // The reason is the frame line, and the button points at it rather than restating it.
+    expect(newSong.getAttribute('aria-describedby')).toBe(line.id)
+    // The other half is untouched: one folder failing is not both.
+    expect((screen.getByTestId('setup-new-gig') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByTestId('setup-home-no-gigs')).toBeTruthy()
+  })
+
+  it('does the same for the gigs folder, with its own words', async () => {
+    localStorage.setItem(GIGS_FOLDER_KEY, '/gigs')
+    folderReadable.mockResolvedValue({ readable: false, answered: true, problem: 'ENOENT: /gigs' })
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-gigs-folder-popup')).toBeTruthy())
+    expect(screen.getByTestId('setup-gigs-folder-popup-title').textContent).toBe(
+      'The gigs folder cannot be read'
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.getByTestId('setup-home-gigs-folder-line').textContent).toBe(
+      'Gigs folder cannot be read. Set it in Preferences.'
+    )
+    // The list is not drawn over the line, even though the app remembers a gig at that path.
+    expect(screen.queryByTestId('setup-gig-row-a')).toBeNull()
+    for (const id of ['setup-new-gig', 'setup-import-gig']) {
+      expect((screen.getByTestId(id) as HTMLButtonElement).disabled).toBe(true)
+      // One sentence per half, not the same sentence under each control it blocks.
+      expect(screen.queryByTestId(`${id}-reason`)).toBeNull()
+    }
+  })
+
+  it('says it once per launch, and keeps the half dead while the condition holds', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: [], problem: 'ENOENT: /songs', answered: false })
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-folder-popup')).toBeTruthy())
+    cleanup()
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-home-songs-folder-line')).toBeTruthy())
+    expect(screen.queryByTestId('setup-songs-folder-popup')).toBeNull()
+    expect((screen.getByTestId('setup-new-song') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('does not also announce every song in it as vanished', async () => {
+    // A read that failed is not an answer about what is in the folder. Before the listing said so,
+    // an unplugged catalogue reported the folder AND all thirteen songs, on one arrival.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: [], problem: 'ENOENT: /songs', answered: false })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-folder-popup')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
   })
 
   // ── The list is the folder, and absent is not broken ──────────────────────────────────────
@@ -202,7 +399,7 @@ describe('Setup home', () => {
     expect(named).toContain('vidas.json')
     expect(named).not.toContain('duelo.json')
     // **Absent is not broken.** The wrong report is the one that fired on the walk.
-    expect(screen.queryByTestId('setup-songs-unreadable')).toBeNull()
+    expect(screen.queryByTestId('setup-songs-unreadable-popup')).toBeNull()
   })
 
   it('says it once: the next arrival, with the same songs still gone, is silent', async () => {
@@ -227,6 +424,7 @@ describe('Setup home', () => {
     await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
     cleanup()
     listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+  folderReadable.mockResolvedValue({ readable: true, answered: true, problem: null })
     await renderHome()
     await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
     const named = screen.getByTestId('setup-songs-gone-list').textContent!
@@ -281,14 +479,17 @@ describe('Setup home', () => {
     // The screen that produced this round, in miniature.
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
     listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+  folderReadable.mockResolvedValue({ readable: true, answered: true, problem: null })
     const twelve = Array.from({ length: 12 }, (_, i) => song(`song-${i}`))
     installLibrary(twelve)
     await renderHome()
     await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
     for (const s of twelve) expect(screen.queryByTestId(`setup-song-row-${s.id}`)).toBeNull()
-    expect(screen.queryByTestId('setup-songs-unreadable')).toBeNull()
-    // "No songs yet" would be false: they were there a moment ago.
-    expect(screen.getByTestId('setup-home-no-songs').textContent).toContain('Nothing in the catalogue')
+    expect(screen.queryByTestId('setup-songs-unreadable-popup')).toBeNull()
+    // **The empty line says the frame is empty and nothing more** (2026-09-02). It used to hedge
+    // — `Nothing in the catalogue now` when songs had just left — and the popup in front of it is
+    // already saying what happened, at the moment it happened.
+    expect(screen.getByTestId('setup-home-no-songs').textContent).toBe('No songs yet.')
   })
 
   it('the popup is dismissed and does not come back on this arrival', async () => {
@@ -302,8 +503,9 @@ describe('Setup home', () => {
     expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy()
   })
 
-  it('still keeps a song that is there and will not parse, listed and named', async () => {
-    // The older ruling, unchanged: what is in the folder and broken stays visible.
+  it('a file that is there and will not parse is not a file that went', async () => {
+    // Two silences, two popups. This one is in the folder, so nothing vanished — and it is not in
+    // the list either, so the frame reads empty.
     localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
     listSongsFolder.mockResolvedValue({
       files: ['libertad.json'],
@@ -315,9 +517,10 @@ describe('Setup home', () => {
       { ref: { id: 'libertad', path: 'libertad.json' }, error: '24 lines against 20' },
     ])
     await renderHome()
-    await waitFor(() => expect(screen.getByTestId('setup-song-row-libertad')).toBeTruthy())
-    expect(screen.getByTestId('setup-songs-unreadable').textContent).toContain('libertad.json')
+    await waitFor(() => expect(screen.getByTestId('setup-songs-unreadable-popup')).toBeTruthy())
+    expect(screen.queryByTestId('setup-song-row-libertad')).toBeNull()
     expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+    expect(screen.getByTestId('setup-home-no-songs')).toBeTruthy()
   })
 
   it('has no folder to complain about before a catalogue is chosen', async () => {
@@ -538,5 +741,15 @@ describe('Setup home', () => {
   it('leads to preferences, which is where the folders went', async () => {
     await renderHome()
     expect(screen.getByTestId('setup-home-preferences')).toBeTruthy()
+  })
+
+  it('is called Backstage, and keeps the rule under the title', async () => {
+    // It names the moment rather than the machine: the room you are in before the show. The rule
+    // separates navigation from content, and this screen has navigation — the kickoff screen,
+    // which lost its rule, is the exception.
+    await renderHome()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Backstage')
+    expect(document.querySelector('.first-run-screen')).toBeNull()
+    expect(document.querySelector('.setup-home-screen .songs-top-bar')).toBeTruthy()
   })
 })

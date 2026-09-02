@@ -419,6 +419,20 @@ ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
 // folder is the source of truth; this is how it is read.
 ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(String(folderPath)))
 
+// **Whether a folder this machine was pointed at can be read at all.** Separate from the listing
+// above because they answer different questions: `song-performance/` is absent on a fresh machine
+// and that is not a problem, while the catalogue ROOT being gone makes that absence meaningless —
+// a drive that is not plugged in reads as an empty catalogue unless somebody asks about the root.
+// `readdirSync` rather than `existsSync`: moved, renamed and unreadable are one answer here.
+ipcMain.handle('fs:folderReadable', (_event, folderPath) => {
+  try {
+    fs.readdirSync(String(folderPath))
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+})
+
 // ── The gig folder. Every Electron call this round introduces lives behind `src/platform.ts`
 // on the renderer side; these are its four handlers. ──────────────────────────────────────────
 ipcMain.handle('dialog:openGigFolder', async (_event, defaultPath) => {

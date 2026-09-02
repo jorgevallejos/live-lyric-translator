@@ -114,6 +114,7 @@ describe('a gated action', () => {
     expect([...GATED_SITES]).toEqual([
       'setup-new-song-create',
       'setup-new-gig',
+      'setup-import-gig',
       'setup-create-gig',
       'muralista-open',
       'muralista-open-gig',
