@@ -5,7 +5,6 @@ import {
   setGigsFolder,
   setSongsFolder,
 } from './contentFolders'
-import { GIG_SETUP_FOLDER, SONG_FILES_FOLDER } from './fileLayout'
 import { chooseFolderPath, hasFolderPicker } from './platform'
 import { GatedAction } from './GatedAction'
 
@@ -21,14 +20,26 @@ import { GatedAction } from './GatedAction'
  * **catalogue**; *where your gigs live* finds a **body of work**. Both were phrased "choose a
  * folder", which is exactly why the second one read as the first one asked twice.
  *
+ * **Two equal columns with a hard rule between them, songs left and gigs right** (2026-09-02,
+ * settled by walking the screen). The rule is what makes them read as two questions before either
+ * is read; side by side they cannot be mistaken for one question asked twice. Each column is one
+ * block — label in caps, the path in mono as the loudest thing in it, one paragraph, its picker —
+ * and `Confirm` sits below both on the same grid, the only control that leaves.
+ *
  * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
  * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
  * a song there; `setup/` is made the first time a gig is written. Neither is a question.
  *
- * **It shows the shape rather than explaining it**, and it draws each half as that half is
- * answered. A first-run screen earns its explanation with the thing it is about to work with, not
- * with prose — and the shape is where the ownership boundary this round exists for becomes visible:
- * what the suite writes into each folder, and what stays yours.
+ * **Everything else is gone, the folder-shape example included** (2026-09-02). The shape read as
+ * prescriptive — a structure being required rather than a thing being found — and the prose around
+ * it explained the app to someone who had not used it yet. Two paragraphs carry the whole screen,
+ * and each says what its folder is worth rather than what the app does with it. This reverses *it
+ * shows the shape rather than explaining it*: the shape is reconsidered if the screen turns out to
+ * need it, not defended now.
+ *
+ * **Both paragraphs name Pregonero as the actor**, because *you are never asked again* was false:
+ * the pickers still ask for a lyrics file and a recording when a song is made. What is answered
+ * once is where the **catalogue** is, not where every file is.
  *
  * **There is no Tramoya folder and the word never appears here.** The app's own bookkeeping — the
  * gig list, the Bombista path, the preferences — is per-machine, is not Jorge's, and lives where
@@ -37,9 +48,9 @@ import { GatedAction } from './GatedAction'
  * **It waits to be dismissed** (2026-09-01, reversing #83). That round argued a confirming click
  * would be a step that decides nothing, and the first walk of `v0.24.0` found what it decides:
  * **when the person is done.** Answering a file dialog is not being finished — you may want to
- * re-check the first answer having seen the second, or read what the screen says about what goes
- * where — and being thrown to the control view mid-thought is the app deciding on your behalf.
- * Both answers stay changeable until the button is pressed, and pressing it is what leaves.
+ * re-check the first answer having seen the second — and being thrown to the control view
+ * mid-thought is the app deciding on your behalf. Both answers stay changeable until the button is
+ * pressed, and pressing it is what leaves.
  *
  * **Once both are chosen and confirmed it is gone, and every later launch goes straight through.**
  * There is no "skip", because the whole point is that a setting stops being something you discover
@@ -47,31 +58,36 @@ import { GatedAction } from './GatedAction'
  * they exist.
  */
 
-function FolderQuestion({
-  question,
-  finds,
-  hint,
+/**
+ * One column. **The path is the loudest thing in it**, because the answer is what the column is
+ * about; the label names the question and the paragraph argues for it, and neither competes.
+ */
+function FolderColumn({
+  label,
+  paragraph,
   value,
   onChoose,
   disabled,
   testId,
 }: {
-  question: string
-  finds: string
-  hint: string
+  label: string
+  paragraph: string
   value: string | null
   onChoose: () => void
   disabled: boolean
   testId: string
 }) {
   return (
-    <div className="first-run-row" data-testid={testId}>
-      <span className="folders-row-label">{question}</span>
-      <span className="first-run-finds">{finds}</span>
-      <span className="folders-row-value" data-testid={`${testId}-value`}>
+    <section className="first-run-column" data-testid={testId}>
+      <span className="first-run-label">{label}</span>
+      <span
+        className="first-run-path"
+        data-testid={`${testId}-value`}
+        data-unset={value === null ? 'true' : undefined}
+      >
         {value ?? 'Not chosen yet'}
       </span>
-      <p className="gig-hint">{hint}</p>
+      <p className="first-run-paragraph">{paragraph}</p>
       <button
         type="button"
         className="ctrl-btn ctrl-setup-link"
@@ -81,49 +97,7 @@ function FolderQuestion({
       >
         {value === null ? 'Find it…' : 'Choose another folder'}
       </button>
-    </div>
-  )
-}
-
-/** The last segment of a path, which is what a folder is called when you are looking at it. */
-function folderName(path: string): string {
-  const parts = path.split('/').filter((p) => p.length > 0)
-  return parts[parts.length - 1] ?? path
-}
-
-/**
- * The shape, drawn from the answers so far. **Owned and ours are labelled on every line**, because
- * that is the whole of what this screen is telling you: the two folders are yours, and the suite
- * writes into one named place inside each.
- */
-function Shape({ songs, gigs }: { songs: string | null; gigs: string | null }) {
-  if (songs === null && gigs === null) return null
-  return (
-    <pre className="first-run-shape" data-testid="first-run-shape">
-      {songs !== null && (
-        <>
-          {`${folderName(songs)}/`}
-          <span className="first-run-shape-note">  your catalogue</span>
-          {`\n  audio/  lyrics/  …`}
-          <span className="first-run-shape-note">  your material, any structure you like</span>
-          {`\n  ${SONG_FILES_FOLDER}/`}
-          <span className="first-run-shape-note">  the song files — written by the suite, yours</span>
-          {'\n'}
-        </>
-      )}
-      {songs !== null && gigs !== null && '\n'}
-      {gigs !== null && (
-        <>
-          {`${folderName(gigs)}/`}
-          <span className="first-run-shape-note">  your gigs</span>
-          {`\n  a gig/`}
-          <span className="first-run-shape-note">  yours: the poster, the contract, the debrief</span>
-          {`\n    ${GIG_SETUP_FOLDER}/`}
-          <span className="first-run-shape-note">  ours: gig.json and visuals.json</span>
-          {'\n'}
-        </>
-      )}
-    </pre>
+    </section>
   )
 }
 
@@ -170,47 +144,38 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
       </header>
 
       <main className="songs-body first-run-body">
-        <p className="gig-hint" data-testid="first-run-lede">
-          Point at them once. Nothing is created and nothing is moved — Pregonero opens as usual from
-          here on, and you can change them later in preferences.
-        </p>
-
         {!canPick && (
-          <p className="gig-empty" data-testid="first-run-no-picker">
+          <p className="gig-empty first-run-no-picker" data-testid="first-run-no-picker">
             Folders can only be chosen from the desktop app.
           </p>
         )}
 
-        <FolderQuestion
-          testId="first-run-songs"
-          question="Where your songs live"
-          finds="Your catalogue"
-          hint="The folder your songs are already in — the recordings, the lyrics, the artwork. The suite reads and writes one folder inside it, and touches nothing else."
-          value={songs}
-          disabled={busy || !canPick}
-          onChoose={() =>
-            choose('Where your songs live', 'songs-folder', setSongsFolder, setSongs)
-          }
-        />
+        <div className="first-run-columns">
+          <FolderColumn
+            testId="first-run-songs"
+            label="Where your songs live — Your catalogue"
+            paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes the song performance data back into it."
+            value={songs}
+            disabled={busy || !canPick}
+            onChoose={() =>
+              choose('Where your songs live', 'songs-folder', setSongsFolder, setSongs)
+            }
+          />
 
-        <FolderQuestion
-          testId="first-run-gigs"
-          question="Where your gigs live"
-          finds="Your body of work"
-          hint="The folder your gigs are already in, one folder per night. New gigs are made in here, and each one stays yours."
-          value={gigs}
-          disabled={busy || !canPick}
-          onChoose={() =>
-            choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs)
-          }
-        />
+          <FolderColumn
+            testId="first-run-gigs"
+            label="Where your gigs live — Your body of work"
+            paragraph="The folder where your gig data is stored. Pregonero makes a new folder here for each gig, and keeps its setup inside it."
+            value={gigs}
+            disabled={busy || !canPick}
+            onChoose={() => choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs)}
+          />
+        </div>
 
-        <Shape songs={songs} gigs={gigs} />
-
-        <div className="gig-actions">
+        <div className="first-run-confirm-row">
           <GatedAction
             site="first-run-confirm"
-            label="Use these folders"
+            label="Confirm"
             busy={busy}
             blockedBy={unanswered}
             onClick={onDone}
