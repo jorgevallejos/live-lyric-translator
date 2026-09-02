@@ -2941,20 +2941,21 @@ html, body, #root {
 .first-run-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  /* Label, path, paragraph, button — named here so both columns can borrow them below. The
-     paragraph takes the slack, which pins both buttons to the same line. */
-  grid-template-rows: auto auto 1fr auto;
+  /* Name, label, paragraph, button, path — named here so both columns can borrow them below. The
+     paragraph takes the slack, which pins both buttons AND both paths to the same line however
+     unevenly the two paragraphs wrap. */
+  grid-template-rows: auto auto 1fr auto auto;
   align-items: stretch;
   column-gap: 0;
 }
 
 .first-run-column {
-  /* `subgrid`, the same device the control view's setup sections use: the four parts line up
+  /* `subgrid`, the same device the control view's setup sections use: the five parts line up
      ACROSS the two columns, so a label that wraps onto a second line does not push its own path
      out of step with the other one. Without it the two answers sit at different heights, which
      is exactly the "one question asked twice" reading this layout exists to break. */
   display: grid;
-  grid-row: span 4;
+  grid-row: span 5;
   grid-template-rows: subgrid;
   align-content: start;
   justify-items: start;
@@ -2973,8 +2974,28 @@ html, body, #root {
   padding-left: 0;
 }
 
-/* The question, named by what it finds: a catalogue, a body of work. It is the quietest thing in
-   the column on purpose — the answer is what the column is about. */
+/* THE NAME, AND IT IS THE LOUDEST THING IN THE COLUMN (2026-09-02, the fifth walk). `SONGS` and
+   `GIGS`, one word each, because at rest both paths read `Not chosen yet` and the two columns
+   opened looking identical — the exact reading the side-by-side layout exists to prevent. The
+   difference between the two questions is the whole screen, so the naming carries it, and the
+   caps line below is the subtitle it always was. This SUPERSEDES *the path is the loudest thing in
+   the column*, decided the same day; the reversal is deliberate and recorded, not an oversight.
+   Mono like every other label here, and `--text-primary` because loudest on this ground is the
+   brightest paper, not a colour — the one colour that means anything on this screen is the green
+   on `Confirm`. */
+.first-run-name {
+  font-family: var(--font-label);
+  font-size: 2.25em;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  align-self: start;
+}
+
+/* The question, named by what it finds: a catalogue, a body of work. A subtitle under the name
+   rather than the column's heading — it says what the folder is worth being called, where the
+   name says which column you are in. */
 .first-run-label {
   font-family: var(--font-label);
   font-size: 0.75em;
@@ -2982,28 +3003,30 @@ html, body, #root {
   text-transform: uppercase;
   color: var(--text-dim);
   align-self: start;
+  padding-top: 0.4em;
 }
 
-/* THE LOUDEST THING IN THE COLUMN. Mono because it is a path, and large because the answer is
-   what someone comes back to this screen to check. */
-/* AN ANSWER IS GREEN (2026-09-02, the fourth walk). The path and `Not chosen yet` occupy the same
-   slot at the same size, so before this the only difference between an answered column and an
-   empty one was how dim it was — a difference nobody reads as a state. `--state-ok` is the app's
-   green and is already what a passing check is drawn in; no new colour enters for this screen. */
+/* THE ANSWER, LAST IN THE COLUMN AND NO LONGER THE LOUDEST THING IN IT (2026-09-02, the fifth
+   walk — see `.first-run-name`). Mono because it is a path, and still large enough to be read at
+   a glance by someone who came back to check it; what it no longer does is outrank the name.
+   THE GREEN COMES OFF IT, back to `--text-primary`. The fourth walk put `--state-ok` here as well
+   as on `Confirm`, which spread one meaning over three marks; one green mark on the screen means
+   one thing, and that thing is *you are ready*. The answered state is still legible without it —
+   the picker turns over to `Choose another folder` and `Confirm` goes green. If that proves too
+   quiet, the repair is WEIGHT on the path, not colour returning to it. */
 .first-run-path {
   font-family: var(--font-control);
   font-size: 1.375em;
   line-height: 1.3;
-  color: var(--state-ok);
+  color: var(--text-primary);
   overflow-wrap: anywhere;
   max-width: 100%;
   align-self: start;
-  padding-top: 0.25em;
+  padding-top: 0.75em;
 }
 
-/* Unanswered is still the loudest slot, at the size the answer will be — the column does not
-   reflow when it is filled in. It keeps the dimmed treatment it always had, which is what makes
-   the GREEN the mark of an answered question rather than just a second colour on the screen. */
+/* Unanswered sits in the same slot at the same size, so the column does not reflow when it is
+   filled in. Dim is what says nothing has been answered here yet. */
 .first-run-path[data-unset='true'] {
   color: var(--text-dim);
 }
@@ -3062,12 +3085,13 @@ html, body, #root {
   max-width: none;
 }
 
-/* `CONFIRM` JOINS THE GREEN ONCE BOTH FOLDERS ARE IN (2026-09-02, the fourth walk). The moment it
+/* `CONFIRM` TURNS GREEN ONCE BOTH FOLDERS ARE IN (2026-09-02, the fourth walk). The moment it
    becomes pressable is the moment the screen is finished, and before this it looked identical the
    instant before and the instant after — the `:disabled` opacity was the whole signal, which is a
-   difference you notice only if you were watching. It matches the two paths above it on purpose:
-   the same green says answered in all three places. **Disabled is deliberately unchanged** — the
-   generic disabled treatment is what makes the change legible when it lands. */
+   difference you notice only if you were watching. **It is the ONLY green on the screen** (the
+   fifth walk took it off the paths): one mark, one meaning, and the meaning is *you are ready*.
+   **Disabled is deliberately unchanged** — the generic disabled treatment is what makes the turn
+   legible when it lands. */
 .first-run-confirm-row .ctrl-btn.ctrl-setup-link:not(:disabled) {
   color: var(--state-ok);
   border-color: var(--state-ok);

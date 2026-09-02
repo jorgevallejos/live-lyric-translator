@@ -248,10 +248,12 @@ describe('first run', () => {
     expect(rule('.first-run-screen .songs-top-bar', css())).toMatch(/border-bottom:\s*none/)
   })
 
-  it('renders a chosen path in the app’s green, and an unanswered one still dimmed', () => {
+  it('renders a chosen path in ordinary paper, and an unanswered one dimmed', () => {
+    // The fifth walk took `--state-ok` back off the path: one green mark on the screen, and it is
+    // `Confirm`. The path returns to the treatment it had before the fourth walk put colour on it.
     const sheet = css()
-    expect(rule('.first-run-path', sheet)).toMatch(/color:\s*var\(--state-ok\)/)
-    // The dimmed treatment is what makes the green mean *answered* rather than just mean *path*.
+    expect(rule('.first-run-path', sheet)).toMatch(/color:\s*var\(--text-primary\)/)
+    expect(rule('.first-run-path', sheet)).not.toMatch(/--state-ok/)
     expect(rule(".first-run-path[data-unset='true']", sheet)).toMatch(/color:\s*var\(--text-dim\)/)
   })
 
@@ -303,6 +305,60 @@ describe('first run', () => {
       fireEvent.click(screen.getByTestId('first-run-songs-choose'))
     })
     expect(screen.getByTestId('first-run-songs-choose').hasAttribute('data-unset')).toBe(false)
+  })
+
+  // ── The fifth walk: the name is loudest, and the green is only on Confirm ─────────────────
+  //
+  // Two decisions from the same day are reversed here. At rest both paths read `Not chosen yet`,
+  // so the two columns opened looking identical — the reading the side-by-side layout exists to
+  // prevent — and the green was spread over three marks when it means one thing.
+
+  it('heads each column with its name, large, above the caps subtitle', async () => {
+    await launch()
+    expect(screen.getByTestId('first-run-songs-name').textContent).toBe('Songs')
+    expect(screen.getByTestId('first-run-gigs-name').textContent).toBe('Gigs')
+    // Rendered in caps by the stylesheet, the way the subtitle below it already was.
+    const name = rule('.first-run-name', css())
+    expect(name).toMatch(/text-transform:\s*uppercase/)
+    // Loudest: bigger than the path, which is the element it takes the role from.
+    const size = (block: string) => Number(block.match(/font-size:\s*([\d.]+)em/)![1])
+    expect(size(name)).toBeGreaterThan(size(rule('.first-run-path', css())))
+  })
+
+  it('orders the column name, subtitle, paragraph, button, path', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    const column = screen.getByTestId('first-run-songs')
+    expect([...column.children].map((el) => el.className)).toEqual([
+      'first-run-name',
+      'first-run-label',
+      'first-run-paragraph',
+      'ctrl-btn ctrl-setup-link',
+      'first-run-path',
+    ])
+  })
+
+  it('lays the column out in five rows, so the five parts line up across both', () => {
+    // `subgrid` is what keeps a wrapped label in one column from pushing its own path out of step
+    // with the other one; it only holds if the row count matches the parts.
+    const sheet = css()
+    expect(rule('.first-run-columns', sheet)).toMatch(/grid-template-rows:\s*auto auto 1fr auto auto/)
+    expect(rule('.first-run-column', sheet)).toMatch(/grid-row:\s*span 5/)
+  })
+
+  it('puts green in exactly one place on the screen', async () => {
+    // The point of the reversal: one green mark, meaning you are ready.
+    const sheet = css()
+    const firstRun = sheet.slice(
+      sheet.indexOf('/* ---- First run: the two folders'),
+      sheet.indexOf('/* ---- Setup home: gigs and songs')
+    )
+    // Declarations only: the comments above still narrate what the green used to do and where.
+    const declared = firstRun.replace(/\/\*[\s\S]*?\*\//g, '').match(/--state-ok/g) ?? []
+    // `color` and `border-color` on the enabled button, plus its hover border. Nothing else.
+    expect(declared).toHaveLength(3)
+    const aboveConfirm = firstRun.slice(0, firstRun.indexOf('.first-run-confirm-row'))
+    expect(aboveConfirm.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/--state-ok/)
   })
 
   it('never says tramoya — that word is the repo’s, not a user’s', async () => {

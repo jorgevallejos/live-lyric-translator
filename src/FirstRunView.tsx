@@ -35,16 +35,31 @@ import { GatedAction } from './GatedAction'
  *
  * **Colour marks what has been answered** (2026-09-02, the fourth walk, on the build carrying the
  * three above). The screen was legible and monochrome, so nothing on it said which half was done:
- * a chosen path and `Not chosen yet` sat in the same slot at the same size, differing only in
- * dimness, and `Confirm` looked the same the instant before it became pressable as it did while it
- * was dead. **A chosen path renders in `--state-ok` and `Confirm` joins it once both are in**, so
- * the colour is what marks an answered question; **`Choose` renders in `--state-warn` while its
- * folder is unanswered**, and goes back to the ordinary dark grey once picked, where it already
- * reads `Choose another folder`. Two yellow buttons at rest, three green marks once answered. The
- * contrast objection — two warning-coloured buttons on a screen where nothing is wrong — was
+ * `Confirm` looked the same the instant before it became pressable as it did while it was dead.
+ * **`Confirm` turns `--state-ok` once both folders are in**; **`Choose` renders in `--state-warn`
+ * while its folder is unanswered**, and goes back to the ordinary dark grey once picked, where it
+ * already reads `Choose another folder`. Two yellow buttons at rest, one green mark once answered.
+ * The contrast objection — two warning-coloured buttons on a screen where nothing is wrong — was
  * raised and overruled: it is recorded as decided, not as a caveat. Both are tokens `control.css`
  * already has; **no new colour enters the palette for this screen**, and the line under the title
  * comes out so the colour is the only thing dividing the screen.
+ *
+ * **The name is the loudest thing in the column, and the green is only on `Confirm`** (2026-09-02,
+ * the fifth walk, on `v0.27.0`). Two decisions taken above are reversed here on purpose.
+ *
+ * *The green comes off the paths.* The fourth walk put `--state-ok` on a chosen path as well as on
+ * `Confirm`, which spread one meaning over three marks. **One green mark on the screen, meaning one
+ * thing: you are ready.** The path goes back to `--text-primary`. The answered state is still
+ * legible without colour — the button turns over to `Choose another folder`, and `Confirm` goes
+ * green. If that proves too quiet the repair is weight on the path, not colour returning to it.
+ *
+ * *Each column is headed `SONGS` and `GIGS`, large,* and the caps line demotes to the subtitle it
+ * always was, underneath. **This supersedes *the path is the loudest thing in the column*, and the
+ * supersession is the point rather than an oversight.** Making the answer loudest was right about
+ * what someone returns to the screen to check and wrong about what the screen is for at rest: with
+ * both paths reading `Not chosen yet`, the two columns opened looking identical — the one reading
+ * the side-by-side layout exists to prevent. The difference between the two questions is the whole
+ * screen, so the naming has to carry it. Order is name, caps subtitle, paragraph, button, path.
  *
  * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
  * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
@@ -79,10 +94,16 @@ import { GatedAction } from './GatedAction'
  */
 
 /**
- * One column. **The path is the loudest thing in it**, because the answer is what the column is
- * about; the label names the question and the paragraph argues for it, and neither competes.
+ * One column, in five parts: **`name`, the loudest thing in it**, the caps `label` under it, the
+ * paragraph that argues for the folder, the picker, and the answer last.
+ *
+ * `name` is what the column *is* — `SONGS`, `GIGS` — and `label` is the question it asks. They were
+ * one line until the fifth walk, and the path was loudest; at rest that made the two columns open
+ * looking identical, because both paths read `Not chosen yet` and nothing above them was loud
+ * enough to tell them apart.
  */
 function FolderColumn({
+  name,
   label,
   paragraph,
   value,
@@ -90,6 +111,7 @@ function FolderColumn({
   disabled,
   testId,
 }: {
+  name: string
   label: string
   paragraph: string
   value: string | null
@@ -99,7 +121,23 @@ function FolderColumn({
 }) {
   return (
     <section className="first-run-column" data-testid={testId}>
+      <span className="first-run-name" data-testid={`${testId}-name`}>
+        {name}
+      </span>
       <span className="first-run-label">{label}</span>
+      <p className="first-run-paragraph">{paragraph}</p>
+      <button
+        type="button"
+        className="ctrl-btn ctrl-setup-link"
+        data-testid={`${testId}-choose`}
+        // The flag is a state of the column, not of one mark: the picker reads it for its yellow,
+        // and the path slot reads it for the dim that says nothing has been answered there yet.
+        data-unset={value === null ? 'true' : undefined}
+        disabled={disabled}
+        onClick={onChoose}
+      >
+        {value === null ? 'Choose' : 'Choose another folder'}
+      </button>
       <span
         className="first-run-path"
         data-testid={`${testId}-value`}
@@ -107,19 +145,6 @@ function FolderColumn({
       >
         {value ?? 'Not chosen yet'}
       </span>
-      <p className="first-run-paragraph">{paragraph}</p>
-      <button
-        type="button"
-        className="ctrl-btn ctrl-setup-link"
-        data-testid={`${testId}-choose`}
-        // The same flag the path slot carries, for the same reason: what is unanswered is a state
-        // of the column, and both of its marks — the dimmed path, the yellow picker — read off it.
-        data-unset={value === null ? 'true' : undefined}
-        disabled={disabled}
-        onClick={onChoose}
-      >
-        {value === null ? 'Choose' : 'Choose another folder'}
-      </button>
     </section>
   )
 }
@@ -176,6 +201,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
         <div className="first-run-columns">
           <FolderColumn
             testId="first-run-songs"
+            name="Songs"
             label="Where your songs live — Your catalogue"
             paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes the song performance data back into it."
             value={songs}
@@ -187,6 +213,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
 
           <FolderColumn
             testId="first-run-gigs"
+            name="Gigs"
             label="Where your gigs live — Your body of work"
             paragraph="The folder where your gig data is stored. Pregonero makes a new folder here for each gig, and keeps its setup inside it."
             value={gigs}
