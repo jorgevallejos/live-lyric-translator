@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('bombista:review', args, bombistaPath),
   /** The song files in `<songs>/song-performance`. The folder is the truth; the library caches it. */
   listSongsFolder: (folderPath) => ipcRenderer.invoke('fs:listSongsFolder', folderPath),
+  /** Whether a folder can be read at all. { ok: true } or { ok: false, error }. */
+  folderReadable: (folderPath) => ipcRenderer.invoke('fs:folderReadable', folderPath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
   closeTool: (key) => ipcRenderer.invoke('tool:close', key),

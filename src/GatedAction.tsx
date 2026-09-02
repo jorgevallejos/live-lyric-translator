@@ -48,6 +48,12 @@ export const GATED_SITES = [
   'setup-new-song-create',
   /** Setup home → New gig, when there is no Electron and so no gig can be made at all. */
   'setup-new-gig',
+  /**
+   * Setup home → Import, same block and same reason. It is a **sibling of `New`** as of
+   * 2026-09-02, and a sibling that vanishes while its peer stays disabled is not on the same
+   * level — which is the whole of what that change was about.
+   */
+  'setup-import-gig',
   /** The gig flow, step 1 → Create the gig, before there is a gigs folder or a legal name. */
   'setup-create-gig',
   /** A song's visuals door → Open Muralista, when tool hosting is unavailable. */
@@ -80,10 +86,30 @@ type Props = {
   busy?: boolean
   /** Optional way to go and satisfy the precondition, rendered beside the reason. */
   remedy?: ReactNode
+  /**
+   * **The id of an element already saying why, when one exists** (2026-09-02). The reason is then
+   * not printed under this button — it points at that element instead.
+   *
+   * **This is not the rule being relaxed.** The rule is that a blocked control is visible and its
+   * reason is legible, never that the sentence is printed in this particular place. Backstage's
+   * folder block holds three controls in one half at once, and printing the same sentence three
+   * times over two frames is the wall the rule exists to prevent, arrived at from the other side.
+   * The line in the frame is the reason, and it is one line.
+   */
+  describedBy?: string
 }
 
-export function GatedAction({ site, label, blockedBy, onClick, busy = false, remedy }: Props) {
+export function GatedAction({
+  site,
+  label,
+  blockedBy,
+  onClick,
+  busy = false,
+  remedy,
+  describedBy,
+}: Props) {
   const blocked = blockedBy !== null
+  const elsewhere = blocked && describedBy !== undefined
   return (
     <div className="gated-action" data-testid={`${site}-wrap`}>
       <button
@@ -92,14 +118,15 @@ export function GatedAction({ site, label, blockedBy, onClick, busy = false, rem
         data-testid={site}
         disabled={blocked || busy}
         // The reason reaches a pointer and a screen reader as well as the eye. It is rendered
-        // below too: a `title` alone is a reason nobody on a touch screen ever sees.
+        // below too — or, when `describedBy` names where it already is, over there: a `title`
+        // alone is a reason nobody on a touch screen ever sees.
         title={blockedBy ?? undefined}
-        aria-describedby={blocked ? `${site}-reason` : undefined}
+        aria-describedby={blocked ? (describedBy ?? `${site}-reason`) : undefined}
         onClick={onClick}
       >
         {label}
       </button>
-      {blocked && (
+      {blocked && !elsewhere && (
         <p className="gated-action-reason" id={`${site}-reason`} data-testid={`${site}-reason`}>
           {blockedBy}
           {remedy !== undefined && <> {remedy}</>}
