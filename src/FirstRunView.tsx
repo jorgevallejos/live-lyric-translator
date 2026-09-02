@@ -26,6 +26,63 @@ import { GatedAction } from './GatedAction'
  * block — label in caps, the path in mono as the loudest thing in it, one paragraph, its picker —
  * and `Confirm` sits below both on the same grid, the only control that leaves.
  *
+ * **The pair is centred in the screen, the title names the moment, and the pickers say `Choose`**
+ * (2026-09-02, the third walk, on `v0.26.0`). The layout held, so what changed is what sat wrong
+ * around it: two columns pinned to the top of an empty screen read as the head of a document with
+ * the rest still to come, when the pair *is* the content; `Two folders you already have` states the
+ * question the columns already ask, where `Pregonero kickoff` named the moment instead (superseded
+ * by `Start here` at the sixth walk, below); and `Find it…` asked for a search when the button
+ * opens a picker.
+ *
+ * **Colour marks what has been answered** (2026-09-02, the fourth walk, on the build carrying the
+ * three above). The screen was legible and monochrome, so nothing on it said which half was done:
+ * `Confirm` looked the same the instant before it became pressable as it did while it was dead.
+ * **`Confirm` turns `--state-ok` once both folders are in**; **`Choose` renders in `--state-warn`
+ * while its folder is unanswered**, and goes back to the ordinary dark grey once picked, where it
+ * already reads `Choose another folder`. Two yellow buttons at rest, one green mark once answered.
+ * The contrast objection — two warning-coloured buttons on a screen where nothing is wrong — was
+ * raised and overruled: it is recorded as decided, not as a caveat. Both are tokens `control.css`
+ * already has; **no new colour enters the palette for this screen**, and the line under the title
+ * comes out so the colour is the only thing dividing the screen.
+ *
+ * **The name is the loudest thing in the column, and the green is only on `Confirm`** (2026-09-02,
+ * the fifth walk, on `v0.27.0`). Two decisions taken above are reversed here on purpose.
+ *
+ * *The green comes off the paths.* The fourth walk put `--state-ok` on a chosen path as well as on
+ * `Confirm`, which spread one meaning over three marks. **One green mark on the screen, meaning one
+ * thing: you are ready.** The path goes back to `--text-primary`. The answered state is still
+ * legible without colour — the button turns over to `Choose another folder`, and `Confirm` goes
+ * green. If that proves too quiet the repair is weight on the path, not colour returning to it.
+ *
+ * *Each column is headed `SONGS` and `GIGS`, large,* and the caps line demotes to the subtitle it
+ * always was, underneath. **This supersedes *the path is the loudest thing in the column*, and the
+ * supersession is the point rather than an oversight.** Making the answer loudest was right about
+ * what someone returns to the screen to check and wrong about what the screen is for at rest: with
+ * both paths reading `Not chosen yet`, the two columns opened looking identical — the one reading
+ * the side-by-side layout exists to prevent. The difference between the two questions is the whole
+ * screen, so the naming has to carry it. Order is name, caps subtitle, paragraph, button, path.
+ *
+ * **The title is `Start here`, and it has room above it** (2026-09-02, the sixth walk, on
+ * `v0.28.0`). The layout was accepted as walked; what was left was the heading and the space around
+ * it. `Pregonero kickoff` repeated the app's name, which the window's own title bar already carries
+ * two lines above — the heading was saying what the chrome had just said. **The objection to `Start
+ * here` when it was first proposed was that it drops the app name, and the chrome is exactly what
+ * makes that objection void.** Same slot, same treatment; only the words change. And the title sat
+ * against the window's top edge, because `.songs-title` is centred inside a bar whose only child is
+ * absolutely positioned and which therefore has no height of its own beyond its padding — see
+ * `control.css`, where the first-run bar gets real room above the heading.
+ *
+ * **Both paragraphs are replaced word for word, and the gigs one states a rule the app does not yet
+ * follow** (2026-09-02, the same walk). The songs paragraph now names `song-performance` as where
+ * the performance data goes, rather than saying it is written *back into* the catalogue, which was
+ * vague about the one folder the tools govern. The gigs paragraph says Pregonero keeps every gig's
+ * setup data inside **a single `setup` folder**, while `New gig` still makes one folder per gig with
+ * a `setup/` inside each. **The mismatch is deliberate: the screen ships stating the rule ahead of
+ * the behaviour**, which is closed at step 8 of the walk. It is not a copy error, and the sentence
+ * is not reverted to match what the code does today. Naming both folders in prose is allowed where
+ * the folder-shape tree was not: the tree told you how to arrange your folders, and a name inside a
+ * sentence says what will appear in them.
+ *
  * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
  * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
  * a song there; `setup/` is made the first time a gig is written. Neither is a question.
@@ -59,10 +116,16 @@ import { GatedAction } from './GatedAction'
  */
 
 /**
- * One column. **The path is the loudest thing in it**, because the answer is what the column is
- * about; the label names the question and the paragraph argues for it, and neither competes.
+ * One column, in five parts: **`name`, the loudest thing in it**, the caps `label` under it, the
+ * paragraph that argues for the folder, the picker, and the answer last.
+ *
+ * `name` is what the column *is* — `SONGS`, `GIGS` — and `label` is the question it asks. They were
+ * one line until the fifth walk, and the path was loudest; at rest that made the two columns open
+ * looking identical, because both paths read `Not chosen yet` and nothing above them was loud
+ * enough to tell them apart.
  */
 function FolderColumn({
+  name,
   label,
   paragraph,
   value,
@@ -70,6 +133,7 @@ function FolderColumn({
   disabled,
   testId,
 }: {
+  name: string
   label: string
   paragraph: string
   value: string | null
@@ -79,7 +143,23 @@ function FolderColumn({
 }) {
   return (
     <section className="first-run-column" data-testid={testId}>
+      <span className="first-run-name" data-testid={`${testId}-name`}>
+        {name}
+      </span>
       <span className="first-run-label">{label}</span>
+      <p className="first-run-paragraph">{paragraph}</p>
+      <button
+        type="button"
+        className="ctrl-btn ctrl-setup-link"
+        data-testid={`${testId}-choose`}
+        // The flag is a state of the column, not of one mark: the picker reads it for its yellow,
+        // and the path slot reads it for the dim that says nothing has been answered there yet.
+        data-unset={value === null ? 'true' : undefined}
+        disabled={disabled}
+        onClick={onChoose}
+      >
+        {value === null ? 'Choose' : 'Choose another folder'}
+      </button>
       <span
         className="first-run-path"
         data-testid={`${testId}-value`}
@@ -87,16 +167,6 @@ function FolderColumn({
       >
         {value ?? 'Not chosen yet'}
       </span>
-      <p className="first-run-paragraph">{paragraph}</p>
-      <button
-        type="button"
-        className="ctrl-btn ctrl-setup-link"
-        data-testid={`${testId}-choose`}
-        disabled={disabled}
-        onClick={onChoose}
-      >
-        {value === null ? 'Find it…' : 'Choose another folder'}
-      </button>
     </section>
   )
 }
@@ -140,7 +210,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
   return (
     <div className="songs-screen first-run-screen" data-testid="first-run">
       <header className="songs-top-bar">
-        <h1 className="songs-title">Two folders you already have</h1>
+        <h1 className="songs-title">Start here</h1>
       </header>
 
       <main className="songs-body first-run-body">
@@ -153,8 +223,9 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
         <div className="first-run-columns">
           <FolderColumn
             testId="first-run-songs"
+            name="Songs"
             label="Where your songs live — Your catalogue"
-            paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes the song performance data back into it."
+            paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes their performance data into a song-performance folder inside it."
             value={songs}
             disabled={busy || !canPick}
             onChoose={() =>
@@ -164,8 +235,9 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
 
           <FolderColumn
             testId="first-run-gigs"
+            name="Gigs"
             label="Where your gigs live — Your body of work"
-            paragraph="The folder where your gig data is stored. Pregonero makes a new folder here for each gig, and keeps its setup inside it."
+            paragraph="The folder where your gig data is stored. Pregonero keeps every gig’s setup data inside a single setup folder in it."
             value={gigs}
             disabled={busy || !canPick}
             onChoose={() => choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs)}

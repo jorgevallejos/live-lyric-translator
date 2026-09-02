@@ -7,6 +7,8 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
 import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 
@@ -169,15 +171,29 @@ describe('first run', () => {
   // asserted here is the copy itself, because the copy is the design.
 
   it('carries the agreed paragraph in each column, word for word', async () => {
+    // Both were replaced on the sixth walk. The songs one names `song-performance` instead of
+    // saying the data goes "back into" the catalogue, which was vague about the one folder the
+    // tools govern. The gigs one is asserted below for the rule it states ahead of the behaviour.
     await launch()
     expect(screen.getByTestId('first-run-songs').textContent).toContain(
       'The folder your recordings and lyrics are already in. Pregonero reads your songs from ' +
-        'here and writes the song performance data back into it.'
+        'here and writes their performance data into a song-performance folder inside it.'
     )
     expect(screen.getByTestId('first-run-gigs').textContent).toContain(
-      'The folder where your gig data is stored. Pregonero makes a new folder here for each ' +
-        'gig, and keeps its setup inside it.'
+      'The folder where your gig data is stored. Pregonero keeps every gig’s setup data inside ' +
+        'a single setup folder in it.'
     )
+  })
+
+  it('states the single setup folder even though New gig still makes one per gig', async () => {
+    // JORGE'S RULING, 2026-09-02: the screen ships stating the rule ahead of the behaviour, and
+    // the mismatch is closed at step 8 of the walk. This test exists so that a later reader who
+    // notices the discrepancy corrects `New gig`, NOT the sentence. The old wording is asserted
+    // absent so a well-meaning "fix" back to current behaviour fails here.
+    await launch()
+    const gigs = screen.getByTestId('first-run-gigs').textContent!
+    expect(gigs).toContain('a single setup folder')
+    expect(gigs).not.toContain('makes a new folder here for each gig')
   })
 
   it('has no third paragraph once both questions are answered', async () => {
@@ -198,10 +214,180 @@ describe('first run', () => {
   })
 
   it('leaves by a button called Confirm', async () => {
-    // The same word as the confirmation at the end of the gig flow: committing an answer reads
-    // the same at both moments. It replaces `Use these folders`.
+    // It replaces `Use these folders`. The reason first given for the word — that it matches the
+    // end of the gig flow — was false: that button reads `Confirm setup and go to the control
+    // view` (`GigView.tsx`). `Confirm` stands on its own; making the two rhyme is a later decision
+    // that has not been taken.
     await launch()
     expect(screen.getByTestId('first-run-confirm').textContent).toBe('Confirm')
+  })
+
+  // ── The third walk, v0.26.0: the title names the moment, the pickers say Choose ────────────
+
+  it('is titled Start here, repeating neither the question nor the app name', async () => {
+    // Three titles deep. `Two folders you already have` stated the question the columns already
+    // ask (third walk); `Pregonero kickoff` named the moment but repeated the app's name, which
+    // the window's own title bar carries two lines above it (sixth walk). The objection to `Start
+    // here` was that it drops the app name; the chrome is what makes that objection void.
+    await launch()
+    expect(screen.getByTestId('first-run').textContent).toContain('Start here')
+    expect(screen.getByTestId('first-run').textContent).not.toContain('Pregonero kickoff')
+    expect(screen.getByTestId('first-run').textContent).not.toContain(
+      'Two folders you already have'
+    )
+  })
+
+  it('gives the title room above it, in the spacing this screen already uses', () => {
+    // `.songs-title` is absolute and the bar's only child, so the bar has no content height —
+    // 0.75em of padding with a 1.5em heading centred on it puts the heading against the window's
+    // top edge. The bar lays the title out in the flow so the padding above is space you see.
+    const sheet = css()
+    const bar = rule('.first-run-screen .songs-top-bar', sheet)
+    expect(bar).toMatch(/padding-top:\s*2em/)
+    expect(rule('.first-run-screen .songs-title', sheet)).toMatch(/position:\s*static/)
+  })
+
+  it('offers Choose in each unanswered column, and Choose another folder once answered', async () => {
+    // `Find it…` asked for a search; the button opens a picker.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-gigs-choose').textContent).toBe('Choose')
+    expect(screen.getByTestId('first-run-songs-choose').textContent).toBe('Choose another folder')
+    expect(screen.getByTestId('first-run').textContent).not.toContain('Find it')
+  })
+
+  // ── The fourth walk: colour marks what has been answered ──────────────────────────────────
+  //
+  // The screen was legible and monochrome, so nothing on it said which half was done. These read
+  // the stylesheet, the way the control view's layout rules are asserted — this round is colour,
+  // and colour is invisible to a render assertion in jsdom. What the DOM can carry is the *state*
+  // the colour hangs off, so that is asserted against the rendered tree.
+
+  const css = () => readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+  const rule = (selector: string, sheet: string) => {
+    const found = sheet.match(
+      new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`)
+    )
+    if (!found) throw new Error(`rule not found: ${selector}`)
+    return found[1]
+  }
+
+  it('draws no line under the title, because there is no navigation to separate', async () => {
+    await launch()
+    expect(rule('.first-run-screen .songs-top-bar', css())).toMatch(/border-bottom:\s*none/)
+  })
+
+  it('renders a chosen path in ordinary paper, and an unanswered one dimmed', () => {
+    // The fifth walk took `--state-ok` back off the path: one green mark on the screen, and it is
+    // `Confirm`. The path returns to the treatment it had before the fourth walk put colour on it.
+    const sheet = css()
+    expect(rule('.first-run-path', sheet)).toMatch(/color:\s*var\(--text-primary\)/)
+    expect(rule('.first-run-path', sheet)).not.toMatch(/--state-ok/)
+    expect(rule(".first-run-path[data-unset='true']", sheet)).toMatch(/color:\s*var\(--text-dim\)/)
+  })
+
+  it('turns Confirm green once it can be pressed, and leaves it alone while it cannot', () => {
+    const sheet = css()
+    const enabled = rule('.first-run-confirm-row .ctrl-btn.ctrl-setup-link:not(:disabled)', sheet)
+    expect(enabled).toMatch(/color:\s*var\(--state-ok\)/)
+    expect(enabled).toMatch(/border-color:\s*var\(--state-ok\)/)
+    // Nothing claims the disabled state: it keeps the generic treatment, which is what makes the
+    // turn legible when it happens.
+    expect(sheet).not.toMatch(/\.first-run-confirm-row .ctrl-btn\.ctrl-setup-link:disabled\s*\{/)
+  })
+
+  it('draws an unanswered Choose in the app’s yellow, and lets an answered one go dark', () => {
+    const unanswered = rule(
+      ".first-run-column .ctrl-btn.ctrl-setup-link[data-unset='true']:not(:disabled)",
+      css()
+    )
+    expect(unanswered).toMatch(/color:\s*var\(--state-warn\)/)
+    expect(unanswered).toMatch(/border-color:\s*var\(--state-warn\)/)
+  })
+
+  it('takes its colours from the tokens already in the palette, not from new hex', () => {
+    // The one rule the walk set for this round: no new colour enters for this screen.
+    const sheet = css()
+    const block = sheet.slice(
+      sheet.indexOf('/* ---- First run: the two folders'),
+      sheet.indexOf('/* ---- Setup home: gigs and songs')
+    )
+    expect(block.length).toBeGreaterThan(0)
+    expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+  })
+
+  it('marks an unanswered column on its picker as well as on its path slot', async () => {
+    // The DOM half of the colour: one flag per column, which both marks read off.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-gigs-choose').getAttribute('data-unset')).toBe('true')
+    expect(screen.getByTestId('first-run-gigs-value').getAttribute('data-unset')).toBe('true')
+    expect(screen.getByTestId('first-run-songs-choose').hasAttribute('data-unset')).toBe(false)
+    expect(screen.getByTestId('first-run-songs-value').hasAttribute('data-unset')).toBe(false)
+  })
+
+  it('drops the unanswered mark from the picker the moment the folder is chosen', async () => {
+    chooseFolderPath.mockResolvedValue('/vault/songs')
+    await launch()
+    expect(screen.getByTestId('first-run-songs-choose').getAttribute('data-unset')).toBe('true')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-songs-choose'))
+    })
+    expect(screen.getByTestId('first-run-songs-choose').hasAttribute('data-unset')).toBe(false)
+  })
+
+  // ── The fifth walk: the name is loudest, and the green is only on Confirm ─────────────────
+  //
+  // Two decisions from the same day are reversed here. At rest both paths read `Not chosen yet`,
+  // so the two columns opened looking identical — the reading the side-by-side layout exists to
+  // prevent — and the green was spread over three marks when it means one thing.
+
+  it('heads each column with its name, large, above the caps subtitle', async () => {
+    await launch()
+    expect(screen.getByTestId('first-run-songs-name').textContent).toBe('Songs')
+    expect(screen.getByTestId('first-run-gigs-name').textContent).toBe('Gigs')
+    // Rendered in caps by the stylesheet, the way the subtitle below it already was.
+    const name = rule('.first-run-name', css())
+    expect(name).toMatch(/text-transform:\s*uppercase/)
+    // Loudest: bigger than the path, which is the element it takes the role from.
+    const size = (block: string) => Number(block.match(/font-size:\s*([\d.]+)em/)![1])
+    expect(size(name)).toBeGreaterThan(size(rule('.first-run-path', css())))
+  })
+
+  it('orders the column name, subtitle, paragraph, button, path', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    await launch()
+    const column = screen.getByTestId('first-run-songs')
+    expect([...column.children].map((el) => el.className)).toEqual([
+      'first-run-name',
+      'first-run-label',
+      'first-run-paragraph',
+      'ctrl-btn ctrl-setup-link',
+      'first-run-path',
+    ])
+  })
+
+  it('lays the column out in five rows, so the five parts line up across both', () => {
+    // `subgrid` is what keeps a wrapped label in one column from pushing its own path out of step
+    // with the other one; it only holds if the row count matches the parts.
+    const sheet = css()
+    expect(rule('.first-run-columns', sheet)).toMatch(/grid-template-rows:\s*auto auto 1fr auto auto/)
+    expect(rule('.first-run-column', sheet)).toMatch(/grid-row:\s*span 5/)
+  })
+
+  it('puts green in exactly one place on the screen', async () => {
+    // The point of the reversal: one green mark, meaning you are ready.
+    const sheet = css()
+    const firstRun = sheet.slice(
+      sheet.indexOf('/* ---- First run: the two folders'),
+      sheet.indexOf('/* ---- Setup home: gigs and songs')
+    )
+    // Declarations only: the comments above still narrate what the green used to do and where.
+    const declared = firstRun.replace(/\/\*[\s\S]*?\*\//g, '').match(/--state-ok/g) ?? []
+    // `color` and `border-color` on the enabled button, plus its hover border. Nothing else.
+    expect(declared).toHaveLength(3)
+    const aboveConfirm = firstRun.slice(0, firstRun.indexOf('.first-run-confirm-row'))
+    expect(aboveConfirm.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/--state-ok/)
   })
 
   it('never says tramoya — that word is the repo’s, not a user’s', async () => {
@@ -225,6 +411,9 @@ describe('first run', () => {
       fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
     })
     expect(screen.queryByTestId('first-run-shape')).toBeNull()
+    // The TREE is what was removed, not the NAME: both paragraphs state their folder outright,
+    // and `song-performance` appears in the songs one on purpose. What must not come back is the
+    // shape — a path with a separator in it, drawn as a structure to arrange.
     const screenText = screen.getByTestId('first-run').textContent!
     expect(screenText).not.toContain('song-performance/')
     expect(screenText).not.toContain('gig.json and visuals.json')
