@@ -2914,6 +2914,21 @@ html, body, #root {
    are actually different. */
 .first-run-screen .songs-top-bar {
   border-bottom: none;
+  /* ROOM ABOVE THE TITLE (2026-09-02, the sixth walk). `.songs-title` is absolutely positioned and
+     centred on the bar, and it is the bar's only child — so the bar has no content height at all,
+     just its 0.75em of padding, and a 1.5em heading centred on that overhangs the window's top
+     edge. The heading was touching the chrome. The bar stops centring the title on itself and lays
+     it out in the flow, so the padding above is the space you actually see: 2em, the unit this
+     screen already uses for `.first-run-body`'s padding and the gap between its blocks. */
+  padding-top: 2em;
+  justify-content: center;
+}
+
+/* In the flow rather than centred on a bar with no height. The flex parent above centres it
+   horizontally, which is the only thing the absolute positioning was still earning here. */
+.first-run-screen .songs-title {
+  position: static;
+  transform: none;
 }
 
 .songs-screen.first-run-screen .songs-body.first-run-body {

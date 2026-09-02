@@ -171,15 +171,29 @@ describe('first run', () => {
   // asserted here is the copy itself, because the copy is the design.
 
   it('carries the agreed paragraph in each column, word for word', async () => {
+    // Both were replaced on the sixth walk. The songs one names `song-performance` instead of
+    // saying the data goes "back into" the catalogue, which was vague about the one folder the
+    // tools govern. The gigs one is asserted below for the rule it states ahead of the behaviour.
     await launch()
     expect(screen.getByTestId('first-run-songs').textContent).toContain(
       'The folder your recordings and lyrics are already in. Pregonero reads your songs from ' +
-        'here and writes the song performance data back into it.'
+        'here and writes their performance data into a song-performance folder inside it.'
     )
     expect(screen.getByTestId('first-run-gigs').textContent).toContain(
-      'The folder where your gig data is stored. Pregonero makes a new folder here for each ' +
-        'gig, and keeps its setup inside it.'
+      'The folder where your gig data is stored. Pregonero keeps every gig’s setup data inside ' +
+        'a single setup folder in it.'
     )
+  })
+
+  it('states the single setup folder even though New gig still makes one per gig', async () => {
+    // JORGE'S RULING, 2026-09-02: the screen ships stating the rule ahead of the behaviour, and
+    // the mismatch is closed at step 8 of the walk. This test exists so that a later reader who
+    // notices the discrepancy corrects `New gig`, NOT the sentence. The old wording is asserted
+    // absent so a well-meaning "fix" back to current behaviour fails here.
+    await launch()
+    const gigs = screen.getByTestId('first-run-gigs').textContent!
+    expect(gigs).toContain('a single setup folder')
+    expect(gigs).not.toContain('makes a new folder here for each gig')
   })
 
   it('has no third paragraph once both questions are answered', async () => {
@@ -210,12 +224,27 @@ describe('first run', () => {
 
   // ── The third walk, v0.26.0: the title names the moment, the pickers say Choose ────────────
 
-  it('is titled by the moment, not by the question the columns already ask', async () => {
+  it('is titled Start here, repeating neither the question nor the app name', async () => {
+    // Three titles deep. `Two folders you already have` stated the question the columns already
+    // ask (third walk); `Pregonero kickoff` named the moment but repeated the app's name, which
+    // the window's own title bar carries two lines above it (sixth walk). The objection to `Start
+    // here` was that it drops the app name; the chrome is what makes that objection void.
     await launch()
-    expect(screen.getByTestId('first-run').textContent).toContain('Pregonero kickoff')
+    expect(screen.getByTestId('first-run').textContent).toContain('Start here')
+    expect(screen.getByTestId('first-run').textContent).not.toContain('Pregonero kickoff')
     expect(screen.getByTestId('first-run').textContent).not.toContain(
       'Two folders you already have'
     )
+  })
+
+  it('gives the title room above it, in the spacing this screen already uses', () => {
+    // `.songs-title` is absolute and the bar's only child, so the bar has no content height —
+    // 0.75em of padding with a 1.5em heading centred on it puts the heading against the window's
+    // top edge. The bar lays the title out in the flow so the padding above is space you see.
+    const sheet = css()
+    const bar = rule('.first-run-screen .songs-top-bar', sheet)
+    expect(bar).toMatch(/padding-top:\s*2em/)
+    expect(rule('.first-run-screen .songs-title', sheet)).toMatch(/position:\s*static/)
   })
 
   it('offers Choose in each unanswered column, and Choose another folder once answered', async () => {
@@ -382,6 +411,9 @@ describe('first run', () => {
       fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
     })
     expect(screen.queryByTestId('first-run-shape')).toBeNull()
+    // The TREE is what was removed, not the NAME: both paragraphs state their folder outright,
+    // and `song-performance` appears in the songs one on purpose. What must not come back is the
+    // shape — a path with a separator in it, drawn as a structure to arrange.
     const screenText = screen.getByTestId('first-run').textContent!
     expect(screenText).not.toContain('song-performance/')
     expect(screenText).not.toContain('gig.json and visuals.json')

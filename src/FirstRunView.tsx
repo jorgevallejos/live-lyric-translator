@@ -30,8 +30,9 @@ import { GatedAction } from './GatedAction'
  * (2026-09-02, the third walk, on `v0.26.0`). The layout held, so what changed is what sat wrong
  * around it: two columns pinned to the top of an empty screen read as the head of a document with
  * the rest still to come, when the pair *is* the content; `Two folders you already have` states the
- * question the columns already ask, where `Pregonero kickoff` names the moment instead; and
- * `Find it…` asked for a search when the button opens a picker.
+ * question the columns already ask, where `Pregonero kickoff` named the moment instead (superseded
+ * by `Start here` at the sixth walk, below); and `Find it…` asked for a search when the button
+ * opens a picker.
  *
  * **Colour marks what has been answered** (2026-09-02, the fourth walk, on the build carrying the
  * three above). The screen was legible and monochrome, so nothing on it said which half was done:
@@ -60,6 +61,27 @@ import { GatedAction } from './GatedAction'
  * both paths reading `Not chosen yet`, the two columns opened looking identical — the one reading
  * the side-by-side layout exists to prevent. The difference between the two questions is the whole
  * screen, so the naming has to carry it. Order is name, caps subtitle, paragraph, button, path.
+ *
+ * **The title is `Start here`, and it has room above it** (2026-09-02, the sixth walk, on
+ * `v0.28.0`). The layout was accepted as walked; what was left was the heading and the space around
+ * it. `Pregonero kickoff` repeated the app's name, which the window's own title bar already carries
+ * two lines above — the heading was saying what the chrome had just said. **The objection to `Start
+ * here` when it was first proposed was that it drops the app name, and the chrome is exactly what
+ * makes that objection void.** Same slot, same treatment; only the words change. And the title sat
+ * against the window's top edge, because `.songs-title` is centred inside a bar whose only child is
+ * absolutely positioned and which therefore has no height of its own beyond its padding — see
+ * `control.css`, where the first-run bar gets real room above the heading.
+ *
+ * **Both paragraphs are replaced word for word, and the gigs one states a rule the app does not yet
+ * follow** (2026-09-02, the same walk). The songs paragraph now names `song-performance` as where
+ * the performance data goes, rather than saying it is written *back into* the catalogue, which was
+ * vague about the one folder the tools govern. The gigs paragraph says Pregonero keeps every gig's
+ * setup data inside **a single `setup` folder**, while `New gig` still makes one folder per gig with
+ * a `setup/` inside each. **The mismatch is deliberate: the screen ships stating the rule ahead of
+ * the behaviour**, which is closed at step 8 of the walk. It is not a copy error, and the sentence
+ * is not reverted to match what the code does today. Naming both folders in prose is allowed where
+ * the folder-shape tree was not: the tree told you how to arrange your folders, and a name inside a
+ * sentence says what will appear in them.
  *
  * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
  * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
@@ -188,7 +210,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
   return (
     <div className="songs-screen first-run-screen" data-testid="first-run">
       <header className="songs-top-bar">
-        <h1 className="songs-title">Pregonero kickoff</h1>
+        <h1 className="songs-title">Start here</h1>
       </header>
 
       <main className="songs-body first-run-body">
@@ -203,7 +225,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
             testId="first-run-songs"
             name="Songs"
             label="Where your songs live — Your catalogue"
-            paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes the song performance data back into it."
+            paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes their performance data into a song-performance folder inside it."
             value={songs}
             disabled={busy || !canPick}
             onChoose={() =>
@@ -215,7 +237,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
             testId="first-run-gigs"
             name="Gigs"
             label="Where your gigs live — Your body of work"
-            paragraph="The folder where your gig data is stored. Pregonero makes a new folder here for each gig, and keeps its setup inside it."
+            paragraph="The folder where your gig data is stored. Pregonero keeps every gig’s setup data inside a single setup folder in it."
             value={gigs}
             disabled={busy || !canPick}
             onChoose={() => choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs)}
