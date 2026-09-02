@@ -162,9 +162,46 @@ describe('first run', () => {
     expect(screen.getByTestId('first-run-gigs').textContent).toContain('Your body of work')
   })
 
-  it('says nothing is created, because nothing is', async () => {
+  // ── Exactly two paragraphs, and no other prose ────────────────────────────────────────────
+  //
+  // The lede and the folder-shape example were removed on 2026-09-02: the shape read as
+  // prescriptive and the prose explained the app to someone who had not used it yet. What is
+  // asserted here is the copy itself, because the copy is the design.
+
+  it('carries the agreed paragraph in each column, word for word', async () => {
     await launch()
-    expect(screen.getByTestId('first-run-lede').textContent).toMatch(/[Nn]othing is created/)
+    expect(screen.getByTestId('first-run-songs').textContent).toContain(
+      'The folder your recordings and lyrics are already in. Pregonero reads your songs from ' +
+        'here and writes the song performance data back into it.'
+    )
+    expect(screen.getByTestId('first-run-gigs').textContent).toContain(
+      'The folder where your gig data is stored. Pregonero makes a new folder here for each ' +
+        'gig, and keeps its setup inside it.'
+    )
+  })
+
+  it('has no third paragraph once both questions are answered', async () => {
+    // With both answered the gated reason is gone, so every remaining paragraph on the screen is
+    // one of the two. Counting is the only way "and no others" survives a later addition.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    chooseFolderPath.mockResolvedValue('/vault/gigs')
+    await launch()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
+    })
+    expect(screen.getByTestId('first-run').querySelectorAll('p')).toHaveLength(2)
+  })
+
+  it('no longer says nothing is created, because the lede is gone', async () => {
+    await launch()
+    expect(screen.queryByTestId('first-run-lede')).toBeNull()
+  })
+
+  it('leaves by a button called Confirm', async () => {
+    // The same word as the confirmation at the end of the gig flow: committing an answer reads
+    // the same at both moments. It replaces `Use these folders`.
+    await launch()
+    expect(screen.getByTestId('first-run-confirm').textContent).toBe('Confirm')
   })
 
   it('never says tramoya — that word is the repo’s, not a user’s', async () => {
@@ -173,36 +210,24 @@ describe('first run', () => {
     expect(screen.getByTestId('first-run').textContent!.toLowerCase()).not.toContain('tramoya')
   })
 
-  // ── It shows the shape rather than explaining it ──────────────────────────────────────────
+  // ── The folder-shape example is removed ──────────────────────────────────────────────────
+  //
+  // It read as prescriptive — a structure being required rather than a folder being found — and
+  // was judged cosmetic on 2026-09-02. This reverses *it shows the shape rather than explaining
+  // it*, and the shape is reconsidered if the screen turns out to need it.
 
-  it('shows nothing until there is something to show', async () => {
+  it('never draws a folder shape, whichever answers are in', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    chooseFolderPath.mockResolvedValue('/vault/gigs')
     await launch()
     expect(screen.queryByTestId('first-run-shape')).toBeNull()
-  })
-
-  it('draws the catalogue’s half as soon as the catalogue is answered', async () => {
-    chooseFolderPath.mockResolvedValue('/vault/songs')
-    await launch()
     await act(async () => {
-      fireEvent.click(screen.getByTestId('first-run-songs-choose'))
+      fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
     })
-    const shape = screen.getByTestId('first-run-shape').textContent!
-    expect(shape).toContain('songs/')
-    expect(shape).toContain('song-performance/')
-    // The gig half is not drawn yet: the shape is the answers so far, not a diagram of the design.
-    expect(shape).not.toContain('setup/')
-  })
-
-  it('draws the gig half, ownership and all, when the gigs folder is the one already set', async () => {
-    // Arriving with the catalogue still unanswered: the half that is known is the half drawn.
-    localStorage.setItem(GIGS_FOLDER_KEY, '/vault/gigs')
-    await launch()
-    const shape = screen.getByTestId('first-run-shape').textContent!
-    expect(shape).toContain('gigs/')
-    expect(shape).toContain('setup/')
-    expect(shape).toContain('gig.json and visuals.json')
-    expect(shape).toContain('the poster, the contract, the debrief')
-    expect(shape).not.toContain('song-performance/')
+    expect(screen.queryByTestId('first-run-shape')).toBeNull()
+    const screenText = screen.getByTestId('first-run').textContent!
+    expect(screenText).not.toContain('song-performance/')
+    expect(screenText).not.toContain('gig.json and visuals.json')
   })
 
   it('never blocks the projection window, which has nothing to ask for', async () => {
