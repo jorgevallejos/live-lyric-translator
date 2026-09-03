@@ -466,6 +466,132 @@ Pregonero the way it always was.**
 `parseVisualsFile` already makes here, on the same field. The two tools now agree about a mapping of
 a different room, rather than one of them catching it.
 
+### The display-size chain is removed (2026-09-03)
+
+**Ruling: Jorge, 2026-09-03, on Code's own sweep.** `ScreenSize` was dead **end to end**, and every
+link was traced before anything was touched:
+
+- `effectiveScreenSize` reached `getProjectionStatusText` at two call sites, both passing
+  `isVideoMode ? effectiveScreenSize : null`. For a video song the `displayMode` branch was taken
+  first; for a non-video song it was handed `null`. **It never affected the text.**
+- Its only other consumer was `setActiveProfileId`, and **nothing read the profile back**:
+  `getActiveProfile` and `computeProjectionLayout` had no callers outside their own tests, and
+  `setCustomProfile` had none at all.
+- `sendScreenSize` put a `screenSize` message on the WebSocket and `main.cjs` relayed it.
+  **`useWebSocket`'s `onmessage` handles `state` and `command` and nothing else**, so every receiver
+  dropped it.
+- The Projection window subscribed to the broadcast as `const [, setProjectionScreenSize]` — **the
+  value discarded in its own destructure.**
+
+**Gone**: `displayProfile.ts`, `displayProfileStore.ts` and their tests; `ScreenSize`, its two
+storage keys, its broadcast, its defaults and its reader out of `screenSizeState.ts`;
+`sendScreenSize` and `ScreenSizeMessage`; the main-process relay branch; the discarded subscription;
+and the state and effect in `App.tsx` that fed them.
+
+**The Projection window stopped rendering from a profile when the quad became the framing.** This is
+the machinery that was left standing behind that change. **A knob nobody has ever moved is a decision
+pretending to be a question**, and this one could not be moved at all.
+
+**`DisplayMode` is a different thing and is NOT in scope.** It is also going — format and placement
+are Muralista's, and whether the video runs tonight is the drive mode — but that waits on the
+drive-mode design and on a walk. `getProjectionStatusText` lost its middle argument and keeps the
+`DisplayMode` one.
+
+**A key left over from before the removal reaches nothing**, and that is asserted rather than
+assumed: `liveLyricScreenSize` is on real machines, so the C2 tests still seed it and still expect
+`Open`.
+
+### The gig column says which night (2026-09-03)
+
+**Ruling: Jorge, 2026-09-03.** The one column that answers *which gig is this* rendered
+`gigReadiness.gigId` — and since 03/09 that is an **opaque ten-character id**, so the stage read
+`k3f9x2abcd`. **Backstage was fixed for exactly this the same day**, with `gigLabels.ts`, and the
+control view was missed.
+
+**One owner: `gigFile.gigLabelFrom`.** Both screens go through it, because a second rendering of
+*what a gig is called* is how the row and the stage start disagreeing — which is the defect the
+label rule was written for in the first place.
+
+**`No gig` from nothing**, read off `gate === 'off'` rather than off an empty string: with no folder
+open there is no date, no venue and no folder to fall back to.
+
+### STOPPED: arming errors as popups (2026-09-03)
+
+**Not built, and the reason is a question the vault does not answer.** The instruction is flat —
+`control-arm-blocked` and `control-arm-warning` come out of the Arm column and become popups,
+because *the surface changes because the reading distance changes*. **What raises the popup is
+stated nowhere**, and the two candidates behave differently on a stage:
+
+- **Press the dead Arm and it tells you why.** This is what the failure being fixed points at — you
+  reach for Arm, nothing happens, and you need to know why. **But it makes Arm pressable while
+  blocked**, and the same section says *Arm stays exactly as it is*.
+- **The popup arrives when the blocked state does**, like Backstage's announcement queue. **This
+  leaves Arm untouched** and has a precedent in this repo, but it is a modal appearing unbidden on
+  the screen Jorge is looking at during a gig, and *once per what* is undefined — per song, per
+  arrival, per launch.
+
+**The removal and the trigger are one change and cannot be half-done.** Taking the inline band out
+without a working trigger leaves a disabled Arm with its reason nowhere — which is the dead-end
+class `GatedAction` exists to prevent, and strictly worse than today.
+
+### The check's gate, and `gigReadiness` widened (2026-09-03)
+
+**Ruling: `tramoya-integration/project-context.md`, under 9.4's leaving action.** `v0.47.0` shipped
+this disagreement reported rather than reconciled; this is the reconciliation.
+
+#### A song whose file will not read is a note at step 2 and a failure at step 4
+
+**The principle, and it is the whole of it: a problem you can still route around while composing
+becomes a blocker at the moment you assert readiness.**
+
+At step 2 such a song **cannot be repaired from inside the flow** — Bombista cannot take a file it
+will not parse — so blocking there would make a guided path nobody can finish, and `libertad` is the
+standing example. At step 4 you are asserting the gig is ready, and a song changed outside the app is
+not. **Same fact, two moments, two treatments.** Step 2's note is untouched.
+
+**Read off `fileResolves`, never off a message.** Step 9's blocking trap was a predicate matching a
+substring against rendered prose, so `libertad`'s own wording blocked while never being mentioned.
+
+#### Every designed check is its own structured field
+
+| Field | The check it answers |
+|---|---|
+| `songs[].fileResolves` | *Every song in the setlist resolves to a file* |
+| `songs[].contentResolves` | *Every file those name resolves* |
+| `visualsRefusal` | *The visuals belong to this gig*, told apart from a bad version and a bad parse |
+| `canConfirm` | Whether setup may be confirmed right now |
+
+**`contentMissingFor` returns both halves from one computation**, so `contentResolves` can never
+disagree with the sentences beside it. Only the *file* failures set it false: a song with no lyric
+lines and a song with no timeline name nothing that failed to resolve, and a song whose own file did
+not read never got as far as naming anything.
+
+**`parseVisualsFile` throws a typed `VisualsRefused`** carrying `unparseable`, `unknown-version` or
+`other-gig`; a folder read that failed before the parse is `unreadable`, so callers have one
+vocabulary. **Naming no gig is `other-gig`, not `unparseable`** — the shape of the file is fine and
+the answer to *does this belong to this gig* is still no.
+
+**`canConfirm` is a field rather than something the screen adds up.** `steps[4].status` cannot answer
+it: `not-yet` there covers both *the checks fail* and *this has simply never been confirmed*, and the
+second is the ordinary state in which you press the button. A screen summing steps 1 to 3 plus the
+unreadable songs would be **a second opinion about what ready means**, which is the one thing
+`gigReadiness` forbids.
+
+#### The check screen draws seven lines now, and each names a field
+
+`The gig knows what night it is` · `There is a setlist, and every song in it is one this machine
+knows` · `Every song in the setlist resolves to a file` · `Every file those songs name resolves on
+this machine` · `The room is mapped` · `The mapping belongs to this gig` · `Every song in the setlist
+can be performed`.
+
+**A line about a mapping that is not there says *not yet*, never *pass*.** Claiming the absent room
+belongs to this gig is the class of false answer this repo named on 2026-08-31.
+
+**Some lines block and some report, and the sentence under the button says which.** A red line beside
+a live control is a screen lying by omission. The gate is `canConfirm`; **a file a song names not
+resolving does not block** — the ruling widened the gate for the unreadable file and named nothing
+else, and that song still cannot be armed, which is a gate on the night rather than on the gig.
+
 ### Step 4 opens: the check, and the setup journey's last screen (2026-09-03)
 
 **Ruling: `tramoya-integration/journey-setup.md` step 9 ("4. Check") and `project-context.md`

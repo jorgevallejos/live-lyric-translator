@@ -20,6 +20,8 @@ function readiness(
     songs: [],
     playableSongIds: [],
     refusals: [],
+    visualsRefusal: null,
+    canConfirm: false,
     validationSkipped: false,
     confirmation: null,
     adoption: null,
