@@ -240,26 +240,17 @@ media, Muralista and the Bombista binary path. The design is
 
 | What | Where | Why it is allowed to be stored |
 |---|---|---|
-| **The gig list** — which gigs this machine knows about | `localStorage`, key `pregoneroGigList`, a JSON array of absolute folder paths, most recently opened first | It is a **bookmark list**, like recent files, holding paths and nothing about the gigs themselves. |
 | The Bombista binary override | `localStorage`, key `pregoneroBombistaPath` | A per-machine fact, like the folders beside it. Normally unset. |
 
-**The gig list stores paths and never readiness**, and that is an instruction rather than an
-observation. A stored verdict would go stale precisely when a gig folder is edited from outside
-Pregonero, which the escape hatch guarantees will happen — every tool in the suite is usable on its
-own by requirement. `libertad` is the standing argument: a flag written when it last passed would
-still read Ready today, and it is not. Each row's delta is computed on read, and **until that lands
-a row shows no verdict at all rather than a stale one.**
-
-**A row whose folder is gone stays in the list**, named by its folder. A folder on a drive that is
-not plugged in is not a deleted gig, and a list that tidied itself would erase the evidence that
-something moved. Noticing that it is gone is still owed: `electron/gigFolder.cjs` does not check
-that the folder exists, so a moved folder and a fresh empty one are identical to it.
+**The gigs are no longer on that table at all** (2026-09-03): there is nothing stored to name. The
+gig list is `<gigs>/setup/` read on arrival — see the section below — and readiness was never stored
+and still is not. Each row's delta is computed on read, and **until that lands a row shows no
+verdict at all rather than a stale one.**
 
 **What a row is CALLED is read live from `gig.json`** (Jorge, 2026-09-03) — the date and the venue,
 through `src/gigLabels.ts`, never stored. The folder underneath it is an opaque id that never
 changes, so **the row and the folder are allowed to disagree**; the ruling is in
-`tramoya-integration/project-context.md`. A gig whose file will not read keeps its row, named by
-its folder, because an opaque string is a poor label and a truthful one.
+`tramoya-integration/project-context.md`.
 
 **Open: losing the gig list now loses the gigs from the app**, and it did not before. `Locate…` and
 the gig-folder picker both went on 2026-09-03, and nothing lists `<gigs>/setup/` — so a machine
@@ -375,6 +366,39 @@ disproved it:
 Deleting the store would have taken the contact panel's condition and the setlist screen's played
 markers with it — a subtraction that only works by adding their state back somewhere else, which is
 the trip-wire this round was told to stop on.
+
+### The gigs list is the folder (2026-09-03)
+
+**Ruling: `tramoya-integration/project-context.md`, "The gigs list is the folder, like the songs
+list".** The bookmark list in `localStorage` (`pregoneroGigList`) is gone, along with
+`gigListStore.ts`, `rememberGigInList` and `forgetGig`. `<gigs>/setup/` is read on arrival, exactly
+as `<songs>/song-performance/` is: `electron/gigsFolder.cjs` lists the directories, and
+`src/gigFolderList.ts` decides which of them are gigs.
+
+**Why it had to go, in one line: the list could disagree with the disk.** Cleared storage left every
+folder in place and an empty GIGS column, so the gigs looked deleted and were not — which is the
+class-two failure this repo already named on 2026-08-31, an app-held list standing in for the world.
+
+**Three answers about a folder, and they are three different things.**
+
+| On disk | On screen |
+|---|---|
+| No `gig.json` | **Nothing.** No row, no popup. It was never claimed to be a gig |
+| A `gig.json` that will not parse | Announced **once** through the existing popup queue, and **never a row** — a row is a thing you can open |
+| A `gig.json` that parses | One row, labelled from the file |
+
+**Two consequences worth naming.**
+
+- **Deleting a gig is one step now.** The bin trashes the folder and stops; `forgetGig` was the
+  second half and there is no list left to take it out of.
+- **Nothing invents a date.** `refreshGigReadiness` used to write an identity-only `gig.json`,
+  dated today, into any open folder that had none — which is how a folder nobody had called a gig
+  became one with an invented night. That write is gone and `createGigFile` no longer takes a date:
+  the case it existed for cannot arise, and it is **not replaced by another guess**. Such a folder
+  now lands in the state readiness already had a name for, *No gig.json in this folder yet*.
+
+**`songUsage.ts` reads the folder too**, so the delete-song dialog and the gigs column cannot answer
+differently about which gigs exist.
 
 ## Discovery
 

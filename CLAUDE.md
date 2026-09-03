@@ -56,7 +56,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
 | `gigFolderStore.ts` | localStorage | Which gig folder is open. Its own module so the Projection window can ask without pulling in the reader |
-| `gigListStore.ts` | localStorage | **Which gigs this machine knows about** — `pregoneroGigList`, an array of folder paths, most recent first. A bookmark list, and **paths only: readiness is never stored**, it is computed on read |
+| `gigFolderList.ts` | — | **Which gigs there are**: `<gigs>/setup/` read on arrival, exactly as the songs list reads its folder. Nothing is stored, so nothing can disagree with the disk. A folder with no `gig.json` is silently not a gig; one whose `gig.json` will not parse is announced once and is never a row |
 | `gigLabels.ts` | — | **What each gig on Backstage is called**, read from its own `gig.json` every time the list draws — the date and the venue, never stored. The rule is `gigFile.gigLabel`; this is only the reading |
 | `gigFolderRead.ts` | — | **One gig folder's delta, read and never written.** The route Setup home's list uses. `refreshGigReadiness` is the *opening* path and it writes — it creates `gig.json` and injects a setlist — which is right for the gig you are opening and would create files in every folder a list drew |
 | `visualsBroadcast.ts` | localStorage | `visuals.json`, carried from the Control window to the Projection window. Re-parsed on read, so both refusals hold on both sides |
@@ -92,6 +92,7 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/preload.cjs`: Context bridge exposing IPC methods to the renderer (`window.electronAPI`)
 - `electron/closeProjectionWindow.cjs`: Safe projection window closure logic (has its own tests)
 - `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
+- `electron/gigsFolder.cjs`: What gig folders are in `<gigs>/setup` — directories only, dotfolders out, no recursion. The sibling of `songsFolder.cjs`, and **whether a folder is a gig is not decided here**: that needs `gig.json` read, which is `src/gigFolderList.ts` (has its own tests)
 - `electron/gigFolder.cjs`: One read of the folder the machine's two files are in — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write, which makes that folder if it is absent. A pointer that would leave it is refused, not followed. It is handed `<gig>/setup`; the renderer joins that (has its own tests)
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary found is `skipped` (has its own tests)
 - `electron/displays.cjs`: What displays this machine has, from Electron's `screen`. **Read-only, and a fingerprint to compare rather than a value to render from** — the setup confirmation uses it to notice the projector was unplugged (has its own tests)

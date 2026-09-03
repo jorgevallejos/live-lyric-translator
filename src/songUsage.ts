@@ -8,14 +8,20 @@
  * song played once in 2024 could never be tidied away.
  *
  * **Each gig folder is read, on the press.** There is no index of this and there should not be: an
- * index would be a second copy of what the gig files say, and the gig list is a handful of paths,
+ * index would be a second copy of what the gig files say, and the gigs are a handful of folders,
  * read once at the moment somebody is about to do something irreversible. A gig folder that cannot
  * be read is silently not a match — the wrong thing to do about an unplugged drive is to block the
  * delete, and the right one is not to claim it is in a setlist we could not look at.
+ *
+ * **The gigs come from `<gigs>/setup/`, not from a remembered list** (2026-09-03). The bookmark
+ * list is gone, so this asks the same question the gigs column asks and cannot answer differently:
+ * a gig missing from a stale list would have made the delete dialog say a song is used nowhere
+ * while a setlist on disk still names it.
  */
 
 import { parseGigFile } from './gigFile'
-import { getGigList } from './gigListStore'
+import { readGigFolders } from './gigFolderList'
+import { getGigsFolder } from './contentFolders'
 import { readGigFolder } from './platform'
 
 export type GigUse = {
@@ -31,7 +37,7 @@ function basename(path: string): string {
 }
 
 /**
- * The gigs whose setlist names `songId`, in the order the gig list holds them.
+ * The gigs whose setlist names `songId`, in the order the gigs folder lists them.
  *
  * Reading is injected so the tests do not need a filesystem — the same seam every other reader in
  * this app uses.
@@ -39,14 +45,20 @@ function basename(path: string): string {
 export async function gigsUsingSong(
   songId: string,
   options: {
-    list?: () => string[]
+    list?: () => Promise<string[]>
     read?: (folderPath: string) => Promise<{ gigText: string | null }>
   } = {}
 ): Promise<GigUse[]> {
-  const list = options.list ?? getGigList
+  const list =
+    options.list ??
+    (async () => {
+      const gigsRoot = getGigsFolder()
+      if (gigsRoot === null) return []
+      return (await readGigFolders(gigsRoot)).gigs
+    })
   const read = options.read ?? readGigFolder
   const uses: GigUse[] = []
-  for (const path of list()) {
+  for (const path of await list()) {
     let text: string | null = null
     try {
       text = (await read(path)).gigText
