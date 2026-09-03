@@ -80,13 +80,17 @@ function resolveInsideFolder(folderPath, pointer) {
 }
 
 /**
- * **Makes a gig's folder under the gigs root.** The name is the folder's name and the gig's id.
+ * **Makes a gig's folder inside the one folder the tools own.** The name is the folder's name and
+ * the gig's id, and `setupRoot` is `<gigs>/setup`, already joined by the renderer — this process
+ * stays as ignorant of the suite's conventions as it is about every other folder it is handed.
  *
- * This is what replaced the folder question. `New gig` used to open a directory picker, so the
- * first thing asked of somebody making their first gig was where on their disk it should live —
- * a filesystem decision, before the gig had a venue or a date. First run records the gigs root
- * once; this puts the gig inside it. **Picking a folder survives only for importing a gig from
- * elsewhere**, which is the portability case the two-file split exists to protect.
+ * **Nothing is ever created in the artist's territory** (Jorge, 2026-09-02). Until then this made
+ * `<gigs>/<gig>/` and the write below put a `setup/` inside it, so the tools' hands were in the
+ * folder the poster and the contract live in. One folder, named, is checkable; a rule that depends
+ * on judgement fails the way judgement fails, and this project has already paid for that once.
+ *
+ * **`setup/` itself is made here if it is not there**, which is the one directory this process
+ * creates in the gigs root and the whole of what it may create.
  *
  * **The name is one folder segment and is never interpreted.** A separator, a `.` or a `..` is
  * refused by name rather than sanitised into something else: a gig quietly created somewhere
@@ -96,7 +100,7 @@ function resolveInsideFolder(folderPath, pointer) {
  * gig list is for, and creating over one would be the first step towards writing into a stranger's
  * folder.
  */
-function createGigFolder(gigsRoot, name, options = {}) {
+function createGigFolder(setupRoot, name, options = {}) {
   const mkdirSync = options.mkdirSync || fs.mkdirSync
   const existsSync = options.existsSync || fs.existsSync
 
@@ -109,9 +113,12 @@ function createGigFolder(gigsRoot, name, options = {}) {
     }
   }
 
-  const folderPath = path.join(gigsRoot, trimmed)
+  const folderPath = path.join(setupRoot, trimmed)
   if (existsSync(folderPath)) {
-    return { ok: false, error: `There is already something called "${trimmed}" in the gigs folder.` }
+    return {
+      ok: false,
+      error: `There is already a gig called "${trimmed}". Open it from the gigs list rather than making a second one.`,
+    }
   }
   try {
     mkdirSync(folderPath, { recursive: true })

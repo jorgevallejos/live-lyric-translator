@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  chooseGigFolder,
   closeGig,
   confirmSetup,
-  createGig,
   publishSetlistToGig,
   refreshGigReadiness,
   saveGigIdentity,
@@ -14,11 +12,10 @@ import { useBroadcastVisuals } from './visualsBroadcast'
 import { shapeTypeOf, shapeIsVisible, type VisualShape } from './visualsFile'
 import { currentStep, flowSteps, type FlowStep } from './setupFlow'
 import { SongDoors, SONG_INPUT_RULE, type SongDoor } from './SongDoors'
-import { GatedAction } from './GatedAction'
 import { setSongFlowRequest } from './songFlowState'
 import { bombistaStagingDir } from './platform'
 import { MuralistaDoor } from './MuralistaDoor'
-import { getGigsFolder, resolveSongPath } from './contentFolders'
+import { resolveSongPath } from './contentFolders'
 import type { GigReadiness, SongReadiness, StepStatus } from './gigReadiness'
 import {
   addSongToSetlist,
@@ -173,111 +170,6 @@ function SongRow({
         )}
       />
     </li>
-  )
-}
-
-/**
- * **Step 1: the gig, and there is no folder question.**
- *
- * `New gig` used to open a directory picker, so the first thing asked of somebody making their
- * first gig was where on their disk it should live — a filesystem decision, before the gig had a
- * venue or a date. **First run records the gigs root once and the app makes the folder inside it**,
- * named by what is typed here. Picking a folder survives as *Import*, one act further away,
- * because a gig that already exists somewhere else is a different thing from a gig being made.
- *
- * **This is the only step that writes something a person typed.** Every other step is derived from
- * files that another tool owns, which is why nothing here is ever "prefilled" — it is read.
- */
-function NewGigForm({ busy, onCreated }: { busy: boolean; onCreated: () => void }) {
-  const [name, setName] = useState('')
-  const [venue, setVenue] = useState('')
-  const [city, setCity] = useState('')
-  const [date, setDate] = useState('')
-  const [problem, setProblem] = useState<string | null>(null)
-  const [working, setWorking] = useState(false)
-
-  const gigsFolder = getGigsFolder()
-  const trimmed = name.trim()
-  const legal = trimmed.length > 0 && !trimmed.includes('/') && !trimmed.includes('\\')
-
-  const blockedBy =
-    gigsFolder === null
-      ? 'There is no gigs folder yet, so there is nowhere for a gig to be created. It is asked for once, on first run.'
-      : !legal
-        ? 'Give it a name first. It becomes the folder’s name and the gig’s id.'
-        : null
-
-  return (
-    <div data-testid="setup-body-1">
-      <div className="setup-home-new" data-testid="setup-new-gig-form">
-        <label className="setup-home-field">
-          <span>Name it</span>
-          <input
-            type="text"
-            value={name}
-            placeholder="2026-09-12-bar-eduard"
-            data-testid="setup-gig-name"
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <label className="setup-home-field">
-          <span>Venue</span>
-          <input
-            type="text"
-            value={venue}
-            data-testid="setup-gig-venue-input"
-            onChange={(e) => setVenue(e.target.value)}
-          />
-        </label>
-        <label className="setup-home-field">
-          <span>City</span>
-          <input
-            type="text"
-            value={city}
-            data-testid="setup-gig-city-input"
-            onChange={(e) => setCity(e.target.value)}
-          />
-        </label>
-        <label className="setup-home-field">
-          <span>Date</span>
-          <input
-            type="date"
-            value={date}
-            data-testid="setup-gig-date-input"
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-        <p className="gig-hint" data-testid="setup-gig-lands">
-          It lands as{' '}
-          <code>{gigsFolder === null ? '<gigs folder>' : gigsFolder}/{legal ? trimmed : '<name>'}</code>{' '}
-          — you never pick a path. The name is the gig’s id, and it is the one thing about a gig
-          that is never rewritten: <code>visuals.json</code> is checked against it.
-        </p>
-        <div className="gig-actions">
-          <GatedAction
-            site="setup-create-gig"
-            label="Create the gig"
-            blockedBy={blockedBy}
-            busy={busy || working}
-            onClick={() => {
-              setWorking(true)
-              setProblem(null)
-              void createGig(trimmed, { date, venue: { name: venue, city } })
-                .then((result) => {
-                  if (result.ok) onCreated()
-                  else setProblem(result.error)
-                })
-                .finally(() => setWorking(false))
-            }}
-          />
-        </div>
-        {problem !== null && (
-          <p className="setup-song-problem" data-testid="setup-create-gig-problem">
-            {problem}
-          </p>
-        )}
-      </div>
-    </div>
   )
 }
 
@@ -749,7 +641,6 @@ function StepBody({
   readiness,
   onConfirm,
   onReview,
-  onCreated,
   onSaveIdentity,
   onSetlistChanged,
   onBackToVisuals,
@@ -759,17 +650,20 @@ function StepBody({
   readiness: GigReadiness
   onConfirm: () => void
   onReview: () => void
-  onCreated: () => void
   onSaveIdentity: (identity: { date: string; venue: { name: string; city: string } }) => void
   onSetlistChanged: () => void
   onBackToVisuals: () => void
   busy: boolean
 }) {
   if (step === 1) {
-    // **With no gig open, step 1 is where one is made.** The flow does not need a gig to start;
-    // starting it is what makes one.
+    // **Making a gig is the flow's, not this screen's** (2026-09-02). `New gig` used to open a
+    // form here — a name field whose answer was a folder name — and a gig is named by its date and
+    // its venue now, on the flow's own first screen. With no gig open there is nothing for this
+    // screen to be about.
     return readiness.folderPath === null ? (
-      <NewGigForm busy={busy} onCreated={onCreated} />
+      <p className="gig-empty" data-testid="setup-body-1">
+        No gig open. Gigs are made and their setlists chosen in the gig flow, on Backstage.
+      </p>
     ) : (
       <GigIdentityForm
         // Remounted per gig, so switching gigs re-reads rather than keeping the last gig's fields.
@@ -886,10 +780,10 @@ export function GigView() {
         <section className="gig-identity">
           {readiness.folderPath === null ? (
             <p className="gig-empty" data-testid="gig-none">
-              No gig open. Name one below and the app makes its folder inside your gigs folder. The
-              folder is yours — the poster, the contract, the stage plan. Pregonero writes{' '}
-              <code>gig.json</code> into a <code>setup</code> folder inside it, and Muralista writes{' '}
-              <code>visuals.json</code> beside it.
+              No gig open. Gigs are made in the gig flow, from Backstage. Pregonero keeps every
+              gig’s data in one <code>setup</code> folder inside your gigs folder and{' '}
+              <strong>touches nothing else in there</strong> — the poster, the contract and the
+              stage plan stay yours.
             </p>
           ) : (
             <>
@@ -902,20 +796,10 @@ export function GigView() {
             </>
           )}
           <div className="gig-actions">
-            {/* **Picking a folder is the import path now, and nothing else.** A gig made here is
-                named, not placed; this is for one that already exists somewhere else — a stick, a
-                shared drive — which is the portability case the two-file split protects. */}
-            {canReachFolder ? (
-              <button
-                type="button"
-                className="ctrl-btn ctrl-setup-link"
-                data-testid="gig-import"
-                disabled={busy}
-                onClick={run(chooseGigFolder)}
-              >
-                Import a gig from elsewhere…
-              </button>
-            ) : (
+            {/* **`Import` is dropped** (2026-09-02). It meant *point at a gig folder elsewhere*,
+                and under the ruling that the tools own one `setup/` folder inside the gigs folder
+                there are no gig folders to point at. It is not a button waiting to come back. */}
+            {!canReachFolder && (
               <p className="gig-empty">A gig folder can only be opened from the desktop app.</p>
             )}
             {readiness.folderPath !== null && (
@@ -1007,7 +891,6 @@ export function GigView() {
             busy={busy}
             onConfirm={confirmSetupAndLeave}
             onReview={reviewSetup}
-            onCreated={() => setSelected(1)}
             onSaveIdentity={(identity) => run(() => saveGigIdentity(identity))()}
             onSetlistChanged={setlistChanged}
             onBackToVisuals={() => setSelected(3)}

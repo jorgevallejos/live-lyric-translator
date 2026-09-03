@@ -36,7 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readGigFolder: (folderPath, visualsPointer) =>
     ipcRenderer.invoke('gig:read', folderPath, visualsPointer),
   /** Makes a gig's folder under the gigs root. A name, never a path. */
-  createGigFolder: (gigsRoot, name) => ipcRenderer.invoke('gig:createFolder', gigsRoot, name),
+  createGigFolder: (setupRoot, name) => ipcRenderer.invoke('gig:createFolder', setupRoot, name),
   /** Writes gig.json into `<gig>/setup`, making it if needed. Pregonero is its only writer. */
   writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
   /** Writes debrief.md at the gig folder's root — the author's half. He finishes it. */
@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   folderReadable: (folderPath) => ipcRenderer.invoke('fs:folderReadable', folderPath),
   /** Moves one song file to the Trash. { ok: true } or { ok: false, error }. */
   deleteSongFile: (filePath) => ipcRenderer.invoke('fs:deleteSongFile', filePath),
+  /** Replaces a song file with the candidate an edit produced, backing the original up first. */
+  replaceSongFile: (candidatePath, targetPath) =>
+    ipcRenderer.invoke('fs:replaceSongFile', candidatePath, targetPath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
   closeTool: (key) => ipcRenderer.invoke('tool:close', key),

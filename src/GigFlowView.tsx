@@ -1,0 +1,577 @@
+import { useEffect, useRef, useState } from 'react'
+import { createGig, refreshGigReadiness, publishSetlistToGig, saveGigIdentity } from './gigSession'
+import { useGigReadiness } from './useGigReadiness'
+import { gigIdFrom } from './gigFile'
+import { getGigsFolder } from './contentFolders'
+import { gigFolderIn } from './fileLayout'
+import { LeaveWithoutSaving } from './LeaveWithoutSaving'
+import {
+  addSongToSetlist,
+  getActiveSetlistId,
+  getCatalogueEntries,
+  getOrderedEntriesForActiveSetlist,
+  moveSongInSetlist,
+  removeSongFromSetlist,
+} from './setlistStore'
+
+/**
+ * **The gig flow: four screens, a step bar, and one thing asked per screen.**
+ *
+ * Designed 2026-09-02, before being built, and shaped so **the two flows in this app read as the
+ * same kind of thing**: Bombista's pages carry a step bar, so this does too, and the handoff to
+ * Muralista at step 3 stops feeling like a departure.
+ *
+ *     1 GIG    2 SETLIST    3 VISUALS    4 CHECK
+ *
+ * **Screens 1 and 2 are built. 3 and 4 are the bar's later steps** and are deliberately not
+ * enterable: a segment that opened an empty page would say the step exists and does nothing, which
+ * is worse than a segment that says it is not here yet. Muralista's own flow is another repo's
+ * round, and step 4's checks are their own.
+ *
+ * ## Where the file goes, and it is not a question anybody is asked
+ *
+ * **The tools own one `setup/` folder inside the gigs folder and touch nothing else** (Jorge,
+ * 2026-09-02). Every gig is `<gigs>/setup/<gig>/`, holding `gig.json` and later `visuals.json`.
+ * `<gig>` is shaped like the night folders Jorge already keeps — `2026-05-16-bom-festival`, date
+ * then venue — so a gig row and its night read as the same thing even though they sit apart.
+ * **No tool creates a folder in the artist's territory**, which is what `New gig` used to do.
+ *
+ * So this flow never asks where anything goes. It asks what the night is, and derives the rest.
+ *
+ * ## When the file is written, and what `Back` does about it
+ *
+ * **Nothing is written until identity is complete at the end of step 1.** Leaving during step 1
+ * asks and discards, and nothing was ever on disk. **Once `gig.json` exists the gig is on
+ * Backstage**, incomplete and honest, so leaving after that costs nothing and asks nothing.
+ *
+ * **No half-made thing is ever on disk without being in a list.** That shape is what produced a
+ * phantom popup on 2026-09-02 — a file the app had written, met later by a screen that could only
+ * report it as somebody else's mess.
+ */
+
+/** The bar's four segments, in order. The words are the screens' own. */
+const STEPS: readonly { step: number; label: string }[] = [
+  { step: 1, label: 'Gig' },
+  { step: 2, label: 'Setlist' },
+  { step: 3, label: 'Visuals' },
+  { step: 4, label: 'Check' },
+]
+
+/** The two that exist. Everything after them is a later step, and the bar says so. */
+const BUILT = 2
+
+/**
+ * **The step bar, pinned.** In an embedded subflow the bar is fixed and everything else scrolls —
+ * the rule is in `tramoya-integration/project-context.md`, and it came out of a walk that lost its
+ * place when the bar scrolled away on a long page. **The setlist screen is where it bites**: two
+ * long lists, and *where am I* would otherwise depend on scroll position.
+ *
+ * **The band is what sticks, not the bar.** `.gig-steps` is `width: max-content`, so pinning it
+ * directly would leave the page scrolling through the gap beside it — which half-works, and
+ * half-working is worse than not doing it. The band is full width and opaque; see `.gig-stepband`.
+ *
+ * **A later step is a span, not a button.** Bombista renders a step that did not happen the same
+ * way, for the same reason: a bar that still offered it would say it is available.
+ */
+function GigStepBar({ here, reachable, onGo }: { here: number; reachable: number; onGo: (step: number) => void }) {
+  return (
+    <div className="gig-stepband">
+      <nav className="gig-steps" data-testid="gig-flow-steps" aria-label="Gig setup">
+        {STEPS.map(({ step, label }) => {
+          const later = step > BUILT
+          if (later) {
+            return (
+              <span
+                key={step}
+                className="gig-step-later"
+                data-testid={`gig-flow-step-${step}`}
+                data-state="later"
+              >
+                <span className="n">{step}</span> {label}
+                <span className="why">later</span>
+              </span>
+            )
+          }
+          const open = step <= reachable
+          return (
+            <button
+              key={step}
+              type="button"
+              className={`gig-step-seg${step === here ? ' on' : ''}`}
+              data-testid={`gig-flow-step-${step}`}
+              data-state={step === here ? 'here' : open ? 'open' : 'closed'}
+              aria-current={step === here}
+              disabled={!open}
+              onClick={() => onGo(step)}
+            >
+              <span className="n">{step}</span> {label}
+            </button>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+
+/**
+ * **Screen 1: the gig. The only screen that asks you to type.**
+ *
+ * Date, venue, city — and from the first two it **derives the identity and shows it**, because that
+ * is what appears on Backstage and what names the folder. Being shown it is the point: a name
+ * derived and hidden is a name you meet for the first time in Finder.
+ *
+ * **It never asks where anything goes.** The gigs root was answered once, on first run, and the
+ * folder under `setup/` follows from the name. There is no path on this screen and no picker.
+ */
+function ScreenGig({
+  exists,
+  gigId,
+  date,
+  venue,
+  city,
+  problem,
+  busy,
+  onField,
+  onCommit,
+}: {
+  exists: boolean
+  gigId: string | null
+  date: string
+  venue: string
+  city: string
+  problem: string | null
+  busy: boolean
+  onField: (field: 'date' | 'venue' | 'city', value: string) => void
+  onCommit: () => void
+}) {
+  const derived = gigIdFrom({ date, venue })
+  const gigsRoot = getGigsFolder()
+
+  return (
+    <section className="gig-flow-page" data-testid="gig-flow-screen-1">
+      <p className="gig-flow-lede">
+        A gig is a date and a place. Everything else about it — the songs, the room, the check —
+        follows from those, and none of it is a decision about your disk.
+      </p>
+
+      <div className="gig-flow-fields">
+        <label className="setup-home-field">
+          <span>Date</span>
+          <input
+            type="date"
+            value={date}
+            data-testid="gig-flow-date"
+            disabled={busy}
+            onChange={(e) => onField('date', e.target.value)}
+          />
+        </label>
+        <label className="setup-home-field">
+          <span>Venue</span>
+          <input
+            type="text"
+            value={venue}
+            data-testid="gig-flow-venue"
+            disabled={busy}
+            onChange={(e) => onField('venue', e.target.value)}
+          />
+        </label>
+        <label className="setup-home-field">
+          <span>City</span>
+          <input
+            type="text"
+            value={city}
+            data-testid="gig-flow-city"
+            disabled={busy}
+            onChange={(e) => onField('city', e.target.value)}
+          />
+        </label>
+      </div>
+
+      {/* **The identity, shown as it is derived.** `exists` freezes it: a gig's id is born with its
+          folder and is never rewritten — `visuals.json` records which gig it maps and is checked
+          against this — so on an existing gig the venue can be corrected in the file without the
+          folder chasing it. Renaming a gig is renaming its folder, outside the app. */}
+      <div className="gig-flow-identity" data-testid="gig-flow-identity">
+        <span className="gig-flow-identity-label">This gig is called</span>
+        {exists ? (
+          <code className="gig-flow-identity-name" data-testid="gig-flow-identity-name">
+            {gigId}
+          </code>
+        ) : derived === null ? (
+          <span className="gig-flow-identity-pending" data-testid="gig-flow-identity-pending">
+            Not yet — a gig is named by its date and its venue.
+          </span>
+        ) : (
+          <code className="gig-flow-identity-name" data-testid="gig-flow-identity-name">
+            {derived}
+          </code>
+        )}
+      </div>
+      <p className="gig-flow-note">
+        {exists ? (
+          <>
+            The name was settled when the gig was made and does not change with the fields above.
+            Its data is in{' '}
+            <code>{gigsRoot === null ? `…/setup/${gigId ?? ''}` : gigFolderIn(gigsRoot, gigId ?? '')}</code>.
+          </>
+        ) : (
+          <>
+            It names the folder your gig data goes in, inside the one <code>setup</code> folder
+            Pregonero keeps in your gigs folder. <strong>Nothing else in there is touched</strong>,
+            and nothing is written until this gig has a name.
+          </>
+        )}
+      </p>
+
+      {problem !== null && (
+        <p className="setup-song-problem" data-testid="gig-flow-problem">
+          {problem}
+        </p>
+      )}
+
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn gig-flow-primary"
+          data-testid="gig-flow-commit"
+          disabled={busy || (!exists && derived === null)}
+          onClick={onCommit}
+        >
+          {exists ? 'Save the gig' : 'Create the gig'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * **Screen 2: the setlist. Two lists side by side.**
+ *
+ * The catalogue as Pregonero reads it on the left, tonight's running order on the right, a way to
+ * move a song across and a way to move it up and down within the order.
+ *
+ * **Only songs Pregonero can read appear.** This list says *you can use this*, and a file the app
+ * cannot read is not usable — it is named once in a popup on Backstage and then dropped. The list
+ * beside it is the opposite kind of list: the running order keeps its ids and reports what it
+ * cannot resolve, because it is the record of a decision about a night.
+ *
+ * **It cannot be left empty**: a gig with no setlist is not a gig. That is said on the screen and
+ * it is `gigReadiness`'s own verdict — a `gig.json` with identity and no setlist **parses**, and
+ * fails readiness at step 2 with *The gig has no setlist.* Valid is not ready, and this screen is
+ * where the difference is felt.
+ */
+function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void }) {
+  const setlistId = getActiveSetlistId()
+  const order = getOrderedEntriesForActiveSetlist()
+  const chosen = new Set(order.map((entry) => entry.ref.id))
+  const catalogue = getCatalogueEntries().filter((entry) => !chosen.has(entry.ref.id))
+
+  return (
+    <section className="gig-flow-page gig-flow-setlist" data-testid="gig-flow-screen-2">
+      <div className="gig-flow-lists">
+        <section className="gig-flow-list" data-testid="gig-flow-catalogue">
+          <h2 className="gig-flow-list-name">Your catalogue</h2>
+          <div className="gig-flow-list-frame">
+            {catalogue.length === 0 ? (
+              <p className="setup-home-empty" data-testid="gig-flow-catalogue-empty">
+                {chosen.size === 0
+                  ? 'No songs yet. Songs are made on Backstage — they are gig-independent and last for years.'
+                  : 'Every song you have is in tonight’s order.'}
+              </p>
+            ) : (
+              <ul className="setup-home-list">
+                {catalogue.map((entry) => (
+                  <li
+                    key={entry.ref.id}
+                    className="gig-flow-row"
+                    data-testid={`gig-flow-catalogue-${entry.ref.id}`}
+                  >
+                    <span className="setup-song-title">{entry.song?.title ?? entry.ref.id}</span>
+                    <button
+                      type="button"
+                      className="ctrl-btn gig-flow-mark"
+                      disabled={busy}
+                      data-testid={`gig-flow-add-${entry.ref.id}`}
+                      aria-label={`Add ${entry.song?.title ?? entry.ref.id} to tonight’s order`}
+                      onClick={() => {
+                        addSongToSetlist(setlistId, entry.ref.id)
+                        onChange()
+                      }}
+                    >
+                      Add →
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        <section className="gig-flow-list" data-testid="gig-flow-order">
+          <h2 className="gig-flow-list-name">Tonight, in order</h2>
+          <div className="gig-flow-list-frame">
+            {order.length === 0 ? (
+              <p className="setup-home-empty" data-testid="gig-flow-order-empty">
+                Nothing in it yet. A gig with no setlist is not a gig — add a song from the left.
+              </p>
+            ) : (
+              <ol className="setup-home-list gig-flow-ordered">
+                {order.map((entry, index) => (
+                  <li
+                    key={entry.ref.id}
+                    className="gig-flow-row"
+                    data-testid={`gig-flow-order-${entry.ref.id}`}
+                  >
+                    <span className="gig-flow-position">{index + 1}</span>
+                    <span className="setup-song-title">{entry.song?.title ?? entry.ref.id}</span>
+                    <div className="setup-home-row-actions">
+                      <button
+                        type="button"
+                        className="ctrl-btn gig-flow-mark"
+                        disabled={busy || index === 0}
+                        aria-label={`Move ${entry.song?.title ?? entry.ref.id} earlier`}
+                        data-testid={`gig-flow-up-${entry.ref.id}`}
+                        onClick={() => {
+                          moveSongInSetlist(setlistId, entry.ref.id, 'up')
+                          onChange()
+                        }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="ctrl-btn gig-flow-mark"
+                        disabled={busy || index === order.length - 1}
+                        aria-label={`Move ${entry.song?.title ?? entry.ref.id} later`}
+                        data-testid={`gig-flow-down-${entry.ref.id}`}
+                        onClick={() => {
+                          moveSongInSetlist(setlistId, entry.ref.id, 'down')
+                          onChange()
+                        }}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="ctrl-btn gig-flow-mark"
+                        disabled={busy}
+                        data-testid={`gig-flow-remove-${entry.ref.id}`}
+                        aria-label={`Take ${entry.song?.title ?? entry.ref.id} out of tonight’s order`}
+                        onClick={() => {
+                          removeSongFromSetlist(setlistId, entry.ref.id)
+                          onChange()
+                        }}
+                      >
+                        ←
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <p className="gig-flow-note">
+        The running order lives in <code>gig.json</code> and is what this app performs. Changing it
+        here writes the file.
+      </p>
+
+      {/* **What comes after this screen, said plainly.** Screens 3 and 4 are the bar's later steps
+          and are not built, and the surface that still holds the room and the confirmation is the
+          old setup screen. **One line, and it is the only place that points there** — the
+          alternative was two doors into the same act, which is the shape this round exists to
+          remove. It goes when 3 and 4 land. */}
+      <p className="gig-flow-note gig-flow-unbuilt" data-testid="gig-flow-later">
+        <strong>Visuals and the check are the next two steps and are not built yet.</strong> Until
+        they are, the room is mapped and setup is confirmed on{' '}
+        <button
+          type="button"
+          className="gig-flow-inline-link"
+          data-testid="gig-flow-old-setup"
+          onClick={() => {
+            window.location.hash = '#/gig/steps'
+          }}
+        >
+          the old setup screen
+        </button>
+        .
+      </p>
+    </section>
+  )
+}
+
+export function GigFlowView() {
+  const readiness = useGigReadiness()
+  const [busy, setBusy] = useState(false)
+  const [here, setHere] = useState(1)
+  const [asking, setAsking] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  // The version the screen redraws off after a setlist edit. The store is not reactive, and the
+  // lists are read straight out of it.
+  const [revision, setRevision] = useState(0)
+
+  const exists = readiness.folderPath !== null
+
+  // **The fields, held here rather than per screen**, so stepping back to 1 finds them as they
+  // were. The song flow's step bar cost a walk by not doing this: the state existed and the page
+  // ignored it.
+  const [date, setDate] = useState('')
+  const [venue, setVenue] = useState('')
+  const [city, setCity] = useState('')
+  // What the file said when it was last read, so *dirty* is a comparison and not a flag.
+  const [loaded, setLoaded] = useState<{ date: string; venue: string; city: string } | null>(null)
+
+  useEffect(() => {
+    void refreshGigReadiness()
+  }, [])
+
+  /**
+   * **Prefilled from the gig, once per gig.** Nothing on this screen is ever typed twice: the date
+   * and the venue are read out of `gig.json`. It keys off the folder rather than the fields, so a
+   * character typed into the venue is not undone by the next render — the whole defect the song
+   * flow's step bar had, where the state existed and the page ignored it.
+   */
+  const prefilledFrom = useRef<string | null>(null)
+  useEffect(() => {
+    const folder = readiness.folderPath
+    if (folder === null || prefilledFrom.current === folder) return
+    prefilledFrom.current = folder
+    const next = {
+      date: readiness.date ?? '',
+      venue: readiness.venue?.name ?? '',
+      city: readiness.venue?.city ?? '',
+    }
+    setDate(next.date)
+    setVenue(next.venue)
+    setCity(next.city)
+    setLoaded(next)
+  }, [readiness.folderPath, readiness.date, readiness.venue])
+
+  const typedSomething = date !== '' || venue.trim() !== '' || city.trim() !== ''
+  const edited =
+    loaded !== null && (date !== loaded.date || venue !== loaded.venue || city !== loaded.city)
+
+  /**
+   * **Whether `Back` has anything to consent to.**
+   *
+   * **Before the file exists:** anything typed. Nothing has reached disk, so leaving discards it,
+   * and that is the whole of what the dialog is about.
+   *
+   * **After it exists:** only fields edited and not saved. The gig itself is safe — it is on
+   * Backstage, incomplete and honest — so its half-made state is not worth a dialog. Typing that
+   * has not been saved still is, on the same rule as the song flow: it is a destructive action
+   * needing consent, and the walk of 2026-09-02 found exactly this loss twice.
+   */
+  const somethingToLose = here === 1 && (exists ? edited : typedSomething)
+
+  const leave = () => {
+    window.location.hash = '#/setup'
+  }
+
+  const askBeforeLeaving = () => {
+    if (somethingToLose) setAsking(true)
+    else leave()
+  }
+
+  /**
+   * **Step 1's one action writes, and then the flow moves on.** Creating and saving are the same
+   * press because they are the same moment: you have said what the night is, and the next question
+   * is which songs.
+   *
+   * **It moves on only if the write happened.** Navigating away from a failed write would report
+   * success by arriving somewhere, which is the defect `Confirm setup` was fixed for.
+   */
+  const commit = () => {
+    setBusy(true)
+    setProblem(null)
+    void (async () => {
+      if (exists) {
+        await saveGigIdentity({ date, venue: { name: venue, city } })
+        setLoaded({ date, venue, city })
+        setBusy(false)
+        setHere(2)
+        return
+      }
+      const made = await createGig({ date, venue: { name: venue, city } })
+      setBusy(false)
+      if (!made.ok) {
+        setProblem(made.error)
+        return
+      }
+      setLoaded({ date, venue, city })
+      setHere(2)
+    })()
+  }
+
+  const setlistChanged = () => {
+    setRevision((n) => n + 1)
+    setBusy(true)
+    void publishSetlistToGig().finally(() => setBusy(false))
+  }
+
+  // Step 2 is reachable once the gig is on disk, and not before: it writes a running order into a
+  // file, and there is no file until step 1 has been committed.
+  const reachable = exists ? BUILT : 1
+  const title = exists ? (readiness.gigId ?? 'Gig') : 'New gig'
+
+  const body = (() => {
+    if (here === 2) return <ScreenSetlist key={revision} busy={busy} onChange={setlistChanged} />
+    return (
+      <ScreenGig
+        exists={exists}
+        gigId={readiness.gigId}
+        date={date}
+        venue={venue}
+        city={city}
+        problem={problem}
+        busy={busy}
+        onField={(field, value) => {
+          if (field === 'date') setDate(value)
+          else if (field === 'venue') setVenue(value)
+          else setCity(value)
+        }}
+        onCommit={commit}
+      />
+    )
+  })()
+
+  return (
+    <div className="songs-screen gig-flow-screen">
+      {/* **Step 1 before the file exists is the one place `Back` destroys something here**, and it
+          takes consent for it — the same component and the same second-of-three popup the song
+          flow uses. Once `gig.json` exists there is nothing to consent to: the gig is in a list. */}
+      {asking && (
+        <LeaveWithoutSaving
+          site="gig-flow"
+          what={
+            exists
+              ? 'The changes to this gig have not been saved.'
+              : 'This gig has not been created.'
+          }
+          onStay={() => setAsking(false)}
+          onLeave={leave}
+        />
+      )}
+      <header className="songs-top-bar">
+        <button
+          type="button"
+          className="songs-back"
+          data-testid="gig-flow-leave"
+          onClick={askBeforeLeaving}
+        >
+          Back
+        </button>
+        <h1 className="songs-title" data-testid="gig-flow-title">
+          {title}
+        </h1>
+      </header>
+
+      <main className="songs-body gig-flow-body">
+        <GigStepBar here={here} reachable={reachable} onGo={setHere} />
+        {body}
+      </main>
+    </div>
+  )
+}

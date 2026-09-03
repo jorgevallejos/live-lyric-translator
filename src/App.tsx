@@ -66,6 +66,7 @@ import {
 import { addPlayedSong, getPlayedSongs, hasPlayedSong, isSetlistComplete } from './playedSongsState'
 import { useGigReadiness } from './useGigReadiness'
 import { refreshGigReadiness } from './gigSession'
+import { GigFlowView } from './GigFlowView'
 import { GigView } from './GigView'
 import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
@@ -2412,7 +2413,22 @@ function App({ initialHash }: { initialHash?: string } = {}) {
         <SongFlowView />
       </>
     )
+  // **`#/gig` is the gig flow** (2026-09-02, journey-setup step 9): four screens with a step bar
+  // shaped like Bombista's, so the two flows in this app read as the same kind of thing. One door
+  // for a gig being made and a gig being opened — the defect this round opened by fixing was one
+  // control meaning two things depending on how deep you are.
   if (hash === '#/gig')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <GigFlowView />
+      </>
+    )
+  // **The setup screen the flow has not replaced yet.** The flow's screens 3 and 4 — the visuals
+  // and the check — are later steps and are not built, and this screen still owns both. It is not
+  // a second door into making a gig: it holds no `New gig` and no `Import`, and screen 2 of the
+  // flow is the one place that points here. It goes when 3 and 4 land.
+  if (hash === '#/gig/steps')
     return (
       <>
         <ConcertSessionTimerRunner />

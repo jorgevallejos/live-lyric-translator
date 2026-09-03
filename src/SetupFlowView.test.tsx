@@ -151,9 +151,17 @@ afterEach(() => {
   window.location.hash = ''
 })
 
+/**
+ * **The old setup screen, at `#/gig/steps`.**
+ *
+ * `#/gig` is the gig flow since 2026-09-02 — four screens with a step bar, of which one and two are
+ * built. This screen is what the flow has not replaced yet: the visuals door and the confirmation,
+ * which are its screens 3 and 4 and are their own rounds. It holds no `New gig` and no `Import`,
+ * so it is not a second door into making one; it goes when 3 and 4 land.
+ */
 async function renderSetup() {
   await act(async () => {
-    render(<App initialHash="#/gig" />)
+    render(<App initialHash="#/gig/steps" />)
   })
 }
 
@@ -199,10 +207,18 @@ describe('the four steps', () => {
     expect(screen.getByTestId('setup-step-page').textContent).not.toMatch(/in a terminal/)
   })
 
-  it('asks for a name rather than a folder when there is no gig', async () => {
+  /**
+   * **Making a gig left this screen** (2026-09-02). It asked for a name whose answer was a folder
+   * name, which is the folder question in different clothes; the gig flow asks for a date and a
+   * venue and derives the rest. **The inverted assertion is deliberate**: this fails on the day a
+   * second door into making a gig reappears here.
+   */
+  it('is not a place a gig is made any more, and offers no name field', async () => {
     await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('setup-gig-lands').textContent).toMatch(/never pick a path/)
+    await waitFor(() => expect(screen.getByTestId('setup-body-1')).toBeTruthy(), WAIT)
+    expect(screen.queryByTestId('setup-gig-name')).toBeNull()
+    expect(screen.queryByTestId('setup-create-gig')).toBeNull()
+    expect(screen.getByTestId('setup-body-1').textContent).toMatch(/gig flow/)
   })
 
   it('puts you at the end when everything is done', async () => {
@@ -645,81 +661,12 @@ describe('confirming setup', () => {
 })
 
 /**
- * **Journey step 8 and 9: `New gig`, and never a filesystem path.**
- *
- * The from-nothing walk arrives here with a gigs folder recorded by first run and nothing else.
- * What it must not meet is a directory picker.
+ * **Journey step 8 and 9 moved to the gig flow, and their tests moved with them.** `New gig` no
+ * longer opens anything on this screen: a gig is made in `GigFlowView`, from a date and a venue,
+ * and `GigFlowView.test.tsx` is where that is defended. What is left here is the half of step 1
+ * this screen still draws — the identity of a gig that already exists.
  */
-describe('making a gig, from the flow', () => {
-  const GIGS_ROOT = '/vault/gigs'
-
-  beforeEach(() => {
-    localStorage.setItem('pregoneroGigsFolder', GIGS_ROOT)
-    createGigFolder.mockResolvedValue({ ok: true, folderPath: `${GIGS_ROOT}/${GIG_ID}` })
-  })
-
-  it('says where the gig will land, and never asks for a path', async () => {
-    await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
-    fireEvent.change(screen.getByTestId('setup-gig-name'), { target: { value: GIG_ID } })
-    expect(screen.getByTestId('setup-gig-lands').textContent).toContain(`${GIGS_ROOT}/${GIG_ID}`)
-  })
-
-  it('makes the folder under the gigs root, from the name and nothing else', async () => {
-    let onDisk: string | null = null
-    writeGigFile.mockImplementation((_folder: string, text: string) => {
-      onDisk = text
-      return Promise.resolve({ ok: true })
-    })
-    readGigFolder.mockImplementation(() =>
-      Promise.resolve(
-        folderRead({
-          folderPath: `${GIGS_ROOT}/${GIG_ID}`,
-          gigPresent: onDisk !== null,
-          gigText: onDisk,
-        })
-      )
-    )
-    await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
-    fireEvent.change(screen.getByTestId('setup-gig-name'), { target: { value: GIG_ID } })
-    fireEvent.change(screen.getByTestId('setup-gig-venue-input'), { target: { value: 'Bar Eduard' } })
-    fireEvent.change(screen.getByTestId('setup-gig-date-input'), { target: { value: '2026-09-12' } })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-create-gig'))
-    })
-    await waitFor(() => expect(createGigFolder).toHaveBeenCalledWith(GIGS_ROOT, GIG_ID), WAIT)
-    const calls = writeGigFile.mock.calls as [string, string][]
-    const written = JSON.parse(calls[0]![1]) as { id: string; date: string; venue: { name: string } }
-    expect(written.id).toBe(GIG_ID)
-    expect(written.date).toBe('2026-09-12')
-    expect(written.venue.name).toBe('Bar Eduard')
-  })
-
-  it('holds Create until it has a name, disabled with the reason — never absent', async () => {
-    await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-create-gig')).toBeTruthy(), WAIT)
-    expect((screen.getByTestId('setup-create-gig') as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByTestId('setup-create-gig-reason').textContent).toMatch(/name/)
-  })
-
-  it('reports a refusal instead of pretending a gig was made', async () => {
-    createGigFolder.mockResolvedValue({
-      ok: false,
-      error: 'There is already something called "2026-09-12-bar-eduard" in the gigs folder.',
-    })
-    await renderSetup()
-    await waitFor(() => expect(screen.getByTestId('setup-gig-name')).toBeTruthy(), WAIT)
-    fireEvent.change(screen.getByTestId('setup-gig-name'), { target: { value: GIG_ID } })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-create-gig'))
-    })
-    await waitFor(
-      () => expect(screen.getByTestId('setup-create-gig-problem').textContent).toMatch(/already/),
-      WAIT
-    )
-  })
-
+describe('the gig’s identity, once it exists', () => {
   it('shows the gig’s name as fixed once it exists, and edits only venue and date', async () => {
     readyGig()
     await renderSetup()

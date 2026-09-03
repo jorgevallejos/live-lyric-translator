@@ -183,14 +183,19 @@ async function renderAt(hash: string) {
 }
 
 describe('the report when a gig is opened', () => {
-  it('offers to choose a folder when there is no gig', async () => {
-    await renderAt('#/gig')
+  /**
+   * **No folder question, and no gig made here either** (2026-09-02). Picking a folder went first;
+   * `Import` went with the ruling that the tools own one `setup/` folder inside the gigs folder,
+   * because it meant *point at a gig folder elsewhere* and there are none. Making a gig is the gig
+   * flow's, at `#/gig`. **The three inverted assertions fail on the day any of them comes back.**
+   */
+  it('says there is no gig, and offers no way to make or import one', async () => {
+    await renderAt('#/gig/steps')
     expect(screen.getByTestId('gig-none')).toBeTruthy()
-    // **No folder question.** A gig is named here and the app makes its folder; picking one is
-    // the import path, which is a different act and reads as one.
     expect(screen.queryByRole('button', { name: 'Choose gig folder' })).toBeNull()
-    expect(screen.getByTestId('setup-gig-name')).toBeTruthy()
-    expect(screen.getByTestId('gig-import')).toBeTruthy()
+    expect(screen.queryByTestId('setup-gig-name')).toBeNull()
+    expect(screen.queryByTestId('gig-import')).toBeNull()
+    expect(screen.getByTestId('gig-none').textContent).toMatch(/gig flow/)
   })
 
   it('names the gig and the folder once one is open', async () => {
@@ -198,7 +203,7 @@ describe('the report when a gig is opened', () => {
     readGigFolder.mockResolvedValue(
       folderRead({ gigPresent: true, gigText: gigJson(['duelo', 'vidas']) })
     )
-    await renderAt('#/gig')
+    await renderAt('#/gig/steps')
     await waitFor(() => expect(screen.getByTestId('gig-id').textContent).toBe(GIG_ID), {
       timeout: WAIT_TIMEOUT,
     })
@@ -210,7 +215,7 @@ describe('the report when a gig is opened', () => {
     readGigFolder.mockResolvedValue(
       folderRead({ gigPresent: true, gigText: gigJson(['duelo', 'vidas']) })
     )
-    await renderAt('#/gig')
+    await renderAt('#/gig/steps')
     await waitFor(
       () => expect(screen.getByTestId('gig-step-3').textContent).toMatch(/Not yet/),
       { timeout: WAIT_TIMEOUT }
@@ -229,7 +234,7 @@ describe('the report when a gig is opened', () => {
         visualsText: visualsJson({ 'song-lyrics': ['lyr'] }, 'last-month'),
       })
     )
-    await renderAt('#/gig')
+    await renderAt('#/gig/steps')
     await waitFor(
       () => expect(screen.getByTestId('gig-refusals').textContent).toMatch(/last-month/),
       { timeout: WAIT_TIMEOUT }
@@ -246,7 +251,7 @@ describe('the report when a gig is opened', () => {
         visualsText: visualsJson({}),
       })
     )
-    await renderAt('#/gig')
+    await renderAt('#/gig/steps')
     await waitFor(
       () => expect(screen.getByTestId('gig-song-duelo').textContent).toMatch(/Cannot be armed/),
       { timeout: WAIT_TIMEOUT }
@@ -258,7 +263,7 @@ describe('the report when a gig is opened', () => {
     readGigFolder.mockResolvedValue(
       folderRead({ gigPresent: true, gigText: gigJson(['duelo', 'vidas']) })
     )
-    await renderAt('#/gig')
+    await renderAt('#/gig/steps')
     await waitFor(
       () => expect(screen.getByTestId('gig-validation-skipped')).toBeTruthy(),
       { timeout: WAIT_TIMEOUT }
@@ -268,7 +273,7 @@ describe('the report when a gig is opened', () => {
   it('re-checks on open rather than watching the folder', async () => {
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
-    await renderAt('#/gig')
+    await renderAt('#/gig/steps')
     await waitFor(() => expect(readGigFolder).toHaveBeenCalled(), { timeout: WAIT_TIMEOUT })
     const before = readGigFolder.mock.calls.length
     await act(async () => {
