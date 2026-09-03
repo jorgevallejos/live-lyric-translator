@@ -19,6 +19,24 @@
  *
  * **`Stay` is first.** The dialog exists for the press that was a mistake, so the button that undoes
  * the mistake is the one nearest the way back. `Delete` sits second for the same reason.
+ *
+ * ## One consent-dialog shape across the suite, and this is the half that moved
+ *
+ * **Left-aligned title and text, two outlined buttons, the leaving action on the right** (Jorge,
+ * 2026-09-03). Bombista's `No recording` and this one are the same category of thing either side of
+ * a seam the person cannot see, and they were in two visual languages: this one centred, that one
+ * left-aligned with a filled button. **It cannot be a shared component** — Bombista is a Python
+ * process rendering its own HTML — so the shape is written down in `journey-setup.md` and
+ * implemented twice, and each implementation says so.
+ *
+ * **Left, because every other surface in the suite is left.** A centred dialog is the only centred
+ * text in either product, and the ragged-right edge is what the eye already reads everything else
+ * down.
+ *
+ * **The consequence, stated rather than discovered later:** this no longer looks exactly like the
+ * delete-song dialog it was built to match. It still shares the overlay, the box and the two
+ * buttons; only the alignment differs. Deleting a song is the same category of thing and should
+ * follow, but it was not in this round's findings and is not moved on a guess.
  */
 export function LeaveWithoutSaving({
   what,
@@ -36,7 +54,7 @@ export function LeaveWithoutSaving({
   return (
     <div className="ctrl-timeline-save-overlay" data-testid={`${site}-leave-popup`}>
       <div
-        className="ctrl-timeline-save-dialog"
+        className="ctrl-timeline-save-dialog leave-without-saving"
         role="dialog"
         aria-modal="true"
         aria-label="Leave without saving?"
@@ -47,7 +65,7 @@ export function LeaveWithoutSaving({
         <p className="leave-without-saving-what" data-testid={`${site}-leave-what`}>
           {what} <strong>What you have typed here will be lost.</strong>
         </p>
-        <div className="ctrl-timeline-save-actions">
+        <div className="ctrl-timeline-save-actions leave-without-saving-actions">
           <button
             type="button"
             className="ctrl-btn"
