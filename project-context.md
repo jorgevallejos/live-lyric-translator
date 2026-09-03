@@ -466,6 +466,64 @@ Pregonero the way it always was.**
 `parseVisualsFile` already makes here, on the same field. The two tools now agree about a mapping of
 a different room, rather than one of them catching it.
 
+### The check's gate, and `gigReadiness` widened (2026-09-03)
+
+**Ruling: `tramoya-integration/project-context.md`, under 9.4's leaving action.** `v0.47.0` shipped
+this disagreement reported rather than reconciled; this is the reconciliation.
+
+#### A song whose file will not read is a note at step 2 and a failure at step 4
+
+**The principle, and it is the whole of it: a problem you can still route around while composing
+becomes a blocker at the moment you assert readiness.**
+
+At step 2 such a song **cannot be repaired from inside the flow** — Bombista cannot take a file it
+will not parse — so blocking there would make a guided path nobody can finish, and `libertad` is the
+standing example. At step 4 you are asserting the gig is ready, and a song changed outside the app is
+not. **Same fact, two moments, two treatments.** Step 2's note is untouched.
+
+**Read off `fileResolves`, never off a message.** Step 9's blocking trap was a predicate matching a
+substring against rendered prose, so `libertad`'s own wording blocked while never being mentioned.
+
+#### Every designed check is its own structured field
+
+| Field | The check it answers |
+|---|---|
+| `songs[].fileResolves` | *Every song in the setlist resolves to a file* |
+| `songs[].contentResolves` | *Every file those name resolves* |
+| `visualsRefusal` | *The visuals belong to this gig*, told apart from a bad version and a bad parse |
+| `canConfirm` | Whether setup may be confirmed right now |
+
+**`contentMissingFor` returns both halves from one computation**, so `contentResolves` can never
+disagree with the sentences beside it. Only the *file* failures set it false: a song with no lyric
+lines and a song with no timeline name nothing that failed to resolve, and a song whose own file did
+not read never got as far as naming anything.
+
+**`parseVisualsFile` throws a typed `VisualsRefused`** carrying `unparseable`, `unknown-version` or
+`other-gig`; a folder read that failed before the parse is `unreadable`, so callers have one
+vocabulary. **Naming no gig is `other-gig`, not `unparseable`** — the shape of the file is fine and
+the answer to *does this belong to this gig* is still no.
+
+**`canConfirm` is a field rather than something the screen adds up.** `steps[4].status` cannot answer
+it: `not-yet` there covers both *the checks fail* and *this has simply never been confirmed*, and the
+second is the ordinary state in which you press the button. A screen summing steps 1 to 3 plus the
+unreadable songs would be **a second opinion about what ready means**, which is the one thing
+`gigReadiness` forbids.
+
+#### The check screen draws seven lines now, and each names a field
+
+`The gig knows what night it is` · `There is a setlist, and every song in it is one this machine
+knows` · `Every song in the setlist resolves to a file` · `Every file those songs name resolves on
+this machine` · `The room is mapped` · `The mapping belongs to this gig` · `Every song in the setlist
+can be performed`.
+
+**A line about a mapping that is not there says *not yet*, never *pass*.** Claiming the absent room
+belongs to this gig is the class of false answer this repo named on 2026-08-31.
+
+**Some lines block and some report, and the sentence under the button says which.** A red line beside
+a live control is a screen lying by omission. The gate is `canConfirm`; **a file a song names not
+resolving does not block** — the ruling widened the gate for the unreadable file and named nothing
+else, and that song still cannot be armed, which is a gate on the night rather than on the gig.
+
 ### Step 4 opens: the check, and the setup journey's last screen (2026-09-03)
 
 **Ruling: `tramoya-integration/journey-setup.md` step 9 ("4. Check") and `project-context.md`

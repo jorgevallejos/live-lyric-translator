@@ -536,25 +536,35 @@ function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
  * matching the substring `"could not be read"` against rendered prose, so `libertad`'s own wording
  * blocked silently. The `missing` and `notes` strings are shown; they are never read.
  *
- * ## Where these lines and the designed ones differ, which is a finding rather than a liberty
+ * ## Each designed check is its own line, because each is its own field
  *
- * The design names three checks — *every song in the setlist resolves to a file*, *every file those
- * name resolves*, *the visuals belong to this gig*. **`GigReadiness` computes all three and exposes
- * none of them separably.** They live inside per-step `missing`/`notes` prose and inside
- * `songs[].missing`, so:
+ * `v0.47.0` shipped four lines and reported that the design's three checks could not be drawn
+ * separately: two lived inside `songs[].missing` prose and the third was mixed in with a bad
+ * version and a bad parse. **`gigReadiness` was widened for exactly this** (Jorge, 2026-09-03) —
+ * *the last screen before a gig is confirmed should say which thing is wrong, not that something
+ * is.* Every line below reads a field:
  *
- * - The first two collapse into one line, `every song can be performed`, which is
- *   `songs.every(s => s.ready)` — the union of *its file read*, *its media resolves* and *a shape
- *   carries it*. Splitting them means reading prose, which is the trap above.
- * - The third is `steps[3].status !== 'broken'`, which also covers an unknown `visualsVersion` and
- *   a file that will not parse. The refusal's own sentence names which it was.
+ * | Line | Reads |
+ * |---|---|
+ * | The gig knows what night it is | `steps[1].status` |
+ * | There is a setlist, and every song in it is one this machine knows | `steps[2].status` |
+ * | Every song in the setlist resolves to a file | `songs[].fileResolves` |
+ * | Every file those songs name resolves on this machine | `songs[].contentResolves` |
+ * | The room is mapped | `steps[3].status` and `visualsRefusal` |
+ * | The mapping belongs to this gig | `visualsRefusal === 'other-gig'` |
+ * | Every song in the setlist can be performed | `songs[].ready` |
  *
- * **And they disagree about what blocks.** A setlist song whose file will not read is a `note` on
- * step 2, deliberately: a step that can never complete while a known-broken song sits in the
- * library is a guided path nobody can walk, and `libertad` is the standing example. The design's
- * first line says that *fails*. **The gate here is readiness's, unchanged** — steps 1 to 3 complete
- * — and the song line reports without blocking. Widening `gigReadiness` to reconcile them is not
- * this round's to do.
+ * ## What blocks, and what only reports
+ *
+ * **The gate is `steps[4].status`** — readiness's own verdict, not a second opinion assembled
+ * here. Since 2026-09-03 that includes **a setlist song whose file will not read**, which stays a
+ * *note* at step 2 and *fails* here: **a problem you can route around while composing becomes a
+ * blocker at the moment you assert readiness.**
+ *
+ * **The other failing lines report and do not block**, and the sentence under the button says so
+ * rather than leaving a red line beside a live control unexplained. A missing media file is the
+ * live case: it stops that song being armed and the ruling widened the gate for the unreadable
+ * file and named nothing else.
  */
 
 const CHECK_STATUS_LABEL: Record<StepStatus, string> = {
@@ -618,14 +628,30 @@ function ScreenCheck({
   const step1 = step(1)
   const step2 = step(2)
   const step3 = step(3)
-  const blocked = readiness.songs.filter((song) => !song.ready)
-  // **Every song can be performed**, from `songs[].ready` and nothing else. An empty setlist is not
-  // a pass here: step 2 already fails it, and `[].every()` would answer true about nothing.
-  const songsStatus: StepStatus =
-    readiness.songs.length === 0 ? 'not-yet' : blocked.length === 0 ? 'complete' : 'not-yet'
-  // **The gate is readiness's, unchanged**: steps 1 to 3 complete. Not the song line — see the
-  // header. `GigView` gates the same press the same way, off the same fields.
-  const checksPass = [step1, step2, step3].every((s) => s?.status === 'complete')
+  const songs = readiness.songs
+  const unreadable = songs.filter((song) => !song.fileResolves)
+  const unresolvedFiles = songs.filter((song) => !song.contentResolves)
+  const blocked = songs.filter((song) => !song.ready)
+  // **An empty setlist is never a pass on a per-song line**: `[].every()` answers true about
+  // nothing, which would print PASS over a gig with no songs. Step 2 is what fails it.
+  const overSongs = (bad: readonly unknown[]): StepStatus =>
+    songs.length === 0 ? 'not-yet' : bad.length === 0 ? 'complete' : 'not-yet'
+  // **The room, split into the two questions the design names.** `steps[3].status` covers *is
+  // there a room and does it read*; `visualsRefusal` is what tells *another room's mapping* apart
+  // from *this file will not parse*, so the second line is a field and not a substring.
+  const otherGig = readiness.visualsRefusal === 'other-gig'
+  const mappedStatus: StepStatus = otherGig ? 'not-yet' : (step3?.status ?? 'not-yet')
+  const belongsStatus: StepStatus = otherGig
+    ? 'broken'
+    : step3?.status === 'complete'
+      ? 'complete'
+      : // Nothing to belong to yet. Saying PASS here would be a claim about a mapping that is
+        // not there, which is the class of false answer this project has a rule about.
+        'not-yet'
+  // **THE GATE IS ONE FIELD, AND IT IS READINESS'S.** Nothing is assembled here: `canConfirm` is
+  // everything step 4 asserts apart from the confirmation existing, and since 2026-09-03 that
+  // includes a setlist song whose file will not read.
+  const checksPass = readiness.canConfirm
   const confirmation = readiness.confirmation
 
   return (
@@ -653,21 +679,63 @@ function ScreenCheck({
             notes={step2.notes}
           />
         )}
+        {/* **The design's first check, and the one that blocks.** A reference this machine has a
+            file for, whose file will not read — `libertad`'s live shape. Step 2 keeps it as a
+            note; here it fails. */}
+        <CheckLine
+          id="files"
+          claim="Every song in the setlist resolves to a file."
+          status={overSongs(unreadable)}
+          detail={
+            songs.length === 0
+              ? ['There are no songs to check.']
+              : unreadable.map((song) => `${song.title}: ${song.missing.join('; ')}`)
+          }
+        />
+        {/* **The design's second check.** Only the files a song actually needs count: a
+            lyrics-only song names none, and a song whose own file did not read never got as far
+            as naming anything. */}
+        <CheckLine
+          id="media"
+          claim="Every file those songs name resolves on this machine."
+          status={overSongs(unresolvedFiles)}
+          detail={
+            songs.length === 0
+              ? ['There are no songs to check.']
+              : unresolvedFiles.map((song) => `${song.title}: ${song.missing.join('; ')}`)
+          }
+        />
         {step3 !== undefined && (
           <CheckLine
             id="visuals"
-            claim="The room is mapped, and the mapping is this gig’s."
-            status={step3.status}
-            detail={step3.missing}
+            claim="The room is mapped."
+            status={mappedStatus}
+            detail={otherGig ? [] : step3.missing}
             notes={step3.notes}
           />
         )}
+        {/* **The design's third check, on its own line at last.** It used to share one with a bad
+            `visualsVersion` and a file that will not parse; `visualsRefusal` is what tells them
+            apart. **Copying last month's gig folder to start the next one renders perfectly and
+            reports nothing** — this is the line that reports it. */}
+        <CheckLine
+          id="belongs"
+          claim="The mapping belongs to this gig."
+          status={belongsStatus}
+          detail={
+            otherGig
+              ? readiness.refusals
+              : belongsStatus === 'complete'
+                ? []
+                : ['There is no mapping yet to check.']
+          }
+        />
         <CheckLine
           id="songs"
           claim="Every song in the setlist can be performed."
-          status={songsStatus}
+          status={overSongs(blocked)}
           detail={
-            readiness.songs.length === 0
+            songs.length === 0
               ? ['There are no songs to check.']
               : blocked.map((song) => `${song.title}: ${song.missing.join('; ')}`)
           }
@@ -715,12 +783,26 @@ function ScreenCheck({
           className="ctrl-btn gig-flow-primary"
           data-testid="gig-flow-confirm"
           disabled={busy || !checksPass}
-          title={checksPass ? undefined : 'The checks above have to pass first.'}
           onClick={onConfirm}
         >
           {confirmation === null ? 'Confirm setup' : 'Confirm setup again'}
         </button>
       </div>
+      {/* **A red line beside a live button needs a sentence, or the screen is lying by omission.**
+          Some lines block and some report, and which is which is a ruling rather than something
+          to be inferred from the colour. */}
+      {!checksPass ? (
+        <p className="setup-song-problem" data-testid="gig-check-blocked">
+          Setup cannot be confirmed while a line above is failing.
+        </p>
+      ) : (
+        blocked.length > 0 && (
+          <p className="gig-hint" data-testid="gig-check-reported">
+            The failing lines above do not stop setup being confirmed — they stop those songs being
+            armed, which is a gate on the night rather than on the gig.
+          </p>
+        )
+      )}
       <p className="gig-hint">
         Confirming records that these checks passed and <strong>what they passed against</strong> —
         the song files, the room, the displays — so it can notice it has stopped being true. It

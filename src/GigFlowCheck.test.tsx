@@ -105,6 +105,32 @@ function visualsJson(gigId = GIG_ID) {
   })
 }
 
+/** A room that also carries a video shape, so the media half of the content check actually runs. */
+function visualsWithVideo(gigId = GIG_ID) {
+  return JSON.stringify({
+    visualsVersion: 1,
+    gigId,
+    shapes: [
+      {
+        id: 'lyrics',
+        outline: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        corners: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        layer: { type: 'song-lyrics' },
+      },
+      {
+        id: 'frame',
+        outline: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        corners: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        layer: { type: 'song-video' },
+      },
+    ],
+    songVisuals: {
+      defaults: { 'song-lyrics': ['lyrics'], 'song-video': ['frame'] },
+      songs: {},
+    },
+  })
+}
+
 function gigJson(over: Record<string, unknown> = {}) {
   return JSON.stringify({
     gigVersion: 1,
@@ -172,7 +198,7 @@ describe('the check screen', () => {
   it('is one line per thing that has to be true, and asks for nothing', async () => {
     // **Not a form.** No input, no select, no textarea — the whole screen is verdicts and one press.
     await goToCheck()
-    for (const id of ['gig', 'setlist', 'visuals', 'songs']) {
+    for (const id of ['gig', 'setlist', 'files', 'media', 'visuals', 'belongs', 'songs']) {
       expect(screen.getByTestId(`gig-check-${id}`)).toBeTruthy()
     }
     const list = screen.getByTestId('gig-check-list')
@@ -182,27 +208,44 @@ describe('the check screen', () => {
   it('says pass on every line when everything is on disk and readable', async () => {
     await goToCheck()
     await waitFor(() => expect(verdict('gig')).toBe('Pass'), WAIT)
-    expect(verdict('setlist')).toBe('Pass')
-    expect(verdict('visuals')).toBe('Pass')
-    expect(verdict('songs')).toBe('Pass')
+    for (const id of ['setlist', 'files', 'media', 'visuals', 'belongs', 'songs']) {
+      expect(`${id}:${verdict(id)}`).toBe(`${id}:Pass`)
+    }
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('fails the visuals line, and says which refusal it was', async () => {
-    // **The mapping of a different room renders perfectly and reports nothing.** Copying last
+  /**
+   * **The two visuals questions are two lines since 2026-09-03**, because the design named them
+   * separately and `visualsRefusal` is what tells them apart. Sharing one line meant *this is
+   * another room's mapping* and *this file will not parse* read identically.
+   */
+  it('fails the belongs line, not the mapped line, for another gig’s room', async () => {
+    // **A mapping of a different room renders perfectly and reports nothing.** Copying last
     // month's gig folder to start the next one is how it happens.
     everythingGood({ visualsText: visualsJson('some-other-gig') })
     await goToCheck()
-    await waitFor(() => expect(verdict('visuals')).toBe('Fails'), WAIT)
-    expect(screen.getByTestId('gig-check-visuals-detail').textContent).toContain('different room')
+    await waitFor(() => expect(verdict('belongs')).toBe('Fails'), WAIT)
+    expect(screen.getByTestId('gig-check-belongs-detail').textContent).toContain('different room')
     // The gate is readiness's: a refusal above stops the confirmation.
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('fails the visuals line when the room has never been mapped', async () => {
+  it('fails the mapped line, not the belongs line, for a file that will not parse', async () => {
+    everythingGood({ visualsText: '{ not json' })
+    await goToCheck()
+    await waitFor(() => expect(verdict('visuals')).toBe('Fails'), WAIT)
+    // Not another room's mapping — there is no room at all, so the second line has nothing to
+    // answer about rather than a verdict to give.
+    expect(verdict('belongs')).toBe('Not yet')
+  })
+
+  it('fails both visuals lines honestly when the room has never been mapped', async () => {
     everythingGood({ visualsText: null })
     await goToCheck()
     await waitFor(() => expect(verdict('visuals')).not.toBe('Pass'), WAIT)
+    // **Never PASS on a mapping that is not there.** A line claiming the absent room belongs to
+    // this gig is the class of false answer this project has a rule about.
+    expect(verdict('belongs')).toBe('Not yet')
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
   })
 
@@ -221,24 +264,59 @@ describe('the check screen', () => {
   })
 
   /**
-   * **The design's line and readiness's step disagree about what blocks, and the screen keeps
-   * readiness's rule.** A song whose file will not read is a `note` on step 2, deliberately: a
-   * step that can never complete while a known-broken song sits in the library is a guided path
-   * nobody can walk. So the setlist line still passes, the note is shown as a note, and the SONG
-   * line is what fails.
+   * **A note at step 2 and a failure at step 4** (Jorge, 2026-09-03), and the two are not in
+   * conflict: *a problem you can still route around while composing becomes a blocker at the
+   * moment you assert readiness.* At step 2 such a song cannot be repaired from inside the flow —
+   * Bombista cannot take a file it will not parse — so blocking there would make a guided path
+   * nobody can finish. Here you are asserting the gig is ready, and it is not.
+   *
+   * **Shipped unreconciled in `v0.47.0` and reported; this is the reconciliation.**
    */
-  it('reports a song that will not read without blocking the setlist line', async () => {
+  it('fails the file line and blocks the confirmation, while step 2 keeps its note', async () => {
     // The reference is in the setlist and the file behind it does not resolve — `libertad`'s live
     // shape, whose own wording is what the old substring predicate never mentioned.
     setLibraryEntries([
       { ref: { id: 'duelo', path: 'duelo.json' }, error: '20 timeline entries, 24 lyric lines' },
     ])
     await goToCheck()
-    await waitFor(() => expect(verdict('songs')).toBe('Not yet'), WAIT)
-    expect(screen.getByTestId('gig-check-songs-detail').textContent).toContain('24 lyric lines')
+    await waitFor(() => expect(verdict('files')).toBe('Not yet'), WAIT)
+    expect(screen.getByTestId('gig-check-files-detail').textContent).toContain('24 lyric lines')
+    // Step 2 is unchanged: still complete, still carrying it as a note.
+    expect(verdict('setlist')).toBe('Pass')
     expect(screen.getByTestId('gig-check-setlist-notes').textContent).toContain('24 lyric lines')
-    // Reported, not blocking — readiness's own distinction, and the gate is unchanged.
+    // And the confirmation is blocked, which is what the ruling changed.
+    expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByTestId('gig-check-blocked')).toBeTruthy()
+  })
+
+  /**
+   * **The design's second check, on its own line.** It used to be indistinguishable from the
+   * first: both lived in `songs[].missing` prose, so a screen drawing them apart had to match a
+   * substring — the trap step 9 already fell into.
+   */
+  it('fails the media line while the file line passes, when a named file is not there', async () => {
+    everythingGood({ visualsText: visualsWithVideo() })
+    setLibraryEntries([
+      {
+        ref: { id: 'duelo', path: 'duelo.json' },
+        song: {
+          id: 'duelo',
+          title: 'Duelo',
+          items: [{ languages: { es: 'Hola' } }],
+          media: { type: 'video', src: 'duelo.mp4' },
+          timeline: [{ start: 0, end: 1 }],
+        } as unknown as LibrarySong,
+      },
+    ])
+    await goToCheck()
+    await waitFor(() => expect(verdict('media')).toBe('Not yet'), WAIT)
+    expect(screen.getByTestId('gig-check-media-detail').textContent).toContain('duelo.mp4')
+    // The song's own file read perfectly. That is the point of the split.
+    expect(verdict('files')).toBe('Pass')
+    // **Reported, not blocking**: the ruling widened the gate for the unreadable file and named
+    // nothing else. The sentence under the button is what says so.
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByTestId('gig-check-reported')).toBeTruthy()
   })
 
   it('does not call an empty setlist a passing song line', async () => {
@@ -246,6 +324,8 @@ describe('the check screen', () => {
     everythingGood({ gigText: gigJson({ songs: [], setlist: [] }) })
     await goToCheck()
     await waitFor(() => expect(verdict('songs')).toBe('Not yet'), WAIT)
+    expect(verdict('files')).toBe('Not yet')
+    expect(verdict('media')).toBe('Not yet')
   })
 })
 

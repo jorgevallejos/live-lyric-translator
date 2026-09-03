@@ -37,7 +37,12 @@ import {
   type SetlistSongInput,
   type SongValidation,
 } from './gigReadiness'
-import { parseVisualsFile, type VisualsFile } from './visualsFile'
+import {
+  parseVisualsFile,
+  visualsRefusalKind,
+  type VisualsFile,
+  type VisualsRefusalKind,
+} from './visualsFile'
 import { getLibraryEntries, type LibraryEntry } from './setlistStore'
 import { resolveSongPath } from './contentFolders'
 import { resolveMediaPath } from './mediaPathStore'
@@ -158,11 +163,16 @@ export async function readGigReadiness(
 
   let visuals: VisualsFile | null = null
   let visualsProblem: string | null = read.visualsError
+  // **Which refusal it was, carried beside the sentence** (2026-09-03), so the check screen can
+  // tell *this mapping is another room's* from *this file will not parse* without reading prose.
+  // A folder read that failed before the parse is `unreadable`, so callers have one vocabulary.
+  let visualsRefusal: VisualsRefusalKind | null = read.visualsError ? 'unreadable' : null
   if (read.visualsText !== null && gig !== null && visualsProblem === null) {
     try {
       visuals = parseVisualsFile(read.visualsText, gig.id)
     } catch (e) {
       visualsProblem = e instanceof Error ? e.message : String(e)
+      visualsRefusal = visualsRefusalKind(e)
     }
   }
 
@@ -182,6 +192,7 @@ export async function readGigReadiness(
     visualsPresent: read.visualsPresent,
     visuals,
     visualsProblem,
+    visualsRefusal,
     setlist,
     mediaResolution,
     validation,
