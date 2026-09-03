@@ -57,11 +57,10 @@ wss.on('connection', (ws) => {
         wss.clients.forEach((client) => {
           if (client.readyState === 1) client.send(data.toString())
         })
-      } else if (msg.type === 'screenSize') {
-        wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === 1) client.send(data.toString())
-        })
       }
+      // **`screenSize` was relayed here and handled by nobody**, removed 2026-09-03: the
+      // renderer's `onmessage` takes `state` and `command` and nothing else, so every copy of
+      // that message went out and was dropped. The whole display-size chain went with it.
     } catch (_) {}
   })
 })

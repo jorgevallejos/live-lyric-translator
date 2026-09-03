@@ -19,7 +19,6 @@ import { useBroadcastVisuals } from './visualsBroadcast'
 import { useOutputSize } from './useOutputSize'
 import { resolveVideoCueIndex } from './videoCueLookup'
 import type { TimelineEntry, TimelineLeadIn } from './songState'
-import { setActiveProfileId } from './displayProfileStore'
 import { isSection, getSongIndex, getBlank, setLoadedSong, setSongIndex, setBlank, setCurrentSongId, setCurrentSongTitle, setProjectionLanguage, setSingingLanguage, getEffectiveProjectionLanguage, getEffectiveSingingLanguage, getAvailableLanguages, getAvailableSingingLanguages, getSongLines, getCurrentSongId, getLyricText, getSingingLanguage, getProjectionLanguage, getLastLyricIndex, isLyricLine } from './songState'
 import { resolveMediaPath } from './mediaPathStore'
 import { VideoPerformancePanel } from './VideoPerformancePanel'
@@ -75,17 +74,11 @@ import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } fr
 import { LAST_STEP } from './setupFlow'
 import {
   getProjectionStatusText,
-  getStoredScreenSize,
-  setStoredScreenSize,
-  getBroadcastScreenSize,
-  getDefaultScreenSize,
-  KEY_SCREEN_SIZE_BROADCAST,
   getStoredDisplayMode,
   setStoredDisplayMode,
   getDefaultDisplayMode,
   getBroadcastDisplayMode,
   KEY_DISPLAY_MODE_BROADCAST,
-  type ScreenSize,
   type DisplayMode,
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
@@ -315,11 +308,6 @@ function ControlView() {
   const currentLibrarySong = currentSongId ? getLibrarySongById(currentSongId) : undefined
   const songIntro = currentLibrarySong?.intro?.[effectiveLang] ?? ''
 
-  // Screen size persisted per session (used as display-format toggle; does not select a media file).
-  const [selectedScreenSize, setSelectedScreenSize] = useState<ScreenSize | null>(() =>
-    getStoredScreenSize()
-  )
-
   // 3-way display mode: 'none' | 'small' | 'big'. Replaces the old 2-way Small/Big toggle.
   const [selectedDisplayMode, setSelectedDisplayMode] = useState<DisplayMode | null>(() =>
     getStoredDisplayMode()
@@ -345,7 +333,6 @@ function ControlView() {
   const activeMedia = currentLibrarySong?.media
   const isVideoMode = activeMedia?.type === 'video'
   const resolvedVideoPath = isVideoMode ? resolveMediaPath(activeMedia!.src) : null
-  const effectiveScreenSize: ScreenSize | null = selectedScreenSize ?? getDefaultScreenSize(isVideoMode)
   // Effective display mode: stored value or default (small for video songs, none for non-video)
   const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
   // Keep the localStorage broadcast in sync with the effective display mode at all times —
@@ -394,7 +381,7 @@ function ControlView() {
     lineCount: lines.length,
     currentIndex: index,
   })
-  const { sendCommandWithState, sendSeek, sendScreenSize } = useWebSocket({
+  const { sendCommandWithState, sendSeek } = useWebSocket({
     index,
     blank,
     applyRemoteState,
@@ -404,20 +391,7 @@ function ControlView() {
   const handleSelectDisplayMode = (mode: DisplayMode) => {
     setSelectedDisplayMode(mode)
     setStoredDisplayMode(mode)
-    // Sync legacy screen size for WebSocket broadcast and display profile
-    if (mode === 'small' || mode === 'big') {
-      setSelectedScreenSize(mode)
-      setStoredScreenSize(mode)
-      sendScreenSize(mode)
-      setActiveProfileId(mode === 'big' ? 'big-screen' : 'small-canvas')
-    }
-    // For 'none', keep whatever display profile was last active (no video shown anyway)
   }
-
-  useEffect(() => {
-    if (effectiveScreenSize === 'small') setActiveProfileId('small-canvas')
-    else if (effectiveScreenSize === 'big') setActiveProfileId('big-screen')
-  }, [effectiveScreenSize])
 
   /** Tracked user-facing config (storage); avoids false positives when only derived effectiveLang changes. */
   const prevUserConfigRef = useRef<{
@@ -1004,7 +978,7 @@ function ControlView() {
               Languages: {languagesDisplay || '—'}
             </span>
             <span className="top-summary-line">
-              Projection: {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
+              Projection: {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveDisplayMode : undefined)}
             </span>
             <span
               className="top-title top-title-state"
@@ -1163,7 +1137,7 @@ function ControlView() {
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
                     <span className="control-setup-value">
-                      {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveScreenSize : null, isVideoMode ? effectiveDisplayMode : undefined)}
+                      {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveDisplayMode : undefined)}
                     </span>
                     {/* **The fallback is visible, never silent.** A projection window that quietly
                         stayed on the laptop is otherwise discovered by looking at a blank wall. */}
@@ -1849,18 +1823,6 @@ function ProjectionView() {
   const visuals = useBroadcastVisuals()
   // **The output size in real pixels, this render.** Never remembered, never cached into a matrix.
   const { width: outputWidth, height: outputHeight } = useOutputSize()
-
-  // Screen size broadcast from Control window — tracked for Prompt 4 display-format toggle.
-  const [, setProjectionScreenSize] = useState<ScreenSize | null>(getBroadcastScreenSize)
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY_SCREEN_SIZE_BROADCAST || e.key === null) {
-        setProjectionScreenSize(getBroadcastScreenSize())
-      }
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
 
   // Display mode broadcast from Control window — 3-way None/Small/Big toggle (Prompt 13).
   const [projectionDisplayMode, setProjectionDisplayMode] = useState<DisplayMode | null>(getBroadcastDisplayMode)

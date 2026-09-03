@@ -466,6 +466,41 @@ Pregonero the way it always was.**
 `parseVisualsFile` already makes here, on the same field. The two tools now agree about a mapping of
 a different room, rather than one of them catching it.
 
+### The display-size chain is removed (2026-09-03)
+
+**Ruling: Jorge, 2026-09-03, on Code's own sweep.** `ScreenSize` was dead **end to end**, and every
+link was traced before anything was touched:
+
+- `effectiveScreenSize` reached `getProjectionStatusText` at two call sites, both passing
+  `isVideoMode ? effectiveScreenSize : null`. For a video song the `displayMode` branch was taken
+  first; for a non-video song it was handed `null`. **It never affected the text.**
+- Its only other consumer was `setActiveProfileId`, and **nothing read the profile back**:
+  `getActiveProfile` and `computeProjectionLayout` had no callers outside their own tests, and
+  `setCustomProfile` had none at all.
+- `sendScreenSize` put a `screenSize` message on the WebSocket and `main.cjs` relayed it.
+  **`useWebSocket`'s `onmessage` handles `state` and `command` and nothing else**, so every receiver
+  dropped it.
+- The Projection window subscribed to the broadcast as `const [, setProjectionScreenSize]` — **the
+  value discarded in its own destructure.**
+
+**Gone**: `displayProfile.ts`, `displayProfileStore.ts` and their tests; `ScreenSize`, its two
+storage keys, its broadcast, its defaults and its reader out of `screenSizeState.ts`;
+`sendScreenSize` and `ScreenSizeMessage`; the main-process relay branch; the discarded subscription;
+and the state and effect in `App.tsx` that fed them.
+
+**The Projection window stopped rendering from a profile when the quad became the framing.** This is
+the machinery that was left standing behind that change. **A knob nobody has ever moved is a decision
+pretending to be a question**, and this one could not be moved at all.
+
+**`DisplayMode` is a different thing and is NOT in scope.** It is also going — format and placement
+are Muralista's, and whether the video runs tonight is the drive mode — but that waits on the
+drive-mode design and on a walk. `getProjectionStatusText` lost its middle argument and keeps the
+`DisplayMode` one.
+
+**A key left over from before the removal reaches nothing**, and that is asserted rather than
+assumed: `liveLyricScreenSize` is on real machines, so the C2 tests still seed it and still expect
+`Open`.
+
 ### The gig column says which night (2026-09-03)
 
 **Ruling: Jorge, 2026-09-03.** The one column that answers *which gig is this* rendered
