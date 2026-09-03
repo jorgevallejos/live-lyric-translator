@@ -105,23 +105,23 @@ describe('the visuals door: Muralista, hosted', () => {
   })
 
   /**
-   * **The gig's `setup/` folder goes with the open**, and this is the whole of the visuals step's
-   * "never asks for a folder" (journey step 9.3).
+   * **The gig's own folder goes with the open**, and this is the whole of the visuals step's "never
+   * asks for a folder" (journey step 9.3).
    *
    * Pregonero made this folder and knows it; a `FileSystemDirectoryHandle` cannot be handed to a
    * page, so the path goes to the main process, which serves that folder and takes the one write
-   * back. **The path is joined here** — `fileLayout.ts` is the only place the word `setup` is
-   * written, and the main process stays ignorant of the suite's conventions.
+   * back. **Since 2026-09-02 a gig *is* `<gigs>/setup/<gig>`**, so `visuals.json` lands beside
+   * `gig.json` with nothing joined on to it here.
    */
-  it('hands the open gig’s setup folder to the tool, so nobody is asked for it', async () => {
-    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
+  it('hands the open gig’s own folder to the tool, so nobody is asked for it', async () => {
+    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/setup/2026-09-04-de-poel')
     render(<MuralistaDoor />)
     await act(async () => {
       fireEvent.click(screen.getByTestId('muralista-open'))
     })
     expect(openTool).toHaveBeenCalledWith(
       MURALISTA_KEY,
-      '/gigs/2026-09-04-de-poel/setup',
+      '/gigs/setup/2026-09-04-de-poel',
       MURALISTA_PAGE,
       'Muralista'
     )
@@ -130,7 +130,7 @@ describe('the visuals door: Muralista, hosted', () => {
   it('does not print a path to be typed in when it is hosted', () => {
     // The path was a stopgap for a question that is now not asked. It stays on the standalone
     // branch, where somebody does have to type it into a picker.
-    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
+    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/setup/2026-09-04-de-poel')
     render(<MuralistaDoor />)
     expect(screen.queryByTestId('muralista-setup-folder')).toBeNull()
     expect(screen.getByTestId('muralista-endpoint').textContent).toMatch(/not asked where/i)
@@ -154,12 +154,12 @@ describe('the visuals door: Muralista, hosted', () => {
    * the path is an answer somebody has to type, and it moved on 01/09, which is exactly when
    * memory is wrong. Rule 3 of the contract: standalone is untouched by the write path.
    */
-  it('names the setup folder in full when there is no bridge to open the tool with', () => {
+  it('names the gig’s folder in full when there is no bridge to open the tool with', () => {
     hosted = false
-    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/2026-09-04-de-poel')
+    localStorage.setItem(GIG_FOLDER_KEY, '/gigs/setup/2026-09-04-de-poel')
     render(<MuralistaDoor />)
     expect(screen.getByTestId('muralista-setup-folder').textContent).toBe(
-      '/gigs/2026-09-04-de-poel/setup'
+      '/gigs/setup/2026-09-04-de-poel'
     )
   })
 

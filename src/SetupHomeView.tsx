@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { chooseGigFolder, closeGig, openGigFolder, refreshGigReadiness } from './gigSession'
+import { closeGig, openGigFolder, refreshGigReadiness } from './gigSession'
 import { getRememberedGigFolder } from './gigFolderStore'
 import { forgetGig, getGigList, replaceGigPath } from './gigListStore'
 import {
@@ -8,6 +8,7 @@ import {
   getCatalogueEntries,
   getEntriesNotInCatalogue,
   getUnreadableCatalogueEntries,
+  forgetDeletedSong,
   type LibraryEntry,
 } from './setlistStore'
 import { newlyVanished, recordVanishedAnnounced } from './vanishedSongs'
@@ -688,9 +689,18 @@ export function SetupHomeView() {
         return
       }
       setDeleting(null)
-      // **The list is the folder, so re-reading it is the whole of the update.** Nothing here
-      // removes a row by hand: the file is gone, so the next read does not list it.
+      // The list is the folder, so it is re-read.
       await ensureSongLibraryHydrated()
+      // **The app forgets what it deleted, rather than remembering it as missing** (2026-09-02).
+      // Hydration never drops a reference, because an unmounted drive looks exactly like a
+      // deletion — but this one does not look like anything, the app did it. Left in place, the
+      // reference made the next arrival here announce `libertad.json` as no longer in the
+      // catalogue, five seconds after the person removed it themselves.
+      //
+      // **After the re-read and not before**, which is the whole of what makes the rule hold
+      // rather than usually hold: hydration seeds references back from the folder, so forgetting
+      // first would be undone by a listing that had not caught up with the file leaving it.
+      forgetDeletedSong(entry.ref.id)
       void refreshGigReadiness()
       reload()
     })()
@@ -778,13 +788,15 @@ export function SetupHomeView() {
         <div className="setup-home-columns">
           <section className="setup-home-column" data-testid="setup-home-gigs">
             <span className="setup-home-name">Gigs</span>
-            {/* **`New` and `Import` are siblings.** The heading says the noun; importing is a
-                different act from making one, not a smaller one. */}
+            {/* **`New` is on its own now, and `Import` is dropped** (Jorge, 2026-09-02). Import
+                meant *point at a gig folder elsewhere*, and under the ruling that the tools own one
+                `setup/` folder inside the gigs folder there are no gig folders to point at. It is
+                not a button waiting to come back. */}
             <div className="setup-home-actions">
-              {/* **New gig asks for a name, and it asks for it in the flow.** It used to open a
-                  directory picker here, so the first thing asked of somebody making their first
-                  gig was a filesystem decision. It now goes to step 1, where the gig is named and
-                  the app makes its folder inside the gigs root first run recorded. */}
+              {/* **New gig asks nothing about the filesystem.** It used to open a directory picker,
+                  and then a name field whose answer was a folder name; both were the same mistake
+                  in different clothes. It goes to the gig flow's first screen, which asks for the
+                  date and the venue and derives the rest. */}
               <GatedAction
                 site="setup-new-gig"
                 label="New"
@@ -794,18 +806,6 @@ export function SetupHomeView() {
                 onClick={() => {
                   void closeGig().then(toSetup)
                 }}
-              />
-              {/* The portability case: a gig that already exists on a stick or a shared drive. */}
-              <GatedAction
-                site="setup-import-gig"
-                label="Import"
-                busy={busy}
-                blockedBy={gigsBlocked}
-                describedBy={gigsFolderProblem ? GIGS_FRAME_LINE_ID : undefined}
-                onClick={run(async () => {
-                  await chooseGigFolder()
-                  toSetup()
-                })}
               />
             </div>
             <div className="setup-home-frame" data-testid="setup-home-gigs-frame">

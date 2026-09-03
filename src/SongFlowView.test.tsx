@@ -22,6 +22,8 @@ const stopBombistaFlow = vi.fn()
 const emittedSong = vi.fn()
 const runBombista = vi.fn()
 const readSongFileText = vi.fn()
+const fileExists = vi.fn()
+const replaceSongFile = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -43,7 +45,8 @@ vi.mock('./platform', async (importOriginal) => ({
   listSongsFolder: () => Promise.resolve({ files: [], problem: null, answered: true }),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
   describeDisplays: () => Promise.resolve({ count: 1, displays: [], fingerprint: 'f' }),
-  fileExists: () => Promise.resolve(true),
+  fileExists: (...a: unknown[]) => fileExists(...a),
+  replaceSongFile: (...a: unknown[]) => replaceSongFile(...a),
 }))
 
 const { SongFlowView, serveArgs } = await import('./SongFlowView')
@@ -65,6 +68,9 @@ beforeEach(() => {
     ok: true,
     text: JSON.stringify({ title: 'Libertad', lyrics: [{ es: 'a' }] }),
   })
+  // A new song by default: nothing at the target yet, so promote creates.
+  fileExists.mockResolvedValue(false)
+  replaceSongFile.mockResolvedValue({ ok: true, backup: null })
 })
 
 function request(over: Partial<Parameters<typeof setSongFlowRequest>[0]> = {}) {
@@ -258,12 +264,19 @@ describe('the song flow', () => {
     await waitFor(() => expect(stopBombistaFlow).toHaveBeenCalled())
   })
 
-  it('Back leaves, and leaving ends the run', async () => {
+  /**
+   * **This used to be one press, and it is two now** (2026-09-02). The assertion below is the same
+   * one it always made — leaving ends the run — with the consent step that the walk of that day
+   * put in front of it. The dialog itself is covered under *leaving the song flow*, at the foot of
+   * this file; what is defended here is that consenting still tears the run down and still leaves.
+   */
+  it('Back leaves once it has been consented to, and leaving ends the run', async () => {
     request()
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('song-flow-frame')).toBeTruthy())
+    fireEvent.click(screen.getByTestId('song-flow-leave'))
     await act(async () => {
-      fireEvent.click(screen.getByTestId('song-flow-leave'))
+      fireEvent.click(screen.getByTestId('song-flow-leave-confirm'))
     })
     expect(stopBombistaFlow).toHaveBeenCalled()
     expect(window.location.hash).toBe('#/setup')
@@ -409,5 +422,204 @@ describe('the song flow', () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('song-flow-problem')).toBeTruthy())
     expect(screen.queryByTestId('song-flow-translations')).toBeNull()
+  })
+
+  // ── An edit replaces the file; a new song is created by promote ──────────────────────────
+  //
+  // Found 2026-09-02. Page 1 became the edit surface in Bombista v1.4.0 — it collects the title,
+  // the artist, the notes and the tempo — while `promote` writes only the timeline envelope. So
+  // editing a title and saving over an existing song changed nothing, silently. `promote` is not
+  // widened past the timeline; the edit replaces the file with the candidate.
+
+  const timed = (over: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      title: 'Libertad',
+      lyrics: [{ es: 'a' }],
+      timelineVersion: 2,
+      leadIn: { durationSec: 0, source: 'measured', confidence: 'high', apply: false },
+      timeline: [{ start: 0, end: 1 }],
+      ...over,
+    })
+
+  it('replaces the file when the song is already in the catalogue', async () => {
+    request({ songPath: '/songs/song-performance/libertad.json' })
+    emittedSong.mockResolvedValue('/staging/libertad/libertad.json')
+    fileExists.mockResolvedValue(true)
+    readSongFileText.mockResolvedValue({ ok: true, text: timed() })
+    await renderFlow()
+    await waitFor(() => expect(replaceSongFile).toHaveBeenCalled(), { timeout: 3000 })
+    expect(replaceSongFile).toHaveBeenCalledWith(
+      '/staging/libertad/libertad.json',
+      '/songs/song-performance/libertad.json'
+    )
+    // **Not promote.** It writes only the timeline envelope, which is the whole defect.
+    expect(runBombista).not.toHaveBeenCalled()
+    await waitFor(() => expect(window.location.hash).toBe('#/setup'))
+  })
+
+  it('still creates a song that is not there yet with promote', async () => {
+    // Creating is promote's create path, which drops `_bombista` — so a made song carries no key
+    // a hand-made one does not.
+    request()
+    emittedSong.mockResolvedValue('/staging/_new/libertad.json')
+    fileExists.mockResolvedValue(false)
+    await renderFlow()
+    await waitFor(() => expect(runBombista).toHaveBeenCalled(), { timeout: 3000 })
+    expect(runBombista.mock.calls[0]![0]).toBe('promote')
+    expect(replaceSongFile).not.toHaveBeenCalled()
+  })
+
+  it('never replaces a timed song with a candidate that carries no timeline', async () => {
+    // Writing nothing would leave timings the person believes they removed; writing the candidate
+    // would destroy a measured one. Bombista's promote states this rule and this path is not it.
+    request({ songPath: '/songs/song-performance/libertad.json' })
+    emittedSong.mockResolvedValue('/staging/libertad/libertad.json')
+    fileExists.mockResolvedValue(true)
+    readSongFileText.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.startsWith('/staging')
+          ? { ok: true, text: JSON.stringify({ title: 'Libertad', lyrics: [{ es: 'a' }] }) }
+          : { ok: true, text: timed() }
+      )
+    )
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-refused')).toBeTruthy(), {
+      timeout: 3000,
+    })
+    expect(screen.getByTestId('song-flow-refused').textContent).toContain('has a timeline')
+    expect(replaceSongFile).not.toHaveBeenCalled()
+    expect(runBombista).not.toHaveBeenCalled()
+  })
+
+  it('re-saves a song that never had a timeline, which is ordinary', async () => {
+    // A manual song is a complete song. Absence is a state; only incompleteness is a fault.
+    request({ songPath: '/songs/song-performance/libertad.json' })
+    emittedSong.mockResolvedValue('/staging/libertad/libertad.json')
+    fileExists.mockResolvedValue(true)
+    readSongFileText.mockResolvedValue({
+      ok: true,
+      text: JSON.stringify({ title: 'Libertad', lyrics: [{ es: 'a' }] }),
+    })
+    await renderFlow()
+    await waitFor(() => expect(replaceSongFile).toHaveBeenCalled(), { timeout: 3000 })
+    expect(screen.queryByTestId('song-flow-refused')).toBeNull()
+  })
+
+  it('replaces a timed song with a timed candidate without complaint', async () => {
+    request({ songPath: '/songs/song-performance/libertad.json' })
+    emittedSong.mockResolvedValue('/staging/libertad/libertad.json')
+    fileExists.mockResolvedValue(true)
+    readSongFileText.mockResolvedValue({ ok: true, text: timed({ title: 'Libertad editado' }) })
+    await renderFlow()
+    await waitFor(() => expect(replaceSongFile).toHaveBeenCalled(), { timeout: 3000 })
+    expect(screen.queryByTestId('song-flow-refused')).toBeNull()
+  })
+
+  it('says why a replace did not happen, in the flow that asked for it', async () => {
+    request({ songPath: '/songs/song-performance/libertad.json' })
+    emittedSong.mockResolvedValue('/staging/libertad/libertad.json')
+    fileExists.mockResolvedValue(true)
+    readSongFileText.mockResolvedValue({ ok: true, text: timed() })
+    replaceSongFile.mockResolvedValue({ ok: false, error: 'EACCES: permission denied' })
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-problem')).toBeTruthy(), {
+      timeout: 3000,
+    })
+    expect(screen.getByTestId('song-flow-problem').textContent).toContain('EACCES')
+  })
+})
+
+/**
+ * **`Back` asks before it discards** (2026-09-02).
+ *
+ * The walk found `Back` returning to Backstage with everything typed gone: it kills the `serve`
+ * process, and the session's memory is that process's memory. So it is a destructive action, and
+ * it now takes consent — the second of the three popups the suite allows, the same category as
+ * deleting a song.
+ *
+ * **The boundary is what shapes the condition.** Pregonero cannot ask the page whether it is
+ * dirty, so *the pages are up* is the closest true statement, and it is deliberately the cautious
+ * side of the line.
+ */
+describe('leaving the song flow', () => {
+  it('asks before tearing the flow down, names what goes, and offers to stay', async () => {
+    request()
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-frame')).toBeTruthy())
+
+    fireEvent.click(screen.getByTestId('song-flow-leave'))
+
+    const popup = screen.getByTestId('song-flow-leave-popup')
+    expect(screen.getByTestId('song-flow-leave-title').textContent).toBe('Leave without saving?')
+    expect(popup.textContent).toContain('This song has not been saved to your catalogue.')
+    expect(popup.textContent).toContain('What you have typed here will be lost.')
+    expect(screen.getByTestId('song-flow-leave-stay')).toBeTruthy()
+    expect(screen.getByTestId('song-flow-leave-confirm')).toBeTruthy()
+
+    // The press alone changes nothing: the run is still alive and the screen has not moved.
+    expect(stopBombistaFlow).not.toHaveBeenCalled()
+    expect(window.location.hash).toBe('#/song')
+  })
+
+  it('Stay leaves the flow exactly where it was', async () => {
+    request()
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-frame')).toBeTruthy())
+
+    fireEvent.click(screen.getByTestId('song-flow-leave'))
+    fireEvent.click(screen.getByTestId('song-flow-leave-stay'))
+
+    expect(screen.queryByTestId('song-flow-leave-popup')).toBeNull()
+    expect(screen.getByTestId('song-flow-frame')).toBeTruthy()
+    expect(stopBombistaFlow).not.toHaveBeenCalled()
+    expect(window.location.hash).toBe('#/song')
+  })
+
+  it('Leave is what it always was: the run ends and the screen goes back', async () => {
+    request()
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-frame')).toBeTruthy())
+
+    fireEvent.click(screen.getByTestId('song-flow-leave'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('song-flow-leave-confirm'))
+    })
+
+    expect(stopBombistaFlow).toHaveBeenCalled()
+    expect(window.location.hash).toBe('#/setup')
+  })
+
+  /**
+   * **It fires only when there is something to lose.** A subprocess that refused to start has
+   * taken no answers, so consent would be a dialog about nothing — and popups devalue faster than
+   * any other surface.
+   */
+  it('does not ask when the flow never started', async () => {
+    startBombistaFlow.mockResolvedValue({ ok: false, error: 'bombista is not installed.' })
+    request()
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-problem')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('song-flow-leave'))
+    })
+
+    expect(screen.queryByTestId('song-flow-leave-popup')).toBeNull()
+    expect(window.location.hash).toBe('#/setup')
+  })
+
+  /**
+   * **The page is never asked whether it is dirty**, and this is the test that fails on the day
+   * somebody makes it easy by injecting a listener. The frame carries no bridge, so the condition
+   * has to be drawn from what Pregonero itself knows.
+   */
+  it('learns nothing from inside the frame to decide it', async () => {
+    request()
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('song-flow-frame')).toBeTruthy())
+    const frame = screen.getByTestId('song-flow-frame') as HTMLIFrameElement
+    expect(frame.getAttribute('srcdoc')).toBeNull()
+    expect(frame.getAttribute('sandbox')).toBeNull()
+    expect(frame.getAttribute('onload')).toBeNull()
   })
 })

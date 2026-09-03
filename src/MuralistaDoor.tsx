@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { canHostTools, closeTool, openTool } from './platform'
 import { refreshGigReadiness, getRememberedGigFolder } from './gigSession'
-import { gigSetupFolder } from './fileLayout'
 import { GatedAction } from './GatedAction'
 
 /**
@@ -80,7 +79,9 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
   const testId = gig ? 'gig-visuals-door' : 'door-body-visuals'
   const site = gig ? 'muralista-open-gig' : 'muralista-open'
   const gigFolder = getRememberedGigFolder()
-  const setupFolder = gigFolder === null ? null : gigSetupFolder(gigFolder)
+  // **The gig's folder is where `visuals.json` goes**, directly: since 2026-09-02 a gig *is*
+  // `<gigs>/setup/<gig>`, so there is no second folder to join on to it.
+  const setupFolder = gigFolder
 
   return (
     <div data-testid={testId}>

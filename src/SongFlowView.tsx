@@ -5,13 +5,16 @@ import { getSongFilesFolder, getSongsFolder } from './contentFolders'
 import { joinPath } from './paths'
 import {
   emittedSong,
+  fileExists,
   readSongFileText,
+  replaceSongFile,
   runBombista,
   startBombistaFlow,
   stopBombistaFlow,
 } from './platform'
-import { parseSongFile } from './songState'
+import { parseSongFile, type ParsedSongFile } from './songState'
 import { clearSongFlowRequest, getSongFlowRequest, type SongFlowRequest } from './songFlowState'
+import { LeaveWithoutSaving } from './LeaveWithoutSaving'
 
 /**
  * **The song flow: Bombista's three screens, inside Pregonero's window.**
@@ -112,6 +115,10 @@ export function SongFlowView() {
   const request = getSongFlowRequest()
   const [phase, setPhase] = useState<Phase>({ kind: 'starting' })
   const [refusal, setRefusal] = useState<Refusal | null>(null)
+  // **Whether the dialog is up**, and nothing more: the answer to a press that has just happened,
+  // not a condition of the flow. It is deliberately not part of `Phase` — the flow is still
+  // running behind it, and a phase would say it had stopped.
+  const [asking, setAsking] = useState(false)
   // **The flow ends once.** The poll keeps running while promote does, and a second answer would
   // promote the same file twice — the first of which has already moved the screen on.
   const finishing = useRef(false)
@@ -120,6 +127,24 @@ export function SongFlowView() {
     void stopBombistaFlow()
     clearSongFlowRequest()
     window.location.hash = '#/setup'
+  }
+
+  /**
+   * **When there is something to lose, and how that is known without crossing the boundary.**
+   *
+   * Once Bombista's pages are up, the session holds every answer given to them, and `Back` ends
+   * the process that holds it. Before that — while the subprocess is starting, or after it refused
+   * to — there is nothing typed and nothing to consent to, so the press just leaves.
+   *
+   * **Pregonero does not ask the page whether it is dirty, and must not.** This file is a frame
+   * and not a bridge: nothing is injected and nothing is read out. So *the pages are up* is the
+   * closest true statement available, and it is deliberately the cautious side of the line — an
+   * extra dialog on a flow nobody typed in costs one press, and the other error costs the
+   * afternoon this dialog exists for.
+   */
+  const askBeforeLeaving = () => {
+    if (phase.kind === 'running') setAsking(true)
+    else leave()
   }
 
   useEffect(() => {
@@ -146,12 +171,43 @@ export function SongFlowView() {
       const read = await readSongFileText(emitted)
       const file = emitted.split('/').pop() ?? emitted
       if (!read.ok) return { file, reason: read.error }
+      let candidate: ParsedSongFile
       try {
-        parseSongFile(read.text)
-        return null
+        candidate = parseSongFile(read.text)
       } catch (e) {
         return { file, reason: e instanceof Error ? e.message : String(e) }
       }
+      // **A timed song is never replaced by one carrying no timeline.** Bombista's `promote` states
+      // that rule and this path does not go through it, so it is asked here: writing nothing would
+      // leave timings the person believes they removed, and writing the candidate would destroy a
+      // measured one. Editing a song with no recording is otherwise ordinary and must stay so.
+      const target = targetFor(emitted)
+      if (target !== null && (candidate.timeline?.length ?? 0) === 0) {
+        const existing = await readSongFileText(target)
+        if (existing.ok) {
+          let timed = false
+          try {
+            timed = (parseSongFile(existing.text).timeline?.length ?? 0) > 0
+          } catch {
+            // A target this app cannot read is not evidence of a timeline. Replacing it is what
+            // the person asked for, and the catalogue is better off with a file that reads.
+          }
+          if (timed) {
+            return {
+              file,
+              reason:
+                'this song has a timeline and the edit produced none. Give it a recording and process it again, or delete the song if the timings are meant to go.',
+            }
+          }
+        }
+      }
+      return null
+    }
+
+    /** Where this candidate would land, or null when there is no catalogue to land it in. */
+    const targetFor = (emitted: string): string | null => {
+      const folder = getSongFilesFolder()
+      return folder === null ? null : joinPath(folder, emitted.split('/').pop() ?? '')
     }
 
     const land = async (emitted: string) => {
@@ -171,12 +227,35 @@ export function SongFlowView() {
       // `<songs>/song-performance/libertad.json`; a song's id is its filename, and `promote`
       // refuses any other target for that candidate.
       const target = joinPath(folder, emitted.split('/').pop() ?? '')
-      const result = await runBombista('promote', [emitted, target])
-      if (result.status !== 'ok') {
-        setPhase({
-          kind: 'failed',
-          error: result.output.trim() || 'bombista promote did not write the song.',
-        })
+
+      /**
+       * **A new song is created by `promote`; an edit replaces the file** (Jorge, 2026-09-02).
+       *
+       * They are two operations and only one of them is promote's. Creating is what promote's
+       * create path is for, and it drops the `_bombista` provenance block, so a made song carries
+       * no key a hand-made one does not. **Replacing is not a merge at all**: promote writes only
+       * the timeline envelope, and page 1 — the edit surface since Bombista `v1.4.0` — collects
+       * the title, the artist, the notes and the tempo, every one of which was silently discarded
+       * when the target already existed.
+       *
+       * **It is truthful rather than lossy because the candidate is the original plus the
+       * changes.** Checked before this was built, against a song carrying keys Bombista has never
+       * heard of: every one survived, in order, with Bombista's five appended.
+       */
+      const editing = await fileExists(target)
+      const result = editing
+        ? await replaceSongFile(emitted, target)
+        : await runBombista('promote', [emitted, target])
+      const failed =
+        'status' in result
+          ? result.status !== 'ok'
+            ? result.output.trim() || 'bombista promote did not write the song.'
+            : null
+          : result.ok
+            ? null
+            : result.error
+      if (failed !== null) {
+        setPhase({ kind: 'failed', error: failed })
         return
       }
       await adoptSongFile(target)
@@ -240,8 +319,25 @@ export function SongFlowView() {
 
   return (
     <div className="songs-screen song-flow-screen" data-testid="song-flow">
+      {/* **`Back` is a teardown here, so it asks** (Jorge, 2026-09-02). It kills the `serve`
+          process, and everything typed into Bombista's pages lives in that process. The dialog is
+          the suite's second kind — a destructive action needing consent — and is the same component
+          the gig flow uses, so the two cannot drift apart. */}
+      {asking && (
+        <LeaveWithoutSaving
+          site="song-flow"
+          what="This song has not been saved to your catalogue."
+          onStay={() => setAsking(false)}
+          onLeave={leave}
+        />
+      )}
       <header className="songs-top-bar">
-        <button type="button" className="songs-back" data-testid="song-flow-leave" onClick={leave}>
+        <button
+          type="button"
+          className="songs-back"
+          data-testid="song-flow-leave"
+          onClick={askBeforeLeaving}
+        >
           Back
         </button>
         <h1 className="songs-title">{request.title}</h1>

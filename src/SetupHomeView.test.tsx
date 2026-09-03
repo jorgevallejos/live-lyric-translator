@@ -129,10 +129,9 @@ describe('Setup home', () => {
     ).toBe(true)
   })
 
-  it('names the buttons New and Import, and the heading carries the noun', async () => {
+  it('names the button New, and the heading carries the noun', async () => {
     await renderHome()
     expect(screen.getByTestId('setup-new-gig').textContent).toBe('New')
-    expect(screen.getByTestId('setup-import-gig').textContent).toBe('Import')
     expect(screen.getByTestId('setup-new-song').textContent).toBe('New')
     expect(screen.getByTestId('setup-home-gigs').textContent).toContain('Gigs')
     expect(screen.getByTestId('setup-home-songs').textContent).toContain('Songs')
@@ -350,7 +349,7 @@ describe('Setup home', () => {
     )
     // The list is not drawn over the line, even though the app remembers a gig at that path.
     expect(screen.queryByTestId('setup-gig-row-a')).toBeNull()
-    for (const id of ['setup-new-gig', 'setup-import-gig']) {
+    for (const id of ['setup-new-gig']) {
       expect((screen.getByTestId(id) as HTMLButtonElement).disabled).toBe(true)
       // One sentence per half, not the same sentence under each control it blocks.
       expect(screen.queryByTestId(`${id}-reason`)).toBeNull()
@@ -645,14 +644,16 @@ describe('Setup home', () => {
     expect(chooseGigFolderPath).not.toHaveBeenCalled()
   })
 
-  it('keeps importing a gig from elsewhere, one act away from making one', async () => {
-    // The portability case rule 3 protects: a gig that already exists on a stick or a shared drive.
-    chooseGigFolderPath.mockResolvedValue('/elsewhere/2026-09-12-bar-eduard')
+  /**
+   * **`Import` is dropped, and the inverted assertion is the point** (Jorge, 2026-09-02). It meant
+   * *point at a gig folder elsewhere*, and under the ruling that the tools own one `setup/` folder
+   * inside the gigs folder there are no gig folders to point at. This fails on the day it comes
+   * back without the ruling changing.
+   */
+  it('offers no Import: there is no gig folder elsewhere to point at', async () => {
     await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-import-gig'))
-    })
-    expect(chooseGigFolderPath).toHaveBeenCalled()
+    expect(screen.queryByTestId('setup-import-gig')).toBeNull()
+    expect(screen.getByTestId('setup-home-gigs').textContent).not.toMatch(/Import/)
   })
 
   it('shows New gig disabled with its reason outside Electron, never as a bare sentence', async () => {
@@ -823,6 +824,93 @@ describe('Setup home', () => {
     })
     await waitFor(() => expect(screen.getByTestId('setup-song-delete-what')).toBeTruthy())
     expect(screen.queryByTestId('setup-song-delete-uses')).toBeNull()
+  })
+
+  // ── A deletion the app performed is not a disappearance ─────────────────────────────────
+  //
+  // Walked on v0.35.0, 2026-09-02. Jorge deleted `libertad` through the confirmation dialog, went
+  // back to Backstage, and was told *One song is no longer in your catalogue: libertad.json* — a
+  // fact he already had, five seconds old. The vanished popup is for files that go missing outside
+  // the app, which is a thing the person needs to be told.
+
+  it('never announces a song removed through the bin as vanished', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({
+      files: ['duelo.json', 'vidas.json'],
+      problem: null,
+      answered: true,
+    })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+
+    // The bin, and the file leaves the folder with it.
+    listSongsFolder.mockResolvedValue({ files: ['vidas.json'], problem: null, answered: true })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-confirm'))
+    })
+    expect(deleteSongFile).toHaveBeenCalled()
+
+    // Back to Backstage. **This is the arrival that produced the defect.**
+    cleanup()
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-vidas')).toBeTruthy())
+    expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+    expect(screen.queryByTestId('setup-song-row-duelo')).toBeNull()
+  })
+
+  it('does not announce it on any later arrival either', async () => {
+    // The reference is gone from storage, so there is nothing left to rediscover as absent.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({ files: ['duelo.json'], problem: null, answered: true })
+    installLibrary([song('duelo')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+    listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-confirm'))
+    })
+    for (let visit = 0; visit < 3; visit++) {
+      cleanup()
+      await renderHome()
+      await waitFor(() => expect(screen.getByTestId('setup-home-no-songs')).toBeTruthy())
+      expect(screen.queryByTestId('setup-songs-gone-popup')).toBeNull()
+    }
+  })
+
+  it('still announces a song that went missing outside the app', async () => {
+    // The rule is about the app's own deletions and nothing else. Losing this is losing the one
+    // thing that makes an unmounted catalogue visible.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/songs')
+    listSongsFolder.mockResolvedValue({
+      files: ['duelo.json', 'vidas.json'],
+      problem: null,
+      answered: true,
+    })
+    installLibrary([song('duelo'), song('vidas')])
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-song-row-duelo')).toBeTruthy())
+
+    // Deleted through the bin; the other one taken out from under the app by something else.
+    listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-duelo'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-song-delete-confirm'))
+    })
+    cleanup()
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-songs-gone-popup')).toBeTruthy())
+    const named = screen.getByTestId('setup-songs-gone-list').textContent!
+    expect(named).toContain('vidas.json')
+    expect(named).not.toContain('duelo.json')
   })
 
   it('says why a delete did not happen, in the dialog that asked for it', async () => {

@@ -100,7 +100,7 @@ describe('createGigFolder', () => {
     writeFileSync(join(dir, 'taken', 'gig.json'), '{"gigVersion":1,"id":"taken"}', 'utf8')
     const r = createGigFolder(dir, 'taken')
     expect(r.ok).toBe(false)
-    expect(!r.ok && r.error).toMatch(/already something called/)
+    expect(!r.ok && r.error).toMatch(/already a gig called/)
     // The stranger's file is untouched.
     expect(readFileSync(join(dir, 'taken', 'gig.json'), 'utf8')).toContain('taken')
   })

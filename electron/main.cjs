@@ -17,6 +17,7 @@ const { resolveBombista } = require('./bombistaBinary.cjs')
 const { listSongFiles } = require('./songsFolder.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
 const { emittedSongIn } = require('./emittedSong.cjs')
+const { replaceSongFile } = require('./replaceSongFile.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
 const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
 
@@ -409,6 +410,15 @@ ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(Strin
  * **Only the song file.** The lyrics and the recordings are the author's, they live in other
  * folders, and nothing here goes near them.
  */
+/**
+ * **An edit replaces the song file with the candidate the flow produced.** See
+ * `replaceSongFile.cjs`: a backup beside it, then an atomic write. Whether this candidate may
+ * replace this target is decided in the flow, before the call.
+ */
+ipcMain.handle('fs:replaceSongFile', (_event, candidatePath, targetPath) =>
+  replaceSongFile(String(candidatePath), String(targetPath))
+)
+
 ipcMain.handle('fs:deleteSongFile', async (_event, filePath) => {
   try {
     await shell.trashItem(String(filePath))
@@ -453,10 +463,12 @@ ipcMain.handle('gig:read', (_event, folderPath, visualsPointer) =>
   readGigFolder(folderPath, visualsPointer ? { visualsPointer } : {})
 )
 
-// **A name, not a path.** The gigs root is what first run recorded; this is the only way a gig
-// folder is created from inside the app. The picker above is the import path now.
-ipcMain.handle('gig:createFolder', (_event, gigsRoot, name) =>
-  createGigFolder(String(gigsRoot), String(name))
+// **A name, not a path**, inside the one folder the tools own: the renderer joins `<gigs>/setup`
+// and hands it over, exactly as it hands over every other already-joined folder. This is the only
+// way a gig folder is created from inside the app, and it is the only directory the app creates in
+// the gigs root (2026-09-02).
+ipcMain.handle('gig:createFolder', (_event, setupRoot, name) =>
+  createGigFolder(String(setupRoot), String(name))
 )
 
 ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPath, text))
