@@ -17,7 +17,6 @@ import { setLibraryEntries, type LibrarySong } from './setlistStore'
 import { forgetLaunchAnnouncements } from './launchAnnouncements'
 import { clearSongFlowRequest, getSongFlowRequest } from './songFlowState'
 
-const chooseGigFolderPath = vi.fn()
 const runBombista = vi.fn()
 const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
@@ -32,7 +31,6 @@ vi.mock('./platform', async (importOriginal) => ({
   hasGigFolderAccess: () => true,
   canRunBombista: () => true,
   canHostTools: () => false,
-  chooseGigFolderPath: (...a: unknown[]) => chooseGigFolderPath(...a),
   runBombista: (...a: unknown[]) => runBombista(...a),
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
@@ -735,7 +733,6 @@ describe('Setup home', () => {
       fireEvent.click(screen.getByTestId('setup-new-gig'))
     })
     await waitFor(() => expect(window.location.hash).toBe('#/gig'))
-    expect(chooseGigFolderPath).not.toHaveBeenCalled()
   })
 
   /**

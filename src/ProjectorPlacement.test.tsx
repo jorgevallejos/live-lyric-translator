@@ -31,7 +31,6 @@ vi.mock('./platform', async (importOriginal) => ({
   closeTool: vi.fn(),
   chooseFilePath: vi.fn(),
   chooseFolderPath: vi.fn(),
-  chooseGigFolderPath: vi.fn(),
   readGigFolder: vi.fn().mockResolvedValue({
     folderPath: null,
     gigText: null,

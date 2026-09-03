@@ -26,7 +26,6 @@ import { dropLibraryCache, type LibrarySong } from './setlistStore'
 const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
 const createGigFolder = vi.fn()
-const chooseGigFolderPath = vi.fn()
 const readSongFileText = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
@@ -46,7 +45,6 @@ vi.mock('./platform', async (importOriginal) => ({
   describeDisplays: () => Promise.resolve({ count: 1, displays: [], fingerprint: 'f' }),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
   writeDebriefFile: vi.fn(),
-  chooseGigFolderPath: (...a: unknown[]) => chooseGigFolderPath(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
   createGigFolder: (...a: unknown[]) => createGigFolder(...a),
@@ -241,7 +239,6 @@ describe('screen 1: the gig', () => {
     // folder name. Neither is here, and this fails on the day either comes back.
     expect(screen.queryByTestId('setup-gig-name')).toBeNull()
     expect(screen.getByTestId('gig-flow-screen-1').textContent).not.toMatch(/Choose|folder…/)
-    expect(chooseGigFolderPath).not.toHaveBeenCalled()
   })
 
   /**

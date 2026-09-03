@@ -765,6 +765,5 @@ Anything in `electron/main.cjs` — custom `protocol.handle` schemes, IPC handle
 
 - **Electron 41** + **Vite 8** + **React 18** + **TypeScript 5.6** (strict mode)
 - **Vitest 4** + **React Testing Library** for tests (jsdom 28)
-- **@dnd-kit** for drag-and-drop in setlist management
 - **ws** for the WebSocket server
 - Packaging via **electron-builder** (`npm run pack`, `--mac`) — not yet exercised for distribution

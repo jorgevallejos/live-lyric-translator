@@ -56,7 +56,6 @@ This project is built with:
 - **Vite 8** — development and build system
 - **Electron 41** — desktop application framework
 - **Vitest 4 + React Testing Library** — tests (jsdom 28)
-- **@dnd-kit** — drag-and-drop in setlist management
 - **ws** — the WebSocket server
 - **electron-builder** — packaging (`npm run pack`, macOS)
 

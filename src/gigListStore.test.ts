@@ -4,8 +4,8 @@ import {
   forgetGig,
   getGigList,
   rememberGigInList,
-  replaceGigPath,
 } from './gigListStore'
+import * as gigListStore from './gigListStore'
 import { ensureStorage } from './testSupport/storage'
 
 beforeAll(ensureStorage)
@@ -36,21 +36,13 @@ describe('the gig list', () => {
     expect(getGigList()).toEqual(['/gigs/b'])
   })
 
-  it('repoints a row that has been located somewhere else, keeping its place', () => {
-    // **Locate, not re-add.** A gig folder that moved is the same gig: adding the new path would
-    // put it at the front and leave the dead row behind, which is two rows for one night.
-    rememberGigInList('/gigs/a')
-    rememberGigInList('/gigs/b')
-    rememberGigInList('/gigs/c')
-    replaceGigPath('/gigs/b', '/moved/b')
-    expect(getGigList()).toEqual(['/gigs/c', '/moved/b', '/gigs/a'])
-  })
-
-  it('collapses a locate that lands on a gig already listed', () => {
-    rememberGigInList('/gigs/a')
-    rememberGigInList('/gigs/b')
-    replaceGigPath('/gigs/b', '/gigs/a')
-    expect(getGigList()).toEqual(['/gigs/a'])
+  it('offers no way to repoint a row, and that is the rule', () => {
+    // **`replaceGigPath` went with `Locate…`** (2026-09-03). It repointed a row at a folder that
+    // had moved, and under the single-`setup/` ruling a gig can only be at `<gigs>/setup/<gig>`,
+    // so there is nowhere to move it to and nothing to repoint. Asserted because an absence with
+    // no test is an invitation.
+    const store = gigListStore as Record<string, unknown>
+    expect(store.replaceGigPath).toBeUndefined()
   })
 
   it('ignores an empty path rather than storing a row that names nothing', () => {

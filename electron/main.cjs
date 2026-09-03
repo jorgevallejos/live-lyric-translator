@@ -377,15 +377,6 @@ ipcMain.handle('dialog:openFile', async (_event, kind, defaultPath) => {
   return result.canceled ? null : (result.filePaths[0] ?? null)
 })
 
-ipcMain.handle('dialog:openSongFiles', async (_event, defaultPath) => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Song files', extensions: ['json'] }],
-    ...(defaultPath ? { defaultPath: String(defaultPath) } : {}),
-  })
-  return result.canceled ? [] : result.filePaths
-})
-
 ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
 
 // **What song files are in `<songs>/song-performance`.** The renderer joins that folder and hands
@@ -452,19 +443,13 @@ ipcMain.handle('fs:folderReadable', (_event, folderPath) => {
   }
 })
 
-// ── The gig folder. Every Electron call this round introduces lives behind `src/platform.ts`
-// on the renderer side; these are its four handlers. ──────────────────────────────────────────
-ipcMain.handle('dialog:openGigFolder', async (_event, defaultPath) => {
-  const result = await dialog.showOpenDialog({
-    title: 'Choose the gig folder',
-    properties: ['openDirectory', 'createDirectory'],
-    ...(defaultPath ? { defaultPath: String(defaultPath) } : {}),
-  })
-  return result.canceled ? null : (result.filePaths[0] ?? null)
-})
+// ── The gig folder. Every Electron call lives behind `src/platform.ts` on the renderer side.
+//
+// **There is no gig-folder picker any more.** It served `Locate…`, and under the single-`setup/`
+// ruling a gig can only be at `<gigs>/setup/<gig>`, so there is nowhere to locate one to.
+// ──────────────────────────────────────────────────────────────────────────────────────────────
 
 // Any folder this machine is asked to remember — the songs root, the gigs root, the media folder.
-// The gig folder keeps its own handler because its picker offers to create one; these never do.
 ipcMain.handle('dialog:openFolder', async (_event, title, defaultPath) => {
   const result = await dialog.showOpenDialog({
     title: typeof title === 'string' && title ? title : 'Choose a folder',

@@ -38,7 +38,6 @@ vi.mock('./platform', async (importOriginal) => ({
   hasGigFolderAccess: () => true,
   hasFolderPicker: () => true,
   chooseFolderPath: vi.fn(),
-  chooseGigFolderPath: vi.fn(),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
   createGigFolder: (...a: unknown[]) => createGigFolder(...a),

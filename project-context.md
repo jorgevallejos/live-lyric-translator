@@ -23,7 +23,8 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 ## Tech stack
 
 - Electron 41, Vite 8, React 18, TypeScript 5.6 strict.
-- Vitest 4 for tests, @dnd-kit for drag-and-drop, `ws` for the websocket bridge.
+- Vitest 4 for tests, `ws` for the websocket bridge. **No drag-and-drop library**: @dnd-kit
+  went with the manage-setlists screen on 2026-09-03, and the running order is reordered with ↑ ↓.
 - Core architectural pattern: pure-function state modules + React hooks, with strict TDD (Red → Green → Refactor).
 
 ## Links
