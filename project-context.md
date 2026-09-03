@@ -23,7 +23,8 @@ The engineering counterpart for Claude Code lives in `CLAUDE.md` at the repo roo
 ## Tech stack
 
 - Electron 41, Vite 8, React 18, TypeScript 5.6 strict.
-- Vitest 4 for tests, @dnd-kit for drag-and-drop, `ws` for the websocket bridge.
+- Vitest 4 for tests, `ws` for the websocket bridge. **No drag-and-drop library**: @dnd-kit
+  went with the manage-setlists screen on 2026-09-03, and the running order is reordered with ↑ ↓.
 - Core architectural pattern: pure-function state modules + React hooks, with strict TDD (Red → Green → Refactor).
 
 ## Links
@@ -239,7 +240,7 @@ media, Muralista and the Bombista binary path. The design is
 
 | What | Where | Why it is allowed to be stored |
 |---|---|---|
-| **The gig list** — which gigs this machine knows about | `localStorage`, key `pregoneroGigList`, a JSON array of absolute folder paths, most recently opened first | It is a **bookmark list**, like recent files. Losing it costs one trip to a folder picker. |
+| **The gig list** — which gigs this machine knows about | `localStorage`, key `pregoneroGigList`, a JSON array of absolute folder paths, most recently opened first | It is a **bookmark list**, like recent files, holding paths and nothing about the gigs themselves. |
 | The Bombista binary override | `localStorage`, key `pregoneroBombistaPath` | A per-machine fact, like the folders beside it. Normally unset. |
 
 **The gig list stores paths and never readiness**, and that is an instruction rather than an
@@ -249,10 +250,22 @@ own by requirement. `libertad` is the standing argument: a flag written when it 
 still read Ready today, and it is not. Each row's delta is computed on read, and **until that lands
 a row shows no verdict at all rather than a stale one.**
 
-**A row whose folder is gone stays in the list**, named, to be located or forgotten. A folder on a
-drive that is not plugged in is not a deleted gig, and a list that tidied itself would erase the
-evidence that something moved. Noticing that it is gone is still owed: `electron/gigFolder.cjs`
-does not check that the folder exists, so a moved folder and a fresh empty one are identical to it.
+**A row whose folder is gone stays in the list**, named by its folder. A folder on a drive that is
+not plugged in is not a deleted gig, and a list that tidied itself would erase the evidence that
+something moved. Noticing that it is gone is still owed: `electron/gigFolder.cjs` does not check
+that the folder exists, so a moved folder and a fresh empty one are identical to it.
+
+**What a row is CALLED is read live from `gig.json`** (Jorge, 2026-09-03) — the date and the venue,
+through `src/gigLabels.ts`, never stored. The folder underneath it is an opaque id that never
+changes, so **the row and the folder are allowed to disagree**; the ruling is in
+`tramoya-integration/project-context.md`. A gig whose file will not read keeps its row, named by
+its folder, because an opaque string is a poor label and a truthful one.
+
+**Open: losing the gig list now loses the gigs from the app**, and it did not before. `Locate…` and
+the gig-folder picker both went on 2026-09-03, and nothing lists `<gigs>/setup/` — so a machine
+whose browser storage is cleared has every gig still on disk and no row for any of them. The obvious
+answer is to read that folder rather than to bring a picker back, and it is not built. Noted here
+rather than fixed, because it belongs with *noticing that a folder is gone*, which is owed anyway.
 
 **Two findings from planning this round, both of which would have surfaced late.**
 
@@ -266,7 +279,8 @@ does not check that the folder exists, so a moved folder and a fresh empty one a
 - **`refreshGigReadiness` writes.** It creates `gig.json` when the folder has none and injects the
   app's running order into a gig that has none. A gig list calling it per row would have created
   files in every folder it drew. `src/gigFolderRead.ts` is the read-only path, and it exists before
-  the list is built rather than during.
+  the list is built rather than during. `src/gigLabels.ts` makes the same promise for the smaller
+  read a row's name needs.
 
 **One thing R1 could not close, and it is Bombista's.** A song made from a lyrics `.txt` and a
 recording cannot be finished from inside the app. `bombista align --emit songjson` writes a

@@ -24,11 +24,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Returns { exists, size } for the file at the given absolute path. */
   getFileStats: (filePath) => ipcRenderer.invoke('fs:getFileStats', filePath),
   /** Opens a native multi-select picker filtered to JSON. Resolves to absolute paths, [] if cancelled. */
-  openSongFileDialog: (defaultPath) => ipcRenderer.invoke('dialog:openSongFiles', defaultPath),
   /** Reads a song file as UTF-8. Resolves to { ok: true, text } or { ok: false, error }. */
   readSongFile: (filePath) => ipcRenderer.invoke('fs:readSongFile', filePath),
   /** Native directory picker for the gig folder. Resolves to an absolute path or null. */
-  openGigFolderDialog: (defaultPath) => ipcRenderer.invoke('dialog:openGigFolder', defaultPath),
   /** Native directory picker for any folder this machine remembers. Absolute path, or null. */
   openFolderDialog: (title, defaultPath) =>
     ipcRenderer.invoke('dialog:openFolder', title, defaultPath),

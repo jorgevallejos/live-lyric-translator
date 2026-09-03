@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { closeGig, openGigFolder, refreshGigReadiness } from './gigSession'
 import { getRememberedGigFolder } from './gigFolderStore'
 import { forgetGig, getGigList } from './gigListStore'
+import { readGigLabels } from './gigLabels'
 import {
   ensureSongLibraryHydrated,
   catalogueWasRead,
@@ -119,6 +120,18 @@ function basename(path: string): string {
  * buttons: `Setup`, `Locate…`, `Forget`. Four gigs made a wall. **The shape is the song row's** —
  * the title, its state, and the marks the app already uses for a row's own actions.
  *
+ * **The name is the date and the venue, read live out of `gig.json`** (Jorge, 2026-09-03). It used
+ * to be `basename(path)`, so correcting a venue left the row showing the old string — Jorge hit
+ * that by walking. **The row and the folder are allowed to disagree**: the folder is machinery,
+ * an opaque id that never changes, and this is a label. The rule is `gigFile.gigLabel`, and the
+ * folder's id stands in for a gig whose file will not read. Screen 1 of the gig flow is where the
+ * folder's own name is still shown.
+ *
+ * **The `OPEN` badge is gone** (Jorge, 2026-09-03). It was kept as the equivalent of the song row's
+ * `manual only`, and the two are not equivalent: a mode says what a song **is**, while `OPEN` said
+ * a fact about this session. Jorge asked twice what it meant. The question underneath it — *which
+ * gig am I working on* — is the control view's, and is parked.
+ *
  * **The pencil is the way in, and it is what `Setup` did**: it opens the gig folder and enters the
  * gig flow, which is the same control the song rows carry for the same act.
  *
@@ -136,34 +149,31 @@ function basename(path: string): string {
  */
 function GigRow({
   path,
-  open,
+  label,
   busy,
   onOpen,
   onDelete,
 }: {
   path: string
-  open: boolean
+  label: string
   busy: boolean
   onOpen: () => void
   onDelete: () => void
 }) {
-  const name = basename(path)
+  // **The test ids and the visible name part company here, and that is the point.** An id is
+  // machinery and stays the folder's, which never changes; the label follows the file.
+  const id = basename(path)
   return (
-    <li className="setup-home-row setup-gig-row" data-testid={`setup-gig-row-${name}`}>
-      <span className="setup-home-row-name">{name}</span>
-      {open && (
-        <span className="setup-home-row-badge" data-testid="setup-gig-open">
-          Open
-        </span>
-      )}
+    <li className="setup-home-row setup-gig-row" data-testid={`setup-gig-row-${id}`}>
+      <span className="setup-home-row-name">{label}</span>
       <div className="setup-home-row-actions">
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
           disabled={busy}
-          aria-label={`Edit ${name}`}
+          aria-label={`Edit ${label}`}
           title="Edit"
-          data-testid={`setup-gig-open-${name}`}
+          data-testid={`setup-gig-open-${id}`}
           onClick={onOpen}
         >
           <PencilIcon />
@@ -172,9 +182,9 @@ function GigRow({
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
           disabled={busy}
-          aria-label={`Delete ${name}`}
+          aria-label={`Delete ${label}`}
           title="Delete"
-          data-testid={`setup-gig-delete-${name}`}
+          data-testid={`setup-gig-delete-${id}`}
           onClick={onDelete}
         >
           <TrashCanIcon />
@@ -678,6 +688,11 @@ type Announcement =
 
 export function SetupHomeView() {
   const [gigs, setGigs] = useState<string[]>(getGigList)
+  // **What each gig is called, read from its own file rather than from its path.** Empty until the
+  // read comes back, and a row shows its folder's id in the meantime — which is the same fallback
+  // a gig whose file will not read keeps for good. Never persisted: a stored label is a label that
+  // goes stale the moment a venue is corrected, which is the whole defect this replaced.
+  const [gigLabels, setGigLabels] = useState<Map<string, string>>(new Map())
   // **The Songs list is the catalogue, not the library.** Arriving re-reads the folder and this is
   // what that read said; a reference the folder did not list is in `gone`, never in a row, and a
   // file that will not read is in the popup, never in a row either.
@@ -709,8 +724,12 @@ export function SetupHomeView() {
   const [queue, setQueue] = useState<Announcement[]>([])
 
   const reload = useCallback(() => {
-    setGigs(getGigList())
+    const paths = getGigList()
+    setGigs(paths)
     setSongs(getCatalogueEntries())
+    // Re-read on every reload, which is every arrival and every action: the label has to follow an
+    // edit made in the gig flow, and coming back here is when it would be seen to have.
+    void readGigLabels(paths).then(setGigLabels)
   }, [])
 
   // Arriving here is a door, so the files are re-read — the songs folder as well as the gig. Same
@@ -938,7 +957,7 @@ export function SetupHomeView() {
       )}
       {deletingGig !== null && (
         <DeleteGigPopup
-          name={basename(deletingGig.path)}
+          name={gigLabels.get(deletingGig.path) ?? basename(deletingGig.path)}
           folder={deletingGig.path}
           open={deletingGig.path === openFolder}
           busy={gigDeleteBusy}
@@ -1017,7 +1036,7 @@ export function SetupHomeView() {
                     <GigRow
                       key={path}
                       path={path}
-                      open={path === openFolder}
+                      label={gigLabels.get(path) ?? basename(path)}
                       busy={busy}
                       onOpen={run(async () => {
                         await openGigFolder(path)

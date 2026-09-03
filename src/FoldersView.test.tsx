@@ -37,7 +37,6 @@ vi.mock('./platform', async (importOriginal) => ({
   readGigFolder: vi.fn(),
   writeGigFile: vi.fn(),
   writeDebriefFile: vi.fn(),
-  chooseGigFolderPath: vi.fn(),
   validateSongForPerformance: vi.fn(),
   readSongFileText: vi.fn(),
 }))
@@ -66,7 +65,7 @@ beforeAll(() => {
   }
 })
 
-const FOLDER = '/gigs/2026-09-12-bar-eduard'
+const FOLDER = '/gigs/setup/k3f9x2abcd'
 
 function song(id: string, title: string, src?: string): LibrarySong {
   return {
@@ -84,10 +83,10 @@ function broadcastRoomWithLogo(): void {
     KEY_VISUALS_BROADCAST,
     JSON.stringify({
       folderPath: FOLDER,
-      gigId: '2026-09-12-bar-eduard',
+      gigId: 'k3f9x2abcd',
       visuals: {
         visualsVersion: 1,
-        gigId: '2026-09-12-bar-eduard',
+        gigId: 'k3f9x2abcd',
         shapes: [
           { id: 'logo', name: 'Logo', layer: { type: 'image', src: 'chango-pepper-logo.png' } },
         ],

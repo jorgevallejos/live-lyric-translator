@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createGig, refreshGigReadiness, publishSetlistToGig, saveGigIdentity } from './gigSession'
 import { useGigReadiness } from './useGigReadiness'
-import { gigIdFrom } from './gigFile'
+import { gigIdentityIsAnswered, gigLabelFrom } from './gigFile'
 import { getGigsFolder } from './contentFolders'
 import { gigFolderIn } from './fileLayout'
 import { LeaveWithoutSaving } from './LeaveWithoutSaving'
@@ -32,11 +32,11 @@ import {
  *
  * **The tools own one `setup/` folder inside the gigs folder and touch nothing else** (Jorge,
  * 2026-09-02). Every gig is `<gigs>/setup/<gig>/`, holding `gig.json` and later `visuals.json`.
- * `<gig>` is shaped like the night folders Jorge already keeps — `2026-05-16-bom-festival`, date
- * then venue — so a gig row and its night read as the same thing even though they sit apart.
+ * **`<gig>` is an opaque id** (Jorge, 2026-09-03) — it was shaped `2026-05-16-bom-festival` until
+ * then, and a name derived from the date and the venue is a name that has to change when they do.
  * **No tool creates a folder in the artist's territory**, which is what `New gig` used to do.
  *
- * So this flow never asks where anything goes. It asks what the night is, and derives the rest.
+ * So this flow never asks where anything goes. It asks what the night is, and gives it a folder.
  *
  * ## When the file is written, and what `Back` does about it
  *
@@ -120,12 +120,17 @@ function GigStepBar({ here, reachable, onGo }: { here: number; reachable: number
 /**
  * **Screen 1: the gig. The only screen that asks you to type.**
  *
- * Date, venue, city — and from the first two it **derives the identity and shows it**, because that
- * is what appears on Backstage and what names the folder. Being shown it is the point: a name
- * derived and hidden is a name you meet for the first time in Finder.
+ * Date, venue, city — and **once the gig exists, the name its folder was given**, because that is
+ * the one place a person can see it. **It is no longer derived from what is typed** (Jorge,
+ * 2026-09-03): the folder is an opaque id, minted at creation and never changed, so before the gig
+ * exists there is no name to show and this says so.
  *
- * **It never asks where anything goes.** The gigs root was answered once, on first run, and the
- * folder under `setup/` follows from the name. There is no path on this screen and no picker.
+ * **The two answers that gate the write are the date and the venue**, and the line under the
+ * fields says that rather than talking about a name. `gigIdentityIsAnswered` is the rule; it is
+ * checked here so the button can be shut, and again in `createGig`, which is where it binds.
+ *
+ * **It never asks where anything goes.** The gigs root was answered once, on first run, and every
+ * gig is a folder under `setup/`. There is no path on this screen and no picker.
  */
 function ScreenGig({
   exists,
@@ -148,7 +153,7 @@ function ScreenGig({
   onField: (field: 'date' | 'venue' | 'city', value: string) => void
   onCommit: () => void
 }) {
-  const derived = gigIdFrom({ date, venue })
+  const answered = gigIdentityIsAnswered({ date, venue })
   const gigsRoot = getGigsFolder()
 
   return (
@@ -191,38 +196,36 @@ function ScreenGig({
         </label>
       </div>
 
-      {/* **The identity, shown as it is derived.** `exists` freezes it: a gig's id is born with its
-          folder and is never rewritten — `visuals.json` records which gig it maps and is checked
-          against this — so on an existing gig the venue can be corrected in the file without the
-          folder chasing it. Renaming a gig is renaming its folder, outside the app. */}
+      {/* **The gig's folder, which is the only thing that is really its name.** It is given when
+          the gig is made and never rewritten — `visuals.json` records which gig it maps and is
+          checked against this — so the venue can be corrected in the file without the folder
+          chasing it. **It is not derived from anything above**, which is why there is nothing to
+          show until the gig exists. */}
       <div className="gig-flow-identity" data-testid="gig-flow-identity">
         <span className="gig-flow-identity-label">This gig is called</span>
         {exists ? (
           <code className="gig-flow-identity-name" data-testid="gig-flow-identity-name">
             {gigId}
           </code>
-        ) : derived === null ? (
-          <span className="gig-flow-identity-pending" data-testid="gig-flow-identity-pending">
-            Not yet — a gig is named by its date and its venue.
-          </span>
         ) : (
-          <code className="gig-flow-identity-name" data-testid="gig-flow-identity-name">
-            {derived}
-          </code>
+          <span className="gig-flow-identity-pending" data-testid="gig-flow-identity-pending">
+            Not yet — the folder is named when the gig is made.
+          </span>
         )}
       </div>
       <p className="gig-flow-note">
         {exists ? (
           <>
-            The name was settled when the gig was made and does not change with the fields above.
-            Its data is in{' '}
+            The name is the folder your gig data is in, and it means nothing on purpose: it was
+            settled when the gig was made and never changes, so correcting the date or the venue
+            above moves the gig everywhere it is listed and leaves the folder alone. It is{' '}
             <code>{gigsRoot === null ? `…/setup/${gigId ?? ''}` : gigFolderIn(gigsRoot, gigId ?? '')}</code>.
           </>
         ) : (
           <>
-            It names the folder your gig data goes in, inside the one <code>setup</code> folder
-            Pregonero keeps in your gigs folder. <strong>Nothing else in there is touched</strong>,
-            and nothing is written until this gig has a name.
+            Your gig data goes in a folder inside the one <code>setup</code> folder Pregonero keeps
+            in your gigs folder. <strong>Nothing else in there is touched</strong>, and{' '}
+            <strong>nothing at all is written until you have answered the date and the venue</strong>.
           </>
         )}
       </p>
@@ -238,7 +241,7 @@ function ScreenGig({
           type="button"
           className="ctrl-btn gig-flow-primary"
           data-testid="gig-flow-commit"
-          disabled={busy || (!exists && derived === null)}
+          disabled={busy || (!exists && !answered)}
           onClick={onCommit}
         >
           {exists ? 'Save the gig' : 'Create the gig'}
@@ -512,7 +515,12 @@ export function GigFlowView() {
   // Step 2 is reachable once the gig is on disk, and not before: it writes a running order into a
   // file, and there is no file until step 1 has been committed.
   const reachable = exists ? BUILT : 1
-  const title = exists ? (readiness.gigId ?? 'Gig') : 'New gig'
+  // **The header names the night, not the folder.** The folder is an opaque id since 2026-09-03,
+  // and a header reading `k3f9x2abcd` tells nobody which gig they are in. Same rule as the row on
+  // Backstage, through the same function; screen 1 is where the folder's own name is shown.
+  const title = exists
+    ? gigLabelFrom(readiness.date, readiness.venue?.name ?? null, readiness.folderPath ?? '')
+    : 'New gig'
 
   const body = (() => {
     if (here === 2) return <ScreenSetlist key={revision} busy={busy} onChange={setlistChanged} />

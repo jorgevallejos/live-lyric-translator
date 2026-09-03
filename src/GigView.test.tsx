@@ -19,7 +19,6 @@ const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
 const validateSongForPerformance = vi.fn()
 const fileExists = vi.fn()
-const chooseGigFolderPath = vi.fn()
 const readSongFileText = vi.fn()
 
 const describeDisplays = vi.fn()
@@ -39,7 +38,6 @@ vi.mock('./platform', async (importOriginal) => ({
   describeDisplays: (...a: unknown[]) => describeDisplays(...a),
   hasGigFolderAccess: () => true,
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
-  chooseGigFolderPath: (...a: unknown[]) => chooseGigFolderPath(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
   validateSongForPerformance: (...a: unknown[]) => validateSongForPerformance(...a),
@@ -49,8 +47,8 @@ vi.mock('./platform', async (importOriginal) => ({
 const App = (await import('./App')).default
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
-const FOLDER = '/gigs/2026-09-12-bar-eduard'
-const GIG_ID = '2026-09-12-bar-eduard'
+const FOLDER = '/gigs/setup/k3f9x2abcd'
+const GIG_ID = 'k3f9x2abcd'
 const WAIT_TIMEOUT = 3000
 
 const LINES: SongItem[] = [

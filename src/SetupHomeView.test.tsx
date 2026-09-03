@@ -16,8 +16,8 @@ import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 import { setLibraryEntries, type LibrarySong } from './setlistStore'
 import { forgetLaunchAnnouncements } from './launchAnnouncements'
 import { clearSongFlowRequest, getSongFlowRequest } from './songFlowState'
+import { rememberGigFolder } from './gigFolderStore'
 
-const chooseGigFolderPath = vi.fn()
 const runBombista = vi.fn()
 const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
@@ -32,7 +32,6 @@ vi.mock('./platform', async (importOriginal) => ({
   hasGigFolderAccess: () => true,
   canRunBombista: () => true,
   canHostTools: () => false,
-  chooseGigFolderPath: (...a: unknown[]) => chooseGigFolderPath(...a),
   runBombista: (...a: unknown[]) => runBombista(...a),
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
@@ -564,6 +563,86 @@ describe('Setup home', () => {
   })
 
   /**
+   * ## The row is a label, read live out of `gig.json`
+   *
+   * **Jorge hit this by walking** (2026-09-03): the venue was corrected in the flow and the row on
+   * Backstage still said the old thing, because it rendered `basename(path)`. It also closes a
+   * 02/09 ruling the code never honoured — a gig is named by its venue where the file has one.
+   *
+   * **The row and the folder are now allowed to disagree.** The folder is machinery, an opaque id
+   * that never changes; the row is a label. Screen 1 of the gig flow still shows the folder.
+   */
+  const gigOnDisk = (folderPath: string, gig: Record<string, unknown>) => ({
+    folderPath,
+    gigText: JSON.stringify({ gigVersion: 1, id: 'k3f9x2abcd', ...gig }),
+    gigError: null,
+    gigPresent: true,
+    visualsText: null,
+    visualsError: null,
+    visualsPresent: false,
+  })
+
+  it('names a gig row by the date and venue in its file, not by its folder', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    readGigFolder.mockResolvedValue(
+      gigOnDisk('/gigs/setup/k3f9x2abcd', {
+        date: '2026-10-17',
+        venue: { name: 'Geel Coffee', city: 'Geel' },
+      })
+    )
+    await renderHome()
+    const row = screen.getByTestId('setup-gig-row-k3f9x2abcd')
+    await waitFor(() => expect(row.textContent).toContain('2026-10-17 · Geel Coffee'))
+    // The folder's id is machinery and is not shown here at all.
+    expect(row.textContent).not.toContain('k3f9x2abcd')
+  })
+
+  it('follows a corrected venue, because the label is read rather than stored', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    readGigFolder.mockResolvedValue(
+      gigOnDisk('/gigs/setup/k3f9x2abcd', { date: '2026-10-17', venue: { name: 'Gel Coffe' } })
+    )
+    await renderHome()
+    await waitFor(() =>
+      expect(screen.getByTestId('setup-gig-row-k3f9x2abcd').textContent).toContain('Gel Coffe')
+    )
+    // The venue is corrected in the file — the flow's job — and Backstage is arrived at again,
+    // which is the real path back from the gig flow. The folder has not moved, and nothing was
+    // migrated to make this true.
+    readGigFolder.mockResolvedValue(
+      gigOnDisk('/gigs/setup/k3f9x2abcd', { date: '2026-10-17', venue: { name: 'Geel Coffee' } })
+    )
+    cleanup()
+    await renderHome()
+    await waitFor(() =>
+      expect(screen.getByTestId('setup-gig-row-k3f9x2abcd').textContent).toContain('2026-10-17 · Geel Coffee')
+    )
+  })
+
+  it('falls back to the folder for a gig whose file will not read, and invents no night', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    readGigFolder.mockRejectedValue(new Error('EIO'))
+    await renderHome()
+    const row = screen.getByTestId('setup-gig-row-k3f9x2abcd')
+    expect(row.textContent).toContain('k3f9x2abcd')
+  })
+
+  /**
+   * **The `OPEN` badge is gone** (Jorge, 2026-09-03). It was kept as the equivalent of the song
+   * row's `manual only`; the two are not equivalent, because a mode says what a song **is** and
+   * `OPEN` said a fact about this session. Jorge asked twice what it meant. The question underneath
+   * it — *which gig am I working on* — belongs to the control view and is parked.
+   */
+  it('marks nothing on the row for the gig that happens to be open', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    rememberGigFolder('/gigs/setup/k3f9x2abcd')
+    await renderHome()
+    const row = screen.getByTestId('setup-gig-row-k3f9x2abcd')
+    expect(row.textContent).not.toMatch(/\bopen\b/i)
+    expect(screen.queryByTestId('setup-gig-open')).toBeNull()
+  })
+
+  /**
    * **The bin deletes the gig** (Jorge, 2026-09-03), and `Forget` is what it replaced. Dropping the
    * reference and leaving the folder is an action that looks like removal and is not — the same
    * shape as the trash can that came off the song library.
@@ -735,7 +814,6 @@ describe('Setup home', () => {
       fireEvent.click(screen.getByTestId('setup-new-gig'))
     })
     await waitFor(() => expect(window.location.hash).toBe('#/gig'))
-    expect(chooseGigFolderPath).not.toHaveBeenCalled()
   })
 
   /**
@@ -870,9 +948,9 @@ describe('Setup home', () => {
   it('names the gigs a song is in, and still lets it go', async () => {
     // A gig's setlist keeps its ids and reports what it cannot resolve, so the record of the night
     // stays truthful either way. Blocking would make the catalogue hostage to its own history.
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/2026-09-12-bar-eduard']))
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
     readGigFolder.mockResolvedValue({
-      folderPath: '/gigs/2026-09-12-bar-eduard',
+      folderPath: '/gigs/setup/k3f9x2abcd',
       gigText: JSON.stringify({
         gigVersion: 1,
         id: 'g1',

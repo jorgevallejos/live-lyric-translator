@@ -85,23 +85,3 @@ export function rememberGigInList(folderPath: string): void {
 export function forgetGig(folderPath: string): void {
   write(read().filter((entry) => entry !== folderPath))
 }
-
-/**
- * Repoints a row at where its folder actually is now, **keeping its place in the list**.
- *
- * *Locate*, not re-add: a gig folder that moved is the same gig, and adding the new path would
- * put it at the front and leave the dead row behind — two rows for one night.
- */
-export function replaceGigPath(oldPath: string, newPath: string): void {
-  const next = newPath.trim()
-  if (next.length === 0) return
-  const current = read()
-  const at = current.indexOf(oldPath)
-  if (at === -1) {
-    rememberGigInList(next)
-    return
-  }
-  const replaced = current.map((entry, i) => (i === at ? next : entry))
-  // Locating onto a folder that is already listed collapses the two rows rather than duplicating.
-  write(replaced.filter((entry, i) => replaced.indexOf(entry) === i))
-}

@@ -19,18 +19,18 @@ function reader(byPath: Record<string, string | null>) {
 describe('the gigs a song is in', () => {
   it('names a gig by its venue when the file has one', async () => {
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/2026-09-12-bar-eduard'],
-      read: reader({ '/gigs/2026-09-12-bar-eduard': gig({ venue: { name: 'Bar Eduard' } }) }),
+      list: () => ['/gigs/setup/k3f9x2abcd'],
+      read: reader({ '/gigs/setup/k3f9x2abcd': gig({ venue: { name: 'Bar Eduard' } }) }),
     })
-    expect(uses).toEqual([{ path: '/gigs/2026-09-12-bar-eduard', name: 'Bar Eduard' }])
+    expect(uses).toEqual([{ path: '/gigs/setup/k3f9x2abcd', name: 'Bar Eduard' }])
   })
 
   it('falls back to the folder, which is the only thing every gig has', async () => {
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/2026-09-12-bar-eduard'],
-      read: reader({ '/gigs/2026-09-12-bar-eduard': gig() }),
+      list: () => ['/gigs/setup/k3f9x2abcd'],
+      read: reader({ '/gigs/setup/k3f9x2abcd': gig() }),
     })
-    expect(uses[0]!.name).toBe('2026-09-12-bar-eduard')
+    expect(uses[0]!.name).toBe('k3f9x2abcd')
   })
 
   it('leaves out a gig whose setlist does not name the song', async () => {
