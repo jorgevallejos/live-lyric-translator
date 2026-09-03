@@ -15,7 +15,7 @@ const { createLocalhostServer, resolveRequest, MAX_WRITE_BYTES } = require_(
 ) as {
   MAX_WRITE_BYTES: number
   createLocalhostServer: (o?: unknown) => {
-    mount: (name: string, folder: string, writableFile?: string) => void
+    mount: (name: string, folder: string, writableFiles?: string | string[]) => void
     unmount: (name: string) => void
     start: () => Promise<number>
     stop: () => void
@@ -124,7 +124,7 @@ describe('the running server', () => {
 describe('the write path', () => {
   async function withServer(
     run: (port: number, dir: string) => Promise<void>,
-    writableFile: string | undefined = 'visuals.json'
+    writableFile: string | string[] | undefined = 'visuals.json'
   ) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pregonero-write-'))
     const server = createLocalhostServer()
@@ -224,6 +224,57 @@ describe('the write path', () => {
       }
       expect(fs.existsSync(path.join(dir, 'visuals.json'))).toBe(false)
     })
+  })
+
+  /**
+   * **The list widened from one name to two on 2026-09-03**, when Muralista's `v1.8.0` started
+   * saving a stage capture beside the gig's JSON. The rationale did not move with it: every check
+   * is about *where* the bytes go and none is about what is in them, so a **closed list the host
+   * declared** is the same guarantee at one entry or two. A wildcard would not be, and these say so.
+   */
+  it('takes each of the names the mount declares, and writes them verbatim', async () => {
+    await withServer(
+      async (port, dir) => {
+        for (const [name, body] of [
+          ['visuals.json', '{"visualsVersion":1}'],
+          ['stage.png', 'PNG-ish bytes, unread'],
+        ]) {
+          const res = await fetch(`http://127.0.0.1:${port}/gig/${name}`, { method: 'PUT', body })
+          expect(`${name}:${res.status}`).toBe(`${name}:204`)
+          expect(fs.readFileSync(path.join(dir, name!), 'utf8')).toBe(body)
+        }
+      },
+      ['visuals.json', 'stage.png']
+    )
+  })
+
+  it('refuses a name the mount did not declare, even beside two that it did', async () => {
+    // **A closed list, never a pattern.** A mount that took any name is a writable folder, which
+    // is a different thing with a different blast radius.
+    await withServer(
+      async (port, dir) => {
+        const res = await fetch(`http://127.0.0.1:${port}/gig/gig.json`, {
+          method: 'PUT',
+          body: '{}',
+        })
+        expect(res.status).toBe(403)
+        expect(fs.existsSync(path.join(dir, 'gig.json'))).toBe(false)
+      },
+      ['visuals.json', 'stage.png']
+    )
+  })
+
+  it('leaves a mount read-only when the declared list is empty', async () => {
+    await withServer(
+      async (port) => {
+        const res = await fetch(`http://127.0.0.1:${port}/gig/visuals.json`, {
+          method: 'PUT',
+          body: '{}',
+        })
+        expect(res.status).toBe(405)
+      },
+      []
+    )
   })
 
   it('leaves a mount read-only when it is re-mounted without the writable name', async () => {

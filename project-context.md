@@ -400,6 +400,56 @@ class-two failure this repo already named on 2026-08-31, an app-held list standi
 **`songUsage.ts` reads the folder too**, so the delete-song dialog and the gigs column cannot answer
 differently about which gigs exist.
 
+### Step 3 opens: Muralista's flow, in Pregonero's frame (2026-09-03)
+
+**Ruling: `tramoya-integration/project-context.md`, "Step 9.3 — Muralista's flow, designed
+2026-09-03".** Muralista's half is its `v1.8.0`; this is Pregonero's.
+
+**The step is the tool, not a door to it.** Muralista is served on arrival and drawn in an
+`<iframe>`, the way Bombista's three pages are drawn in the song flow. That is what makes the
+design's own sentence true — *it is already running inside Pregonero's frame, so there is no
+launching into another tool* — and it is why pressing **keep the default** over there does not open
+a second window. `MuralistaDoor` stays: it is still the unhosted answer, and still what `GigView`
+uses at `#/gig/steps`.
+
+**`tool:serve` is `tool:open` without the window.** Same mounts, same relative `?gig=` parameter, no
+`BrowserWindow`. **A frame is a smaller thing than a window, not a closer one**: no preload and no
+Node reach it, nothing is read out of it, and Pregonero still learns the room afterwards by reading
+`visuals.json`. The file is the only channel, which is the boundary the desk-tool cut drew.
+
+**The step never asks for a folder**, and that is Pregonero's whole contribution. It made this gig's
+`setup/` and knows where it is, so it serves that folder. **A question with one knowable answer is
+not a question** — and this one's failure is silent: one level too high and `visuals.json` lands
+where nothing looks.
+
+**`BUILT` moved from 2 to 3**, so step 3 is a button that dims until the gig is on disk, the same
+rule step 2 has and for the same reason: there is no folder to hand over until step 1 is committed.
+Step 4 is still a later step and still not a control.
+
+#### The write path widened from one file name to two
+
+**The rule was *exactly one*, and it is now a closed list.** Muralista's `v1.8.0` saves a **stage
+capture** — a photograph of the stage through the calibrated camera — beside the gig's two JSON
+files, so `stage.png` is a second name.
+
+**The rationale did not move, and that is the test of the change.** Every condition in
+`localhostServer.cjs` is about *where* the bytes go and none is about what is in them, so a closed
+list the host declared is the same guarantee at one entry or two. The bytes are still written
+verbatim and unread, so rule 1 survives exactly as it did. **A wildcard would not be** — that is a
+writable folder, a different thing with a different blast radius, and it is refused as firmly as it
+was when the list had one name on it.
+
+**The gig folder stops being text**, and it is named rather than hidden: `setup/<id>/` held two JSON
+files and now holds an image beside them. Machine territory, so no boundary moves.
+
+#### The vendored page gained a fifth file, and the whole-list assertion is what caught it
+
+`mapper.js` imports `stageCapture.js` the way it imports `warp.js`, so **a page served without it
+throws on load with the other four hashes all green**. `muralistaPage.test.ts` asserts the file list
+*whole* rather than only hashing what is in it, which is what turns that into a red test instead of
+a blank window at a projector. The assertion was written for a hypothetical fifth file; the fifth
+file arrived.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

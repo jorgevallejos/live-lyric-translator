@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('fs:replaceSongFile', candidatePath, targetPath),
   /** Opens a tool's page in a window of its own, over localhost. Packaging, not architecture. */
   openTool: (key, folder, page, title) => ipcRenderer.invoke('tool:open', key, folder, page, title),
+  /** Serves a tool's page and hands back its address. No window — the renderer frames it. */
+  serveTool: (key, folder, page) => ipcRenderer.invoke('tool:serve', key, folder, page),
   closeTool: (key) => ipcRenderer.invoke('tool:close', key),
   isToolOpen: (key) => ipcRenderer.invoke('tool:isOpen', key),
   /** What displays this machine has. Read-only; the confirmation fingerprints it. */

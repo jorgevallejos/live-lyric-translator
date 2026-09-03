@@ -164,18 +164,29 @@ describe('the step bar', () => {
   })
 
   /**
-   * **3 and 4 are later steps and are not controls.** A segment that opened an empty page would say
-   * the step exists and does nothing, which is worse than one that says it is not here yet —
-   * Bombista renders a step that did not happen the same way, and for the same reason.
+   * **4 is a later step and is not a control.** A segment that opened an empty page would say the
+   * step exists and does nothing, which is worse than one that says it is not here yet — Bombista
+   * renders a step that did not happen the same way, and for the same reason.
+   *
+   * **3 stopped being one on 2026-09-03**, when Muralista's own flow landed and there was a page
+   * for it to open.
    */
-  it('shows visuals and check as later steps, not as pages you can open', async () => {
+  it('shows the check as a later step, not a page you can open', async () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-steps')).toBeTruthy(), WAIT)
-    for (const step of [3, 4]) {
-      const seg = screen.getByTestId(`gig-flow-step-${step}`)
-      expect(seg.getAttribute('data-state')).toBe('later')
-      expect(seg.tagName).not.toBe('BUTTON')
-    }
+    const seg = screen.getByTestId('gig-flow-step-4')
+    expect(seg.getAttribute('data-state')).toBe('later')
+    expect(seg.tagName).not.toBe('BUTTON')
+  })
+
+  it('shows visuals as a step you can open, dimmed until the gig is on disk', async () => {
+    // Same rule as step 2: it hands Muralista this gig's folder, and there is no folder until
+    // step 1 has been committed.
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-steps')).toBeTruthy(), WAIT)
+    const seg = screen.getByTestId('gig-flow-step-3')
+    expect(seg.tagName).toBe('BUTTON')
+    expect(seg.getAttribute('data-state')).not.toBe('later')
   })
 
   /**

@@ -34,11 +34,16 @@ describe('the vendored Muralista page', () => {
     }
   })
 
-  it('names the whole page, so a fifth file cannot arrive unrecorded', () => {
+  it('names the whole page, so another file cannot arrive unrecorded', () => {
+    // **This is the assertion that earned itself.** `stageCapture.js` arrived at Muralista's
+    // `v1.8.0` and `mapper.js` imports it the way it imports `warp.js` — a page served without it
+    // throws on load, with the hashes of the other four all green. A list that is asserted whole
+    // is what turns that into a red test instead of a blank window at a projector.
     expect(Object.keys(page.files).sort()).toEqual([
       'mapper.css',
       'mapper.html',
       'mapper.js',
+      'stageCapture.js',
       'warp.js',
     ])
   })
