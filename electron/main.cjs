@@ -7,9 +7,7 @@ const { readSongFile } = require('./readSongFile.cjs')
 const {
   readGigFolder,
   createGigFolder,
-  writeGigFile,
-  writeDebriefFile,
-} = require('./gigFolder.cjs')
+ = require('./gigFolder.cjs')
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
@@ -472,8 +470,6 @@ ipcMain.handle('gig:createFolder', (_event, setupRoot, name) =>
 )
 
 ipcMain.handle('gig:write', (_event, folderPath, text) => writeGigFile(folderPath, text))
-
-ipcMain.handle('gig:writeDebrief', (_event, folderPath, text) => writeDebriefFile(folderPath, text))
 
 ipcMain.handle('song:validateForPerformance', (_event, songPath, bombistaPath) =>
   validateSongForPerformance(songPath, { bombistaPath })

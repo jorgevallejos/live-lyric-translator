@@ -166,8 +166,8 @@ Pregonero that the integration file does not carry.
   no longer restarts the running order.
 - **The gig is a folder with `gig.json` in it.** Projection paints into Muralista's mapped quads
   instead of rendering one full frame, and typed shapes decide what appears where. `gig-contact`
-  replaced both the old end-card screen and the logo fallback, and the gig now ends in a prefilled
-  debrief rather than just stopping.
+  replaced both the old end-card screen and the logo fallback. (That round also ended the gig in a
+  prefilled debrief; **the debrief was removed on 2026-09-03** — see the section below.)
 - **The manage screen's "Locate video…" button is gone.** It was a third door onto a song's media,
   made unnecessary once the setup flow's configured media folder resolves media by name instead.
   `tragedia` is the only catalogue song with linked media, so it is the one song that actually
@@ -338,6 +338,43 @@ disk**, which is class two in a smaller costume. **Retiring a song means moving 
 `songs/`.** Removing a song from a **setlist** is a different act and stays: gig-scoped, durable,
 stored in the snapshot, contradicted by nothing on disk. The two sat one trash can apart on the same
 screen.
+
+### The debrief is removed — Moment 13 is outside the tools (2026-09-03)
+
+**Ruling: `journey-performance.md`, "Moment 13 is outside the tools".** Teardown and the debrief are
+outside the tools, no software in this suite serves that moment, and Jorge never asked for the
+feature. It was built because the played log made it cheap, which is the wrong reason to add a
+screen to an app used in front of an audience.
+
+**Gone**: `src/debrief.ts`, `src/debriefState.ts`, `src/DebriefPanel.tsx` and their tests; the panel,
+the reopen button and the prefill in `src/App.tsx`; `writeDebriefFile` through `src/platform.ts`,
+`src/electronApi.d.ts`, `electron/preload.cjs`, `electron/main.cjs` and `electron/gigFolder.cjs`
+(with `DEBRIEF_FILE_NAME` and its tests); the `.debrief-*` rules in `src/control.css`. **The chain
+ran further than the brief listed** — `gigFolder.cjs` and its temp-folder test were not on it — which
+is why the round searched rather than working from a list. `<gig>/debrief.md` is no longer written by
+anything; a file already on disk is the author's and is left alone.
+
+**What stayed, and why.** `isSetlistComplete` and the whole of `playedSongsState.ts` stayed:
+the debrief was one of four consumers, not the only one. See the section below.
+
+### `playedSongsState.ts` stays — the played log has four readers (2026-09-03)
+
+**The round was briefed to delete it on the premise that its only job was feeding a debrief. The
+premise is false, so the deletion was stopped rather than fixed forward.** The two writers are the
+ones the brief named — the concert transition and the end-of-song Unarm — and the storage key
+`liveLyricPlayedSongIds` is touched by nothing outside this module. The **readers** are what
+disproved it:
+
+| Reader | What it does | Debrief? |
+|---|---|---|
+| `isSetlistComplete` → `setlistDone` → `isContactLit` | Lights the contact panel on the wall when the setlist is done | No |
+| `isSetlistComplete` → `setlistDone` → `nextSongForTile` | Stops offering a next song once the setlist is done | No |
+| `getPlayedSongs()` in `SongsView` | Draws the played marker on each song in the setlist screen | No |
+| `hasPlayedSong(id)` in `SongsView` | Stops pre-selecting the song just played | No |
+
+Deleting the store would have taken the contact panel's condition and the setlist screen's played
+markers with it — a subtraction that only works by adding their state back somewhere else, which is
+the trip-wire this round was told to stop on.
 
 ## Discovery
 

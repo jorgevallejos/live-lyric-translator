@@ -37,8 +37,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createGigFolder: (setupRoot, name) => ipcRenderer.invoke('gig:createFolder', setupRoot, name),
   /** Writes gig.json into `<gig>/setup`, making it if needed. Pregonero is its only writer. */
   writeGigFile: (folderPath, text) => ipcRenderer.invoke('gig:write', folderPath, text),
-  /** Writes debrief.md at the gig folder's root — the author's half. He finishes it. */
-  writeDebriefFile: (folderPath, text) => ipcRenderer.invoke('gig:writeDebrief', folderPath, text),
   /**
    * Runs one Bombista subcommand. **A song file path, never a gig** — Bombista does not know
    * Pregonero exists and does not know gigs exist.
