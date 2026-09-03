@@ -72,6 +72,11 @@ const BUILT = 2
  *
  * **A later step is a span, not a button.** Bombista renders a step that did not happen the same
  * way, for the same reason: a bar that still offered it would say it is available.
+ *
+ * **It carries no word saying so** (Jorge, 2026-09-03). It used to wear a `later` chip, kept on the
+ * argument that it was the only thing separating *shut for now* from *not built at all*. Jorge
+ * judged that distinction not worth the words: **disabled is enough**, and the segment is dimmed
+ * and inert like every other shut control in the app.
  */
 function GigStepBar({ here, reachable, onGo }: { here: number; reachable: number; onGo: (step: number) => void }) {
   return (
@@ -88,7 +93,6 @@ function GigStepBar({ here, reachable, onGo }: { here: number; reachable: number
                 data-state="later"
               >
                 <span className="n">{step}</span> {label}
-                <span className="why">later</span>
               </span>
             )
           }

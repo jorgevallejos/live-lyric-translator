@@ -138,7 +138,8 @@ describe('the song flow', () => {
 
   it('turns off the product header, inside a window that already has a title', async () => {
     // Name, tagline, version and who made it — the tool introducing itself to somebody who did not
-    // choose it. Bombista keeps its version under the step bar either way, so nothing is lost.
+    // choose it. **The version comes off with it** (Jorge, 2026-09-03) and survives in standalone
+    // Bombista, which is where the rule needs it: it has to survive somewhere, not everywhere.
     expect(
       serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'New song' }, '/songs', true)
     ).toContain('--no-header')

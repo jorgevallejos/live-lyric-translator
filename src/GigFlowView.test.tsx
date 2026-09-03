@@ -201,11 +201,23 @@ describe('the step bar', () => {
     expect(blocks.join('\n')).toMatch(/color:\s*var\(--text-disabled\)/)
   })
 
-  /** The word that carries the difference between *shut for now* and *not built at all*. */
-  it('still says which steps are later', async () => {
+  /**
+   * **No word saying so** (Jorge, 2026-09-03). The `later` chip was kept for one round on the
+   * argument that it was the only thing separating *shut for now* from *not built at all*, and
+   * Jorge judged that distinction not worth the words. **Disabled is enough**, and the segment says
+   * its number and its name like every other.
+   */
+  it('says nothing beyond the step number and its name', async () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-3')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('gig-flow-step-3').textContent).toMatch(/later/i)
+    for (const [step, label] of [
+      [3, 'Visuals'],
+      [4, 'Check'],
+    ] as const) {
+      const text = screen.getByTestId(`gig-flow-step-${step}`).textContent ?? ''
+      expect(text).not.toMatch(/later/i)
+      expect(text.replace(/\s+/g, ' ').trim()).toBe(`${step} ${label}`)
+    }
   })
 
   it('holds the setlist step shut until there is a gig to write one into', async () => {

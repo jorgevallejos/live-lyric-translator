@@ -25,6 +25,7 @@ const listSongsFolder = vi.fn()
 const folderReadable = vi.fn()
 const bombistaStagingDir = vi.fn()
 const deleteSongFile = vi.fn()
+const deleteGigFolder = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -38,6 +39,7 @@ vi.mock('./platform', async (importOriginal) => ({
   listSongsFolder: (...a: unknown[]) => listSongsFolder(...a),
   folderReadable: (...a: unknown[]) => folderReadable(...a),
   deleteSongFile: (...a: unknown[]) => deleteSongFile(...a),
+  deleteGigFolder: (...a: unknown[]) => deleteGigFolder(...a),
   writeGigFile: () => Promise.resolve({ ok: true }),
   fileExists: () => Promise.resolve(true),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
@@ -74,6 +76,7 @@ beforeEach(() => {
   window.location.hash = '#/setup'
   bombistaStagingDir.mockResolvedValue('/staging/x')
   deleteSongFile.mockResolvedValue({ ok: true })
+  deleteGigFolder.mockResolvedValue({ ok: true })
   vi.clearAllMocks()
   readGigFolder.mockResolvedValue({
     folderPath: '/gigs/x',
@@ -541,15 +544,106 @@ describe('Setup home', () => {
     expect(screen.queryByTestId('setup-songs-folder-problem')).toBeNull()
   })
 
-  it('forgets a gig row without touching any other', async () => {
+  /**
+   * **A gig row is its name and one way in** (Jorge, 2026-09-03, walking `v0.40.0`). It carried the
+   * name, an `OPEN` badge, the full path over three lines and three labelled buttons; four gigs
+   * made a wall. The shape is the song row's — name, state, and the marks a row's own actions wear.
+   *
+   * **`Locate…` and `Forget` both go** — the first has no destination under the single-`setup/`
+   * ruling, and the second dropped a reference while leaving the folder. The bin deletes.
+   */
+  it('shows a gig as its name, a pencil and a bin, and no path', async () => {
     localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a', '/gigs/b']))
     await renderHome()
     const row = screen.getByTestId('setup-gig-row-a')
-    const forget = [...row.querySelectorAll('button')].find((b) => b.textContent === 'Forget')!
+    expect(row.textContent).toContain('a')
+    expect(row.textContent).not.toContain('/gigs/a')
+    const buttons = [...row.querySelectorAll('button')]
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Edit a', 'Delete a'])
+    expect(row.textContent).not.toMatch(/locate|forget|setup/i)
+  })
+
+  /**
+   * **The bin deletes the gig** (Jorge, 2026-09-03), and `Forget` is what it replaced. Dropping the
+   * reference and leaving the folder is an action that looks like removal and is not — the same
+   * shape as the trash can that came off the song library.
+   */
+  it('deletes the gig folder to the Trash, and then forgets where it was', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a', '/gigs/setup/b']))
+    await renderHome()
     await act(async () => {
-      fireEvent.click(forget)
+      fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
     })
-    expect(getGigList()).toEqual(['/gigs/b'])
+    expect(screen.getByTestId('setup-gig-delete-popup')).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-delete-confirm'))
+    })
+    expect(deleteGigFolder).toHaveBeenCalledWith('/gigs/setup/a')
+    await waitFor(() => expect(getGigList()).toEqual(['/gigs/setup/b']))
+  })
+
+  /** Never silent: the folder is not touched until the dialog is answered. */
+  it('deletes nothing until the dialog is confirmed', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a']))
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
+    })
+    expect(deleteGigFolder).not.toHaveBeenCalled()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    })
+    expect(deleteGigFolder).not.toHaveBeenCalled()
+    expect(getGigList()).toEqual(['/gigs/setup/a'])
+  })
+
+  /**
+   * **The dialog names what goes and what stays**, the way the song one does. What is lost is the
+   * running order and the visuals; what cannot be reached is anything of the artist's, because the
+   * single-`setup/` ruling puts it beside `setup/` rather than inside it.
+   */
+  it('names the folder that goes, and what the delete cannot reach', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a']))
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
+    })
+    const what = screen.getByTestId('setup-gig-delete-what').textContent!
+    expect(what).toContain('/gigs/setup/a')
+    expect(what).toMatch(/trash/i)
+    expect(what).toMatch(/running order/i)
+    expect(what).toMatch(/poster/i)
+    expect(what).toMatch(/no song is touched/i)
+  })
+
+  /**
+   * **The row outlives a failed delete.** Forgetting before the folder has gone would leave a
+   * folder on disk that nothing lists — the shape the songs list already refuses.
+   */
+  it('keeps the row, and says why, when the delete fails', async () => {
+    deleteGigFolder.mockResolvedValue({ ok: false, error: 'EPERM: operation not permitted' })
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a']))
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-delete-confirm'))
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('setup-gig-delete-problem').textContent).toContain('EPERM')
+    )
+    expect(getGigList()).toEqual(['/gigs/setup/a'])
+  })
+
+  /** The pencil is what `Setup` did: open the folder, then into the gig flow. */
+  it('opens the gig and enters the gig flow from the pencil', async () => {
+    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-open-a'))
+    })
+    await waitFor(() => expect(window.location.hash).toBe('#/gig'))
   })
 
   // ── `New` goes straight into the flow, and nothing is written first ──────────────────────

@@ -401,7 +401,8 @@ the song file. The rule is written down because it is the one that erodes a conv
 time: each looks harmless alone, and each moves the information architecture further from the
 ownership rule it exists to teach. **If a third door seems necessary, say so rather than adding one.**
 
-The manage-setlists screen's *Locate video…* camera button was one, and it is gone. Nothing was lost:
+The manage-setlists screen's *Locate video…* camera button was one, and it went before the screen
+itself did (2026-09-03). Nothing was lost:
 the media folder resolves a name with nobody clicking, and the per-source link lives on `#/folders`,
 where every name the files ask for is listed rather than only a song's own declared media.
 

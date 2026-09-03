@@ -1,9 +1,10 @@
 /**
  * **The two marks a row's own actions wear: a pencil and a bin.**
  *
- * Pregonero already had both, drawn inside `ManageSetlistsView`, and Backstage's song rows now use
- * the same two rather than a second pair that would drift. **A shared mark is the vocabulary; two
- * copies of it is an accident waiting to be noticed as a difference.**
+ * Pregonero already had both, drawn inside the manage-setlists screen, and Backstage's song rows
+ * took the same two rather than a second pair that would drift. **A shared mark is the vocabulary;
+ * two copies of it is an accident waiting to be noticed as a difference.** That screen was deleted
+ * on 2026-09-03 and these outlived it, which is what a shared mark is for.
  *
  * Feather's geometry, `currentColor`, `aria-hidden`: the button beside them carries the name, so
  * the mark is decoration to a screen reader and meaning to an eye.
