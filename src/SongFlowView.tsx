@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { adoptSongFile } from './setlistStore'
+import { adoptSongFile, getCatalogueEntries } from './setlistStore'
 import { refreshGigReadiness } from './gigSession'
 import { getSongFilesFolder, getSongsFolder } from './contentFolders'
 import { joinPath } from './paths'
@@ -49,14 +49,14 @@ import { LeaveWithoutSaving } from './LeaveWithoutSaving'
  * than asking for it — `promote` will only create `<stem>.json` from a `<stem>` candidate, so a
  * name typed here would be a second opinion about a decision that is already made.
  *
- * **What Pregonero says to Bombista is four command-line options and nothing else** — see
+ * **What Pregonero says to Bombista is five command-line options and nothing else** — see
  * `serveArgs`. The seam is the same after them as before: a directory in, a file path out.
  */
 
 /**
  * **Everything Pregonero says to Bombista, in one place.**
  *
- * Four answers, none of which tells Bombista who is calling and none of which changes a byte of
+ * Five answers, none of which tells Bombista who is calling and none of which changes a byte of
  * what it writes. The defaults behind them are all right for running Bombista on its own and all
  * wrong inside a window that already has a title and already knows where the songs are — which is
  * why they are options on `serve` rather than a second mode.
@@ -77,19 +77,56 @@ import { LeaveWithoutSaving } from './LeaveWithoutSaving'
  *   empty page and asking them to find the song they just clicked — with `<id>-song.json` sitting
  *   next to `<id>.json` in the same folder, which is the wrong answer beside the right one.
  *
+ * - **`--deal` / `--no-deal`, and it is Pregonero's answer to give.** The deal is Bombista's step
+ *   0 — *what you get, what it costs, what it does not do* — and the rule for showing it is one
+ *   sentence: **show it when this machine has produced no song yet.** Standalone, Bombista answers
+ *   that from its own cache. **In here it cannot**: the cache is not even the directory this flow
+ *   works in, and the fact that settles it is the catalogue being empty. **Bombista does not know
+ *   what a catalogue is and must not learn**, so the answer crosses as a boolean and nothing else
+ *   — the same shape as `--no-header`, saying what to draw and not who is asking.
+ *
+ *   **Answered both ways on purpose.** The option is unset by default so Bombista can fall back to
+ *   its cache; omitting it here would leave that fallback deciding, and it would say *show it*
+ *   every single time, because this flow never writes to that cache.
+ *
+ *   **Nothing remembers that it was seen** — on either side. There is no *do not show again*: the
+ *   catalogue fills on the first save and answers `--no-deal` from then on, which is one fewer
+ *   thing for the walk's reset to clear.
+ *
  * A path that has gone since Backstage read it makes `serve` refuse by name — `--browse-from` and
  * `--song` are both checked by Bombista — and that refusal is what the screen shows. Omitting them
  * to be safe would trade a sentence naming the file for a flow that quietly behaves like a
  * different one.
  */
-export function serveArgs(request: SongFlowRequest, songsFolder: string | null): string[] {
+export function serveArgs(
+  request: SongFlowRequest,
+  songsFolder: string | null,
+  producedASong: boolean
+): string[] {
   return [
     '--staging',
     request.staging,
     '--no-header',
+    producedASong ? '--no-deal' : '--deal',
     ...(songsFolder === null ? [] : ['--browse-from', songsFolder]),
     ...(request.songPath === null ? [] : ['--song', request.songPath]),
   ]
+}
+
+/**
+ * **Whether this machine has produced a song yet, as Pregonero can answer it.**
+ *
+ * The catalogue — the folder Pregonero lists and offers from. Not the setlists, not the gigs: the
+ * question is whether a song has ever come out of this flow, and a song that came out of it is in
+ * there.
+ *
+ * **A file in the folder that will not parse does not count.** `getCatalogueEntries` is what every
+ * list in this app means by *the songs you have*, and answering from a different set here would
+ * make the deal appear on a machine whose Songs list is full. The cost of being wrong is one
+ * screen shown once, and it is met with one press.
+ */
+export function hasProducedASong(): boolean {
+  return getCatalogueEntries().length > 0
 }
 
 /** How often the staging directory is asked whether the flow has ended. */
@@ -296,7 +333,9 @@ export function SongFlowView() {
     }
 
     void (async () => {
-      const started = await startBombistaFlow(serveArgs(request, getSongsFolder()))
+      const started = await startBombistaFlow(
+        serveArgs(request, getSongsFolder(), hasProducedASong())
+      )
       if (!alive) return
       if (!started.ok) {
         setPhase({ kind: 'failed', error: started.error })

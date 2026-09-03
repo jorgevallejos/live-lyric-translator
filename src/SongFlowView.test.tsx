@@ -16,6 +16,7 @@ import { render, screen, act, cleanup, fireEvent, waitFor } from '@testing-libra
 import { ensureStorage } from './testSupport/storage'
 import { SONGS_FOLDER_KEY } from './contentFolders'
 import { clearSongFlowRequest, setSongFlowRequest } from './songFlowState'
+import { dropLibraryCache, setLibraryEntries } from './setlistStore'
 
 const startBombistaFlow = vi.fn()
 const stopBombistaFlow = vi.fn()
@@ -49,13 +50,14 @@ vi.mock('./platform', async (importOriginal) => ({
   replaceSongFile: (...a: unknown[]) => replaceSongFile(...a),
 }))
 
-const { SongFlowView, serveArgs } = await import('./SongFlowView')
+const { SongFlowView, serveArgs, hasProducedASong } = await import('./SongFlowView')
 
 beforeAll(ensureStorage)
 afterEach(cleanup)
 
 beforeEach(() => {
   localStorage.clear()
+  dropLibraryCache()
   vi.clearAllMocks()
   clearSongFlowRequest()
   window.location.hash = '#/song'
@@ -111,12 +113,13 @@ describe('the song flow', () => {
       '--staging',
       '/staging/duelo',
       '--no-header',
+      '--deal',
       '--browse-from',
       '/songs',
     ])
   })
 
-  // ── What Pregonero says to Bombista, and it is four options ──────────────────────────────
+  // ── What Pregonero says to Bombista, and it is five options ──────────────────────────────
   //
   // Walked on v0.32.0, 2026-09-02 — the first time a person operated the seam. The defaults are
   // right for running Bombista alone and wrong inside a window that already has a title and
@@ -126,10 +129,10 @@ describe('the song flow', () => {
     // The one screen whose job is to find a lyrics file and a recording, both of which live in the
     // songs folder. **The songs root, not `song-performance/`** — the song files are in that
     // folder and neither of the two things being looked for is.
-    expect(serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, '/vault/songs'))
+    expect(serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, '/vault/songs', true))
       .toContain('/vault/songs')
     expect(
-      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, '/vault/songs')
+      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, '/vault/songs', true)
     ).not.toContain('/vault/songs/song-performance')
   })
 
@@ -137,7 +140,7 @@ describe('the song flow', () => {
     // Name, tagline, version and who made it — the tool introducing itself to somebody who did not
     // choose it. Bombista keeps its version under the step bar either way, so nothing is lost.
     expect(
-      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'New song' }, '/songs')
+      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'New song' }, '/songs', true)
     ).toContain('--no-header')
   })
 
@@ -147,25 +150,98 @@ describe('the song flow', () => {
     // beside `<id>.json` in the same folder, the wrong answer next to the right one.
     const editing = serveArgs(
       { staging: '/s', startedAt: 0, songPath: '/songs/song-performance/duelo.json', title: 'Duelo' },
-      '/songs'
+      '/songs',
+      true
     )
     expect(editing.slice(editing.indexOf('--song'))).toEqual([
       '--song',
       '/songs/song-performance/duelo.json',
     ])
     expect(
-      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'New song' }, '/songs')
+      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'New song' }, '/songs', true)
     ).not.toContain('--song')
   })
 
   it('says nothing about a catalogue there is none of, rather than an empty option', async () => {
     // `--browse-from` is checked by Bombista, so a missing value is a refusal at the door.
     expect(
-      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, null)
+      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, null, true)
     ).not.toContain('--browse-from')
   })
 
-  it('passes all four on an edit, in the order serveArgs builds them', async () => {
+  // ── The deal, and whose question it is ────────────────────────────────────────────────────
+  //
+  // **Show it when this machine has produced no song yet** (Jorge, 2026-09-03). Bombista's step 0
+  // — what you get, what it costs, what it does not do — in front of a flow that asks for a
+  // sitting before anything works. One rule, two sources of truth: Bombista answers it from its
+  // own cache when it is running alone, and **in here the catalogue answers it**, because the
+  // cache is not the directory this flow works in. Bombista does not know what a catalogue is and
+  // must not learn, so what crosses is a boolean.
+
+  it('asks for the deal while the catalogue is empty', async () => {
+    expect(
+      serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, '/songs', false)
+    ).toContain('--deal')
+  })
+
+  it('does not ask for it again once this machine has produced a song', async () => {
+    // **The refusal, and it takes no remembered flag to make it.** The catalogue fills on the
+    // first save and answers for itself from then on — one fewer thing for the walk's reset to
+    // clear, in a project whose test discipline is starting from nothing.
+    const args = serveArgs(
+      { staging: '/s', startedAt: 0, songPath: null, title: 'x' },
+      '/songs',
+      true
+    )
+    expect(args).toContain('--no-deal')
+    expect(args).not.toContain('--deal')
+  })
+
+  it('answers it either way rather than letting Bombista fall back to its cache', async () => {
+    // **Unset is not an option here.** Bombista's fallback reads `~/.cache/bombista`, which this
+    // flow never writes to — left to decide, it would say *show it* on every song forever.
+    for (const produced of [true, false]) {
+      const args = serveArgs(
+        { staging: '/s', startedAt: 0, songPath: null, title: 'x' },
+        '/songs',
+        produced
+      )
+      expect(args.some((a) => a === '--deal' || a === '--no-deal')).toBe(true)
+    }
+  })
+
+  it('reads the answer off the catalogue, which is what this app means by the songs you have', () => {
+    expect(hasProducedASong()).toBe(false)
+
+    setLibraryEntries([
+      { ref: { id: 'duelo', path: 'duelo.json' }, song: { id: 'duelo', title: 'Duelo', lyrics: [] } },
+    ] as never)
+
+    expect(hasProducedASong()).toBe(true)
+  })
+
+  it('asks for the deal on a first song and not on the one after it', async () => {
+    // End to end through the screen, because `serveArgs` being right is not the same as the
+    // screen calling it with the answer.
+    request({ staging: '/staging/_new' })
+    await renderFlow()
+    await waitFor(() => expect(startBombistaFlow).toHaveBeenCalled())
+    expect(startBombistaFlow.mock.calls[0]![0]).toContain('--deal')
+
+    cleanup()
+    clearSongFlowRequest()
+    startBombistaFlow.mockClear()
+    setLibraryEntries([
+      { ref: { id: 'duelo', path: 'duelo.json' }, song: { id: 'duelo', title: 'Duelo', lyrics: [] } },
+    ] as never)
+
+    request({ staging: '/staging/_new' })
+    await renderFlow()
+    await waitFor(() => expect(startBombistaFlow).toHaveBeenCalled())
+    expect(startBombistaFlow.mock.calls[0]![0]).toContain('--no-deal')
+  })
+
+  it('passes all five on an edit, in the order serveArgs builds them', async () => {
     request({ staging: '/staging/duelo', songPath: '/songs/song-performance/duelo.json' })
     await renderFlow()
     await waitFor(() => expect(startBombistaFlow).toHaveBeenCalled())
@@ -173,6 +249,7 @@ describe('the song flow', () => {
       '--staging',
       '/staging/duelo',
       '--no-header',
+      '--deal',
       '--browse-from',
       '/songs',
       '--song',
