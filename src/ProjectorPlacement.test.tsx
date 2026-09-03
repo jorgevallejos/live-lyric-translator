@@ -41,7 +41,6 @@ vi.mock('./platform', async (importOriginal) => ({
     visualsPresent: false,
   }),
   writeGigFile: vi.fn().mockResolvedValue({ ok: true }),
-  writeDebriefFile: vi.fn(),
   validateSongForPerformance: vi.fn().mockResolvedValue({ status: 'skipped', reason: 'none' }),
   fileExists: vi.fn().mockResolvedValue(true),
   readSongFileText: vi.fn(),

@@ -44,7 +44,6 @@ vi.mock('./platform', async (importOriginal) => ({
   hasFolderPicker: () => true,
   describeDisplays: () => Promise.resolve({ count: 1, displays: [], fingerprint: 'f' }),
   validateSongForPerformance: () => Promise.resolve({ status: 'skipped', reason: 'not run' }),
-  writeDebriefFile: vi.fn(),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
   createGigFolder: (...a: unknown[]) => createGigFolder(...a),

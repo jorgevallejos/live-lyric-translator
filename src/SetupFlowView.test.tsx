@@ -41,7 +41,6 @@ vi.mock('./platform', async (importOriginal) => ({
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   writeGigFile: (...a: unknown[]) => writeGigFile(...a),
   createGigFolder: (...a: unknown[]) => createGigFolder(...a),
-  writeDebriefFile: vi.fn(),
   validateSongForPerformance: (...a: unknown[]) => validateSongForPerformance(...a),
   fileExists: (...a: unknown[]) => fileExists(...a),
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),

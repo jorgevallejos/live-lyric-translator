@@ -51,9 +51,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `performanceControlStateMachine.ts` | — | Computes `SETUP / READY_TO_ARM / ARMED` from prereqs |
 | `navigationState.ts` | — | Pure index/blank transition logic |
 | `concertSessionState.ts` | sessionStorage | Concert timer (elapsed, pause/resume/reset) |
-| `playedSongsState.ts` | sessionStorage | **The played log**: one entry per performance, in order, duplicates preserved, with times. What prefills the debrief and SABAM MyPlaylist |
-| `debrief.ts` | — | Pure: the debrief's facts and the markdown it becomes |
-| `debriefState.ts` | sessionStorage | The four answers, and whether the panel is showing |
+| `playedSongsState.ts` | sessionStorage | **The played log**: one entry per performance, in order, duplicates preserved, with times. It marks played songs on the setlist screen and derives `isSetlistComplete`, which lights the contact panel |
 | `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (Video mode) |
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
@@ -95,7 +93,6 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `electron/closeProjectionWindow.cjs`: Safe projection window closure logic (has its own tests)
 - `electron/readSongFile.cjs`: Reads one song file for the renderer, returning `{ ok, text | error }` rather than throwing (has its own tests)
 - `electron/gigFolder.cjs`: One read of the folder the machine's two files are in — `gig.json` plus the file its `visuals` pointer names — and the `gig.json` write, which makes that folder if it is absent. A pointer that would leave it is refused, not followed. It is handed `<gig>/setup`; the renderer joins that (has its own tests)
-- `electron/gigFolder.cjs` also writes `debrief.md`, at the **gig folder's root** — whole on save, never merged: Pregonero writes it and then Jorge edits it
 - `electron/bombistaValidate.cjs`: Shells out to `bombista validate --for-performance`. A CLI invocation, never a live protocol, and it **never fails closed**: no binary found is `skipped` (has its own tests)
 - `electron/displays.cjs`: What displays this machine has, from Electron's `screen`. **Read-only, and a fingerprint to compare rather than a value to render from** — the setup confirmation uses it to notice the projector was unplugged (has its own tests)
 - `electron/bombistaRun.cjs`: One Bombista subcommand, as a subprocess. A fixed allow-list of subcommands, and a missing binary is `skipped` (has its own tests)
@@ -115,8 +112,8 @@ the only place either answer is written down as a path.
   folder named after the format the way `audio/` and `lyrics/` are — never `setup/`, which means the
   machine's bookkeeping one level down and would collide with the other meaning.
 - **`gig.json` and `visuals.json` are the machine's**, so they are quarantined inside a folder that
-  is the author's: `<gig>/setup/`. The poster, the contract, the stage plan and `debrief.md` stay at
-  the gig folder's root. **The ownership boundary is visible in Finder** instead of being a rule to
+  is the author's: `<gig>/setup/`. The poster, the contract and the stage plan stay at the gig
+  folder's root. **The ownership boundary is visible in Finder** instead of being a rule to
   remember.
 
 **The join happens once, at the `platform.ts` boundary.** Every module above it holds the songs root
@@ -183,7 +180,7 @@ existed.
 ### The gig, and the one readiness function
 
 **A gig is a folder, and it is the performer's.** Pregonero remembers which one across launches. At
-its root are the poster, the contract, the stage plan and later `debrief.md`; **the two files the
+its root are the poster, the contract and the stage plan; **the two files the
 tools write live in `<gig>/setup/`** — `gig.json` (Pregonero writes it, and is its only writer) and
 `visuals.json` (Muralista writes it, Pregonero only reads it), beside each other as the contract
 requires. Muralista is handed `<gig>/setup/` and needs no code change for it: it takes a folder and
@@ -624,29 +621,6 @@ checkable. **The real catalogue beats it**: 36 of 1088 lyric strings are harder 
 almost all on the longest-unbreakable-run axis — `ontdekkingsreiziger` is nineteen characters against
 the stand-in's eleven. **That is a Muralista finding**, not something to fix here; the answer is a
 nastier stand-in over there.
-
-### The debrief
-
-Offered when the setlist ends, which is round D's predicate against the **playable** setlist.
-Written to `<gig>/debrief.md`, an existing convention.
-
-**Not modal, and that is a requirement rather than a preference.** A repeat happens *after* the
-setlist ends, so a blocking debrief would land exactly on the moment the app has to honour a
-request. It sits inline in the control window, above the controls and never over them; it is
-dismissable and reopenable. **Control window only — it never reaches the projection.**
-
-**Everything factual is prefilled and none of it is typed:** date, venue, start and end time, total
-duration; the setlist as performed, in order, with times, including repeats and anything skipped;
-and what the app noticed going wrong — which is the readiness delta rendered, a further view of the
-one function rather than a second opinion.
-
-**Four taps and one line, and there is no fifth field.** The room (empty / thin / decent / full),
-best song, worst song, and one sentence about this room. Every one earns its place by existing
-nowhere else; a field a future self would have to be disciplined to fill is a field that stays
-empty. Adding one is how this stops being fillable while packing up.
-
-"Never offered" and "dismissed" are different states — without that distinction the panel either
-never opens on its own or reopens after he has said Later.
 
 ### The projection window goes on the projector
 

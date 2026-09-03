@@ -16,7 +16,6 @@ const {
   readGigFolder,
   createGigFolder,
   writeGigFile,
-  writeDebriefFile,
   resolveInsideFolder,
 } = require('./gigFolder.cjs') as {
   createGigFolder: (
@@ -38,11 +37,6 @@ const {
     folderPath: string,
     text: string,
     options?: { writeFileSync?: unknown; mkdirSync?: unknown }
-  ) => { ok: boolean; error?: string }
-  writeDebriefFile: (
-    folderPath: string,
-    text: string,
-    options?: { writeFileSync?: unknown }
   ) => { ok: boolean; error?: string }
   resolveInsideFolder: (folderPath: string, pointer: string) => string | null
 }
@@ -199,30 +193,6 @@ describe('writeGigFile', () => {
 
   it('reports a write failure as a value', () => {
     const r = writeGigFile(dir, 'x', {
-      writeFileSync: () => {
-        throw new Error('EROFS: read-only file system')
-      },
-    })
-    expect(r).toEqual({ ok: false, error: 'EROFS: read-only file system' })
-  })
-})
-
-describe('writeDebriefFile', () => {
-  it('writes debrief.md into the gig folder', () => {
-    expect(writeDebriefFile(dir, '# Debrief\n')).toEqual({ ok: true })
-    expect(readFileSync(join(dir, 'debrief.md'), 'utf8')).toBe('# Debrief\n')
-  })
-
-  it('overwrites whole rather than merging', () => {
-    // Pregonero writes it and then Jorge edits it. A tool that reconciled his edits with its own
-    // idea of the night would be the worst of both, so the file is written whole on save.
-    writeDebriefFile(dir, 'first\n')
-    writeDebriefFile(dir, 'second\n')
-    expect(readFileSync(join(dir, 'debrief.md'), 'utf8')).toBe('second\n')
-  })
-
-  it('reports a write failure as a value', () => {
-    const r = writeDebriefFile(dir, 'x', {
       writeFileSync: () => {
         throw new Error('EROFS: read-only file system')
       },

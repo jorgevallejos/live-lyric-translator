@@ -28,7 +28,6 @@ vi.mock('./platform', async (importOriginal) => {
     ...actual,
     readGigFolder: vi.fn(),
     writeGigFile: vi.fn(),
-    writeDebriefFile: vi.fn(),
     fileExists: vi.fn(),
     validateSongForPerformance: vi.fn(),
     describeDisplays: vi.fn(),
