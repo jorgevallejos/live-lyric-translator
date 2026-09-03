@@ -450,6 +450,22 @@ throws on load with the other four hashes all green**. `muralistaPage.test.ts` a
 a blank window at a projector. The assertion was written for a hypothetical fifth file; the fifth
 file arrived.
 
+### Muralista re-vendored at `v1.9.0` — the handed-in file wins (2026-09-03)
+
+**A vendoring bump, and nothing on this side changed.** Muralista's `v1.9.0` makes a handed-in
+`visuals.json` the winner: in a gig context its local store is never consulted, and editing inside a
+gig writes to the gig folder only. **That is entirely Muralista's rule about Muralista's own
+storage** — Pregonero neither knew about that store nor could have.
+
+**What it does for this repo is close a hole in the round trip.** Pregonero serves a gig's folder
+and takes the one `PUT` back; before `v1.9.0` nothing read that file again, so a gig mapped on one
+machine opened blank on another. **The file is still the only channel and it is still read by
+Pregonero the way it always was.**
+
+**It refuses a `visuals.json` whose `gigId` is not the connected gig's** — the same refusal
+`parseVisualsFile` already makes here, on the same field. The two tools now agree about a mapping of
+a different room, rather than one of them catching it.
+
 ### Step 4 opens: the check, and the setup journey's last screen (2026-09-03)
 
 **Ruling: `tramoya-integration/journey-setup.md` step 9 ("4. Check") and `project-context.md`
