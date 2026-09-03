@@ -5,6 +5,9 @@ import { gigIdentityIsAnswered, gigLabelFrom } from './gigFile'
 import { getGigsFolder } from './contentFolders'
 import { gigFolderIn } from './fileLayout'
 import { LeaveWithoutSaving } from './LeaveWithoutSaving'
+import { canHostTools, serveTool } from './platform'
+import { MURALISTA_KEY, MURALISTA_PAGE } from './MuralistaDoor'
+import { GatedAction } from './GatedAction'
 import {
   addSongToSetlist,
   getActiveSetlistId,
@@ -23,10 +26,12 @@ import {
  *
  *     1 GIG    2 SETLIST    3 VISUALS    4 CHECK
  *
- * **Screens 1 and 2 are built. 3 and 4 are the bar's later steps** and are deliberately not
- * enterable: a segment that opened an empty page would say the step exists and does nothing, which
- * is worse than a segment that says it is not here yet. Muralista's own flow is another repo's
- * round, and step 4's checks are their own.
+ * **Screens 1, 2 and 3 are built. 4 is the bar's later step** and is deliberately not enterable: a
+ * segment that opened an empty page would say the step exists and does nothing, which is worse than
+ * a segment that says it is not here yet. Step 4's checks are their own round.
+ *
+ * **Step 3 opened on 2026-09-03**, when Muralista's own flow landed (its `v1.8.0`). It is the tool
+ * itself, in a frame, on this gig — **not a door to it**.
  *
  * ## Where the file goes, and it is not a question anybody is asked
  *
@@ -57,8 +62,8 @@ const STEPS: readonly { step: number; label: string }[] = [
   { step: 4, label: 'Check' },
 ]
 
-/** The two that exist. Everything after them is a later step, and the bar says so. */
-const BUILT = 2
+/** The three that exist. Everything after them is a later step, and the bar says so. */
+const BUILT = 3
 
 /**
  * **The step bar, pinned.** In an embedded subflow the bar is fixed and everything else scrolls —
@@ -403,6 +408,109 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
   )
 }
 
+/**
+ * **Screen 3: the room, and it is Muralista doing it.**
+ *
+ * **The tool in a frame, not a door to it** (2026-09-03). Muralista's own flow — `THE DEAL ·
+ * 1 LAYOUT · 2 SHAPES · 3 OUTPUT` — runs inside this page the way Bombista's three pages run inside
+ * the song flow, so pressing *keep the default* over there is not a launch into another program.
+ * A door with an `Open Muralista` button is what this replaces; `MuralistaDoor` is still the
+ * unhosted answer and still the one used from `GigView`.
+ *
+ * **It never asks for a folder, and that is the whole of what Pregonero contributes.** Pregonero
+ * made this gig's `setup/` and knows where it is, so it serves that folder and Muralista reads and
+ * writes over a **relative** URL. A question with one knowable answer is not a question — and this
+ * one's failure was silent: one level too high and `visuals.json` lands where nothing looks.
+ *
+ * **Nothing passes between the two.** No preload reaches the frame, nothing is read out of it, and
+ * Pregonero learns the room afterwards by reading `visuals.json` — the file is the only channel,
+ * which is the boundary the desk-tool cut drew. Since Muralista's `v1.8.0` the folder also gains a
+ * `stage.png`; Pregonero puts those bytes on disk without looking at them, exactly as it does the
+ * visuals.
+ */
+function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
+  const hosted = canHostTools()
+  const [url, setUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!hosted) return
+    let alive = true
+    void (async () => {
+      // **Served on arrival, not on a press.** The step *is* the tool; a button here would be a
+      // door, and a door is the thing this screen removed.
+      const result = await serveTool(MURALISTA_KEY, folderPath ?? '', MURALISTA_PAGE)
+      if (!alive) return
+      if (result.ok) setUrl(result.url)
+      else setError(result.error)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [hosted, folderPath])
+
+  return (
+    <section className="gig-flow-page gig-flow-visuals" data-testid="gig-flow-visuals">
+      <p className="gig-flow-lede">
+        Where things land on the wall is <strong>Muralista’s</strong>, and this is Muralista: the
+        shapes and the type of each, mapped standing in front of the wall, which is the only place
+        those decisions can honestly be made. One setup serves every song in the gig.
+      </p>
+
+      {!hosted ? (
+        // **Disabled, not absent.** Muralista is fully usable on its own by requirement, and the
+        // escape hatch below is the real answer — but a screen with no control on it reads as a
+        // wall rather than as a fork in the road. See `GatedAction`.
+        <div data-testid="gig-flow-visuals-unhosted">
+          <GatedAction
+            site="gig-flow-muralista"
+            label="Open Muralista"
+            blockedBy="Muralista can only be hosted from the desktop app, not from a browser tab."
+            onClick={() => undefined}
+          />
+          <p className="gig-hint">
+            Open <code>mapper.html</code> in Chrome and hand it this gig’s folder — that is where{' '}
+            <code>gig.json</code> is, and where <code>visuals.json</code> goes beside it. Pregonero
+            discovers the room on the next re-check.
+          </p>
+          {folderPath !== null && (
+            <p className="folders-source-path" data-testid="gig-flow-visuals-folder">
+              {folderPath}
+            </p>
+          )}
+        </div>
+      ) : error !== null ? (
+        <p className="setup-song-problem" data-testid="gig-flow-visuals-error">
+          {error}
+        </p>
+      ) : url === null ? (
+        <p className="gig-hint" data-testid="gig-flow-visuals-starting">
+          Starting Muralista…
+        </p>
+      ) : (
+        <>
+          {/* **A frame, and nothing but a frame.** No preload, no `nodeIntegration`, nothing read
+              out of it and nothing put into it. What Pregonero knows about this page is the
+              address it was told to draw. */}
+          <iframe
+            className="gig-flow-frame"
+            data-testid="gig-flow-visuals-frame"
+            title="Muralista"
+            src={url}
+          />
+          <p className="gig-hint" data-testid="gig-flow-visuals-endpoint">
+            It opens on this gig: <code>gig.json</code> is read from its folder and{' '}
+            <code>visuals.json</code> is written back beside it.{' '}
+            <strong>You are not asked where</strong> — Pregonero made that folder and knows it.
+            Muralista decides every byte; Pregonero puts them on disk without reading them and
+            learns the room afterwards by reading the file.
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
 export function GigFlowView() {
   const readiness = useGigReadiness()
   const [busy, setBusy] = useState(false)
@@ -512,8 +620,9 @@ export function GigFlowView() {
     void publishSetlistToGig().finally(() => setBusy(false))
   }
 
-  // Step 2 is reachable once the gig is on disk, and not before: it writes a running order into a
-  // file, and there is no file until step 1 has been committed.
+  // Steps 2 and 3 are reachable once the gig is on disk, and not before. Step 2 writes a running
+  // order into a file and step 3 hands that same folder to Muralista, and there is no folder until
+  // step 1 has been committed.
   const reachable = exists ? BUILT : 1
   // **The header names the night, not the folder.** The folder is an opaque id since 2026-09-03,
   // and a header reading `k3f9x2abcd` tells nobody which gig they are in. Same rule as the row on
@@ -523,6 +632,7 @@ export function GigFlowView() {
     : 'New gig'
 
   const body = (() => {
+    if (here === 3) return <ScreenVisuals folderPath={readiness.folderPath} />
     if (here === 2) return <ScreenSetlist key={revision} busy={busy} onChange={setlistChanged} />
     return (
       <ScreenGig

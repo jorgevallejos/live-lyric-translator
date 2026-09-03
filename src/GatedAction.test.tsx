@@ -118,6 +118,7 @@ describe('a gated action', () => {
       'setup-create-gig',
       'muralista-open',
       'muralista-open-gig',
+      'gig-flow-muralista',
       'first-run-confirm',
     ])
   })

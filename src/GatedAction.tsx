@@ -64,6 +64,12 @@ export const GATED_SITES = [
   'muralista-open',
   /** The gig's own visuals half → Open Muralista, same door and same block, different question. */
   'muralista-open-gig',
+  /**
+   * The gig flow, step 3 → Open Muralista, when tool hosting is unavailable. Its own site rather
+   * than a third use of `muralista-open-gig`: that one is `GigView`'s door, this one is the flow's
+   * screen, and a counted list whose entries covered two screens would count wrong.
+   */
+  'gig-flow-muralista',
   /** First run → Confirm, until both questions have an answer. */
   'first-run-confirm',
 ] as const

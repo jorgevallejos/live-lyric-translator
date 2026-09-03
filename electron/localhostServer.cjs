@@ -24,8 +24,9 @@ const path = require('path')
  *
  * ## The one write path, and the three conditions on it (2026-09-01)
  *
- * A mount may be declared **writable for exactly one file name**, and a `PUT` of that name into
- * that mount is the only request here that touches the disk. It exists because a hosted Muralista
+ * A mount may be declared **writable for a named set of file names**, and a `PUT` of one of those
+ * names into that mount is the only request here that touches the disk. It exists because a hosted
+ * Muralista
  * cannot be handed a folder — a `FileSystemDirectoryHandle` is only mintable by
  * `showDirectoryPicker` under a user gesture — so it was being asked, every gig, for a folder
  * Pregonero created and already knows. **A question with one knowable answer is not a question**,
@@ -42,16 +43,30 @@ const path = require('path')
  * Pregonero*: it is a write path, not a handoff, and the file is still the truth. **The moment
  * anything here reads the body, this is rule 1 broken rather than bent.**
  *
- * **It refuses anything that is not that file at that place.** Not a writable mount, not a `PUT`,
- * a name that is not the declared one, a path with anything else in it, a body over the cap — all
- * refused, none written.
+ * **It refuses anything that is not one of those files at that place.** Not a writable mount, not a
+ * `PUT`, a name that is not on the declared list, a path with anything else in it, a body over the
+ * cap — all refused, none written.
+ *
+ * ### It was one name until 2026-09-03, and widening it changed nothing that mattered
+ *
+ * The rule was **exactly one** file name, because `visuals.json` was the only thing a hosted tool
+ * wrote. Muralista's `v1.8.0` takes a **stage capture** — a photograph of the stage through the
+ * calibrated camera — and saves it beside the gig's two JSON files, which is a second name.
+ *
+ * **The rationale is untouched, and that is the test of the change.** Every condition above is
+ * about *where* the bytes go and none is about what is in them: a closed list of names the host
+ * declared, at the mount the host declared, is the same guarantee whether the list has one entry or
+ * two. **A wildcard would not be** — that is a writable folder, and it is refused here as firmly as
+ * it was when the list had one name on it. The bytes are still written verbatim and unread, so
+ * rule 1 survives exactly as it did.
  */
 
 /**
  * **The cap on a written body.** `visuals.json` is shapes, quads and an assignment table; the
- * backdrop photo and the media are deliberately not in it, so a real one is kilobytes. Sixteen
- * megabytes is far past anything honest and still small enough that a runaway writer is stopped
- * rather than filling a disk.
+ * backdrop photo and the media are deliberately not in it, so a real one is kilobytes. The stage
+ * capture is one 1600×900 PNG, so a large one is a couple of megabytes. Sixteen megabytes is far
+ * past anything honest for either and still small enough that a runaway writer is stopped rather
+ * than filling a disk.
  */
 const MAX_WRITE_BYTES = 16 * 1024 * 1024
 
@@ -118,7 +133,7 @@ function resolveRequest(mounts, urlPath) {
  */
 function createLocalhostServer(options = {}) {
   const mounts = new Map()
-  /** mount name → the one file name a `PUT` may write into it. Absent means read-only. */
+  /** mount name → the set of file names a `PUT` may write into it. Absent means read-only. */
   const writable = new Map()
   const readFile = options.readFile || fs.readFile
   const writeFile = options.writeFile || fs.writeFile
@@ -132,7 +147,7 @@ function createLocalhostServer(options = {}) {
   }
 
   /**
-   * `PUT /<mount>/<the one writable name>` — and nothing else, ever.
+   * `PUT /<mount>/<one of its writable names>` — and nothing else, ever.
    *
    * **The body is never looked at.** It is collected and written. Every check below is about
    * *where* it goes; none of them is about what is in it, which is what keeps this a write path
@@ -141,9 +156,9 @@ function createLocalhostServer(options = {}) {
   function handleWrite(req, res) {
     const parts = requestParts(req.url || '/')
     if (parts === null || parts.length !== 2) return refuse(res, 404, 'Not found')
-    const allowedName = writable.get(parts[0])
-    if (!allowedName) return refuse(res, 405, 'Not writable')
-    if (parts[1] !== allowedName) return refuse(res, 403, 'Not the file this mount accepts')
+    const allowed = writable.get(parts[0])
+    if (!allowed || allowed.size === 0) return refuse(res, 405, 'Not writable')
+    if (!allowed.has(parts[1])) return refuse(res, 403, 'Not a file this mount accepts')
     const target = resolveRequest(mounts, req.url || '/')
     if (target === null) return refuse(res, 404, 'Not found')
 
@@ -202,13 +217,19 @@ function createLocalhostServer(options = {}) {
     /**
      * Makes a folder reachable at `/<name>/…`, read-only.
      *
-     * `writableFile` opts the mount into the one write path: a `PUT` of exactly that name into
-     * exactly this mount. Omit it and the mount cannot be written to at all, which is what every
-     * other mount in this app is.
+     * `writableFiles` opts the mount into the write path: a `PUT` of exactly one of those names
+     * into exactly this mount. A bare string is one name, which is how every caller read before
+     * 2026-09-03 and still reads. Omit it and the mount cannot be written to at all, which is what
+     * every other mount in this app is.
+     *
+     * **A closed list, never a pattern.** There is no wildcard and there must not be: a mount that
+     * accepts any name is a writable folder, which is a different thing with a different blast
+     * radius, and the whole guarantee here is that the host named the destinations.
      */
-    mount(name, folder, writableFile) {
+    mount(name, folder, writableFiles) {
       mounts.set(name, folder)
-      if (writableFile) writable.set(name, writableFile)
+      const names = typeof writableFiles === 'string' ? [writableFiles] : writableFiles
+      if (Array.isArray(names) && names.length > 0) writable.set(name, new Set(names))
       else writable.delete(name)
     },
     unmount(name) {

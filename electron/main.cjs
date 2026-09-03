@@ -235,7 +235,18 @@ const toolWindows = new Map()
  * URL, so all a hosted tool knows is that something served it and accepts a write there.
  */
 const GIG_MOUNT = 'gig-setup'
-const VISUALS_FILE_NAME = 'visuals.json'
+/**
+ * **The two names a hosted Muralista may write into a gig's `setup/`, and nothing else.**
+ *
+ * `visuals.json` is the room. `stage.png` arrived with Muralista's `v1.8.0`: a photograph of the
+ * stage taken through the calibrated camera, saved so the room can be adjusted from home without
+ * going back to the venue. **The gig folder stops being text**, which is machine territory and
+ * moves no boundary — the poster and the contract are one level up.
+ *
+ * **A closed list, written here, never a pattern.** Pregonero names the destinations; a mount that
+ * took any name would be a writable folder, which is a different thing entirely.
+ */
+const GIG_WRITABLE_FILES = ['visuals.json', 'stage.png']
 
 async function openToolWindow(key, folder, page, title, gigFolder) {
   let port
@@ -246,7 +257,7 @@ async function openToolWindow(key, folder, page, title, gigFolder) {
   }
   // **Mounted before the reuse check.** Reopening the door on a different gig has to repoint the
   // folder; the window's URL names the mount, not the path, so repointing is the whole update.
-  if (gigFolder) toolServer.mount(GIG_MOUNT, gigFolder, VISUALS_FILE_NAME)
+  if (gigFolder) toolServer.mount(GIG_MOUNT, gigFolder, GIG_WRITABLE_FILES)
   const existing = toolWindows.get(key)
   if (existing && !existing.isDestroyed()) {
     existing.focus()
@@ -275,6 +286,33 @@ async function openToolWindow(key, folder, page, title, gigFolder) {
   })
   await win.loadURL(url)
   return { ok: true, url }
+}
+
+/**
+ * **Serves a tool and hands back its address. It opens no window.**
+ *
+ * The same mounts `tool:open` makes and the same relative `?gig=` parameter — what differs is that
+ * the renderer puts the address in a **frame** instead of the main process putting it in a second
+ * BrowserWindow. That is the shape the song flow already has for Bombista, and the visuals step
+ * takes it for Muralista (2026-09-03): the whole flow happens inside Pregonero's own window,
+ * screens changing in it, so pressing *keep the default* is not a launch into another tool.
+ *
+ * **Nothing else changes, and that is the point.** No preload and no Node reach the frame, exactly
+ * as none reached the window; the bytes still go to disk unread through the one write path; the
+ * page is still Pregonero's own vendored copy. A frame is a smaller thing than a window, not a
+ * closer one.
+ */
+async function serveToolPage(key, folder, page, gigFolder) {
+  let port
+  try {
+    port = await toolServer.start()
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+  if (gigFolder) toolServer.mount(GIG_MOUNT, gigFolder, GIG_WRITABLE_FILES)
+  toolServer.mount(key, folder)
+  const query = gigFolder ? `?gig=/${GIG_MOUNT}/` : ''
+  return { ok: true, url: `http://127.0.0.1:${port}/${key}/${page}${query}` }
 }
 
 function closeToolWindow(key) {
@@ -545,6 +583,21 @@ ipcMain.handle('tool:open', (_event, key, folder, page, title) => {
     muralista ? MURALISTA_ROOT : String(folder),
     String(page),
     String(title || key),
+    muralista && folder ? String(folder) : null
+  )
+})
+
+/**
+ * **Serves a tool for a frame.** Same argument shape as `tool:open`, and for Muralista the page
+ * comes out of `MURALISTA_ROOT` while `folder` carries the gig — see that handler.
+ */
+ipcMain.handle('tool:serve', (_event, key, folder, page) => {
+  const name = String(key)
+  const muralista = name === 'muralista'
+  return serveToolPage(
+    name,
+    muralista ? MURALISTA_ROOT : String(folder),
+    String(page),
     muralista && folder ? String(folder) : null
   )
 })
