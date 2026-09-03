@@ -47,8 +47,8 @@ vi.mock('./platform', async (importOriginal) => ({
 const App = (await import('./App')).default
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
-const FOLDER = '/gigs/2026-09-12-bar-eduard'
-const GIG_ID = '2026-09-12-bar-eduard'
+const FOLDER = '/gigs/setup/k3f9x2abcd'
+const GIG_ID = 'k3f9x2abcd'
 const WAIT_TIMEOUT = 3000
 
 const LINES: SongItem[] = [

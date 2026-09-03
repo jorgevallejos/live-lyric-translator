@@ -55,7 +55,7 @@ const App = (await import('./App')).default
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
 const GIGS_ROOT = '/vault/gigs'
-const GIG_ID = '2026-05-16-bom-festival'
+const GIG_ID = 'w7q4hbz1nm'
 /** **The gig's whole footprint on disk**, and the only thing the tools make in the gigs root. */
 const FOLDER = `${GIGS_ROOT}/setup/${GIG_ID}`
 const WAIT = { timeout: 3000 }
@@ -242,23 +242,66 @@ describe('screen 1: the gig', () => {
   })
 
   /**
-   * **The derived name is shown, because it is what appears on Backstage and what names the
-   * folder.** A name derived and hidden is a name you meet for the first time in Finder.
+   * **The name is not derived from anything typed** (Jorge, 2026-09-03), so there is nothing to
+   * show until the gig exists — and this screen is still the one place the folder's own name is
+   * visible, which is what makes an opaque folder liveable.
    */
-  it('derives the identity from the date and the venue, and shows it', async () => {
+  it('shows no name until the gig is made, however much is typed', async () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-screen-1')).toBeTruthy(), WAIT)
     expect(screen.getByTestId('gig-flow-identity-pending')).toBeTruthy()
     sayWhatTheNightIs()
+    // Typed in full, and still no name: it comes with the folder, not from the fields.
+    expect(screen.getByTestId('gig-flow-identity-pending')).toBeTruthy()
+    expect(screen.queryByTestId('gig-flow-identity-name')).toBeNull()
+  })
+
+  it('titles the flow with the night rather than the folder', async () => {
+    // The folder is an opaque id; a header reading it tells nobody which gig they are in. Same
+    // rule as the row on Backstage, through the same function.
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(
+      folderRead({
+        gigPresent: true,
+        gigText: JSON.stringify({
+          gigVersion: 1,
+          id: GIG_ID,
+          date: '2026-05-16',
+          venue: { name: 'BOM Festival' },
+        }),
+      })
+    )
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-screen-1')).toBeTruthy(), WAIT)
+    await waitFor(() =>
+      expect(screen.getByRole('heading').textContent).toBe('2026-05-16 · BOM Festival'), WAIT
+    )
+    // And the folder's own name is still on screen 1, which is what makes an opaque folder liveable.
     expect(screen.getByTestId('gig-flow-identity-name').textContent).toBe(GIG_ID)
   })
 
-  it('holds Create until the gig has a name', async () => {
+  it('says nothing is written until the date and the venue are answered', async () => {
+    // The gate, on screen. `createGig` is where it binds; this is the sentence that warns.
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-screen-1')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-screen-1').textContent).toContain(
+      'nothing at all is written until you have answered the date and the venue'
+    )
+  })
+
+  it('holds Create until the date and the venue are both answered', async () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-commit')).toBeTruthy(), WAIT)
-    expect((screen.getByTestId('gig-flow-commit') as HTMLButtonElement).disabled).toBe(true)
+    const commit = () => screen.getByTestId('gig-flow-commit') as HTMLButtonElement
+    expect(commit().disabled).toBe(true)
+    // One half is not enough, in either order.
+    fireEvent.change(screen.getByTestId('gig-flow-date'), { target: { value: '2026-05-16' } })
+    expect(commit().disabled).toBe(true)
+    fireEvent.change(screen.getByTestId('gig-flow-date'), { target: { value: '' } })
+    fireEvent.change(screen.getByTestId('gig-flow-venue'), { target: { value: 'BOM Festival' } })
+    expect(commit().disabled).toBe(true)
     sayWhatTheNightIs()
-    expect((screen.getByTestId('gig-flow-commit') as HTMLButtonElement).disabled).toBe(false)
+    expect(commit().disabled).toBe(false)
   })
 
   /**
@@ -281,7 +324,10 @@ describe('screen 1: the gig', () => {
       fireEvent.click(screen.getByTestId('gig-flow-commit'))
     })
     await waitFor(() => expect(createGigFolder).toHaveBeenCalled(), WAIT)
-    expect(createGigFolder).toHaveBeenCalledWith(GIGS_ROOT, GIG_ID)
+    const [root, name] = createGigFolder.mock.calls[0] as [string, string]
+    expect(root).toBe(GIGS_ROOT)
+    // An opaque id, carrying nothing about the night — see `gigFile.newGigId`.
+    expect(name).toMatch(/^[0-9abcdefghjkmnpqrstvwxyz]{10}$/)
     const written = JSON.parse((writeGigFile.mock.calls as [string, string][])[0]![1]) as {
       id: string
       date: string

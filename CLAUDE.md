@@ -59,6 +59,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `displayProfile.ts` | localStorage | Gig-level projection profiles; pure `computeProjectionLayout(profile, w, h)` → band + text geometry. **The Projection window no longer reads these** — the quad is the framing now — but the Control window still offers the profiles |
 | `gigFolderStore.ts` | localStorage | Which gig folder is open. Its own module so the Projection window can ask without pulling in the reader |
 | `gigListStore.ts` | localStorage | **Which gigs this machine knows about** — `pregoneroGigList`, an array of folder paths, most recent first. A bookmark list, and **paths only: readiness is never stored**, it is computed on read |
+| `gigLabels.ts` | — | **What each gig on Backstage is called**, read from its own `gig.json` every time the list draws — the date and the venue, never stored. The rule is `gigFile.gigLabel`; this is only the reading |
 | `gigFolderRead.ts` | — | **One gig folder's delta, read and never written.** The route Setup home's list uses. `refreshGigReadiness` is the *opening* path and it writes — it creates `gig.json` and injects a setlist — which is right for the gig you are opening and would create files in every folder a list drew |
 | `visualsBroadcast.ts` | localStorage | `visuals.json`, carried from the Control window to the Projection window. Re-parsed on read, so both refusals hold on both sides |
 | `shapeTextLayout.ts` | — | Pure: the quad's stretch, the layout box, the auto-fit, the text fields Muralista writes |
@@ -67,7 +68,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `gigContactState.ts` | localStorage | **The contact panel's one condition**, and the boolean it travels as |
 | `gigSession.ts` | localStorage | The open gig folder, remembered across launches, plus the last readiness delta and its subscribers. Re-read **on open**, never watched |
 | `gigReadiness.ts` | — | **The one readiness function**: given a gig folder it returns the delta, per setup step and per song. Pure |
-| `gigFile.ts` | — | `gig.json` — parse, serialise, create, and project the setlist into it. Pregonero is its only writer |
+| `gigFile.ts` | — | `gig.json` — parse, serialise, create, and project the setlist into it. Pregonero is its only writer. Also **a gig's identity**: `newGigId` (the folder is an opaque id, never derived and never changed), `gigIdentityIsAnswered` (nothing is written until the date and the venue are both answered) and `gigLabel` (what a list calls it) |
 | `visualsFile.ts` | — | `visuals.json` — Muralista's file, read-only here. Version and gig-id refusals, and **the lookup** (type + song → a *set* of shapes) |
 | `platform.ts` | — | **The one module that knows Electron exists** for gig work: the folder picker, reading and writing files in it, `bombista`. Also **where the layout joins happen** — it is handed the songs root and the gig folder and hands the main process `<songs>/song-performance` and `<gig>/setup` |
 | `fileLayout.ts` | — | **Where each file lives inside the two folders, and who owns it.** The only place `song-performance` and `setup` are written down |
@@ -122,6 +123,15 @@ the only place either answer is written down as a path.
 and the gig folder, and the main process is handed folders that are already joined — so it stays
 ignorant of the suite's conventions, and `gigIdFromFolderPath` (a gig's id is its folder's name)
 cannot be handed `<gig>/setup` and name every gig `setup`.
+
+**`<gig>` is an opaque id** (Jorge, 2026-09-03), ten characters of Crockford base32 minted by
+`gigFile.newGigId`. It replaced `2026-05-16-bom-festival`: that name derived from the date and the
+venue, and **identity derived from data that can change is not identity**. It never changes, nothing
+is parsed out of it, and **what says which night a folder is for is `gig.json` inside it**. Two
+consequences carried on purpose — a gig row on Backstage shows the date and venue read live from
+that file, so the row and the folder are allowed to disagree; and **the gate on writing is now a
+rule rather than a side effect**, `gigIdentityIsAnswered`, because an opaque id exists from the
+first instant and no longer refuses to be minted for a half-made gig.
 
 **There is no Tramoya folder and none is created.** The app's own bookkeeping — the gig list, the
 Bombista path, the preferences — is per-machine, is not Jorge's, and lives in Application Support.
