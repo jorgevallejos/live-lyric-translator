@@ -50,7 +50,6 @@ import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
 import { setAutoBlackout, getAutoBlackout, AUTO_BLACKOUT_KEY } from './autoBlackout'
-import { ManageSetlistsView } from './ManageSetlistsView'
 import {
   autoSelectFirstSongForActiveSetlist,
   ensureSongLibraryHydrated,
@@ -1726,15 +1725,6 @@ function SongsView() {
             'Setlist'
           )}
         </h1>
-        <button
-          type="button"
-          className="songs-manage-setlists"
-          onClick={() => {
-            window.location.hash = '#/songs/manage-setlists'
-          }}
-        >
-          Manage setlists
-        </button>
       </header>
       <main className="songs-body">
         {!activeOk ? (
@@ -2390,13 +2380,6 @@ function App({ initialHash }: { initialHash?: string } = {}) {
       <>
         <ConcertSessionTimerRunner />
         <ProjectionView />
-      </>
-    )
-  if (hash === '#/songs/manage-setlists')
-    return (
-      <>
-        <ConcertSessionTimerRunner />
-        <ManageSetlistsView />
       </>
     )
   if (hash === '#/setup')

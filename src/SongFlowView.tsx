@@ -69,9 +69,11 @@ import { LeaveWithoutSaving } from './LeaveWithoutSaving'
  *   song files are in that folder and neither of the two things being looked for is.
  * - **`--no-header`.** Name, tagline, version and *a Tramoya tool by Chango Pepper*, inside a
  *   window already headed `New song` — the tool introducing itself to someone who did not choose
- *   it. **Nothing is lost:** Bombista keeps its version as one dim line under the step bar either
- *   way, and two builds calling themselves the same number is the trap this project has already
- *   paid a day for.
+ *   it. **The version goes with it** (Jorge, 2026-09-03): it used to stay behind as one dim line
+ *   under the step bar, and it comes off the embedded flow entirely. **It survives in standalone
+ *   Bombista**, which is what the rule needs — *the version has to survive somewhere*, because two
+ *   builds calling themselves the same number is the trap this project has already paid a day for.
+ *   What this switch buys is a clean embedded flow, not a hidden version.
  * - **`--song`, on an edit and only on an edit.** It is what makes an edit an edit rather than a
  *   second new song: page 1 starts prefilled from the file, instead of dropping the person on an
  *   empty page and asking them to find the song they just clicked — with `<id>-song.json` sitting

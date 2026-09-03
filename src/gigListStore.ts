@@ -14,10 +14,11 @@
  * witnessing it. `libertad` is the standing argument — a flag written when it last passed would
  * still read Ready today, and it is not.
  *
- * **A row whose folder is gone stays in the list**, named, to be forgotten or located deliberately.
- * A folder on a disconnected drive is not a deleted gig, and a list that tidied itself would erase
- * the evidence that something moved. (Noticing that it is gone at all is R2's: `readGigFolder`
- * cannot yet tell a moved folder from a fresh empty one.)
+ * **A row whose folder is gone stays in the list**, named. A folder on a disconnected drive is not a
+ * deleted gig, and a list that tidied itself would erase the evidence that something moved.
+ * (Noticing that it is gone at all is R2's: `readGigFolder` cannot yet tell a moved folder from a
+ * fresh empty one.) **The one way a row leaves is the gig being deleted**, which is a thing the
+ * person did on purpose and the app watched happen.
  *
  * **This is not the open gig.** `gigFolderStore` holds that, in its own key, and the two never
  * merge: listing a gig is not opening it, and opening one does not empty the list.
@@ -68,7 +69,19 @@ export function rememberGigInList(folderPath: string): void {
   write([path, ...read().filter((entry) => entry !== path)])
 }
 
-/** Takes a gig out of the list. The folder is untouched; only Pregonero forgets where it was. */
+/**
+ * Takes a gig out of the list.
+ *
+ * **No longer a control anybody presses** (Jorge, 2026-09-03). `Forget` was a button on the gig row
+ * and it went with the row's redesign: dropping the reference and leaving the folder is an action
+ * that looks like removal and is not — the same shape as the trash can that came off the song
+ * library. The bin on that row deletes the folder instead.
+ *
+ * **It survives as the second half of deleting**, because this list is not the folder. The Songs
+ * list is re-read from `<songs>/song-performance/` on every arrival, so a deleted file stops being a
+ * row on its own; these are remembered paths, so a deleted gig has to be taken out of them or its
+ * row outlives it. Called only after the folder has actually gone — see `confirmDeleteGig`.
+ */
 export function forgetGig(folderPath: string): void {
   write(read().filter((entry) => entry !== folderPath))
 }

@@ -72,6 +72,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   folderReadable: (folderPath) => ipcRenderer.invoke('fs:folderReadable', folderPath),
   /** Moves one song file to the Trash. { ok: true } or { ok: false, error }. */
   deleteSongFile: (filePath) => ipcRenderer.invoke('fs:deleteSongFile', filePath),
+  /** Moves one gig's `setup/<gig>/` folder to the Trash. { ok: true } or { ok: false, error }. */
+  deleteGigFolder: (folderPath) => ipcRenderer.invoke('fs:deleteGigFolder', folderPath),
   /** Replaces a song file with the candidate an edit produced, backing the original up first. */
   replaceSongFile: (candidatePath, targetPath) =>
     ipcRenderer.invoke('fs:replaceSongFile', candidatePath, targetPath),

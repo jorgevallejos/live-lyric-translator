@@ -378,18 +378,6 @@ function StepSetlist({
         <strong>A song Bombista has a finding about stays in the list and is named</strong> — it is
         fixed in its own door, on the Setup screen, not here.
       </p>
-      <div className="gig-actions">
-        <button
-          type="button"
-          className="ctrl-btn ctrl-setup-link"
-          data-testid="setup-manage-setlists"
-          onClick={() => {
-            window.location.hash = '#/songs/manage-setlists'
-          }}
-        >
-          Manage setlists
-        </button>
-      </div>
     </div>
   )
 }

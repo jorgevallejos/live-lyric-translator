@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { closeGig, openGigFolder, refreshGigReadiness } from './gigSession'
 import { getRememberedGigFolder } from './gigFolderStore'
-import { forgetGig, getGigList, replaceGigPath } from './gigListStore'
+import { forgetGig, getGigList } from './gigListStore'
 import {
   ensureSongLibraryHydrated,
   catalogueWasRead,
@@ -16,7 +16,7 @@ import { unreadableFolders, unreadableSongs } from './launchAnnouncements'
 import { getGigsFolder, getSongFilesFolder, getSongsFolder, resolveSongPath } from './contentFolders'
 import {
   bombistaStagingDir,
-  chooseGigFolderPath,
+  deleteGigFolder,
   deleteSongFile,
   folderReadable,
   hasGigFolderAccess,
@@ -81,6 +81,16 @@ import { GatedAction } from './GatedAction'
  * fifth rendering of the one readiness function — and it lands in the next round. **Until then a
  * row shows no verdict at all rather than a stale one**, which is the honest intermediate state:
  * a wrong "Ready" is worse than no word.
+ *
+ * **The two lists are the same shape now** (Jorge, 2026-09-03). A gig row is its name, a pencil and
+ * a bin, like a song row is its title, its mode and the same two marks. See `GigRow` for what came
+ * off it, and `DeleteGigPopup` for what the bin removes and what it cannot reach.
+ *
+ * **`Forget` is gone and deleting replaced it.** Dropping the reference and leaving the folder was
+ * the same shape as the trash can that came off the song library: an action that looks like removal
+ * and is not. **The list still has to be told**, though, because unlike the Songs list it is not the
+ * folder — see `confirmDeleteGig`, where forgetting is a consequence of a successful delete rather
+ * than a thing anyone can ask for.
  */
 
 /**
@@ -102,48 +112,72 @@ function basename(path: string): string {
   return parts[parts.length - 1] ?? path
 }
 
+/**
+ * **A gig row is its name and the way in, and nothing else** (Jorge, 2026-09-03, walking `v0.40.0`).
+ *
+ * It used to carry the name, an `OPEN` badge, the full path over three lines, and three labelled
+ * buttons: `Setup`, `Locate…`, `Forget`. Four gigs made a wall. **The shape is the song row's** —
+ * the title, its state, and the marks the app already uses for a row's own actions.
+ *
+ * **The pencil is the way in, and it is what `Setup` did**: it opens the gig folder and enters the
+ * gig flow, which is the same control the song rows carry for the same act.
+ *
+ * **`Locate…` is gone because it has no destination.** Under the single-`setup/` ruling a gig can
+ * only live at `<gigs>/setup/<gig>`, so there is nowhere to locate one to. Its removal falls out of
+ * this redesign rather than needing a decision of its own.
+ *
+ * **The bin deletes the gig, and `Forget` is what it replaced** (Jorge, 2026-09-03). Forgetting
+ * dropped Pregonero's reference and left the folder — the same shape as the trash can that came off
+ * the song library, and meaningless for the same reason. **What goes is `<gigs>/setup/<gig>/`**, the
+ * machine's folder: `gig.json`, `visuals.json`. Nothing of the artist's is in there to lose, because
+ * the single-`setup/` ruling puts their night folders beside `setup/` rather than inside it. **To
+ * the Trash, never unlinked**, on the rule already settled for a song file — and behind the same
+ * consent dialog, naming what goes and what stays.
+ */
 function GigRow({
   path,
   open,
   busy,
   onOpen,
-  onForget,
-  onLocate,
+  onDelete,
 }: {
   path: string
   open: boolean
   busy: boolean
   onOpen: () => void
-  onForget: () => void
-  onLocate: () => void
+  onDelete: () => void
 }) {
+  const name = basename(path)
   return (
-    <li className="setup-home-row" data-testid={`setup-gig-row-${basename(path)}`}>
-      <span className="setup-home-row-name">{basename(path)}</span>
+    <li className="setup-home-row setup-gig-row" data-testid={`setup-gig-row-${name}`}>
+      <span className="setup-home-row-name">{name}</span>
       {open && (
         <span className="setup-home-row-badge" data-testid="setup-gig-open">
           Open
         </span>
       )}
-      <span className="setup-home-row-path">{path}</span>
       <div className="setup-home-row-actions">
         <button
           type="button"
-          className="ctrl-btn ctrl-setup-link"
+          className="manage-setlists-action-btn manage-setlists-icon-btn"
           disabled={busy}
-          data-testid={`setup-gig-open-${basename(path)}`}
+          aria-label={`Edit ${name}`}
+          title="Edit"
+          data-testid={`setup-gig-open-${name}`}
           onClick={onOpen}
         >
-          {open ? 'Setup' : 'Open'}
+          <PencilIcon />
         </button>
-        {/* **Locate, not re-add.** A gig folder that moved is the same gig, so its row keeps its
-            place rather than reappearing at the front with a dead row left behind. */}
-        <button type="button" className="ctrl-btn ctrl-setup-link" disabled={busy} onClick={onLocate}>
-          Locate…
-        </button>
-        {/* Forgetting is Pregonero forgetting where a gig was. The folder is untouched. */}
-        <button type="button" className="ctrl-btn ctrl-setup-link" disabled={busy} onClick={onForget}>
-          Forget
+        <button
+          type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn manage-setlists-delete-btn"
+          disabled={busy}
+          aria-label={`Delete ${name}`}
+          title="Delete"
+          data-testid={`setup-gig-delete-${name}`}
+          onClick={onDelete}
+        >
+          <TrashCanIcon />
         </button>
       </div>
     </li>
@@ -161,8 +195,8 @@ function GigRow({
  * **The actions are on the row, in the marks the app already uses** (2026-09-02, walking
  * `v0.34.0`). `Edit` was a labelled button stacked under the title, which made a two-line row out
  * of a one-line fact and left no room for a second action. A pencil and a bin on the title's own
- * line is what `ManageSetlistsView` already does, and the icons are now literally the same ones —
- * see `RowIcons`.
+ * line is what the manage-setlists screen did, and the icons are literally the same ones — see
+ * `RowIcons`. That screen is gone; the marks it introduced are now the app's own.
  *
  * **`manual only` is a property, not a warning.** A song with no timeline is a legitimate song: it
  * goes in setlists and is advanced by hand, which is what this app was built to do before it could
@@ -222,6 +256,89 @@ function SongRow({
 }
 
 /**
+ * **Deleting a gig is never silent either, and the dialog is about what survives.**
+ *
+ * Jorge, 2026-09-03, ruling on the second icon. **What goes is the machine's folder** —
+ * `<gigs>/setup/<gig>/`, holding `gig.json` and `visuals.json` — **to the Trash, never unlinked**,
+ * on the rule already settled for a song file.
+ *
+ * **What stays is everything that is the artist's**, and that is not a reassurance, it is the
+ * single-`setup/` ruling restated: the tools own one `setup/` folder inside the gigs folder and
+ * write nowhere else in it, so the night's own folder, the poster, the contract and the stage plan
+ * are not in the thing being removed. **Nor are the songs** — a setlist stores ids, not copies.
+ *
+ * **What is actually lost is named, because it is real:** the running order and the visuals mapping
+ * for that night. A dialog that only said what was safe would be selling the press rather than
+ * informing it.
+ *
+ * **This adds no new kind of popup.** It is the second of the three the suite allows — a
+ * destructive action needing consent — in the same box, the same shape and the same two buttons as
+ * `DeleteSongPopup` and `LeaveWithoutSaving`. Three is the ceiling.
+ */
+function DeleteGigPopup({
+  name,
+  folder,
+  open,
+  busy,
+  problem,
+  onCancel,
+  onConfirm,
+}: {
+  name: string
+  folder: string
+  open: boolean
+  busy: boolean
+  problem: string | null
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="ctrl-timeline-save-overlay" data-testid="setup-gig-delete-popup">
+      <div
+        className="ctrl-timeline-save-dialog setup-consent-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Delete ${name}`}
+      >
+        <p className="ctrl-timeline-save-message" data-testid="setup-gig-delete-title">
+          Delete {name}?
+        </p>
+        <p className="setup-consent-what" data-testid="setup-gig-delete-what">
+          <code>{folder}</code> goes to the Trash, with this gig’s running order and its visuals.{' '}
+          <strong>Everything else in your gigs folder stays where it is</strong> — the night’s own
+          folder, the poster, the contract, the stage plan. <strong>No song is touched</strong>: a
+          setlist stores names, not copies.
+        </p>
+        {open && (
+          <p className="setup-song-delete-uses-foot" data-testid="setup-gig-delete-open">
+            This is the gig that is currently open. It will be closed.
+          </p>
+        )}
+        {problem !== null && (
+          <p className="setup-song-problem" data-testid="setup-gig-delete-problem">
+            {problem}
+          </p>
+        )}
+        <div className="ctrl-timeline-save-actions setup-consent-actions">
+          <button type="button" className="ctrl-btn" disabled={busy} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ctrl-btn setup-consent-confirm"
+            disabled={busy}
+            data-testid="setup-gig-delete-confirm"
+            onClick={onConfirm}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
  * **Deleting a song is never silent, and the dialog is about what survives.**
  *
  * Jorge, 2026-09-02. Two facts, and the second is the one worth interrupting for: **the song file
@@ -237,6 +354,23 @@ function SongRow({
  * **This is the second of the three popups the app allows** — an outside-caused fact you must
  * know, a destructive action needing consent, and a commitment whose consequence is off screen.
  * Three is the ceiling, and a fourth kind means something was misclassified.
+ *
+ * ## It wears the suite's one consent-dialog shape, and it is the last of the three to
+ *
+ * **Left-aligned title and text, two outlined buttons, the destructive action on the right, in the
+ * fail colour — and Bombista's dimensions** (Jorge, 2026-09-03). The table is in
+ * `tramoya-integration/project-context.md` and it cannot be a shared component: Bombista renders
+ * its half from a Python process. So it is written down once and implemented three times — there,
+ * in `LeaveWithoutSaving`, and here.
+ *
+ * **This one moved last and it moved because it had drifted.** `LeaveWithoutSaving` was built to
+ * look exactly like this dialog; when that one went to Bombista's shape, this one stayed centred
+ * at 770px and the pair that were meant to be indistinguishable stopped being so.
+ *
+ * **`rem`, never `em`, everywhere in this box.** `.songs-screen` sets `font-size: calc(16px *
+ * var(--control-ui-scale))` — 24px, right for a control view read from a stage and wrong for a
+ * modal read at a desk. Every `em` here was 1.5x Bombista's, which is the whole of why the box was
+ * 1.7x too wide. `LeaveWithoutSaving.test.tsx` asserts both boxes against one table.
  */
 function DeleteSongPopup({
   title,
@@ -258,7 +392,7 @@ function DeleteSongPopup({
   return (
     <div className="ctrl-timeline-save-overlay" data-testid="setup-song-delete-popup">
       <div
-        className="ctrl-timeline-save-dialog"
+        className="ctrl-timeline-save-dialog setup-consent-dialog"
         role="dialog"
         aria-modal="true"
         aria-label={`Delete ${title}`}
@@ -266,7 +400,7 @@ function DeleteSongPopup({
         <p className="ctrl-timeline-save-message" data-testid="setup-song-delete-title">
           Delete {title}?
         </p>
-        <p className="setup-song-delete-what" data-testid="setup-song-delete-what">
+        <p className="setup-consent-what" data-testid="setup-song-delete-what">
           <code>{file}</code> goes to the Trash. <strong>Your lyrics and your recordings stay
           where they are</strong> — Pregonero does not touch them.
         </p>
@@ -291,13 +425,13 @@ function DeleteSongPopup({
             {problem}
           </p>
         )}
-        <div className="ctrl-timeline-save-actions">
+        <div className="ctrl-timeline-save-actions setup-consent-actions">
           <button type="button" className="ctrl-btn" disabled={busy} onClick={onCancel}>
             Cancel
           </button>
           <button
             type="button"
-            className="ctrl-btn setup-song-delete-confirm"
+            className="ctrl-btn setup-consent-confirm"
             disabled={busy}
             data-testid="setup-song-delete-confirm"
             onClick={onConfirm}
@@ -559,6 +693,13 @@ export function SetupHomeView() {
     problem: string | null
   } | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  // **The gig about to be deleted**, and null when there is no dialog. Its own state rather than a
+  // shared one: the two dialogs ask different questions about different things, and one variable
+  // holding either is a variable whose type is *whichever dialog is up*.
+  const [deletingGig, setDeletingGig] = useState<{ path: string; problem: string | null } | null>(
+    null
+  )
+  const [gigDeleteBusy, setGigDeleteBusy] = useState(false)
   // **The standing condition, per half.** True for as long as the folder refuses; what happens once
   // is the popup in the queue below.
   const [songsFolderProblem, setSongsFolderProblem] = useState(false)
@@ -706,6 +847,42 @@ export function SetupHomeView() {
     })()
   }
 
+  /**
+   * **Trash the gig's folder, then forget where it was.**
+   *
+   * **In that order, and the order is the rule.** Forgetting first would drop the row on a delete
+   * that failed, leaving a folder on disk that nothing lists — the shape the songs list already
+   * refuses. The reference is dropped only once the folder has actually gone.
+   *
+   * **Forgetting at all is because this list is not the folder.** The Songs list is read from
+   * `<songs>/song-performance/` on every arrival, so a deleted file simply stops being a row. The
+   * gigs list is remembered paths in browser storage, so a deleted gig has to be taken out of it or
+   * its row outlives it. That difference is worth knowing rather than hiding: it is the reason
+   * `Forget` existed at all, and the reason it is now a consequence of deleting rather than a
+   * control of its own.
+   *
+   * **An open gig is closed first**, because the alternative is a session pointed at a folder in
+   * the Trash.
+   */
+  const confirmDeleteGig = () => {
+    if (deletingGig === null) return
+    const path = deletingGig.path
+    setGigDeleteBusy(true)
+    void (async () => {
+      if (path === getRememberedGigFolder()) await closeGig()
+      const result = await deleteGigFolder(path)
+      setGigDeleteBusy(false)
+      if (!result.ok) {
+        setDeletingGig((current) => (current === null ? null : { ...current, problem: result.error }))
+        return
+      }
+      setDeletingGig(null)
+      forgetGig(path)
+      await refreshGigReadiness()
+      reload()
+    })()
+  }
+
   const enterSongFlow = (entry: LibraryEntry | null) => {
     setBusy(true)
     void (async () => {
@@ -757,6 +934,17 @@ export function SetupHomeView() {
           problem={deleting.problem}
           onCancel={() => setDeleting(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+      {deletingGig !== null && (
+        <DeleteGigPopup
+          name={basename(deletingGig.path)}
+          folder={deletingGig.path}
+          open={deletingGig.path === openFolder}
+          busy={gigDeleteBusy}
+          problem={deletingGig.problem}
+          onCancel={() => setDeletingGig(null)}
+          onConfirm={confirmDeleteGig}
         />
       )}
       <header className="songs-top-bar">
@@ -835,14 +1023,7 @@ export function SetupHomeView() {
                         await openGigFolder(path)
                         toSetup()
                       })}
-                      onForget={() => {
-                        forgetGig(path)
-                        reload()
-                      }}
-                      onLocate={run(async () => {
-                        const chosen = await chooseGigFolderPath()
-                        if (chosen) replaceGigPath(path, chosen)
-                      })}
+                      onDelete={() => setDeletingGig({ path, problem: null })}
                     />
                   ))}
                 </ul>

@@ -12,7 +12,14 @@
  *
  * **It cannot be a shared component.** The other implementation is rendered by a Python process in
  * another repository, so the shape lives in `tramoya-integration/journey-setup.md` and is built
- * twice. These assertions are this side's half of that contract; `tests/test_pages.py` is the other.
+ * three times. These assertions are this side's half of that contract; `tests/test_pages.py` is the
+ * other.
+ *
+ * **Pregonero's delete dialog is the third, and it is asserted here** (Jorge, 2026-09-03). It was
+ * explicitly out of the first round, so `LeaveWithoutSaving` — which had been built to look exactly
+ * like it — went to Bombista's shape and left it behind at 770px and centred. One table, and the
+ * numbers live in `DIMENSIONS` once: both of this repo's boxes are read against it, and the second
+ * of them is worn by deleting a song and by deleting a gig alike.
  *
  * ## The shape has dimensions, and the first pass proved why it must
  *
@@ -91,9 +98,36 @@ function rems(declaration: string, property: string): number[] {
     .map((part) => (part === '0' ? 0 : Math.round(parseFloat(part) * 16 * 100) / 100))
 }
 
-describe('the consent dialog’s shape', () => {
+/** The two boxes this repo draws, each with the selectors its rules are written under. */
+const BOXES = [
+  {
+    name: 'leave without saving',
+    /** Every rule that gives this box its shape names this. */
+    scope: 'leave-without-saving',
+    box: '.leave-without-saving',
+    title: '.leave-without-saving .ctrl-timeline-save-message',
+    body: '.leave-without-saving .leave-without-saving-what',
+    actions: '.leave-without-saving-actions',
+    button: '.leave-without-saving-actions .ctrl-btn',
+    confirm: '.leave-without-saving-confirm',
+  },
+  {
+    // One box, worn by deleting a song and deleting a gig — hence `setup-consent` rather than a
+    // name about either. Only the sentence inside it differs.
+    name: 'consent to a delete',
+    scope: 'setup-consent',
+    box: '.setup-consent-dialog',
+    title: '.setup-consent-dialog .ctrl-timeline-save-message',
+    body: '.setup-consent-what',
+    actions: '.setup-consent-actions',
+    button: '.setup-consent-actions .ctrl-btn',
+    confirm: '.setup-consent-confirm',
+  },
+] as const
+
+describe.each(BOXES)('the consent dialog’s shape — $name', (box) => {
   it('is left-aligned, title and text', () => {
-    const dialog = ruleFor('.leave-without-saving')
+    const dialog = ruleFor(box.box)
     expect(dialog).toMatch(/text-align:\s*left/)
     // The box is a centring column by default — `.ctrl-timeline-save-dialog` — so the override has
     // to undo the cross-axis centring too, or the title sits in the middle of a left-aligned box.
@@ -101,19 +135,30 @@ describe('the consent dialog’s shape', () => {
   })
 
   it('pushes the two buttons to the right', () => {
-    expect(ruleFor('.leave-without-saving-actions')).toMatch(/justify-content:\s*flex-end/)
+    expect(ruleFor(box.actions)).toMatch(/justify-content:\s*flex-end/)
   })
 
-  /** Two of the same button, and the one that leaves is second — so it is the one on the right. */
+  /**
+   * **Neither button is filled.** The difference between them is the fail colour on the border and
+   * the text of the one that destroys — the same mark on both boxes, so the two cannot drift into
+   * meaning different things by looking different.
+   */
+  it('marks the destructive half in the fail colour and fills neither', () => {
+    const confirm = ruleFor(`${box.confirm}:not(:disabled)`)
+    expect(confirm).toMatch(/color:\s*var\(--state-fail\)/)
+    expect(confirm).toMatch(/border-color:\s*var\(--state-fail\)/)
+    expect(confirm).not.toMatch(/background/)
+  })
+})
+
+/** Two of the same button, and the one that leaves is second — so it is the one on the right. */
+describe('the consent dialog’s buttons, as rendered', () => {
   it('offers two outlined buttons, with the leaving action last', () => {
     render(<LeaveWithoutSaving site="test" what="Nothing is saved." onStay={() => {}} onLeave={() => {}} />)
     const stay = screen.getByTestId('test-leave-stay')
     const leave = screen.getByTestId('test-leave-confirm')
     expect(stay.className).toContain('ctrl-btn')
     expect(leave.className).toContain('ctrl-btn')
-    // Neither is filled: the difference between them is the fail colour on the border and the
-    // text, which is the mark `Delete` already carries.
-    expect(ruleFor('.leave-without-saving-confirm:not(:disabled)')).not.toMatch(/background/)
     expect(stay.compareDocumentPosition(leave) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
@@ -125,9 +170,9 @@ describe('the consent dialog’s shape', () => {
  * font size, button height and padding — plus the two that had to move for the five to mean
  * anything: `box-sizing`, and `rem` in place of `em`.
  */
-describe('the consent dialog’s dimensions', () => {
-  const box = () => ruleFor('.leave-without-saving')
-  const button = () => ruleFor('.leave-without-saving-actions .ctrl-btn')
+describe.each(BOXES)('the consent dialog’s dimensions — $name', (which) => {
+  const box = () => ruleFor(which.box)
+  const button = () => ruleFor(which.button)
 
   /**
    * **`max-width` did not mean the same thing on the two sides.** Bombista sets `border-box`
@@ -148,8 +193,8 @@ describe('the consent dialog’s dimensions', () => {
   })
 
   it('sets the title and the body text at Bombista’s sizes', () => {
-    const title = ruleFor('.leave-without-saving .ctrl-timeline-save-message')
-    const body = ruleFor('.leave-without-saving .leave-without-saving-what')
+    const title = ruleFor(which.title)
+    const body = ruleFor(which.body)
     expect(rem(title, 'font-size')).toBe(DIMENSIONS.titleFontSize)
     expect(rem(body, 'font-size')).toBe(DIMENSIONS.bodyFontSize)
     // 700, because the reference box's title is bold and a 15.2px title at 400 is a different
@@ -174,24 +219,44 @@ describe('the consent dialog’s dimensions', () => {
     for (const rule of [
       box(),
       button(),
-      ruleFor('.leave-without-saving .ctrl-timeline-save-message'),
-      ruleFor('.leave-without-saving .leave-without-saving-what'),
-      ruleFor('.leave-without-saving-actions'),
+      ruleFor(which.title),
+      ruleFor(which.body),
+      ruleFor(which.actions),
     ]) {
       expect(rule).not.toMatch(/\d\s*em\b/)
       expect(rule).not.toMatch(/[\d.]em[;\s]/)
     }
   })
 
-  /**
-   * **Scoped, because the delete-song dialog is explicitly not in this round.** It still carries
-   * the old centred shape off `.ctrl-timeline-save-dialog`, which is known. If a rule here ever
-   * stops naming `leave-without-saving`, it has started moving a dialog nobody asked to move.
-   */
-  it('moves this dialog and no other', () => {
+})
+
+/**
+ * **The guard that stops the shared rule from moving anything else** (kept from the first pass,
+ * 2026-09-03, and it now guards two boxes instead of one).
+ *
+ * `.ctrl-timeline-save-dialog` is worn by four popups. Two of them — leaving without saving, and
+ * deleting a song — have taken Bombista's shape; the other two, the songs that vanished and the
+ * files that will not read, are announcements rather than consent and were never in this. **The
+ * cheap way to move a consent dialog is to edit the shared rule**, and it would silently take the
+ * announcements with it. So each consent box overrides in its own scoped rules and the shared one
+ * stays exactly as it was: centred, `content-box`, `28em` against the screen's 24px root.
+ *
+ * If this test goes red, check what else moved before changing the number.
+ */
+describe('the shared dialog rule', () => {
+  it('is untouched, so the popups nobody asked to move have not moved', () => {
     const shared = ruleFor('.ctrl-timeline-save-dialog')
     expect(shared).toMatch(/text-align:\s*center/)
     expect(shared).not.toMatch(/box-sizing/)
     expect(shared).toMatch(/max-width:\s*28em/)
+  })
+
+  /** Every rule that carries the shape names the box it belongs to. */
+  it('is not how either consent box got its shape', () => {
+    for (const box of BOXES) {
+      for (const selector of [box.box, box.title, box.body, box.actions, box.button, box.confirm]) {
+        expect(selector, `${selector} does not name ${box.scope}`).toContain(box.scope)
+      }
+    }
   })
 })

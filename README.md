@@ -98,18 +98,22 @@ npm run build
 Run it after pulling and before running anything that isn't `npm run dev`. Without it the app
 starts happily and silently runs an older build than the one in `package.json`.
 
-### 2. Import the song and build a setlist
+### 2. Build the gig's setlist
 
-**Setlist → Manage setlists → New song**, and pick one or more song JSONs. The library takes a
-**reference** to each file — its path — and reads the song from it at every launch; nothing is
-copied in. **New setlist**, then add the songs you want and order them. This screen is also where
-you point the app at the local copy of a video the song file names.
+**Nothing is imported.** The song list is `<songs>/song-performance/` read at every launch: put a
+song JSON in that folder and it is on Backstage, take it out and it is gone from every list that
+offers it. The library holds a **reference** to each file — its path — and nothing is copied in.
+
+**The only setlist is the one inside the gig** (Jorge, 2026-09-03). **Backstage → Gigs → New**
+opens the gig flow; its step 2 is where the songs are chosen and ordered, and the order is written
+into that gig's `gig.json`. There is no separate place to keep setlists of your own, and the
+screen that offered one was deleted.
 
 Nothing is uploaded anywhere, and nothing is duplicated: the JSON files stay where they are on
 disk and stay authoritative. Edit a song file and the change is there the next time the app
 starts. Lyrics, tempo, timeline and media all live in the song file — the app reads them and
-never writes them. A file that has moved or will not parse shows as an unreadable row in the
-library, naming the file, so the fix is in the file rather than in the app.
+never writes them. A file that will not parse is named once in a popup and then left out of the
+lists, so the fix is in the file rather than in the app.
 
 ### 3. Choose the two languages
 

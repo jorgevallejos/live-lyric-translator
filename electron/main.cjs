@@ -428,6 +428,21 @@ ipcMain.handle('fs:deleteSongFile', async (_event, filePath) => {
   }
 })
 
+/**
+ * **Moves one gig's `setup/<gig>/` folder to the Trash**, and nothing above or beside it.
+ *
+ * The Trash, on the same rule as a song file: a running order and a room's mapping are work, and
+ * this project has already lost six irreplaceable backups to a delete described as a move.
+ */
+ipcMain.handle('fs:deleteGigFolder', async (_event, folderPath) => {
+  try {
+    await shell.trashItem(String(folderPath))
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || String(err) }
+  }
+})
+
 ipcMain.handle('fs:folderReadable', (_event, folderPath) => {
   try {
     fs.readdirSync(String(folderPath))
