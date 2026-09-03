@@ -11,7 +11,6 @@ import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-libra
 import { SetupHomeView } from './SetupHomeView'
 import { ensureStorage } from './testSupport/storage'
 import { installLibrary } from './testSupport/library'
-import { GIG_LIST_KEY, getGigList } from './gigListStore'
 import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 import { setLibraryEntries, type LibrarySong } from './setlistStore'
 import { forgetLaunchAnnouncements } from './launchAnnouncements'
@@ -22,6 +21,7 @@ const runBombista = vi.fn()
 const readSongFileText = vi.fn()
 const readGigFolder = vi.fn()
 const listSongsFolder = vi.fn()
+const listGigsFolder = vi.fn()
 const folderReadable = vi.fn()
 const bombistaStagingDir = vi.fn()
 const deleteSongFile = vi.fn()
@@ -36,6 +36,7 @@ vi.mock('./platform', async (importOriginal) => ({
   readSongFileText: (...a: unknown[]) => readSongFileText(...a),
   readGigFolder: (...a: unknown[]) => readGigFolder(...a),
   listSongsFolder: (...a: unknown[]) => listSongsFolder(...a),
+  listGigsFolder: (...a: unknown[]) => listGigsFolder(...a),
   folderReadable: (...a: unknown[]) => folderReadable(...a),
   deleteSongFile: (...a: unknown[]) => deleteSongFile(...a),
   deleteGigFolder: (...a: unknown[]) => deleteGigFolder(...a),
@@ -91,8 +92,37 @@ beforeEach(() => {
     text: JSON.stringify({ title: 'Nuevo', lyrics: [{ es: 'línea' }] }),
   })
   listSongsFolder.mockResolvedValue({ files: [], problem: null, answered: true })
+  listGigsFolder.mockResolvedValue({ folders: [], problem: null, answered: true })
   folderReadable.mockResolvedValue({ readable: true, answered: true, problem: null })
 })
+
+/**
+ * **The gigs are the folder** (Jorge, 2026-09-03). A test that wants gigs puts folders in
+ * `<gigs>/setup/` and gives each one a `gig.json` that reads, because that is exactly what the
+ * screen now asks for. The bookmark list this replaced was seeded straight into `localStorage`,
+ * which is why it could disagree with the disk.
+ *
+ * Each folder gets a minimal readable gig by default; a test that cares about the file's contents
+ * mocks `readGigFolder` itself afterwards.
+ */
+function installGigs(folders: string[]) {
+  localStorage.setItem(GIGS_FOLDER_KEY, '/gigs')
+  listGigsFolder.mockResolvedValue({ folders, problem: null, answered: true })
+  readGigFolder.mockImplementation((folderPath: string) =>
+    Promise.resolve({
+      folderPath,
+      gigText: JSON.stringify({
+        gigVersion: 1,
+        id: folderPath.split('/').filter(Boolean).pop() ?? 'g',
+      }),
+      gigError: null,
+      gigPresent: true,
+      visualsText: null,
+      visualsError: null,
+      visualsPresent: false,
+    })
+  )
+}
 
 async function renderHome() {
   await act(async () => {
@@ -151,7 +181,7 @@ describe('Setup home', () => {
   it('carries no explanatory prose in either column', async () => {
     // Including the ownership sentences. Both are true and both are internal detail from where the
     // user stands; they live in the docs.
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    installGigs(['a'])
     installLibrary([song('duelo')])
     await renderHome()
     const gigs = screen.getByTestId('setup-home-gigs').textContent!
@@ -174,7 +204,7 @@ describe('Setup home', () => {
   })
 
   it('shows every gig, and never truncates that list either', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a', '/gigs/b', '/gigs/c', '/gigs/d']))
+    installGigs(['a', 'b', 'c', 'd'])
     await renderHome()
     for (const name of ['a', 'b', 'c', 'd']) {
       expect(screen.getByTestId(`setup-gig-row-${name}`)).toBeTruthy()
@@ -184,7 +214,7 @@ describe('Setup home', () => {
   it('shows no readiness on a gig row, rather than a stale one', async () => {
     // Readiness per row is the next round. Until then a row says nothing about whether the gig is
     // ready — a wrong "Ready" is worse than no word, and `libertad` is the standing argument.
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    installGigs(['a'])
     await renderHome()
     const row = screen.getByTestId('setup-gig-row-a')
     expect(row.textContent).not.toMatch(/ready/i)
@@ -338,8 +368,10 @@ describe('Setup home', () => {
 
   it('does the same for the gigs folder, with its own words', async () => {
     localStorage.setItem(GIGS_FOLDER_KEY, '/gigs')
-    folderReadable.mockResolvedValue({ readable: false, answered: true, problem: 'ENOENT: /gigs' })
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    // **The gigs list's own read is what answers for the gigs folder** (2026-09-03), the way the
+    // catalogue listing answers for the songs one — one read, one answer, rather than a folder
+    // check standing beside a list that could disagree with it.
+    listGigsFolder.mockResolvedValue({ folders: [], problem: 'ENOENT: /gigs', answered: false })
     await renderHome()
     await waitFor(() => expect(screen.getByTestId('setup-gigs-folder-popup')).toBeTruthy())
     expect(screen.getByTestId('setup-gigs-folder-popup-title').textContent).toBe(
@@ -349,7 +381,7 @@ describe('Setup home', () => {
     expect(screen.getByTestId('setup-home-gigs-folder-line').textContent).toBe(
       'Gigs folder cannot be read. Set it in Preferences.'
     )
-    // The list is not drawn over the line, even though the app remembers a gig at that path.
+    // Nothing is listed over the line: an unreadable folder has no answer to give about gigs.
     expect(screen.queryByTestId('setup-gig-row-a')).toBeNull()
     for (const id of ['setup-new-gig']) {
       expect((screen.getByTestId(id) as HTMLButtonElement).disabled).toBe(true)
@@ -552,7 +584,7 @@ describe('Setup home', () => {
    * ruling, and the second dropped a reference while leaving the folder. The bin deletes.
    */
   it('shows a gig as its name, a pencil and a bin, and no path', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a', '/gigs/b']))
+    installGigs(['a', 'b'])
     await renderHome()
     const row = screen.getByTestId('setup-gig-row-a')
     expect(row.textContent).toContain('a')
@@ -583,7 +615,7 @@ describe('Setup home', () => {
   })
 
   it('names a gig row by the date and venue in its file, not by its folder', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    installGigs(['k3f9x2abcd'])
     readGigFolder.mockResolvedValue(
       gigOnDisk('/gigs/setup/k3f9x2abcd', {
         date: '2026-10-17',
@@ -598,7 +630,7 @@ describe('Setup home', () => {
   })
 
   it('follows a corrected venue, because the label is read rather than stored', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    installGigs(['k3f9x2abcd'])
     readGigFolder.mockResolvedValue(
       gigOnDisk('/gigs/setup/k3f9x2abcd', { date: '2026-10-17', venue: { name: 'Gel Coffe' } })
     )
@@ -619,12 +651,53 @@ describe('Setup home', () => {
     )
   })
 
-  it('falls back to the folder for a gig whose file will not read, and invents no night', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
-    readGigFolder.mockRejectedValue(new Error('EIO'))
+  /**
+   * **A `gig.json` that will not parse is the unreadable-song case** (Jorge, 2026-09-03): said once
+   * through the popup queue, and never a row. A row is a thing you can open, and this cannot be
+   * opened — the old behaviour was to draw it labelled by its folder, which is a row that looks
+   * like a gig and is not.
+   */
+  it('says a gig will not read, once, and does not draw it as a row', async () => {
+    installGigs(['k3f9x2abcd'])
+    readGigFolder.mockResolvedValue({
+      folderPath: '/gigs/setup/k3f9x2abcd',
+      gigText: '{ not json',
+      gigError: null,
+      gigPresent: true,
+      visualsText: null,
+      visualsError: null,
+      visualsPresent: false,
+    })
     await renderHome()
-    const row = screen.getByTestId('setup-gig-row-k3f9x2abcd')
-    expect(row.textContent).toContain('k3f9x2abcd')
+    await waitFor(() => expect(screen.getByTestId('setup-gigs-unreadable-popup')).toBeTruthy())
+    expect(screen.getByTestId('setup-gigs-unreadable-list').textContent).toContain('k3f9x2abcd')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByTestId('setup-gig-row-k3f9x2abcd')).toBeNull()
+  })
+
+  /**
+   * **No `gig.json`, no gig, no visibility** (Jorge's words, 2026-09-03). The folder was never
+   * claimed to be a gig, so there is nothing to report about it: no row, and no popup either.
+   */
+  it('ignores a folder with no gig.json entirely, silently', async () => {
+    installGigs(['k3f9x2abcd', 'notagig'])
+    readGigFolder.mockImplementation((folderPath: string) =>
+      Promise.resolve({
+        folderPath,
+        gigText: folderPath.endsWith('notagig')
+          ? null
+          : JSON.stringify({ gigVersion: 1, id: 'k3f9x2abcd' }),
+        gigError: null,
+        gigPresent: !folderPath.endsWith('notagig'),
+        visualsText: null,
+        visualsError: null,
+        visualsPresent: false,
+      })
+    )
+    await renderHome()
+    await waitFor(() => expect(screen.getByTestId('setup-gig-row-k3f9x2abcd')).toBeTruthy())
+    expect(screen.queryByTestId('setup-gig-row-notagig')).toBeNull()
+    expect(screen.queryByTestId('setup-gigs-unreadable-popup')).toBeNull()
   })
 
   /**
@@ -634,7 +707,7 @@ describe('Setup home', () => {
    * it — *which gig am I working on* — belongs to the control view and is parked.
    */
   it('marks nothing on the row for the gig that happens to be open', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    installGigs(['k3f9x2abcd'])
     rememberGigFolder('/gigs/setup/k3f9x2abcd')
     await renderHome()
     const row = screen.getByTestId('setup-gig-row-k3f9x2abcd')
@@ -646,24 +719,33 @@ describe('Setup home', () => {
    * **The bin deletes the gig** (Jorge, 2026-09-03), and `Forget` is what it replaced. Dropping the
    * reference and leaving the folder is an action that looks like removal and is not — the same
    * shape as the trash can that came off the song library.
+   *
+   * **Nothing is forgotten afterwards** (2026-09-03): the row goes because the folder is gone and
+   * the list is a read of the folder, which is what the re-read here stands for.
    */
-  it('deletes the gig folder to the Trash, and then forgets where it was', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a', '/gigs/setup/b']))
+  it('deletes the gig folder to the Trash, and the row goes with the folder', async () => {
+    installGigs(['a', 'b'])
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
     })
     expect(screen.getByTestId('setup-gig-delete-popup')).toBeTruthy()
+    // The folder is gone from the disk from the next listing on, which is what the delete did.
+    deleteGigFolder.mockImplementation(() => {
+      listGigsFolder.mockResolvedValue({ folders: ['b'], problem: null, answered: true })
+      return Promise.resolve({ ok: true })
+    })
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-gig-delete-confirm'))
     })
     expect(deleteGigFolder).toHaveBeenCalledWith('/gigs/setup/a')
-    await waitFor(() => expect(getGigList()).toEqual(['/gigs/setup/b']))
+    await waitFor(() => expect(screen.queryByTestId('setup-gig-row-a')).toBeNull())
+    expect(screen.getByTestId('setup-gig-row-b')).toBeTruthy()
   })
 
   /** Never silent: the folder is not touched until the dialog is answered. */
   it('deletes nothing until the dialog is confirmed', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a']))
+    installGigs(['a'])
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
@@ -673,7 +755,7 @@ describe('Setup home', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     })
     expect(deleteGigFolder).not.toHaveBeenCalled()
-    expect(getGigList()).toEqual(['/gigs/setup/a'])
+    expect(screen.getByTestId('setup-gig-row-a')).toBeTruthy()
   })
 
   /**
@@ -682,7 +764,7 @@ describe('Setup home', () => {
    * single-`setup/` ruling puts it beside `setup/` rather than inside it.
    */
   it('names the folder that goes, and what the delete cannot reach', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a']))
+    installGigs(['a'])
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
@@ -696,12 +778,12 @@ describe('Setup home', () => {
   })
 
   /**
-   * **The row outlives a failed delete.** Forgetting before the folder has gone would leave a
-   * folder on disk that nothing lists — the shape the songs list already refuses.
+   * **The row outlives a failed delete**, and it does so for free now: the row is the folder, and
+   * the folder is still there.
    */
   it('keeps the row, and says why, when the delete fails', async () => {
     deleteGigFolder.mockResolvedValue({ ok: false, error: 'EPERM: operation not permitted' })
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/a']))
+    installGigs(['a'])
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-gig-delete-a'))
@@ -712,12 +794,12 @@ describe('Setup home', () => {
     await waitFor(() =>
       expect(screen.getByTestId('setup-gig-delete-problem').textContent).toContain('EPERM')
     )
-    expect(getGigList()).toEqual(['/gigs/setup/a'])
+    expect(screen.getByTestId('setup-gig-row-a')).toBeTruthy()
   })
 
   /** The pencil is what `Setup` did: open the folder, then into the gig flow. */
   it('opens the gig and enters the gig flow from the pencil', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    installGigs(['a'])
     await renderHome()
     await act(async () => {
       fireEvent.click(screen.getByTestId('setup-gig-open-a'))
@@ -948,7 +1030,7 @@ describe('Setup home', () => {
   it('names the gigs a song is in, and still lets it go', async () => {
     // A gig's setlist keeps its ids and reports what it cannot resolve, so the record of the night
     // stays truthful either way. Blocking would make the catalogue hostage to its own history.
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/setup/k3f9x2abcd']))
+    installGigs(['k3f9x2abcd'])
     readGigFolder.mockResolvedValue({
       folderPath: '/gigs/setup/k3f9x2abcd',
       gigText: JSON.stringify({
@@ -978,7 +1060,7 @@ describe('Setup home', () => {
   })
 
   it('says nothing about gigs when the song is in none', async () => {
-    localStorage.setItem(GIG_LIST_KEY, JSON.stringify(['/gigs/a']))
+    installGigs(['a'])
     readGigFolder.mockResolvedValue({
       folderPath: '/gigs/a',
       gigText: JSON.stringify({ gigVersion: 1, id: 'g1', setlist: ['otro'] }),

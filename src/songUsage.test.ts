@@ -19,7 +19,7 @@ function reader(byPath: Record<string, string | null>) {
 describe('the gigs a song is in', () => {
   it('names a gig by its venue when the file has one', async () => {
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/setup/k3f9x2abcd'],
+      list: async () => ['/gigs/setup/k3f9x2abcd'],
       read: reader({ '/gigs/setup/k3f9x2abcd': gig({ venue: { name: 'Bar Eduard' } }) }),
     })
     expect(uses).toEqual([{ path: '/gigs/setup/k3f9x2abcd', name: 'Bar Eduard' }])
@@ -27,7 +27,7 @@ describe('the gigs a song is in', () => {
 
   it('falls back to the folder, which is the only thing every gig has', async () => {
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/setup/k3f9x2abcd'],
+      list: async () => ['/gigs/setup/k3f9x2abcd'],
       read: reader({ '/gigs/setup/k3f9x2abcd': gig() }),
     })
     expect(uses[0]!.name).toBe('k3f9x2abcd')
@@ -35,7 +35,7 @@ describe('the gigs a song is in', () => {
 
   it('leaves out a gig whose setlist does not name the song', async () => {
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/a', '/gigs/b'],
+      list: async () => ['/gigs/a', '/gigs/b'],
       read: reader({ '/gigs/a': gig({ setlist: ['otro'] }), '/gigs/b': gig() }),
     })
     expect(uses.map((u) => u.path)).toEqual(['/gigs/b'])
@@ -45,7 +45,7 @@ describe('the gigs a song is in', () => {
     // An unplugged drive is not evidence of anything. The wrong answer here would be to block the
     // delete; the second wrong answer would be to say the song is in a setlist nobody looked at.
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/gone', '/gigs/broken'],
+      list: async () => ['/gigs/gone', '/gigs/broken'],
       read: reader({ '/gigs/gone': null, '/gigs/broken': '{ not json' }),
     })
     expect(uses).toEqual([])
@@ -53,7 +53,7 @@ describe('the gigs a song is in', () => {
 
   it('survives a reader that throws, rather than taking the dialog down with it', async () => {
     const uses = await gigsUsingSong('duelo', {
-      list: () => ['/gigs/a', '/gigs/b'],
+      list: async () => ['/gigs/a', '/gigs/b'],
       read: async (path: string) => {
         if (path === '/gigs/a') throw new Error('bridge is gone')
         return { gigText: gig() }
@@ -63,6 +63,6 @@ describe('the gigs a song is in', () => {
   })
 
   it('is empty when there are no gigs at all', async () => {
-    expect(await gigsUsingSong('duelo', { list: () => [], read: reader({}) })).toEqual([])
+    expect(await gigsUsingSong('duelo', { list: async () => [], read: reader({}) })).toEqual([])
   })
 })

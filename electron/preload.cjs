@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   emittedSong: (stagingDir, since) => ipcRenderer.invoke('bombista:emitted', stagingDir, since),
   /** The song files in `<songs>/song-performance`. The folder is the truth; the library caches it. */
   listSongsFolder: (folderPath) => ipcRenderer.invoke('fs:listSongsFolder', folderPath),
+  /** The gig folders inside `<gigs>/setup`. The gigs list is the folder, like the songs list. */
+  listGigsFolder: (folderPath) => ipcRenderer.invoke('fs:listGigsFolder', folderPath),
   /** Whether a folder can be read at all. { ok: true } or { ok: false, error }. */
   folderReadable: (folderPath) => ipcRenderer.invoke('fs:folderReadable', folderPath),
   /** Moves one song file to the Trash. { ok: true } or { ok: false, error }. */

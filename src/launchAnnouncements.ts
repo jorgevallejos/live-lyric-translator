@@ -45,8 +45,18 @@ export const unreadableSongs = launchRecord()
 /** The two folders this machine was pointed at, by the key of the half they belong to. */
 export const unreadableFolders = launchRecord()
 
-/** Test seam only: both records, as a fresh launch would have them. */
+/**
+ * Gig folders whose `gig.json` would not parse, by folder name.
+ *
+ * **Its own record rather than a share of `unreadableSongs`**, because each record is *replaced*
+ * on every arrival: one set holding both would have a broken song silence a broken gig, and the
+ * other way round, the moment the two are announced in the same breath.
+ */
+export const unreadableGigs = launchRecord()
+
+/** Test seam only: every record, as a fresh launch would have them. */
 export function forgetLaunchAnnouncements(): void {
   unreadableSongs.forget()
   unreadableFolders.forget()
+  unreadableGigs.forget()
 }

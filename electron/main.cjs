@@ -13,6 +13,7 @@ const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
 const { resolveBombista } = require('./bombistaBinary.cjs')
 const { listSongFiles } = require('./songsFolder.cjs')
+const { listGigFolders } = require('./gigsFolder.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
 const { emittedSongIn } = require('./emittedSong.cjs')
 const { replaceSongFile } = require('./replaceSongFile.cjs')
@@ -382,6 +383,8 @@ ipcMain.handle('fs:readSongFile', (_event, filePath) => readSongFile(filePath))
 // one at a time, so a machine whose catalogue held thirteen songs reported "No songs yet". The
 // folder is the source of truth; this is how it is read.
 ipcMain.handle('fs:listSongsFolder', (_event, folderPath) => listSongFiles(String(folderPath)))
+
+ipcMain.handle('fs:listGigsFolder', (_event, folderPath) => listGigFolders(String(folderPath)))
 
 // **Whether a folder this machine was pointed at can be read at all.** Separate from the listing
 // above because they answer different questions: `song-performance/` is absent on a fresh machine

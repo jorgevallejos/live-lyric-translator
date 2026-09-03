@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { closeGig, openGigFolder, refreshGigReadiness } from './gigSession'
 import { getRememberedGigFolder } from './gigFolderStore'
-import { forgetGig, getGigList } from './gigListStore'
 import { readGigLabels } from './gigLabels'
+import { readGigFolders } from './gigFolderList'
 import {
   ensureSongLibraryHydrated,
   catalogueWasRead,
@@ -13,13 +13,12 @@ import {
   type LibraryEntry,
 } from './setlistStore'
 import { newlyVanished, recordVanishedAnnounced } from './vanishedSongs'
-import { unreadableFolders, unreadableSongs } from './launchAnnouncements'
+import { unreadableFolders, unreadableGigs, unreadableSongs } from './launchAnnouncements'
 import { getGigsFolder, getSongFilesFolder, getSongsFolder, resolveSongPath } from './contentFolders'
 import {
   bombistaStagingDir,
   deleteGigFolder,
   deleteSongFile,
-  folderReadable,
   hasGigFolderAccess,
   canRunBombista,
   listSongsFolder,
@@ -619,6 +618,58 @@ function UnreadableSongsPopup({
 }
 
 /**
+ * **A gig whose `gig.json` will not read.**
+ *
+ * **The unreadable-song rule, applied to gigs** (2026-09-03). Something was claimed to be a gig —
+ * there is a `gig.json` in that folder — and it cannot be read, so it is said once and is never a
+ * row: a row is a thing you can open, and this cannot be opened. **A folder with no `gig.json` at
+ * all is a different thing and says nothing**, because nobody ever called it a gig.
+ *
+ * The folder's own name is what it is called here, because there is no file to get a label out of.
+ */
+function UnreadableGigsPopup({
+  folders,
+  onClose,
+}: {
+  folders: { folder: string; reason: string }[]
+  onClose: () => void
+}) {
+  if (folders.length === 0) return null
+  return (
+    <div className="ctrl-timeline-save-overlay" data-testid="setup-gigs-unreadable-popup">
+      <div
+        className="ctrl-timeline-save-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Gigs that will not read"
+      >
+        <p className="ctrl-timeline-save-message" data-testid="setup-gigs-unreadable-title">
+          {folders.length === 1 ? 'One gig will not read' : `${folders.length} gigs will not read`}
+        </p>
+        <ul className="setup-songs-gone-list" data-testid="setup-gigs-unreadable-list">
+          {folders.map(({ folder, reason }) => (
+            <li key={folder}>
+              <code>{folder}</code>:{' '}
+              <span className="setup-songs-unreadable-reason">{reason}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="ctrl-timeline-save-message" data-testid="setup-gigs-unreadable-note">
+          {folders.length === 1
+            ? 'The folder is untouched and stays where it is. It is not in the gigs list, so it cannot be opened.'
+            : 'The folders are untouched and stay where they are. They are not in the gigs list, so they cannot be opened.'}
+        </p>
+        <div className="ctrl-timeline-save-actions">
+          <button type="button" className="ctrl-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
  * **A folder that cannot be read is a popup too** (Jorge, 2026-09-02).
  *
  * Same rule as the unreadable file, for the same reason: the folder was moved, renamed or
@@ -685,9 +736,13 @@ type Announcement =
   | { key: string; kind: 'folder'; half: 'songs' | 'gigs'; path: string }
   | { key: string; kind: 'vanished'; songs: string[] }
   | { key: string; kind: 'unreadable'; files: { file: string; reason: string }[] }
+  | { key: string; kind: 'unreadable-gigs'; folders: { folder: string; reason: string }[] }
 
 export function SetupHomeView() {
-  const [gigs, setGigs] = useState<string[]>(getGigList)
+  // **The gigs are the folder, read on arrival** (Jorge, 2026-09-03). Empty until the read comes
+  // back, which is one tick — never seeded from anything the app remembered, because a remembered
+  // list is the thing this replaced.
+  const [gigs, setGigs] = useState<string[]>([])
   // **What each gig is called, read from its own file rather than from its path.** Empty until the
   // read comes back, and a row shows its folder's id in the meantime — which is the same fallback
   // a gig whose file will not read keeps for good. Never persisted: a stored label is a label that
@@ -723,13 +778,30 @@ export function SetupHomeView() {
   // different question: those are conditions, these are the part of each that just changed.
   const [queue, setQueue] = useState<Announcement[]>([])
 
-  const reload = useCallback(() => {
-    const paths = getGigList()
-    setGigs(paths)
+  /**
+   * **Both lists, re-read from their folders.** Every arrival and every action, because that is
+   * what makes a gig made in another window, or a song added in a terminal, simply be here.
+   *
+   * It returns what the gig read found, so the arrival effect can announce the gigs that would not
+   * parse and the gigs folder that would not read without asking twice and risking two answers.
+   */
+  const reload = useCallback(async (): Promise<{
+    unreadable: { folder: string; reason: string }[]
+    problem: string | null
+  }> => {
     setSongs(getCatalogueEntries())
-    // Re-read on every reload, which is every arrival and every action: the label has to follow an
-    // edit made in the gig flow, and coming back here is when it would be seen to have.
-    void readGigLabels(paths).then(setGigLabels)
+    const gigsRoot = getGigsFolder()
+    if (gigsRoot === null) {
+      setGigs([])
+      setGigLabels(new Map())
+      return { unreadable: [], problem: null }
+    }
+    const listing = await readGigFolders(gigsRoot)
+    setGigs(listing.gigs)
+    // Read on every reload: the label has to follow an edit made in the gig flow, and coming back
+    // here is when it would be seen to have.
+    setGigLabels(await readGigLabels(listing.gigs))
+    return { unreadable: listing.unreadable, problem: listing.problem }
   }, [])
 
   // Arriving here is a door, so the files are re-read — the songs folder as well as the gig. Same
@@ -740,13 +812,15 @@ export function SetupHomeView() {
       await ensureSongLibraryHydrated()
       await refreshGigReadiness()
 
-      // **Both folders, both halves.** The songs one comes back through the catalogue listing,
-      // which asks about the root before it asks what is in it; the gigs one is asked directly,
-      // because the gigs list is a remembered set of paths and nothing was reading the folder.
+      // **Both folders, both halves, each through its own list's read.** The songs one comes back
+      // through the catalogue listing, which asks about the root before it asks what is in it; the
+      // gigs one comes back the same way now that the gigs list is the folder — one read, one
+      // answer, rather than a folder check beside a list that could disagree with it.
       const songsRoot = getSongsFolder()
       const gigsRoot = getGigsFolder()
       const songsBad = songsRoot !== null && (await listSongsFolder(songsRoot)).problem !== null
-      const gigsBad = gigsRoot !== null && !(await folderReadable(gigsRoot)).readable
+      const gigListing = await reload()
+      const gigsBad = gigListing.problem !== null
       setSongsFolderProblem(songsBad)
       setGigsFolderProblem(gigsBad)
 
@@ -793,8 +867,22 @@ export function SetupHomeView() {
       }
       unreadableSongs.record(broken.map((b) => b.file))
 
+      // **A `gig.json` that will not parse is the unreadable-song case** (2026-09-03). Something
+      // *was* claimed to be a gig and cannot be read, so it is said once and is never a row — a
+      // row is a thing you can open. A folder with no `gig.json` at all is neither: nobody ever
+      // called it a gig, so it is silent.
+      const brokenGigs = gigListing.unreadable
+      const newlyBrokenGigs = new Set(unreadableGigs.newly(brokenGigs.map((g) => g.folder)))
+      if (newlyBrokenGigs.size > 0) {
+        news.push({
+          key: 'unreadable-gigs',
+          kind: 'unreadable-gigs',
+          folders: brokenGigs.filter((g) => newlyBrokenGigs.has(g.folder)),
+        })
+      }
+      unreadableGigs.record(brokenGigs.map((g) => g.folder))
+
       setQueue(news)
-      reload()
     })()
   }, [reload])
 
@@ -805,7 +893,7 @@ export function SetupHomeView() {
     setBusy(true)
     void action().finally(() => {
       setBusy(false)
-      reload()
+      void reload()
     })
   }
 
@@ -862,23 +950,18 @@ export function SetupHomeView() {
       // first would be undone by a listing that had not caught up with the file leaving it.
       forgetDeletedSong(entry.ref.id)
       void refreshGigReadiness()
-      reload()
+      void reload()
     })()
   }
 
   /**
-   * **Trash the gig's folder, then forget where it was.**
+   * **Trash the gig's folder, and that is the whole of it.**
    *
-   * **In that order, and the order is the rule.** Forgetting first would drop the row on a delete
-   * that failed, leaving a folder on disk that nothing lists — the shape the songs list already
-   * refuses. The reference is dropped only once the folder has actually gone.
-   *
-   * **Forgetting at all is because this list is not the folder.** The Songs list is read from
-   * `<songs>/song-performance/` on every arrival, so a deleted file simply stops being a row. The
-   * gigs list is remembered paths in browser storage, so a deleted gig has to be taken out of it or
-   * its row outlives it. That difference is worth knowing rather than hiding: it is the reason
-   * `Forget` existed at all, and the reason it is now a consequence of deleting rather than a
-   * control of its own.
+   * **Nothing is forgotten afterwards, because there is nothing holding it** (2026-09-03). The
+   * gigs list is `<gigs>/setup/` re-read on every arrival, exactly as the songs list is
+   * `<songs>/song-performance/`, so a folder that has gone simply stops being a row. `forgetGig`
+   * and the bookmark list behind it went with that change; a second step to keep a stored list in
+   * step with the disk is the whole class of defect this replaced.
    *
    * **An open gig is closed first**, because the alternative is a session pointed at a folder in
    * the Trash.
@@ -896,9 +979,8 @@ export function SetupHomeView() {
         return
       }
       setDeletingGig(null)
-      forgetGig(path)
       await refreshGigReadiness()
-      reload()
+      void reload()
     })()
   }
 
@@ -941,6 +1023,9 @@ export function SetupHomeView() {
       )}
       {showing?.kind === 'unreadable' && (
         <UnreadableSongsPopup files={showing.files} onClose={closeTop} />
+      )}
+      {showing?.kind === 'unreadable-gigs' && (
+        <UnreadableGigsPopup folders={showing.folders} onClose={closeTop} />
       )}
       {/* The consent dialog is not in the queue: the queue is what the app has to say on arrival,
           and this is the answer to a press that has just happened. */}
