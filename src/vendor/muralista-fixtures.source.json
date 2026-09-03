@@ -2,12 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.9.0",
-  "sha256": "cb21b4d71a9dadf3ab7c6ae153c7fd89353c1cda359828c7368bce2f4becd0d0",
+  "tag": "v1.10.0",
+  "sha256": "7eda28556b258cac7db85ffe3b1d6b45b7ec57e204b351f80ad03a50c11bea26",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT",
     "INTRO_PLACEHOLDER"
   ],
   "vendoredOn": "2026-09-03",
-  "note": "Re-vendored at v1.9.0 for the page, not for the stand-ins: v1.9.0 made the handed-in visuals.json the winner and left LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER untouched. The digest moved because the file did; the two values this repo reads out of it did not."
+  "note": "Re-vendored at v1.10.0 for the page, not for the stand-ins: v1.10.0 made the stage capture a Backdrop source and left LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER untouched. The digest moved because the file did; the two values this repo reads out of it did not."
 }

@@ -466,6 +466,19 @@ Pregonero the way it always was.**
 `parseVisualsFile` already makes here, on the same field. The two tools now agree about a mapping of
 a different room, rather than one of them catching it.
 
+### Muralista re-vendored at `v1.10.0` — the stage capture is a backdrop source (2026-09-03)
+
+**A vendoring bump; nothing on this side changed.** Muralista's `v1.10.0` offers the gig folder's
+`stage.png` as a Backdrop source and loads it down the same path a chosen photo takes.
+
+**What it closes here is the other half of a round trip this repo already carried.** Pregonero's
+localhost server was widened on 2026-09-03 to accept a `PUT` of `stage.png` beside `visuals.json`,
+and until now **nothing read that file back** — Pregonero wrote the bytes to disk unread and no tool
+loaded them. The write path had no reader at the far end.
+
+**The GET was already there**: the mount serves any file in it, and `.png` is in the content-type
+map. No change was needed, which is the evidence that the widening was scoped right.
+
 ### The display-size chain is removed (2026-09-03)
 
 **Ruling: Jorge, 2026-09-03, on Code's own sweep.** `ScreenSize` was dead **end to end**, and every
