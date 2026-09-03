@@ -438,6 +438,17 @@ gives a review page **with no audio** — and hearing the doubtful lines is the 
 for. `bombista serve` has `/api/audio` precisely so the page needs no relative src, and it is where
 tempo editing lives.
 
+**What Pregonero says to `bombista serve` is five options and nothing else** — `SongFlowView`'s
+`serveArgs`, and each is a directory, a file or a boolean about what to draw. The fifth is
+`--deal`/`--no-deal` (2026-09-03): Bombista's step 0 is shown **when this machine has produced no
+song yet**, and standalone Bombista answers that from its own cache. In here it cannot — the cache
+is not the directory this flow works in — so **the catalogue answers it**, as a boolean. Bombista
+does not know what a catalogue is and must not learn. It is answered **both ways**, never omitted:
+left unset, Bombista's own fallback would say *show it* on every song forever, because this flow
+never writes to that cache. **Nothing on either side remembers that it was seen** — the catalogue
+fills on the first save and answers for itself, which is one fewer thing for the walk's reset to
+clear.
+
 **Nothing here manages candidate files, temp files or swaps.** `bombista promote` merges a candidate
 home and `bombista/songfile.py`'s `back_up_and_replace` is *THE one song-write path*. Pregonero calls
 `promote` and shows what it printed; it names one working directory for `align` to write into and
