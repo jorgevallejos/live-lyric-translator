@@ -387,16 +387,21 @@ export function SongFlowView() {
               title="Bombista"
               src={phase.url}
             />
-            {/* **Where the translation step lives** (2026-09-02). It had no home for three rounds
-                and survived in the gig flow's song door, which is not where the work happens.
-                **Pregonero names the step and Bombista has no business mentioning it**: the field
-                came off Bombista's page 1 on the same principle. One line, at the end of the flow,
-                where the file has just been made and is about to be edited elsewhere. */}
-            <p className="song-flow-outside" data-testid="song-flow-translations">
-              <strong>Translations are written outside the suite</strong>, in the song file itself,
-              in an LLM session — the lyrics and the title alike. No tool here asks for one or
-              performs one.
-            </p>
+            {/* **THE TRANSLATIONS NOTE IS NOT HERE, AND CANNOT BE** (Jorge, 2026-09-03).
+                It stood right here, under the frame, and the comment that used to sit with it
+                claimed *one line, at the end of the flow*. It was never at the end: this branch is
+                the whole life of the frame, so the line was up on Bombista's page 1, page 2 and
+                page 3 alike. Walked, it read as a fixed footer on every screen.
+
+                **It cannot be fixed on this side.** Pregonero draws Bombista in a frame with no
+                preload and reads nothing out of it — see the frame above — so it cannot tell which
+                page is showing, and teaching it would trade a real boundary for a sentence.
+
+                **So the page that IS the end renders it**: `_TRANSLATIONS_NOTE` at the foot of
+                Bombista's page 3, below the actions, in the fail colour. One line of copy crossed
+                the seam; nothing else did. Bombista still asks for no translation and performs
+                none. `song-flow-translations` is asserted absent below, so it cannot come back
+                here and start following the flow again. */}
           </>
         )}
       </main>

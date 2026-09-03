@@ -401,19 +401,33 @@ describe('the song flow', () => {
     expect(screen.queryByTestId('song-flow-refused')).toBeNull()
   })
 
-  // ── The translation step has a home, and it is here ───────────────────────────────────────
+  // ── The translation step is NOT named on this side, and the inversion is the point ────────
+  //
+  // **This pair used to assert the opposite** (2026-09-02 to 2026-09-03). Pregonero drew the line
+  // beside the frame and the test above it said *once, at the end of the flow*. Neither was true:
+  // the frame is the whole flow, so the line was up on Bombista's page 1, page 2 and page 3
+  // alike, and the walk of 2026-09-03 read it as a fixed footer on every screen.
+  //
+  // **The fix could not be on this side.** Pregonero draws Bombista in a frame with no preload
+  // and reads nothing out of it, so it cannot tell which page is showing — and teaching it would
+  // trade a load-bearing boundary for a sentence. The end of the flow is Bombista's page 3, so
+  // Bombista renders it there. `tests/test_pages.py` is where it is now asserted present, absent
+  // from the other pages, and below the actions.
+  //
+  // These two stay, inverted, for the same reason the gig flow's song door kept its inverted
+  // test when the line left there: the line has drifted home three times, and the surface it
+  // drifts back to is whichever one still draws it.
 
-  it('names the translation step once, at the end of the flow', async () => {
-    // The principle is settled in the suite's contract: translation happens outside the suite, in
-    // the file, and no tool asks for one or performs one. **Pregonero names it and Bombista has no
-    // business mentioning it** — the title-translation field came off page 1 on the same rule.
+  it('does not draw the translations line beside the frame, on every page of the flow', async () => {
     request()
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('song-flow-frame')).toBeTruthy())
-    const line = screen.getByTestId('song-flow-translations').textContent!
-    expect(line).toMatch(/Translations are written outside the suite/)
-    expect(line).toMatch(/in the song file itself/)
-    expect(line).toMatch(/No tool here asks for one or performs one/)
+    expect(screen.queryByTestId('song-flow-translations')).toBeNull()
+    // Not by test id and not by its words either: a line re-added under another name is the same
+    // line back on page 1.
+    expect(screen.getByTestId('song-flow').textContent).not.toMatch(
+      /Translations are written outside the suite/
+    )
   })
 
   it('does not put it on a screen where nothing is being made', async () => {
