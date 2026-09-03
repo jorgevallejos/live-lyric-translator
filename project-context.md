@@ -450,6 +450,79 @@ throws on load with the other four hashes all green**. `muralistaPage.test.ts` a
 a blank window at a projector. The assertion was written for a hypothetical fifth file; the fifth
 file arrived.
 
+### Step 4 opens: the check, and the setup journey's last screen (2026-09-03)
+
+**Ruling: `tramoya-integration/journey-setup.md` step 9 ("4. Check") and `project-context.md`
+("9.4's leaving action is settled").**
+
+**Not a form.** One line per thing that has to be true, each passing or failing, then one action
+that leaves. Nothing on it is typed.
+
+#### It reads `gigReadiness`, and the reading is structured
+
+Every line is bound to a **structured** field — a `StepStatus`, or `songs[].ready`. **No line is
+derived from a message.** That is not fastidiousness: step 9's blocking trap was a predicate
+matching the substring `"could not be read"` against rendered prose, so `libertad`'s own wording —
+*"20 timeline entries, 24 lyric lines"* — blocked while never being mentioned. The `missing` and
+`notes` strings are **shown** on this screen and never **read**.
+
+| Line | Reads |
+|---|---|
+| The gig knows what night it is | `steps[1].status` |
+| There is a setlist, and every song in it is one this machine knows | `steps[2].status` |
+| The room is mapped, and the mapping is this gig's | `steps[3].status` |
+| Every song in the setlist can be performed | `songs.every(s => s.ready)` |
+
+An empty setlist is **not** a passing song line: `[].every()` answers true about nothing, which
+would print PASS over a gig with no songs.
+
+#### Where these lines and the designed three differ — reported, not reconciled
+
+The design names three checks: *every song in the setlist resolves to a file*, *every file those
+name resolves*, *the visuals belong to this gig*. **`gigReadiness` computes all three and exposes
+none of them separably.**
+
+- **The first two collapse into one line.** `songs[].ready` is the union of *its file read*, *its
+  media resolves* and *a shape carries it*; the reasons live only in `songs[].missing` prose.
+  Splitting them means reading prose, which is the trap above.
+- **The third is `steps[3].status`**, which also covers an unknown `visualsVersion` and a file that
+  will not parse. The refusal's own sentence names which it was, and the screen shows it.
+
+**And they disagree about what blocks, which is the finding worth keeping.** A setlist song whose
+file will not read is a **note** on step 2, deliberately — a step that can never complete while a
+known-broken song sits in the library is a guided path nobody can walk, and `libertad` is the
+standing example. The design's first line says that **fails**. **The gate on this screen is
+readiness's, unchanged**: steps 1 to 3 complete. The song line reports and does not block, and the
+note is rendered as a note rather than mixed in with what is in the way. **Widening `gigReadiness`
+to reconcile the two was not done and is Jorge's to rule.**
+
+#### The leaving action
+
+**`Confirm setup`, and it lands on Backstage** (Jorge, 2026-09-03). It used to read `Confirm setup
+and go to the control view`, wrong twice over: it named the stage as the destination and it
+performed the act that was separated from confirming. **Choosing tonight's gig belongs to the gig
+row's play icon and the control view's first column.**
+
+**It leaves only if the confirmation was actually recorded.** A failed write keeps you on the
+screen, in front of the problem; navigating away would report success by arriving somewhere.
+
+**`Save to the gigs list` was proposed and rejected on truth.** `gig.json` is written at the end of
+step 1, the setlist writes as it changes, and since the gigs list became the folder the gig has been
+in that list since step 1. The button would save nothing and add something already there.
+
+**A gig can be edited afterwards.** Returning to change a setlist is the normal case; nothing here
+closes anything, and coming back re-checks the files.
+
+#### Two consequences, named
+
+- **`BUILT` is 4, so the bar's later-step branch is unreachable today.** It is kept rather than
+  deleted: it carries Jorge's 03/09 ruling about how a step that has not arrived is drawn — dimmed
+  and inert, never struck through — and that ruling outlives the moment there happens to be nothing
+  after step 4. Held, like the six unreachable functions, rather than tidied away.
+- **`GigView` at `#/gig/steps` still has the old screen and the old button**, reading `Confirm setup
+  and go to the control view`. Nothing in the flow leads there; it was left alone because it is not
+  on the walk and removing it is its own decision.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

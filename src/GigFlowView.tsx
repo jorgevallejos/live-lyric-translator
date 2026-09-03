@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { createGig, refreshGigReadiness, publishSetlistToGig, saveGigIdentity } from './gigSession'
+import {
+  confirmSetup,
+  createGig,
+  refreshGigReadiness,
+  publishSetlistToGig,
+  saveGigIdentity,
+} from './gigSession'
 import { useGigReadiness } from './useGigReadiness'
 import { gigIdentityIsAnswered, gigLabelFrom } from './gigFile'
 import { getGigsFolder } from './contentFolders'
 import { gigFolderIn } from './fileLayout'
 import { LeaveWithoutSaving } from './LeaveWithoutSaving'
 import { canHostTools, serveTool } from './platform'
+import type { GigReadiness, StepStatus } from './gigReadiness'
 import { MURALISTA_KEY, MURALISTA_PAGE } from './MuralistaDoor'
 import { GatedAction } from './GatedAction'
 import {
@@ -26,12 +33,9 @@ import {
  *
  *     1 GIG    2 SETLIST    3 VISUALS    4 CHECK
  *
- * **Screens 1, 2 and 3 are built. 4 is the bar's later step** and is deliberately not enterable: a
- * segment that opened an empty page would say the step exists and does nothing, which is worse than
- * a segment that says it is not here yet. Step 4's checks are their own round.
- *
- * **Step 3 opened on 2026-09-03**, when Muralista's own flow landed (its `v1.8.0`). It is the tool
- * itself, in a frame, on this gig — **not a door to it**.
+ * **All four screens are built as of 2026-09-03.** Step 3 opened when Muralista's own flow landed
+ * (its `v1.8.0`) — it is the tool itself, in a frame, on this gig, not a door to it. Step 4 is the
+ * check, and it is the last unbuilt screen of the setup journey.
  *
  * ## Where the file goes, and it is not a question anybody is asked
  *
@@ -62,8 +66,13 @@ const STEPS: readonly { step: number; label: string }[] = [
   { step: 4, label: 'Check' },
 ]
 
-/** The three that exist. Everything after them is a later step, and the bar says so. */
-const BUILT = 3
+/**
+ * **All four exist since 2026-09-03.** The later-step branch below is therefore unreachable today,
+ * and it is kept rather than deleted: it carries Jorge's ruling of 03/09 about how a step that has
+ * not arrived is drawn — dimmed and inert, never struck through — and that ruling outlives the
+ * moment there happens to be nothing after step 4.
+ */
+const BUILT = 4
 
 /**
  * **The step bar, pinned.** In an embedded subflow the bar is fixed and everything else scrolls —
@@ -511,6 +520,217 @@ function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
   )
 }
 
+/**
+ * **Screen 4: the check.**
+ *
+ * **Not a form.** One line per thing that has to be true, each passing or failing, then one action
+ * that leaves. Nothing on it is typed and nothing on it is stored except the press at the bottom.
+ *
+ * ## It READS `gigReadiness`, and every line names the field it reads
+ *
+ * **Nothing here forms its own opinion about what ready means** — that is `gigReadiness.ts`'s rule
+ * about itself, and a second implementation is the warp problem in a different costume. So every
+ * line below is bound to a **structured** field: a `StepStatus`, or `songs[].ready`.
+ *
+ * **No line is derived from a message.** Step 9's blocking trap was exactly that: a predicate
+ * matching the substring `"could not be read"` against rendered prose, so `libertad`'s own wording
+ * blocked silently. The `missing` and `notes` strings are shown; they are never read.
+ *
+ * ## Where these lines and the designed ones differ, which is a finding rather than a liberty
+ *
+ * The design names three checks — *every song in the setlist resolves to a file*, *every file those
+ * name resolves*, *the visuals belong to this gig*. **`GigReadiness` computes all three and exposes
+ * none of them separably.** They live inside per-step `missing`/`notes` prose and inside
+ * `songs[].missing`, so:
+ *
+ * - The first two collapse into one line, `every song can be performed`, which is
+ *   `songs.every(s => s.ready)` — the union of *its file read*, *its media resolves* and *a shape
+ *   carries it*. Splitting them means reading prose, which is the trap above.
+ * - The third is `steps[3].status !== 'broken'`, which also covers an unknown `visualsVersion` and
+ *   a file that will not parse. The refusal's own sentence names which it was.
+ *
+ * **And they disagree about what blocks.** A setlist song whose file will not read is a `note` on
+ * step 2, deliberately: a step that can never complete while a known-broken song sits in the
+ * library is a guided path nobody can walk, and `libertad` is the standing example. The design's
+ * first line says that *fails*. **The gate here is readiness's, unchanged** — steps 1 to 3 complete
+ * — and the song line reports without blocking. Widening `gigReadiness` to reconcile them is not
+ * this round's to do.
+ */
+
+const CHECK_STATUS_LABEL: Record<StepStatus, string> = {
+  complete: 'Pass',
+  'not-yet': 'Not yet',
+  broken: 'Fails',
+}
+
+/** One line: what has to be true, whether it is, and what is in the way. */
+function CheckLine({
+  id,
+  claim,
+  status,
+  detail,
+  notes,
+}: {
+  id: string
+  claim: string
+  status: StepStatus
+  detail: string[]
+  notes?: string[]
+}) {
+  return (
+    <li className="gig-check-line" data-testid={`gig-check-${id}`} data-state={status}>
+      <div className="gig-check-head">
+        <span className="gig-check-claim">{claim}</span>
+        <span className="gig-check-status" data-testid={`gig-check-${id}-status`}>
+          {CHECK_STATUS_LABEL[status]}
+        </span>
+      </div>
+      {detail.length > 0 && (
+        <ul className="gig-check-detail" data-testid={`gig-check-${id}-detail`}>
+          {detail.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+      {/* **Reported, never blocking**, and marked as such rather than mixed in with what is in the
+          way. This is readiness's own distinction, rendered — not a softening of it. */}
+      {notes !== undefined && notes.length > 0 && (
+        <ul className="gig-check-notes" data-testid={`gig-check-${id}-notes`}>
+          {notes.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+function ScreenCheck({
+  readiness,
+  busy,
+  onConfirm,
+}: {
+  readiness: GigReadiness
+  busy: boolean
+  onConfirm: () => void
+}) {
+  const step = (n: number) => readiness.steps.find((s) => s.step === n)
+  const step1 = step(1)
+  const step2 = step(2)
+  const step3 = step(3)
+  const blocked = readiness.songs.filter((song) => !song.ready)
+  // **Every song can be performed**, from `songs[].ready` and nothing else. An empty setlist is not
+  // a pass here: step 2 already fails it, and `[].every()` would answer true about nothing.
+  const songsStatus: StepStatus =
+    readiness.songs.length === 0 ? 'not-yet' : blocked.length === 0 ? 'complete' : 'not-yet'
+  // **The gate is readiness's, unchanged**: steps 1 to 3 complete. Not the song line — see the
+  // header. `GigView` gates the same press the same way, off the same fields.
+  const checksPass = [step1, step2, step3].every((s) => s?.status === 'complete')
+  const confirmation = readiness.confirmation
+
+  return (
+    <section className="gig-flow-page gig-flow-check" data-testid="gig-flow-check">
+      <p className="gig-flow-lede">
+        <strong>Do this standing in the room.</strong> Everything below was checked against the
+        files. Only you can check it against the wall.
+      </p>
+
+      <ul className="gig-check-list" data-testid="gig-check-list">
+        {step1 !== undefined && (
+          <CheckLine
+            id="gig"
+            claim="The gig knows what night it is."
+            status={step1.status}
+            detail={step1.missing}
+          />
+        )}
+        {step2 !== undefined && (
+          <CheckLine
+            id="setlist"
+            claim="There is a setlist, and every song in it is one this machine knows."
+            status={step2.status}
+            detail={step2.missing}
+            notes={step2.notes}
+          />
+        )}
+        {step3 !== undefined && (
+          <CheckLine
+            id="visuals"
+            claim="The room is mapped, and the mapping is this gig’s."
+            status={step3.status}
+            detail={step3.missing}
+            notes={step3.notes}
+          />
+        )}
+        <CheckLine
+          id="songs"
+          claim="Every song in the setlist can be performed."
+          status={songsStatus}
+          detail={
+            readiness.songs.length === 0
+              ? ['There are no songs to check.']
+              : blocked.map((song) => `${song.title}: ${song.missing.join('; ')}`)
+          }
+        />
+      </ul>
+
+      {confirmation === null ? (
+        <p className="gig-hint" data-testid="gig-check-confirmation">
+          Setup has not been confirmed for this gig. Arming warns about that; it does not refuse.
+        </p>
+      ) : confirmation.stale ? (
+        <div className="setup-lapsed" data-testid="gig-check-lapsed">
+          <p>
+            Setup was confirmed on {confirmation.confirmedAt}, and has <strong>lapsed</strong>:
+          </p>
+          <ul>
+            {confirmation.moved.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="gig-hint" data-testid="gig-check-confirmation">
+          Setup was confirmed on {confirmation.confirmedAt}, and everything it was confirmed against
+          is still as it was.
+        </p>
+      )}
+
+      {/* **ONE action, and it does one thing** (Jorge, 2026-09-03). It confirms setup and lands on
+          Backstage. It used to read `Confirm setup and go to the control view`, wrong twice over:
+          it named the stage as the destination, and it performed the act that was separated from
+          confirming. **Choosing tonight's gig belongs to the gig row's play icon and the control
+          view's first column**, not here.
+
+          **`Save to the gigs list` was proposed and rejected on truth.** `gig.json` is written at
+          the end of step 1, the setlist writes as it changes, and since the gigs list became the
+          folder the gig has been in that list since step 1. The button would save nothing and add
+          something already there.
+
+          **A gig can be edited afterwards.** Returning to change a setlist is the normal case, and
+          nothing here closes anything. */}
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn gig-flow-primary"
+          data-testid="gig-flow-confirm"
+          disabled={busy || !checksPass}
+          title={checksPass ? undefined : 'The checks above have to pass first.'}
+          onClick={onConfirm}
+        >
+          {confirmation === null ? 'Confirm setup' : 'Confirm setup again'}
+        </button>
+      </div>
+      <p className="gig-hint">
+        Confirming records that these checks passed and <strong>what they passed against</strong> —
+        the song files, the room, the displays — so it can notice it has stopped being true. It
+        never records a matrix, a layout or a pixel size, and it blocks nothing. A gig can be
+        changed afterwards; coming back here re-checks the files.
+      </p>
+    </section>
+  )
+}
+
 export function GigFlowView() {
   const readiness = useGigReadiness()
   const [busy, setBusy] = useState(false)
@@ -614,15 +834,37 @@ export function GigFlowView() {
     })()
   }
 
+  /**
+   * **Confirm setup, and land on Backstage** (Jorge, 2026-09-03).
+   *
+   * **It leaves only if the confirmation was actually recorded.** A failed write keeps you here, in
+   * front of the problem: navigating away would report success by arriving somewhere, which is the
+   * defect this button was fixed for once already.
+   *
+   * **Backstage, not the control view.** Confirming asserts that the checks passed; **choosing
+   * tonight's gig is a different act**, owned by the gig row's play icon and the control view's
+   * first column. One press asserting both is what the split of 02/09 took apart.
+   */
+  const confirmAndLeave = () => {
+    setBusy(true)
+    void confirmSetup()
+      .then((next) => {
+        if (next.confirmation !== null && !next.confirmation.stale) {
+          window.location.hash = '#/setup'
+        }
+      })
+      .finally(() => setBusy(false))
+  }
+
   const setlistChanged = () => {
     setRevision((n) => n + 1)
     setBusy(true)
     void publishSetlistToGig().finally(() => setBusy(false))
   }
 
-  // Steps 2 and 3 are reachable once the gig is on disk, and not before. Step 2 writes a running
-  // order into a file and step 3 hands that same folder to Muralista, and there is no folder until
-  // step 1 has been committed.
+  // Steps 2, 3 and 4 are reachable once the gig is on disk, and not before. Step 2 writes a running
+  // order into a file, step 3 hands that same folder to Muralista, and step 4 reads what is in it —
+  // and there is no folder until step 1 has been committed.
   const reachable = exists ? BUILT : 1
   // **The header names the night, not the folder.** The folder is an opaque id since 2026-09-03,
   // and a header reading `k3f9x2abcd` tells nobody which gig they are in. Same rule as the row on
@@ -632,6 +874,8 @@ export function GigFlowView() {
     : 'New gig'
 
   const body = (() => {
+    if (here === 4)
+      return <ScreenCheck readiness={readiness} busy={busy} onConfirm={confirmAndLeave} />
     if (here === 3) return <ScreenVisuals folderPath={readiness.folderPath} />
     if (here === 2) return <ScreenSetlist key={revision} busy={busy} onChange={setlistChanged} />
     return (
