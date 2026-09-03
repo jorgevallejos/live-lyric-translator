@@ -16,6 +16,8 @@
  *   with a way across and a way up and down. Only songs Pregonero can read are offered.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { render, screen, act, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import { installRequiredFolders } from './testSupport/folders'
 import { installCatalogue } from './testSupport/library'
@@ -179,6 +181,33 @@ describe('the step bar', () => {
     }
   })
 
+  /**
+   * **Not struck through** (Jorge, 2026-09-03). Strike-through is the mark for something CANCELLED,
+   * and these two are not cancelled — they have not arrived. The walk read them as *dropped*, which
+   * is the opposite of what the bar is trying to say. The treatment is the one step 2 already gets
+   * before there is a gig: dimmed and not a control.
+   */
+  it('does not strike through the steps that are not built', () => {
+    // Every rule that styles a later segment, wherever it declares it. jsdom computes no layout,
+    // so the stylesheet is read as text — which is where a strike-through would be reintroduced.
+    const css = readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const blocks = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter(([, selector]) => /(^|,)\s*\.gig-step-later\s*$/m.test(selector!))
+      .map(([, , body]) => body!)
+    expect(blocks.length, 'no rule for .gig-step-later').toBeGreaterThan(0)
+    for (const body of blocks) expect(body).not.toMatch(/text-decoration/)
+    // The same colour the disabled segment gets, so the two shut states read as one thing.
+    expect(blocks.join('\n')).toMatch(/color:\s*var\(--text-disabled\)/)
+  })
+
+  /** The word that carries the difference between *shut for now* and *not built at all*. */
+  it('still says which steps are later', async () => {
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-3')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-step-3').textContent).toMatch(/later/i)
+  })
+
   it('holds the setlist step shut until there is a gig to write one into', async () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-2')).toBeTruthy(), WAIT)
@@ -252,6 +281,44 @@ describe('screen 1: the gig', () => {
     expect(written.id).toBe(GIG_ID)
     expect(written.date).toBe('2026-05-16')
     expect(written.venue).toEqual({ name: 'BOM Festival', city: 'Brussels' })
+  })
+
+  /**
+   * **The walk's own path, end to end, and it is the one nothing covered.** Every test below
+   * reaches screen 2 by opening a gig with a store that already holds a setlist — a fixture, not
+   * something the product makes. From nothing, `Create the gig` and then `Add →` was never walked
+   * in a test, and on 2026-09-03 it was walked by a person and did nothing at all.
+   *
+   * **`Add →` writes into the ACTIVE setlist, and until this the flow never created one.** So the
+   * store's `activeSetlistId` was `''`, `addSongToSetlist('', …)` refused, and the running order
+   * stayed empty with no refusal anywhere to see. This test starts with a catalogue and **no
+   * setlist**, which is what a machine that has never made one actually looks like.
+   */
+  it('adds a song to the order on the gig it just created, from a store with no setlist', async () => {
+    let onDisk: string | null = null
+    writeGigFile.mockImplementation((_folder: string, text: string) => {
+      onDisk = text
+      return Promise.resolve({ ok: true })
+    })
+    readGigFolder.mockImplementation(() =>
+      Promise.resolve(folderRead({ gigPresent: onDisk !== null, gigText: onDisk }))
+    )
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-commit')).toBeTruthy(), WAIT)
+    sayWhatTheNightIs()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-commit'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-catalogue-duelo')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-add-duelo'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-order-duelo')).toBeTruthy(), WAIT)
+    await waitFor(() => {
+      const written = writeGigFile.mock.calls.map((c) => String((c as unknown[])[1]))
+      expect(written.some((t) => t.includes('"setlist"') && t.includes('duelo'))).toBe(true)
+    }, WAIT)
   })
 
   it('moves on to the setlist once the gig is on disk', async () => {
@@ -420,6 +487,34 @@ describe('screen 2: the setlist', () => {
     expect(screen.getByTestId('gig-flow-catalogue').textContent).toContain('Duelo')
     expect(screen.getByTestId('gig-flow-catalogue').textContent).toContain('Vidas')
     expect(screen.getByTestId('gig-flow-order-empty')).toBeTruthy()
+  })
+
+  /**
+   * **The right-hand list is the gig's, not tonight's** (Jorge, 2026-09-03). A gig is set up weeks
+   * ahead: on 03/09 this screen said *TONIGHT, IN ORDER* about a gig on 23/10. **`Tonight` is the
+   * performance view's word**, it is needed there, and a setup screen borrowing it makes the one
+   * screen that means it mean less.
+   */
+  it('names the gig’s setlist, and never says tonight', async () => {
+    await openAtSetlist([song('duelo', 'Duelo')], ['duelo.json'])
+    const order = screen.getByTestId('gig-flow-order')
+    expect(order.textContent).toMatch(/setlist/i)
+    expect(screen.getByTestId('gig-flow-screen-2').textContent).not.toMatch(/tonight/i)
+  })
+
+  /**
+   * **The footer about visuals and the check is gone, and so is the door it held open.**
+   *
+   * It named `#/gig/steps` — the screen this flow exists to replace — on the screen that replaces
+   * it. **The consequence was stated before it was accepted:** that link was the only route left to
+   * Muralista and to `Confirm setup`, so steps 10 to 12 are unreachable from the flow until 9.3 and
+   * 9.4 are built. `GigView` is still in the code and still works; nothing leads to it from here.
+   */
+  it('does not offer the old setup screen, or announce what is not built', async () => {
+    await openAtSetlist([song('duelo', 'Duelo')], ['duelo.json'])
+    expect(screen.queryByTestId('gig-flow-later')).toBeNull()
+    expect(screen.queryByTestId('gig-flow-old-setup')).toBeNull()
+    expect(screen.getByTestId('gig-flow-screen-2').textContent).not.toMatch(/not built yet/i)
   })
 
   it('says a gig with no setlist is not a gig, rather than looking broken', async () => {

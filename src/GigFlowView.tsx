@@ -247,8 +247,13 @@ function ScreenGig({
 /**
  * **Screen 2: the setlist. Two lists side by side.**
  *
- * The catalogue as Pregonero reads it on the left, tonight's running order on the right, a way to
+ * The catalogue as Pregonero reads it on the left, the gig's running order on the right, a way to
  * move a song across and a way to move it up and down within the order.
+ *
+ * **Not *tonight*, and that is the whole of the 2026-09-03 finding.** A gig is set up weeks ahead —
+ * the walk read *TONIGHT, IN ORDER* on 03/09 about a gig on 23/10 — and *tonight* is the
+ * performance view's word, which needs it and is the only surface entitled to it. Setup speaks
+ * about **the gig**; the night speaks about tonight.
  *
  * **Only songs Pregonero can read appear.** This list says *you can use this*, and a file the app
  * cannot read is not usable — it is named once in a popup on Backstage and then dropped. The list
@@ -276,7 +281,7 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
               <p className="setup-home-empty" data-testid="gig-flow-catalogue-empty">
                 {chosen.size === 0
                   ? 'No songs yet. Songs are made on Backstage — they are gig-independent and last for years.'
-                  : 'Every song you have is in tonight’s order.'}
+                  : 'Every song you have is in this gig’s setlist.'}
               </p>
             ) : (
               <ul className="setup-home-list">
@@ -292,7 +297,7 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
                       className="ctrl-btn gig-flow-mark"
                       disabled={busy}
                       data-testid={`gig-flow-add-${entry.ref.id}`}
-                      aria-label={`Add ${entry.song?.title ?? entry.ref.id} to tonight’s order`}
+                      aria-label={`Add ${entry.song?.title ?? entry.ref.id} to the gig’s setlist`}
                       onClick={() => {
                         addSongToSetlist(setlistId, entry.ref.id)
                         onChange()
@@ -308,7 +313,7 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
         </section>
 
         <section className="gig-flow-list" data-testid="gig-flow-order">
-          <h2 className="gig-flow-list-name">Tonight, in order</h2>
+          <h2 className="gig-flow-list-name">The gig&rsquo;s setlist</h2>
           <div className="gig-flow-list-frame">
             {order.length === 0 ? (
               <p className="setup-home-empty" data-testid="gig-flow-order-empty">
@@ -356,7 +361,7 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
                         className="ctrl-btn gig-flow-mark"
                         disabled={busy}
                         data-testid={`gig-flow-remove-${entry.ref.id}`}
-                        aria-label={`Take ${entry.song?.title ?? entry.ref.id} out of tonight’s order`}
+                        aria-label={`Take ${entry.song?.title ?? entry.ref.id} out of the gig’s setlist`}
                         onClick={() => {
                           removeSongFromSetlist(setlistId, entry.ref.id)
                           onChange()
@@ -378,26 +383,15 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
         here writes the file.
       </p>
 
-      {/* **What comes after this screen, said plainly.** Screens 3 and 4 are the bar's later steps
-          and are not built, and the surface that still holds the room and the confirmation is the
-          old setup screen. **One line, and it is the only place that points there** — the
-          alternative was two doors into the same act, which is the shape this round exists to
-          remove. It goes when 3 and 4 land. */}
-      <p className="gig-flow-note gig-flow-unbuilt" data-testid="gig-flow-later">
-        <strong>Visuals and the check are the next two steps and are not built yet.</strong> Until
-        they are, the room is mapped and setup is confirmed on{' '}
-        <button
-          type="button"
-          className="gig-flow-inline-link"
-          data-testid="gig-flow-old-setup"
-          onClick={() => {
-            window.location.hash = '#/gig/steps'
-          }}
-        >
-          the old setup screen
-        </button>
-        .
-      </p>
+      {/* **Nothing here points at the old setup screen, and that is deliberate** (Jorge,
+          2026-09-03). The line that used to stand here announced that visuals and the check were
+          not built and offered `#/gig/steps` as the way to do them anyway — a screen this flow
+          exists to replace, named on the screen that replaces it.
+
+          **The known consequence, accepted rather than overlooked:** that link was the only door
+          left to Muralista and to `Confirm setup`, so steps 10 to 12 have no route from here until
+          9.3 and 9.4 are built. Those steps are parked. `GigView` is still in the code at
+          `#/gig/steps` and still works; nothing in the flow leads to it. */}
     </section>
   )
 }
