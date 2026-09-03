@@ -368,10 +368,13 @@ describe('the hard gate at arm time', () => {
       })
     )
     await renderAt('#/')
+    // **The gig's NAME, never the folder's opaque id** (Jorge, 2026-09-03) — the same rule
+    // Backstage's rows follow, through the same `gigLabelFrom`.
     await waitFor(
-      () => expect(screen.getByTestId('control-gig-value').textContent).toBe(GIG_ID),
+      () => expect(screen.getByTestId('control-gig-value').textContent).toBe('2026-09-12 · Bar Eduard'),
       { timeout: WAIT_TIMEOUT }
     )
+    expect(screen.getByTestId('control-gig-value').textContent).not.toContain(GIG_ID)
     // The confirmation is a milestone, not a lock: an unconfirmed gig says so and arms anyway.
     expect(screen.getByTestId('control-gig-summary').textContent).toMatch(
       /Every song can be armed\. Setup is not confirmed\./
@@ -476,7 +479,7 @@ describe('the running order is derived against the playable setlist', () => {
   /** Lets the gig folder read settle, then takes the clock so the tile's delay costs nothing. */
   async function settleThenFakeTimers() {
     await waitFor(
-      () => expect(screen.getByTestId('control-gig-value').textContent).toBe(GIG_ID),
+      () => expect(screen.getByTestId('control-gig-value').textContent).toBe('2026-09-12 · Bar Eduard'),
       { timeout: WAIT_TIMEOUT }
     )
     vi.useFakeTimers()

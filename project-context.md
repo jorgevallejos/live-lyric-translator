@@ -466,6 +466,39 @@ Pregonero the way it always was.**
 `parseVisualsFile` already makes here, on the same field. The two tools now agree about a mapping of
 a different room, rather than one of them catching it.
 
+### The gig column says which night (2026-09-03)
+
+**Ruling: Jorge, 2026-09-03.** The one column that answers *which gig is this* rendered
+`gigReadiness.gigId` — and since 03/09 that is an **opaque ten-character id**, so the stage read
+`k3f9x2abcd`. **Backstage was fixed for exactly this the same day**, with `gigLabels.ts`, and the
+control view was missed.
+
+**One owner: `gigFile.gigLabelFrom`.** Both screens go through it, because a second rendering of
+*what a gig is called* is how the row and the stage start disagreeing — which is the defect the
+label rule was written for in the first place.
+
+**`No gig` from nothing**, read off `gate === 'off'` rather than off an empty string: with no folder
+open there is no date, no venue and no folder to fall back to.
+
+### STOPPED: arming errors as popups (2026-09-03)
+
+**Not built, and the reason is a question the vault does not answer.** The instruction is flat —
+`control-arm-blocked` and `control-arm-warning` come out of the Arm column and become popups,
+because *the surface changes because the reading distance changes*. **What raises the popup is
+stated nowhere**, and the two candidates behave differently on a stage:
+
+- **Press the dead Arm and it tells you why.** This is what the failure being fixed points at — you
+  reach for Arm, nothing happens, and you need to know why. **But it makes Arm pressable while
+  blocked**, and the same section says *Arm stays exactly as it is*.
+- **The popup arrives when the blocked state does**, like Backstage's announcement queue. **This
+  leaves Arm untouched** and has a precedent in this repo, but it is a modal appearing unbidden on
+  the screen Jorge is looking at during a gig, and *once per what* is undefined — per song, per
+  arrival, per launch.
+
+**The removal and the trigger are one change and cannot be half-done.** Taking the inline band out
+without a working trigger leaves a disabled Arm with its reason nowhere — which is the dead-end
+class `GatedAction` exists to prevent, and strictly worse than today.
+
 ### The check's gate, and `gigReadiness` widened (2026-09-03)
 
 **Ruling: `tramoya-integration/project-context.md`, under 9.4's leaving action.** `v0.47.0` shipped

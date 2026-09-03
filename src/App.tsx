@@ -42,6 +42,8 @@ import {
   useContactLit,
 } from './gigContactState'
 import { ShapeContact, readContactFields } from './ShapeContact'
+// **One owner for what a gig is called**, shared with Backstage's rows and the gig flow's header.
+import { gigLabelFrom } from './gigFile'
 import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
@@ -1031,8 +1033,24 @@ function ControlView() {
               <div className="control-setup-section">
                 <span className="control-setup-label">Gig</span>
                 <div className="control-setup-content">
+                  {/* **THE GIG'S NAME, NEVER THE FOLDER'S ID** (Jorge, 2026-09-03). This read
+                      `gigReadiness.gigId`, and since 03/09 that is an opaque ten-character id —
+                      so the one column that says which night this is said `k3f9x2abcd`.
+                      **Backstage was fixed for exactly this on the same day** and the control
+                      view was missed; `gigLabelFrom` is the single owner of the rule and both
+                      screens go through it, because a second rendering of *what a gig is called*
+                      is how the row and the stage start disagreeing.
+
+                      **`No gig` from nothing**, which is what `gate === 'off'` means: with no
+                      folder open there is no date, no venue and no folder to fall back to. */}
                   <span className="control-setup-value" data-testid="control-gig-value">
-                    {gigReadiness.gigId ?? 'No gig'}
+                    {gigReadiness.gate === 'off' || gigReadiness.folderPath === null
+                      ? 'No gig'
+                      : gigLabelFrom(
+                          gigReadiness.date,
+                          gigReadiness.venue?.name ?? null,
+                          gigReadiness.folderPath
+                        )}
                   </span>
                 </div>
                 <div className="control-setup-extras">
