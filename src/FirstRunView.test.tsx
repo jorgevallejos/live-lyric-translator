@@ -1,16 +1,20 @@
 /**
  * **First run replaces the main screen on launch.**
  *
- * The requirement is positional as much as behavioural: reset, launch, and the first thing on
- * screen is the folder request. If the hydration screen or the control view appears first, it is
- * not done — so these tests render `App`, not the view, and assert what is and is not there.
+ * The requirement is positional as much as behavioural: reset, launch, and the folder request is
+ * what the deal hands you. If the hydration screen or the control view appears first, it is not
+ * done — so these tests render `App`, not the view, and assert what is and is not there.
+ *
+ * **Every launch here answers one folder first**, which is what puts the folders screen up rather
+ * than the deal (`AppDealView.test.tsx` owns that boundary). Where a test needs a genuinely empty
+ * machine it presses `Begin →`.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
-import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
+import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY, VISUALS_FOLDER_KEY } from './contentFolders'
 
 const chooseFolderPath = vi.fn()
 
@@ -36,6 +40,15 @@ async function launch() {
   await act(async () => {
     render(<App initialHash="#/" />)
   })
+  // The app's deal comes one screen earlier on a machine that has answered nothing at all. It is
+  // dismissed here rather than suppressed, because suppressing it would be a stored flag — the one
+  // mechanism both screens are built to avoid.
+  const begin = screen.queryByTestId('app-deal-begin')
+  if (begin) {
+    await act(async () => {
+      fireEvent.click(begin)
+    })
+  }
 }
 
 describe('first run', () => {
@@ -60,8 +73,25 @@ describe('first run', () => {
     expect(screen.getByTestId('first-run')).toBeTruthy()
   })
 
-  it('never asks again once both are set', async () => {
+  it('still asks when only the visuals folder is set', async () => {
+    // The third folder, added 2026-09-04. It used to be reachable only from Preferences, which is
+    // the shape first run exists to remove: a setting discovered at the moment it blocks you.
+    localStorage.setItem(VISUALS_FOLDER_KEY, '/vault/visuals')
+    await launch()
+    expect(screen.getByTestId('first-run')).toBeTruthy()
+  })
+
+  it('still asks when two of the three are set', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    localStorage.setItem(GIGS_FOLDER_KEY, '/vault/gigs')
+    await launch()
+    expect(screen.getByTestId('first-run')).toBeTruthy()
+    expect(screen.getByTestId('first-run-visuals-value').textContent).toBe('Not chosen yet')
+  })
+
+  it('never asks again once all three are set', async () => {
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    localStorage.setItem(VISUALS_FOLDER_KEY, '/vault/visuals')
     localStorage.setItem(GIGS_FOLDER_KEY, '/vault/gigs')
     await launch()
     expect(screen.queryByTestId('first-run')).toBeNull()
@@ -88,6 +118,7 @@ describe('first run', () => {
 
   it('leaves when the person says so, and not before', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    localStorage.setItem(VISUALS_FOLDER_KEY, '/vault/visuals')
     chooseFolderPath.mockResolvedValue('/vault/gigs')
     await launch()
     await act(async () => {
@@ -99,18 +130,44 @@ describe('first run', () => {
     await waitFor(() => expect(screen.queryByTestId('first-run')).toBeNull())
   })
 
-  it('holds the exit disabled, naming the question still unanswered', async () => {
+  it('stays put when the LAST folder is answered, whichever one that is', async () => {
+    // Kept from the six rounds this screen cost: answering the last question does not throw you
+    // onward. A third column does not change what the confirming press decides.
+    localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    localStorage.setItem(GIGS_FOLDER_KEY, '/vault/gigs')
+    chooseFolderPath.mockResolvedValue('/vault/visuals')
+    await launch()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-visuals-choose'))
+    })
+    expect(screen.getByTestId('first-run')).toBeTruthy()
+    expect(screen.getByTestId('first-run-confirm').hasAttribute('disabled')).toBe(false)
+  })
+
+  it('holds the exit disabled, naming the questions still unanswered', async () => {
+    // **The reason names what is open**, which is the whole of what a gated action owes. With
+    // three questions, *one of these is missing* would be the wall the rule exists to prevent.
     chooseFolderPath.mockResolvedValue('/vault/songs')
     await launch()
     expect(screen.getByTestId('first-run-confirm').hasAttribute('disabled')).toBe(true)
-    expect(screen.getByTestId('first-run-confirm-reason').textContent).toContain('Both questions')
+    expect(screen.getByTestId('first-run-confirm-reason').textContent).toContain(
+      'All three questions'
+    )
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('first-run-songs-choose'))
     })
     expect(screen.getByTestId('first-run-confirm').hasAttribute('disabled')).toBe(true)
-    expect(screen.getByTestId('first-run-confirm-reason').textContent).toContain(
-      'Where your gigs live'
+    expect(screen.getByTestId('first-run-confirm-reason').textContent).toBe(
+      'Where your visuals live and where your gigs live have not been answered yet.'
+    )
+
+    chooseFolderPath.mockResolvedValue('/vault/visuals')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-visuals-choose'))
+    })
+    expect(screen.getByTestId('first-run-confirm-reason').textContent).toBe(
+      'Where your gigs live has not been answered yet.'
     )
   })
 
@@ -152,60 +209,70 @@ describe('first run', () => {
     expect(localStorage.getItem(SONGS_FOLDER_KEY)).toBeNull()
   })
 
-  // ── Two questions, not one asked twice ────────────────────────────────────────────────────
+  // ── Three questions, not one asked three times ───────────────────────────────────────────
 
-  it('asks two different questions, named by what they find', async () => {
-    // Both were phrased "choose a folder", which is exactly why the second read as redundant. One
-    // finds a catalogue; the other finds a body of work.
+  it('asks three different questions, named by what they find', async () => {
+    // All of them were once phrased "choose a folder", which is exactly why the second read as
+    // redundant. One finds a catalogue, one finds what goes on the wall, one finds a body of work.
     await launch()
     expect(screen.getByTestId('first-run-songs').textContent).toContain('Where your songs live')
     expect(screen.getByTestId('first-run-songs').textContent).toContain('Your catalogue')
+    expect(screen.getByTestId('first-run-visuals').textContent).toContain('Where your visuals live')
+    expect(screen.getByTestId('first-run-visuals').textContent).toContain('What goes on the wall')
     expect(screen.getByTestId('first-run-gigs').textContent).toContain('Where your gigs live')
     expect(screen.getByTestId('first-run-gigs').textContent).toContain('Your body of work')
   })
 
-  // ── Exactly two paragraphs, and no other prose ────────────────────────────────────────────
+  it('asks them in the deal’s own order: songs, visuals, gigs', async () => {
+    // The sentence the person has just read is *where your songs are, where your visuals are, and
+    // where your gigs will live*. Asking in another order makes the screen a second thing to learn.
+    await launch()
+    const names = [...screen.getByTestId('first-run').querySelectorAll('.first-run-name')]
+    expect(names.map((el) => el.textContent)).toEqual(['Songs', 'Visuals', 'Gigs'])
+  })
+
+  it('remembers the visuals folder where the store has always kept it', async () => {
+    // The stored key still says `media` and is deliberately not migrated: a per-machine answer
+    // already on disk is not wrong because the screen that asks for it found a better name.
+    chooseFolderPath.mockResolvedValue('/vault/visuals')
+    await launch()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('first-run-visuals-choose'))
+    })
+    expect(localStorage.getItem(VISUALS_FOLDER_KEY)).toBe('/vault/visuals')
+    expect(chooseFolderPath).toHaveBeenCalledWith('Where your visuals live', 'media-folder')
+  })
+
+  // ── NO paragraphs at all, and no other prose ──────────────────────────────────────────────
   //
   // The lede and the folder-shape example were removed on 2026-09-02: the shape read as
-  // prescriptive and the prose explained the app to someone who had not used it yet. What is
-  // asserted here is the copy itself, because the copy is the design.
+  // prescriptive and the prose explained the app to someone who had not used it yet. **The two
+  // paragraphs that replaced them went on 2026-09-04**: they existed because this screen was the
+  // first thing you met and had to do the explaining, and the deal does that one screen earlier.
+  // Three of them is also what would not have fitted beside a third column.
 
-  it('carries the agreed paragraph in each column, word for word', async () => {
-    // Both were replaced on the sixth walk. The songs one names `song-performance` instead of
-    // saying the data goes "back into" the catalogue, which was vague about the one folder the
-    // tools govern. The gigs one is asserted below for the rule it states ahead of the behaviour.
+  it('argues for no folder in prose, because the deal argued for all three', async () => {
     await launch()
-    expect(screen.getByTestId('first-run-songs').textContent).toContain(
-      'The folder your recordings and lyrics are already in. Pregonero reads your songs from ' +
-        'here and writes their performance data into a song-performance folder inside it.'
-    )
-    expect(screen.getByTestId('first-run-gigs').textContent).toContain(
-      'The folder where your gig data is stored. Pregonero keeps every gig’s setup data inside ' +
-        'a single setup folder in it.'
-    )
+    for (const column of ['songs', 'visuals', 'gigs']) {
+      expect(screen.getByTestId(`first-run-${column}`).querySelectorAll('p')).toHaveLength(0)
+    }
+    // The sentences themselves, asserted absent so a revert has to be deliberate.
+    const text = screen.getByTestId('first-run').textContent!
+    expect(text).not.toContain('The folder your recordings and lyrics are already in')
+    expect(text).not.toContain('The folder where your gig data is stored')
   })
 
-  it('states the single setup folder even though New gig still makes one per gig', async () => {
-    // JORGE'S RULING, 2026-09-02: the screen ships stating the rule ahead of the behaviour, and
-    // the mismatch is closed at step 8 of the walk. This test exists so that a later reader who
-    // notices the discrepancy corrects `New gig`, NOT the sentence. The old wording is asserted
-    // absent so a well-meaning "fix" back to current behaviour fails here.
-    await launch()
-    const gigs = screen.getByTestId('first-run-gigs').textContent!
-    expect(gigs).toContain('a single setup folder')
-    expect(gigs).not.toContain('makes a new folder here for each gig')
-  })
-
-  it('has no third paragraph once both questions are answered', async () => {
-    // With both answered the gated reason is gone, so every remaining paragraph on the screen is
-    // one of the two. Counting is the only way "and no others" survives a later addition.
+  it('has no prose at all once every question is answered', async () => {
+    // With all three answered the gated reason is gone, and nothing else on the screen is a
+    // paragraph. Counting is the only way "and no others" survives a later addition.
     localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
+    localStorage.setItem(VISUALS_FOLDER_KEY, '/vault/visuals')
     chooseFolderPath.mockResolvedValue('/vault/gigs')
     await launch()
     await act(async () => {
       fireEvent.click(screen.getByTestId('first-run-gigs-choose'))
     })
-    expect(screen.getByTestId('first-run').querySelectorAll('p')).toHaveLength(2)
+    expect(screen.getByTestId('first-run').querySelectorAll('p')).toHaveLength(0)
   })
 
   it('no longer says nothing is created, because the lede is gone', async () => {
@@ -309,7 +376,7 @@ describe('first run', () => {
     // The one rule the walk set for this round: no new colour enters for this screen.
     const sheet = css()
     const block = sheet.slice(
-      sheet.indexOf('/* ---- First run: the two folders'),
+      sheet.indexOf('/* ---- First run: the three folders'),
       sheet.indexOf('/* ---- Setup home: gigs and songs')
     )
     expect(block.length).toBeGreaterThan(0)
@@ -354,32 +421,46 @@ describe('first run', () => {
     expect(size(name)).toBeGreaterThan(size(rule('.first-run-path', css())))
   })
 
-  it('orders the column name, subtitle, paragraph, button, path', async () => {
+  it('orders the column name, subtitle, button, path', async () => {
     localStorage.setItem(SONGS_FOLDER_KEY, '/vault/songs')
     await launch()
     const column = screen.getByTestId('first-run-songs')
     expect([...column.children].map((el) => el.className)).toEqual([
       'first-run-name',
       'first-run-label',
-      'first-run-paragraph',
       'ctrl-btn ctrl-setup-link',
       'first-run-path',
     ])
   })
 
-  it('lays the column out in five rows, so the five parts line up across both', () => {
+  it('lays the column out in four rows, so the four parts line up across all three', () => {
     // `subgrid` is what keeps a wrapped label in one column from pushing its own path out of step
-    // with the other one; it only holds if the row count matches the parts.
+    // with the others; it only holds if the row count matches the parts. The LABEL takes the slack
+    // now that the paragraph is gone — it is the part that wraps unevenly in a narrower column.
     const sheet = css()
-    expect(rule('.first-run-columns', sheet)).toMatch(/grid-template-rows:\s*auto auto 1fr auto auto/)
-    expect(rule('.first-run-column', sheet)).toMatch(/grid-row:\s*span 5/)
+    expect(rule('.first-run-columns', sheet)).toMatch(/grid-template-rows:\s*auto 1fr auto auto/)
+    expect(rule('.first-run-columns', sheet)).toMatch(/grid-template-columns:\s*1fr 1fr 1fr/)
+    expect(rule('.first-run-column', sheet)).toMatch(/grid-row:\s*span 4/)
+  })
+
+  it('draws two rules for three columns, and none down the outside', () => {
+    // The line is what makes them read as separate questions before any is read. A rule on the
+    // first column would be a line down the edge of the screen.
+    const sheet = css()
+    expect(rule('.first-run-column', sheet)).toMatch(/border-left:\s*1px solid var\(--rule-strong\)/)
+    expect(rule('.first-run-column:first-of-type', sheet)).toMatch(/border-left:\s*none/)
+  })
+
+  it('no longer styles a paragraph it no longer renders', () => {
+    // A stylesheet holding a class nothing renders is a screen half-reverted.
+    expect(css()).not.toMatch(/^\.first-run-paragraph\s*\{/m)
   })
 
   it('puts green in exactly one place on the screen', async () => {
     // The point of the reversal: one green mark, meaning you are ready.
     const sheet = css()
     const firstRun = sheet.slice(
-      sheet.indexOf('/* ---- First run: the two folders'),
+      sheet.indexOf('/* ---- First run: the three folders'),
       sheet.indexOf('/* ---- Setup home: gigs and songs')
     )
     // Declarations only: the comments above still narrate what the green used to do and where.

@@ -69,6 +69,7 @@ import { FoldersView } from './FoldersView'
 import { SetupHomeView } from './SetupHomeView'
 import { SongFlowView } from './SongFlowView'
 import { FirstRunView } from './FirstRunView'
+import { AppDealView, isDealDue } from './AppDealView'
 import { hasRequiredFolders } from './contentFolders'
 import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import { LAST_STEP } from './setupFlow'
@@ -2172,6 +2173,16 @@ function App({ initialHash }: { initialHash?: string } = {}) {
    * through `setFoldersReady` — and so a stale read cannot put the screen back after it is done.
    */
   const [foldersReady, setFoldersReady] = useState(hasRequiredFolders)
+  /**
+   * **The app's deal, and it is two screens rather than one flow** (2026-09-04).
+   *
+   * Read once into state, from the world — no folder answered means nothing has been offered here
+   * yet. `Begin →` moves the screen on without anything having been answered, which is why the
+   * press lives in React state and not on disk: **it is a transition, not a remembered
+   * dismissal**, and a launch that ends on the deal is offered it again because the offer was
+   * never taken.
+   */
+  const [dealDue, setDealDue] = useState(isDealDue)
 
   useEffect(() => {
     if (isProjectionRoute) {
@@ -2241,15 +2252,22 @@ function App({ initialHash }: { initialHash?: string } = {}) {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [initialHash])
 
-  // **The folder request replaces the main screen, and comes before every other return.** Above
-  // the hydration screen deliberately: that one would otherwise flash first, and "the first thing
-  // on screen is the folder request" is the requirement. The Projection window is untouched — it
-  // is a second window with no preload, and it has nothing to ask for.
+  // **The deal and then the folder request replace the main screen, and come before every other
+  // return.** Above the hydration screen deliberately: that one would otherwise flash first, and
+  // "the first thing on screen is the deal" is the requirement. The Projection window is untouched
+  // — it is a second window with no preload, and it has nothing to ask for.
+  //
+  // **No step bar joins them.** They are two screens, not a flow: the offer, and then the first
+  // thing asked of you.
   if (!isProjectionRoute && !foldersReady) {
     return (
       <>
         <ConcertSessionTimerRunner />
-        <FirstRunView onDone={() => setFoldersReady(true)} />
+        {dealDue ? (
+          <AppDealView onBegin={() => setDealDue(false)} />
+        ) : (
+          <FirstRunView onDone={() => setFoldersReady(true)} />
+        )}
       </>
     )
   }

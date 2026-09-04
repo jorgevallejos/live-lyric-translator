@@ -678,6 +678,82 @@ closes anything, and coming back re-checks the files.
   and go to the control view`. Nothing in the flow leads there; it was left alone because it is not
   on the walk and removing it is its own decision.
 
+### The app's deal, and step 2 reopened for three folders (2026-09-04)
+
+**Two screens, and no step bar between them.** `AppDealView.tsx` then `FirstRunView.tsx`. The gate
+in `App.tsx` is one expression above every other return: no folder answered shows the deal, `Begin
+→` shows the folders, all three answered shows the app.
+
+#### The deal is read from the world, and the press is not a flag
+
+`hasAnsweredAnyFolder()` is the whole rule — **the same shape as Bombista's step 0**, which asks the
+catalogue rather than a remembered dismissal. `App` reads it once into state so that `Begin →` can
+move the screen on with nothing yet answered; **that state is React's and never reaches disk.** A
+launch that ends on the folders screen having answered nothing is offered the deal again, which is
+correct: the offer was not taken. A test asserts the press writes no key at all.
+
+**The alternative was rejected in this suite already.** A stored *do not show again* is remembered
+state in a project whose test discipline is starting from nothing — after one walk nobody sees the
+screen and it rots unwatched.
+
+#### The body text is the loudest thing on the screen
+
+**The inversion of every other screen here**, where a caps label heads a block and the prose under
+it is a note in `--text-secondary`. On the deal the prose *is* the content, so it is
+`--text-primary` at `1.375em` and the caps labels are `--text-dim` at `0.75em`. That is why the
+block does not reuse `.gig-hint`.
+
+**No masthead and no step bar.** The window's own title bar carries the app's name — the same reason
+`Start here` dropped `Pregonero kickoff` — and a step bar would say this is the first of a numbered
+sequence you are inside. **`Begin →` carries no state colour**: green on this app means *you are
+ready*, and nothing here has been answered.
+
+#### The third folder is the media folder, renamed rather than added
+
+**`pregoneroMediaFolder` already held exactly this fact** — where a `src` name is looked for, the
+videos, images and QR codes played on the wall — and a second setting for one fact is the thing this
+portfolio's rules forbid. So the key is untouched and **nothing migrates**; what changed is the
+word. `getVisualsFolder` / `setVisualsFolder` / `VISUALS_FOLDER_KEY` in `contentFolders.ts`, and
+Preferences' row now reads `Visuals`. **The picker memory is still `media-folder`**, because a
+machine's remembered answer is not wrong.
+
+**It is the first folder the suite only reads.** Songs got `song-performance/` and gigs got `setup/`
+because the tools write into both; nothing writes into this one — Muralista reads assets from it and
+writes `visuals.json` into the gig's own `setup/`.
+
+**And it closes a hole rather than opening one.** The media folder was reachable only from
+Preferences, which is the exact shape first run exists to remove: a setting discovered at the moment
+it blocks you. A machine without it has a wall that paints nothing, with nothing anywhere saying
+why — the failure `#/folders` was built for.
+
+#### What three columns cost the layout, reported
+
+The two-column screen was designed *for two*, and the third re-tests it. Four measurements moved,
+all of them width, none of them the design:
+
+- **The paragraph row is gone**, so the column is four parts and the subgrid spans four. **The label
+  row takes the slack** the paragraph used to — it is the part that wraps unevenly in a narrower
+  column, and giving it the give is what still pins every button and every path to one line.
+- **The column name drops from `2.25em` to `1.75em`.** `VISUALS` is seven characters where `GIGS` is
+  four, in a column a third of the window rather than half of it: at `2.25em` it was the one name
+  that wrapped, and a wrapped name has stopped being read at a glance. It is still the loudest thing
+  in its column, which is the fifth walk's rule.
+- **The path drops from `1.375em` to `1.125em`**, for the same width and because a path has no
+  natural break in it.
+- **The gutters go from `2em` to `1.5em`**, and the last column stops paying for a right-hand gutter
+  it has no rule in. With three columns the gutters are paid for twice.
+
+**Everything the six rounds bought is kept**: `Start here` clear of the top edge, no line under it,
+the hard rules between columns, yellow `Choose` at rest and dark once answered, `Confirm` the only
+green and the only control that leaves, the screen waiting to be dismissed, and nothing created by
+any of it.
+
+**One thing the walk has to answer**, and it is the reason this screen is back on it: whether three
+columns still read as three different questions on sight, or whether losing the paragraphs plus the
+narrower measure makes them read as one question asked three times — the exact failure the
+side-by-side layout was built to prevent.
+
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20
