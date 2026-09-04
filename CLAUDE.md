@@ -454,8 +454,17 @@ report the work.** `reason` is Muralista's own status sentence, the one it would
 its own button; a shape, a song, a geometry or a file's contents crossing would be the boundary
 breaking rather than bending.
 
-**Pregonero opens the windows a hosted tool asks for, and refuses every other** — `main.cjs`'s
-`setWindowOpenHandler`. Muralista's `Open output window` reported *Chrome blocked the popup* and
+**Pregonero ALLOWS the windows a hosted tool asks for, and refuses every other** —
+`electron/toolWindowOpen.cjs`, with `main.cjs`'s `setWindowOpenHandler` as its one caller.
+
+**`allow`, not `deny`-and-open-it-here, and that one word cost two walks.** `v0.55.0` taught the
+handler to recognise the tool server's URL and open a window for it — **and still returned `deny`**,
+so `window.open()` handed the frame `null`: Muralista reported a refusal over a window that was
+already on screen, and, holding no reference, **could never close it either** — which is why
+*entering `2 OUTPUT` closes the output window*, a shipped ruling, never once worked. Measured in
+Electron 41 both ways. **The test that would have caught it asserts the ACTION**, because a unit
+test that renders the button passes in both worlds; the decision is a pure function for exactly that
+reason. Muralista's `Open output window` reported *Chrome blocked the popup* and
 Chrome had not: a framed page's `window.open` reaches the main window's handler, and that handler
 denied everything but the projection window. **Not the camera's family** — that was a policy the
 embedder had to grant; this was a decision the embedder was already making, wrongly. It is opened

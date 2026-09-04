@@ -16,6 +16,7 @@ const { resolveBombista } = require('./bombistaBinary.cjs')
 const { listSongFiles } = require('./songsFolder.cjs')
 const { listGigFolders } = require('./gigsFolder.cjs')
 const { createLocalhostServer } = require('./localhostServer.cjs')
+const { toolWindowOpenDecision } = require('./toolWindowOpen.cjs')
 const { emittedSongIn } = require('./emittedSong.cjs')
 const { replaceSongFile } = require('./replaceSongFile.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
@@ -270,46 +271,14 @@ function mountVisualsFolder(visualsFolder) {
 }
 
 /**
- * Whether a URL is one this process is serving. The port is minted by `toolServer.start()`, so the
- * comparison is against what it actually bound to rather than a pattern that could match a stranger.
+ * **`isToolServerUrl` AND THE OPENER LIVE IN `toolWindowOpen.cjs` NOW**, with the test for the
+ * decision they were half of.
+ *
+ * **The window is ALLOWED rather than opened here** (2026-09-04) — the whole of a fix that sat one
+ * word away for a walk and a half. Opening it and returning `deny` handed the frame `null`, so
+ * Muralista reported a refusal over a window that was already on screen and, holding no reference,
+ * could never close it either.
  */
-function isToolServerUrl(candidate) {
-  const port = toolServer.port
-  if (!port) return false
-  try {
-    const u = new URL(candidate)
-    return u.protocol === 'http:' && u.hostname === '127.0.0.1' && u.port === String(port)
-  } catch {
-    return false
-  }
-}
-
-/**
- * A window on a page the tool server is already serving — Muralista's output role, which paints the
- * wall. **No preload and no Node**, exactly like the tool window below: it is a page in a window.
- * One at a time, under its own key, so opening it twice focuses the one that is there.
- */
-const TOOL_OUTPUT_KEY = 'tool-output'
-
-function openToolOutputWindow(url) {
-  const existing = toolWindows.get(TOOL_OUTPUT_KEY)
-  if (existing && !existing.isDestroyed()) {
-    existing.loadURL(url)
-    existing.focus()
-    return
-  }
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
-    backgroundColor: '#000000',
-    webPreferences: { nodeIntegration: false, contextIsolation: true },
-  })
-  toolWindows.set(TOOL_OUTPUT_KEY, win)
-  win.on('closed', () => {
-    if (toolWindows.get(TOOL_OUTPUT_KEY) === win) toolWindows.delete(TOOL_OUTPUT_KEY)
-  })
-  void win.loadURL(url)
-}
 
 async function openToolWindow(key, folder, page, title, gigFolder, visualsFolder) {
   let port
@@ -440,27 +409,29 @@ function createWindow() {
    * on it. **Not the same family as the camera** — that was a Permissions Policy the embedder had
    * to grant; this is a decision the embedder was already making, wrongly.
    *
-   * **Opened here rather than allowed through**, which is the second half of the reason. `allow`
-   * would hand the frame a window Pregonero has no handle on; making it means the window is this
-   * process's — titled, sized, closable, and gone when the app quits. The wall must not keep a
-   * window nobody can find.
+   * **ALLOWED, NOT OPENED HERE — and that one word is the whole of the second failure.** `v0.55.0`
+   * opened the window itself and returned `deny`, so `window.open()` handed the frame `null`:
+   * Muralista reported a refusal over a window that was already on screen, and — holding no
+   * reference — could never close it either, which is why *entering `2 OUTPUT` closes the output
+   * window* never worked. `allow` with `overrideBrowserWindowOptions` gives the same control over
+   * what the window IS (no preload, no Node, a black ground) and hands the opener its handle.
    *
    * **It is the tool server's own origin and nothing else.** A URL is checked against the address
    * this process is serving on, not matched loosely: the frame can ask for a window on the page it
    * is already showing, and for nothing else on the machine.
    */
   win.webContents.setWindowOpenHandler(({ url: openUrl }) => {
-    if (openUrl.includes('#/projection')) {
+    const decision = toolWindowOpenDecision(openUrl, toolServer.port)
+    if (decision.projection) {
       createProjectionWindow((projectionWin) => {
         projectionWin.loadURL(openUrl)
       })
-      return { action: 'deny' }
     }
-    if (isToolServerUrl(openUrl)) {
-      openToolOutputWindow(openUrl)
-      return { action: 'deny' }
-    }
-    return { action: 'deny' }
+    // `projection` is this file's business and not Chromium's; the rest is handed back as
+    // `toolWindowOpenDecision` gave it, which is the half with a test on it.
+    return decision.action === 'allow'
+      ? { action: 'allow', overrideBrowserWindowOptions: decision.overrideBrowserWindowOptions }
+      : { action: 'deny' }
   })
 }
 
