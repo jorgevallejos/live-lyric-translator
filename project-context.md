@@ -798,6 +798,58 @@ Every round since the walk began ended *installed, not launched*, to protect the
 that is exactly how this survived eight releases. **The reset is cheaper than a dead app.**
 
 
+### Standby, the gig row's play icon, and the Rig column's removal (2026-09-04)
+
+Three decided things from `journey-performance.md`, built together.
+
+#### The control view is called `Standby`
+
+**It had no name.** Backstage got one on 02/09 and the stage did not. **Standby is the stage
+manager's call before a cue**, which is what that screen is: choose the gig, choose the song, choose
+the mode, stand by — **and arming is the GO.**
+
+Titled the way Backstage is: an `h1` naming the room, at `.songs-title`'s size and weight. It sits
+in `control-masthead` because this screen already has a masthead rather than a `.songs-top-bar`, and
+it takes the slack between the wordmark and the by-line so it centres on the screen. **It is inside
+`showSetupPanel`**, so it is gone the instant you arm — the performing view is a different room and
+does not change.
+
+#### The gig row gains a play triangle
+
+Third icon on Backstage's gig row, **before** the pencil and the bin: it is the one act that leaves,
+where the other two work on the row in place. Feather's own `play` polygon, filled where those two
+are stroked, **and not the word `Play`, which would overclaim** — nothing starts until you arm.
+
+**It calls `openGigFolder`, the one selection this app has** — the whole memory of which gig is
+open, one path, the same function the pencil calls. **When the control view gains its own
+full-screen picker it calls this too.** Two doors performing one act is fine; two mechanisms is how
+they drift.
+
+**No confirmation, and it selects a gig whose setup is unfinished.** Readiness is reported at
+arming, which is where the gate is; blocking selection would stop Jorge looking at his own gig.
+**The label names the act — `Select` — not the destination**, in the register `Edit` and `Delete`
+already set.
+
+**Two things that fall out of existing machinery rather than being built here.** The first song
+lands in the second column because navigating to `#/` re-runs the auto-select effect against the
+gig's newly adopted setlist; **it will not re-select when the song already loaded is also in this
+gig's setlist**, which is reachable only by moving between two gigs that share a song. And nothing
+unarms, because **Backstage is never armed** — the ruling calls that case unreachable, and adding an
+unarm here would be the second mechanism this whole design avoids.
+
+#### The Rig column goes
+
+**Jorge's third time asking**, and it was already owed removal on 02/09 for not being understood.
+**None of it is a performance concern**, and it was inert anyway — a static list with no state and
+no store, which is a decision pretending to be a question.
+
+**The rest of the arrangement is unchanged**: same columns, same order, same proportions. The
+redesign is what is *in* them, not how they are laid out, and that is not this round.
+
+`rigChecklist.ts` stays: `GigView`'s step-5 checklist still renders `RIG_CHECKLIST`, and that one is
+ticked rather than read. What went with the column is `.control-rig-list`, its one CSS rule.
+
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

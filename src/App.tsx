@@ -64,7 +64,6 @@ import { useGigReadiness } from './useGigReadiness'
 import { refreshGigReadiness } from './gigSession'
 import { GigFlowView } from './GigFlowView'
 import { GigView } from './GigView'
-import { RIG_CHECKLIST } from './rigChecklist'
 import { FoldersView } from './FoldersView'
 import { SetupHomeView } from './SetupHomeView'
 import { SongFlowView } from './SongFlowView'
@@ -957,6 +956,18 @@ function ControlView() {
             <span className="control-masthead-wordmark">Pregonero</span>
             <span className="control-masthead-tagline">Live lyric translation</span>
           </span>
+          {/* **THE ROOM IS CALLED `Standby`** (Jorge, 2026-09-04). It had no name: Backstage got
+              one on 02/09 and the stage did not. **Standby is the stage manager's call before a
+              cue**, which is exactly what this screen is — choose the gig, choose the song, choose
+              the mode, stand by — and **arming is the GO**.
+
+              Titled the way Backstage is: an `h1` naming the room, at `.songs-title`'s weight and
+              size. It sits in the masthead rather than in a bar of its own because this screen
+              already has a masthead, and **it is inside `showSetupPanel`**, so it is gone the
+              instant you arm — the performing view is a different room and does not change. */}
+          <h1 className="control-room-name" data-testid="control-room-name">
+            Standby
+          </h1>
           <span className="control-masthead-by">
             <span>v{APP_VERSION}</span>
             <span>
@@ -1196,23 +1207,17 @@ function ControlView() {
                   </div>
                 </div>
               )}
-              {controlState === 'SETUP' && (
-                <div className="control-setup-section" data-testid="control-rig">
-                  <span className="control-setup-label">Rig</span>
-                  <div className="control-setup-content">
-                    {/* Shown at step 5 and again here — the last moment before the room sees
-                        anything. Four lines to read, not a model of the room: nothing is stored
-                        and none of it reaches gig.json. */}
-                    <ul className="control-rig-list">
-                      {RIG_CHECKLIST.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="control-setup-extras" />
-                  <div className="control-setup-buttons" />
-                </div>
-              )}
+              {/* **THE RIG COLUMN IS GONE** (Jorge, 2026-09-04, said for the third time; it was
+                  already owed removal on 02/09 for not being understood). **None of it is a
+                  performance concern**, and it was inert anyway — a static list with no state and
+                  no store, which is a decision pretending to be a question.
+
+                  **The rest of the arrangement is unchanged**: same columns, same order, same
+                  proportions. The redesign is what is *in* them, not how they are laid out, and
+                  that is not this round.
+
+                  `RIG_CHECKLIST` itself stays: `GigView`'s step-5 checklist still renders it, and
+                  that one is ticked rather than read. */}
               <div className="control-setup-section">
                 <span className="control-setup-label">Arm</span>
                 <div className="control-setup-content">
