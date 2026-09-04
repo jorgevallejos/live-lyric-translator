@@ -249,6 +249,27 @@ const GIG_MOUNT = 'gig-setup'
 const GIG_WRITABLE_FILES = ['visuals.json', 'stage.png']
 
 /**
+ * **The visuals folder, mounted read-only so a hosted tool can offer a name from it.**
+ *
+ * **A cross-origin frame cannot open a directory picker** — measured, `SecurityError`, and unlike
+ * the camera there is no permissions-policy token that opens it — so the host has to hand the names
+ * over. `?media=/visuals/` is the same shape as `?gig=` and carries the same guarantee: a relative
+ * URL naming a mount, never a path, so a folder's location on this machine never reaches the page.
+ *
+ * **No writable names, and that is the whole difference from the gig mount.** Muralista reads the
+ * visuals folder and writes nothing into it; the assets in it are the artist's, and the one write
+ * path this app has names its destinations one by one. See `localhostServer.cjs`.
+ */
+const MEDIA_MOUNT = 'visuals'
+
+/** Mounts the visuals folder when there is one, and the query that tells a page where to look. */
+function mountVisualsFolder(visualsFolder) {
+  if (!visualsFolder) return ''
+  toolServer.mount(MEDIA_MOUNT, visualsFolder)
+  return `&media=/${MEDIA_MOUNT}/`
+}
+
+/**
  * Whether a URL is one this process is serving. The port is minted by `toolServer.start()`, so the
  * comparison is against what it actually bound to rather than a pattern that could match a stranger.
  */
@@ -290,7 +311,7 @@ function openToolOutputWindow(url) {
   void win.loadURL(url)
 }
 
-async function openToolWindow(key, folder, page, title, gigFolder) {
+async function openToolWindow(key, folder, page, title, gigFolder, visualsFolder) {
   let port
   try {
     port = await toolServer.start()
@@ -300,13 +321,17 @@ async function openToolWindow(key, folder, page, title, gigFolder) {
   // **Mounted before the reuse check.** Reopening the door on a different gig has to repoint the
   // folder; the window's URL names the mount, not the path, so repointing is the whole update.
   if (gigFolder) toolServer.mount(GIG_MOUNT, gigFolder, GIG_WRITABLE_FILES)
+  const media = mountVisualsFolder(visualsFolder)
   const existing = toolWindows.get(key)
   if (existing && !existing.isDestroyed()) {
     existing.focus()
     return { ok: true, url: existing.__pregoneroUrl }
   }
   toolServer.mount(key, folder)
-  const query = gigFolder ? `?gig=/${GIG_MOUNT}/` : ''
+  // **`?media=` rides with `?gig=` and never alone**: without a gig there are no songs to assign an
+  // asset to, so a page with a visuals mount and nothing to put in it would be a control about
+  // nothing. Standalone Muralista picks its own folder, which is the mechanism this mirrors.
+  const query = gigFolder ? `?gig=/${GIG_MOUNT}/${media}` : ''
   const url = `http://127.0.0.1:${port}/${key}/${page}${query}`
 
   const win = new BrowserWindow({
@@ -344,7 +369,7 @@ async function openToolWindow(key, folder, page, title, gigFolder) {
  * page is still Pregonero's own vendored copy. A frame is a smaller thing than a window, not a
  * closer one.
  */
-async function serveToolPage(key, folder, page, gigFolder) {
+async function serveToolPage(key, folder, page, gigFolder, visualsFolder) {
   let port
   try {
     port = await toolServer.start()
@@ -352,8 +377,9 @@ async function serveToolPage(key, folder, page, gigFolder) {
     return { ok: false, error: (err && err.message) || String(err) }
   }
   if (gigFolder) toolServer.mount(GIG_MOUNT, gigFolder, GIG_WRITABLE_FILES)
+  const media = mountVisualsFolder(visualsFolder)
   toolServer.mount(key, folder)
-  const query = gigFolder ? `?gig=/${GIG_MOUNT}/` : ''
+  const query = gigFolder ? `?gig=/${GIG_MOUNT}/${media}` : ''
   return { ok: true, url: `http://127.0.0.1:${port}/${key}/${page}${query}` }
 }
 
@@ -640,7 +666,7 @@ const MURALISTA_ROOT = path.join(__dirname, '..', 'src', 'vendor')
  * **No folder, no parameter**, and the page behaves exactly as a standalone one: it picks its own
  * folder and writes through its own handle. That is contract rule 3, and it is untouched.
  */
-ipcMain.handle('tool:open', (_event, key, folder, page, title) => {
+ipcMain.handle('tool:open', (_event, key, folder, page, title, visualsFolder) => {
   const name = String(key)
   const muralista = name === 'muralista'
   return openToolWindow(
@@ -648,7 +674,8 @@ ipcMain.handle('tool:open', (_event, key, folder, page, title) => {
     muralista ? MURALISTA_ROOT : String(folder),
     String(page),
     String(title || key),
-    muralista && folder ? String(folder) : null
+    muralista && folder ? String(folder) : null,
+    muralista && visualsFolder ? String(visualsFolder) : null
   )
 })
 
@@ -656,14 +683,15 @@ ipcMain.handle('tool:open', (_event, key, folder, page, title) => {
  * **Serves a tool for a frame.** Same argument shape as `tool:open`, and for Muralista the page
  * comes out of `MURALISTA_ROOT` while `folder` carries the gig — see that handler.
  */
-ipcMain.handle('tool:serve', (_event, key, folder, page) => {
+ipcMain.handle('tool:serve', (_event, key, folder, page, visualsFolder) => {
   const name = String(key)
   const muralista = name === 'muralista'
   return serveToolPage(
     name,
     muralista ? MURALISTA_ROOT : String(folder),
     String(page),
-    muralista && folder ? String(folder) : null
+    muralista && folder ? String(folder) : null,
+    muralista && visualsFolder ? String(visualsFolder) : null
   )
 })
 

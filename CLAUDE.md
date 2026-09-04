@@ -463,6 +463,17 @@ here rather than allowed through, so the window is this process's: titled, sized
 when the app quits. **The URL is checked against the port the tool server actually bound to**, never
 matched loosely.
 
+**A mount may say what is in it, and that is the one read verb** (Jorge, 2026-09-04; the ruling is
+`tramoya-integration/project-context.md`, *A mount may say what is in it*). `GET /<mount>/` returns
+the file names it holds. **Both doors into a hosted picker were shut**: a cross-origin frame cannot
+open a directory picker — measured, `SecurityError`, and unlike the camera no permissions-policy
+token opens it — and without a listing a page cannot enumerate a mount either. Pregonero mounts the
+visuals folder read-only and passes `?media=/visuals/`, the same shape and the same absolute-URL
+refusal as `?gig=`. **What decided it was consistency**: standalone Muralista already works by names
+in a folder, and this gives the hosted case the same mechanism rather than a second one. **The
+constraints are the write rule's mirror** — names only, never paths, the mount root only so there is
+no walk, files only, read-only — and each is asserted in `localhostServer.test.ts`.
+
 **And the frame carries one permissions-policy allowlist, `allow="camera"`** — the fix for a camera
 that listed nothing. A permissions policy is not a bridge: it hands the page a device it asks the
 browser for itself. It is asserted **whole** in `GigFlowVisuals.test.tsx`, the way
@@ -507,6 +518,29 @@ never reaches inside. **A file-replacement step in this repo would drift from th
 **"Pass control back" is courtesy, not architecture.** *Done* closes the window and re-checks — the
 reload would have happened anyway because the file changed. **If the bridge is absent the button is
 absent**, and the screen names the terminal or Chrome instead.
+
+### The song holds no media, and the room says what plays
+
+**All media and visuals belong to Muralista and `visuals.json`** (Jorge, 2026-09-03). A recording
+derives a timeline and is then irrelevant — a use-and-forget relationship — and **a song never
+carries something that has to be present on the night.**
+
+**`songVisuals.assets` is where the pairing lives**: song id → shape id → **a name**. It is *not*
+`songVisuals.songs` beside it, and the two are easy to confuse — that one answers *which shape does
+this song use* (reassignment), this one answers *what does this song put in it* (content). **Keyed
+by shape id, never by type**, because the lookup returns a set and keying by type would cap it at
+one. `songAssetFor` and `songVideoAssets` in `visualsFile.ts` are the only readers.
+
+**Everything that used to read `song.media` now reads that**: `isVideoMode` and the resolved path in
+both windows, `resolveMedia` in `gigSession`, the `#/folders` listing, and the sign-off's video line
+— which used to say *has a video shape but declares no media*, **a sentence that would have passed
+forever once nothing wrote the field.** Each video shape plays its own asset; a shape with nothing
+assigned is dark for that song.
+
+**Two things went with the block and have no home: `media.offset` and `media.trimStart`.** Both were
+optional manual corrections defaulting to 0, and `videoCueLookup` documents that 0 with no lead-in
+is bit-for-bit the original formula — so this is a lost adjustment rather than a broken clock. **If
+a per-song video nudge is ever wanted again it belongs on the assignment**, not back on the song.
 
 ### The projection paints into quads
 

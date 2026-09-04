@@ -9,6 +9,8 @@ import { ShapeFill } from './ShapeFill'
 import { readTextFields, textLayoutBoxWidth } from './shapeTextLayout'
 import {
   resolveShapesForType,
+  songAssetFor,
+  songVideoAssets,
   shapeFrame,
   shapeIsVisible,
   shapeTypeOf,
@@ -332,9 +334,24 @@ function ControlView() {
     }
   }, [currentSongId])
 
-  const activeMedia = currentLibrarySong?.media
-  const isVideoMode = activeMedia?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? resolveMediaPath(activeMedia!.src) : null
+  /**
+   * **VIDEO IS A FACT ABOUT THE ROOM, NOT ABOUT THE SONG** (Jorge, 2026-09-03).
+   *
+   * This read `currentLibrarySong.media`, which was **pre-split code**: it treated the projected
+   * video as the song's affair, and under *the song holds no media* it is not. A recording derives
+   * a timeline and is then irrelevant; what appears on the wall is named by `visuals.json`, per
+   * song, per shape, by Muralista.
+   *
+   * **The first asset any of this song's video shapes carries**, because this panel drives one
+   * clock. The wall lights every one of them, each with its own — see the projection below.
+   */
+  const controlVisuals = useBroadcastVisuals()
+  const songVideoSrc =
+    controlVisuals && currentSongId
+      ? (songVideoAssets(controlVisuals, currentSongId).named[0] ?? null)
+      : null
+  const isVideoMode = songVideoSrc !== null
+  const resolvedVideoPath = songVideoSrc ? resolveMediaPath(songVideoSrc) : null
   // Effective display mode: stored value or default (small for video songs, none for non-video)
   const effectiveDisplayMode: DisplayMode = selectedDisplayMode ?? getDefaultDisplayMode(isVideoMode)
   // Keep the localStorage broadcast in sync with the effective display mode at all times —
@@ -1277,7 +1294,6 @@ function ControlView() {
         {showArmedShell && showVideoPerformance && (
           <VideoPerformancePanel
             absolutePath={resolvedVideoPath}
-            media={activeMedia!}
             timeline={currentLibrarySong!.timeline ?? []}
             leadIn={currentLibrarySong!.leadIn}
             lines={lines}
@@ -2026,13 +2042,14 @@ function ProjectionView() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [singleScreen])
 
-  // VIDEO MODE: the song's media, if this machine knows where it is.
-  const activeMedia = currentLibrarySong?.media
-  const isVideoMode = activeMedia?.type === 'video'
-  const resolvedVideoPath = isVideoMode ? resolveMediaPath(activeMedia!.src) : null
+  // VIDEO MODE: what `visuals.json` says this song puts in its video shapes, if this machine knows
+  // where those files are. **Never the song's own media** — a song holds none.
+  const isVideoMode = Boolean(
+    visuals && currentSongId && songVideoAssets(visuals, currentSongId).named.length > 0
+  )
   // Respect the display mode broadcast: 'none' means lyrics only, 'small'/'big' means play it.
   const effectiveProjectionDisplayMode: DisplayMode = projectionDisplayMode ?? getDefaultDisplayMode(isVideoMode)
-  const videoWanted = Boolean(isVideoMode && resolvedVideoPath && effectiveProjectionDisplayMode !== 'none')
+  const videoWanted = Boolean(isVideoMode && effectiveProjectionDisplayMode !== 'none')
 
   // **The lookup, and it is the whole of it**: for each song-aware type, the shapes this song
   // reassigns, or the gig-level shapes of that type. It resolves to a *set* and every member is
@@ -2056,7 +2073,10 @@ function ProjectionView() {
     lines,
     timeline: currentLibrarySong?.timeline ?? [],
     leadIn: currentLibrarySong?.leadIn,
-    offset: activeMedia?.offset ?? 0,
+    // **Zero, and it used to be `media.offset`.** That manual correction lived in the song's media
+    // block, which no longer exists; `videoCueLookup` documents that 0 with no lead-in is
+    // bit-for-bit the original formula.
+    offset: 0,
   }
   const handleVideoTime = useRef((currentTime: number) => {
     const { timeline, offset, leadIn } = cueInputs.current
@@ -2107,14 +2127,22 @@ function ProjectionView() {
   // lit only when the playing song points something at it, and one whose song is not playing is
   // simply not here. Absence is the empty state; nothing is ever declared empty, and the gap
   // between songs falls out for free with no blackout state.
+  // **EACH VIDEO SHAPE PLAYS ITS OWN ASSET.** The lookup returns a set, and now so does what fills
+  // it: `visuals.json` names an asset per shape, so two shapes spanning a corner are no longer
+  // obliged to carry one file. A shape with nothing assigned is simply not here — *a shape is a
+  // place that can hold content, not a thing that is on*.
+  let clockShapeId: string | null = null
   for (const shape of videoShapes) {
     if (!playVideo) continue
-    const isClock = shape.id === videoShapes[0]!.id
+    const src = visuals ? songAssetFor(visuals, currentSongId, shape.id) : null
+    const path = src ? resolveMediaPath(src) : null
+    if (!path) continue
+    if (clockShapeId === null) clockShapeId = shape.id
+    const isClock = shape.id === clockShapeId
     contentByShapeId.set(
       shape.id,
       <ShapeVideo
-        absolutePath={resolvedVideoPath!}
-        media={activeMedia!}
+        absolutePath={path}
         onTimeUpdate={isClock ? handleVideoTime : undefined}
         onStartedChange={isClock ? setVideoStarted : undefined}
       />
