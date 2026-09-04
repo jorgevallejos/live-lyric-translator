@@ -41,7 +41,7 @@ vi.mock('./platform', async (importOriginal) => ({
 }))
 
 const { FoldersView } = await import('./FoldersView')
-const { getGigsFolder, getMediaFolder, getSongsFolder, setMediaFolder } =
+const { getGigsFolder, getVisualsFolder, getSongsFolder, setVisualsFolder } =
   await import('./contentFolders')
 const { KEY_VISUALS_BROADCAST } = await import('./visualsBroadcast')
 const { GIG_FOLDER_KEY } = await import('./gigFolderStore')
@@ -132,7 +132,7 @@ describe('the folders screen', () => {
     await act(async () => {
       screen.getByTestId('folders-media').querySelector('button')!.click()
     })
-    await waitFor(() => expect(getMediaFolder()).toBe('/vault/songs/video'))
+    await waitFor(() => expect(getVisualsFolder()).toBe('/vault/songs/video'))
     expect(screen.getByTestId('folders-media-value').textContent).toContain('/vault/songs/video')
   })
 
@@ -147,7 +147,7 @@ describe('the folders screen', () => {
       screen.getByTestId('folders-songs').querySelector('button')!.click()
     })
     await waitFor(() => expect(getSongsFolder()).toBe('/vault/songs'))
-    expect(getMediaFolder()).toBeNull()
+    expect(getVisualsFolder()).toBeNull()
     expect(screen.getByTestId('folders-media-value').textContent).toContain('Not set')
   })
 
@@ -172,7 +172,7 @@ describe('the folders screen', () => {
 
   it('says it found the logo once the media folder holds it', async () => {
     broadcastRoomWithLogo()
-    setMediaFolder('/vault/assets')
+    setVisualsFolder('/vault/assets')
     render(<FoldersView />)
     await waitFor(() =>
       expect(screen.getByTestId('folders-status-chango-pepper-logo.png').textContent).toContain('Found in the media folder')
@@ -182,7 +182,7 @@ describe('the folders screen', () => {
 
   it('says a name is not there when the folder does not hold it', async () => {
     broadcastRoomWithLogo()
-    setMediaFolder('/vault/assets')
+    setVisualsFolder('/vault/assets')
     fileExists.mockResolvedValue(false)
     render(<FoldersView />)
     await waitFor(() =>

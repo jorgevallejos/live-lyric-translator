@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   getBombistaPath,
   getGigsFolder,
-  getMediaFolder,
+  getVisualsFolder,
   getSongsFolder,
   setBombistaPath,
   setGigsFolder,
-  setMediaFolder,
+  setVisualsFolder,
   setSongsFolder,
 } from './contentFolders'
 import { getMediaPath, resolveMediaPath, setMediaPath } from './mediaPathStore'
@@ -25,8 +25,12 @@ import type { BombistaLocation } from './electronApi'
 import { refreshGigReadiness } from './gigSession'
 
 /**
- * **Where this machine keeps things** — the songs root, the gigs root, the media folder, and what
+ * **Where this machine keeps things** — the songs root, the gigs root, the visuals folder, and what
  * every name in the files currently resolves to.
+ *
+ * **All three are asked for on first run as of 2026-09-04**, the visuals folder included. This
+ * screen is where they are *changed*, which is the rule it already held for the other two: never
+ * the place a setting is discovered.
  *
  * It is its own screen, and that is the point of it. Linking a file used to be possible in exactly
  * one place, the song library's *Locate video…* button, which only ever offers a song's own
@@ -36,6 +40,10 @@ import { refreshGigReadiness } from './gigSession'
  *
  * The list below is the fix for the silence as much as the folder is the fix for the name: a name
  * with no bytes behind it is a row that says so.
+ *
+ * **The folder is called `Visuals` to the person and `media` in the store.** The label followed the
+ * word the ruling uses; the localStorage key did not, because a machine's existing answer is not
+ * wrong. See `contentFolders.ts`.
  */
 
 type Row = MediaSource & {
@@ -89,7 +97,7 @@ export function FoldersView() {
   const visuals = useBroadcastVisuals()
   const [songsFolder, setSongsFolderState] = useState<string | null>(getSongsFolder)
   const [gigsFolder, setGigsFolderState] = useState<string | null>(getGigsFolder)
-  const [mediaFolder, setMediaFolderState] = useState<string | null>(getMediaFolder)
+  const [visualsFolder, setVisualsFolderState] = useState<string | null>(getVisualsFolder)
   const [bombista, setBombista] = useState<{ present: boolean; version: string | null } | null>(null)
   const [bombistaWhere, setBombistaWhere] = useState<BombistaLocation | null>(null)
   const [bombistaPath, setBombistaPathState] = useState<string | null>(getBombistaPath)
@@ -120,7 +128,7 @@ export function FoldersView() {
     return () => {
       cancelled = true
     }
-  }, [visuals, mediaFolder, tick])
+  }, [visuals, visualsFolder, tick])
 
   // Whether the tools are reachable at all. **Absent is a degraded mode, never a failure**: each
   // tool is fully usable on its own, so a missing one means the button is not there and the escape
@@ -168,13 +176,13 @@ export function FoldersView() {
     })()
   }
 
-  const chooseMedia = () => {
+  const chooseVisuals = () => {
     setBusy(true)
     void (async () => {
-      const chosen = await chooseFolderPath('Choose the media folder', 'media-folder')
+      const chosen = await chooseFolderPath('Where your visuals live', 'media-folder')
       if (chosen) {
-        setMediaFolder(chosen)
-        setMediaFolderState(chosen)
+        setVisualsFolder(chosen)
+        setVisualsFolderState(chosen)
         // Readiness counts a song's video as missing when the name does not resolve, so choosing
         // the folder can turn a blocked song into a ready one. Nothing else recomputes it.
         void refreshGigReadiness()
@@ -261,14 +269,14 @@ export function FoldersView() {
               for, and it lives wherever it lives. */}
           <FolderRow
             testId="folders-media"
-            label="Media"
-            hint="Where a name in a file is looked for — the videos, images and QR codes played on the wall. Not the recordings you align against: those are handed over at the door and need no home. A per-source link still wins over this."
-            value={mediaFolder}
+            label="Visuals"
+            hint="Where a name in a file is looked for — the videos, images and QR codes played on the wall. Nothing writes into it. Not the recordings you align against: those are handed over at the door and need no home. A per-source link still wins over this."
+            value={visualsFolder}
             disabled={busy || !canPick}
-            onChoose={chooseMedia}
+            onChoose={chooseVisuals}
             onClear={() => {
-              setMediaFolder(null)
-              setMediaFolderState(null)
+              setVisualsFolder(null)
+              setVisualsFolderState(null)
               void refreshGigReadiness()
             }}
           />

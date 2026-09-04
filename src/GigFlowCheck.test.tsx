@@ -308,6 +308,10 @@ describe('the check screen', () => {
         } as unknown as LibrarySong,
       },
     ])
+    // **The name resolves and the file is not there**, which is what this line is about. Since the
+    // visuals folder became a first-run answer (2026-09-04) every name resolves against it, so
+    // *not there* has to be said by the disk rather than by there being nowhere to look.
+    fileExists.mockImplementation((path: string) => Promise.resolve(!path.endsWith('duelo.mp4')))
     await goToCheck()
     await waitFor(() => expect(verdict('media')).toBe('Not yet'), WAIT)
     expect(screen.getByTestId('gig-check-media-detail').textContent).toContain('duelo.mp4')

@@ -2,29 +2,59 @@ import { useState } from 'react'
 import {
   getGigsFolder,
   getSongsFolder,
+  getVisualsFolder,
   setGigsFolder,
   setSongsFolder,
+  setVisualsFolder,
 } from './contentFolders'
 import { chooseFolderPath, hasFolderPicker } from './platform'
 import { GatedAction } from './GatedAction'
 
 /**
- * **First run: two folders you already have, asked once, before anything else.**
+ * **First run: three folders you already have, asked once, before anything else.**
  *
  * **It replaces the main screen; it does not sit behind a button and does not appear after the
  * main screen has rendered.** `App` checks `hasRequiredFolders()` before it renders anything on the
  * control side — before the library-hydration screen, which is the one that would otherwise flash
- * first. A launch with either folder unset shows this and nothing else.
+ * first. A launch with any folder unset shows this and nothing else, and on a machine that has
+ * answered none of them **the app's deal comes one screen earlier** — see `AppDealView.tsx`.
+ *
+ * ── 2026-09-04: a third folder, and the paragraphs come off ──────────────────────────────────
+ *
+ * **A third folder is added: where the visuals live** (Jorge), on the same argument that gave songs
+ * and gigs theirs. A picker opening at the home folder was already found wrong for Bombista, and it
+ * is worse here because the files are larger and buried deeper. **Order is SONGS · VISUALS · GIGS,
+ * matching the deal's own sentence.**
+ *
+ * **It is the first folder the suite only reads.** Songs got `song-performance/` and gigs got
+ * `setup/` because the tools write into both. **Nothing writes into the visuals folder** —
+ * Muralista reads assets from it and writes `visuals.json` into the gig's `setup/`. So there is no
+ * subfolder to carve out and no ownership boundary to defend, and the column says so.
+ *
+ * **Three is where it stops.** Songs are the words and their recordings, gigs are the nights,
+ * visuals are what goes on the wall. Nothing else in the workflow has a fourth kind of thing behind
+ * it.
+ *
+ * **And the columns go lean: the paragraphs come off.** They existed because this screen was the
+ * first thing you met and had to do the explaining. **The deal does that now, one screen earlier**,
+ * so each column drops to its name, its caps subtitle, a `Choose` and its path — which is what
+ * makes three columns fit at all.
+ *
+ * **This reopens the screen that took six rounds and was closed on 03/09, knowingly.** It was
+ * designed for two questions, two equal columns and a hard rule between them, and its whole point
+ * was that they read as different questions before either is read. **A third column re-tests that
+ * insight**, and the kickoff screen goes back on the walk. Everything below this line is what the
+ * six rounds bought and is kept.
  *
  * **They are two different questions, not two file pickers.** *Where your songs live* finds a
  * **catalogue**; *where your gigs live* finds a **body of work**. Both were phrased "choose a
  * folder", which is exactly why the second one read as the first one asked twice.
  *
- * **Two equal columns with a hard rule between them, songs left and gigs right** (2026-09-02,
- * settled by walking the screen). The rule is what makes them read as two questions before either
- * is read; side by side they cannot be mistaken for one question asked twice. Each column is one
+ * **Equal columns with a hard rule between them** (2026-09-02, settled by walking the screen; three
+ * of them since 2026-09-04). The rule is what makes them read as separate questions before any is
+ * read; side by side they cannot be mistaken for one question asked over again. Each column is one
  * block — label in caps, the path in mono as the loudest thing in it, one paragraph, its picker —
- * and `Confirm` sits below both on the same grid, the only control that leaves.
+ * and `Confirm` sits below them all on the same grid, the only control that leaves.
  *
  * **The pair is centred in the screen, the title names the moment, and the pickers say `Choose`**
  * (2026-09-02, the third walk, on `v0.26.0`). The layout held, so what changed is what sat wrong
@@ -83,20 +113,17 @@ import { GatedAction } from './GatedAction'
  * the folder-shape tree was not: the tree told you how to arrange your folders, and a name inside a
  * sentence says what will appear in them.
  *
- * **Nothing is created.** Both point at folders that already exist. The one folder the suite ever
- * makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it writes
- * a song there; `setup/` is made the first time a gig is written. Neither is a question.
+ * **Nothing is created.** All three point at folders that already exist. The one folder the suite
+ * ever makes inside the catalogue is `song-performance/`, and Bombista makes it the first time it
+ * writes a song there; `setup/` is made the first time a gig is written. **Inside the visuals
+ * folder nothing is made at all.** None of it is a question.
  *
  * **Everything else is gone, the folder-shape example included** (2026-09-02). The shape read as
  * prescriptive — a structure being required rather than a thing being found — and the prose around
- * it explained the app to someone who had not used it yet. Two paragraphs carry the whole screen,
- * and each says what its folder is worth rather than what the app does with it. This reverses *it
- * shows the shape rather than explaining it*: the shape is reconsidered if the screen turns out to
- * need it, not defended now.
- *
- * **Both paragraphs name Pregonero as the actor**, because *you are never asked again* was false:
- * the pickers still ask for a lyrics file and a recording when a song is made. What is answered
- * once is where the **catalogue** is, not where every file is.
+ * it explained the app to someone who had not used it yet. **The paragraphs that replaced it are
+ * gone too** (2026-09-04, above): what each folder is worth is now argued once, for all three, on
+ * the deal. This reverses *it shows the shape rather than explaining it*: the shape is reconsidered
+ * if the screen turns out to need it, not defended now.
  *
  * **There is no Tramoya folder and the word never appears here.** The app's own bookkeeping — the
  * gig list, the Bombista path, the preferences — is per-machine, is not Jorge's, and lives where
@@ -105,29 +132,32 @@ import { GatedAction } from './GatedAction'
  * **It waits to be dismissed** (2026-09-01, reversing #83). That round argued a confirming click
  * would be a step that decides nothing, and the first walk of `v0.24.0` found what it decides:
  * **when the person is done.** Answering a file dialog is not being finished — you may want to
- * re-check the first answer having seen the second — and being thrown to the control view
- * mid-thought is the app deciding on your behalf. Both answers stay changeable until the button is
- * pressed, and pressing it is what leaves.
+ * re-check an earlier answer having seen a later one — and being thrown to the control view
+ * mid-thought is the app deciding on your behalf. Every answer stays changeable until the button is
+ * pressed, and pressing it is what leaves. **Answering the last folder does not throw you onward.**
  *
- * **Once both are chosen and confirmed it is gone, and every later launch goes straight through.**
+ * **Once all three are chosen and confirmed it is gone, and every later launch goes straight
+ * through.**
  * There is no "skip", because the whole point is that a setting stops being something you discover
  * at the moment it blocks you. **Preferences is where they are changed** — never where you find out
  * they exist.
  */
 
 /**
- * One column, in five parts: **`name`, the loudest thing in it**, the caps `label` under it, the
- * paragraph that argues for the folder, the picker, and the answer last.
+ * One column, in four parts: **`name`, the loudest thing in it**, the caps `label` under it, the
+ * picker, and the answer last.
  *
- * `name` is what the column *is* — `SONGS`, `GIGS` — and `label` is the question it asks. They were
- * one line until the fifth walk, and the path was loudest; at rest that made the two columns open
- * looking identical, because both paths read `Not chosen yet` and nothing above them was loud
- * enough to tell them apart.
+ * `name` is what the column *is* — `SONGS`, `VISUALS`, `GIGS` — and `label` is the question it
+ * asks. They were one line until the fifth walk, and the path was loudest; at rest that made the
+ * columns open looking identical, because every path read `Not chosen yet` and nothing above them
+ * was loud enough to tell them apart.
+ *
+ * **The paragraph was the fifth part and came off on 2026-09-04.** It argued for its folder because
+ * this screen was the first thing you met; the deal argues for all three now, one screen earlier.
  */
 function FolderColumn({
   name,
   label,
-  paragraph,
   value,
   onChoose,
   disabled,
@@ -135,7 +165,6 @@ function FolderColumn({
 }: {
   name: string
   label: string
-  paragraph: string
   value: string | null
   onChoose: () => void
   disabled: boolean
@@ -147,7 +176,6 @@ function FolderColumn({
         {name}
       </span>
       <span className="first-run-label">{label}</span>
-      <p className="first-run-paragraph">{paragraph}</p>
       <button
         type="button"
         className="ctrl-btn ctrl-setup-link"
@@ -173,6 +201,7 @@ function FolderColumn({
 
 export function FirstRunView({ onDone }: { onDone: () => void }) {
   const [songs, setSongs] = useState<string | null>(getSongsFolder)
+  const [visuals, setVisuals] = useState<string | null>(getVisualsFolder)
   const [gigs, setGigs] = useState<string | null>(getGigsFolder)
   const [busy, setBusy] = useState(false)
 
@@ -180,7 +209,7 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
 
   const choose = (
     title: string,
-    picker: 'songs-folder' | 'gigs-folder',
+    picker: 'songs-folder' | 'gigs-folder' | 'media-folder',
     store: (path: string | null) => void,
     hold: (path: string | null) => void
   ) => {
@@ -198,14 +227,23 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
   // **The answers are already stored; the button is about leaving.** Each choice is written the
   // moment it is made, so a launch interrupted halfway comes back to one question answered rather
   // than to nothing — what waits is the screen, not the record of what was said on it.
+  //
+  // **The reason names the questions still open**, which is the whole of what a gated action owes:
+  // with three of them, *one of these is missing* would be the wall the rule exists to prevent.
+  const open = [
+    songs === null ? 'Where your songs live' : null,
+    visuals === null ? 'Where your visuals live' : null,
+    gigs === null ? 'Where your gigs live' : null,
+  ].filter((question): question is string => question !== null)
+
   const unanswered =
-    songs === null && gigs === null
-      ? 'Both questions need an answer before Pregonero has anywhere to read or write.'
-      : songs === null
-        ? 'Where your songs live has not been answered yet.'
-        : gigs === null
-          ? 'Where your gigs live has not been answered yet.'
-          : null
+    open.length === 0
+      ? null
+      : open.length === 3
+        ? 'All three questions need an answer before Pregonero has anywhere to read or write.'
+        : open.length === 2
+          ? `${open[0]} and ${open[1][0].toLowerCase()}${open[1].slice(1)} have not been answered yet.`
+          : `${open[0]} has not been answered yet.`
 
   return (
     <div className="songs-screen first-run-screen" data-testid="first-run">
@@ -220,12 +258,14 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
           </p>
         )}
 
+        {/* **SONGS · VISUALS · GIGS, in the deal's own order** (2026-09-04). The sentence the person
+            has just read is *where your songs are, where your visuals are, and where your gigs will
+            live*; asking them in another order would make the screen the second thing to learn. */}
         <div className="first-run-columns">
           <FolderColumn
             testId="first-run-songs"
             name="Songs"
             label="Where your songs live — Your catalogue"
-            paragraph="The folder your recordings and lyrics are already in. Pregonero reads your songs from here and writes their performance data into a song-performance folder inside it."
             value={songs}
             disabled={busy || !canPick}
             onChoose={() =>
@@ -233,11 +273,23 @@ export function FirstRunView({ onDone }: { onDone: () => void }) {
             }
           />
 
+          {/* **The one folder nothing writes into.** Its picker memory is `media-folder`, the name
+              the store has always used, because a machine's remembered answer is not wrong. */}
+          <FolderColumn
+            testId="first-run-visuals"
+            name="Visuals"
+            label="Where your visuals live — What goes on the wall"
+            value={visuals}
+            disabled={busy || !canPick}
+            onChoose={() =>
+              choose('Where your visuals live', 'media-folder', setVisualsFolder, setVisuals)
+            }
+          />
+
           <FolderColumn
             testId="first-run-gigs"
             name="Gigs"
             label="Where your gigs live — Your body of work"
-            paragraph="The folder where your gig data is stored. Pregonero keeps every gig’s setup data inside a single setup folder in it."
             value={gigs}
             disabled={busy || !canPick}
             onChoose={() => choose('Where your gigs live', 'gigs-folder', setGigsFolder, setGigs)}
