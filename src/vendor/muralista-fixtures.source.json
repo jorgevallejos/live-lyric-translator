@@ -2,12 +2,11 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.17.0",
-  "sha256": "1007aeecc1a9583a3230569542cda52ec584a525c5e479ed10725be43950b915",
+  "tag": "v1.18.0",
+  "sha256": "25d3f7c0fe1d1da3d40d66620ebdae8d913731217ee3b6991b7a74a8533a3df3",
   "fixtures": [
-    "LYRICS_PREVIEW_TEXT",
-    "INTRO_PLACEHOLDER"
+    "LYRICS_PREVIEW_TEXT"
   ],
   "vendoredOn": "2026-09-04",
-  "note": "Re-vendored at v1.17.0 for the page, not for the stand-ins: v1.17.0 renames the default shapes, fixes the accordion's fields swallowing focus, reaches the output window through the window handle because a framed page is in a different storage partition, and accepts a relative path from the recursive listing. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
+  "note": "Re-vendored at v1.18.0. INTRO_PLACEHOLDER IS NO LONGER IN THE FILE: `song-intro` and `gig-contact` stopped being shape types, so Muralista's intro card, its proportions and its three stand-in strings went with them. LYRICS_PREVIEW_TEXT is untouched and is the only fixture left. v1.18.0 also makes `Previewing:` drive the output window and moves the transport into the song."
 }
