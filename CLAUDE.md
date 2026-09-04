@@ -537,6 +537,14 @@ both windows, `resolveMedia` in `gigSession`, the `#/folders` listing, and the s
 forever once nothing wrote the field.** Each video shape plays its own asset; a shape with nothing
 assigned is dark for that song.
 
+**`leadIn` split the same way** (2026-09-04). Its measured **value** stays with the timeline — a
+real measurement of the words — and **the decision to apply it is this app's**, from whether a video
+is assigned for this gig. `leadIn.apply` was Bombista's, derived from `media.type == "video"`, and
+once nothing declares media that default silently flips: **every video song would have lost its
+lead-in correction, visible only as subtitles arriving early on a wall.** `resolveVideoSongTime`
+takes the mode as an argument now, defaulting to *not applied*; `validateTimelineLeadIn` accepts an
+old file's `apply` and drops it, because nothing is migrated.
+
 **Two things went with the block and have no home: `media.offset` and `media.trimStart`.** Both were
 optional manual corrections defaulting to 0, and `videoCueLookup` documents that 0 with no lead-in
 is bit-for-bit the original formula — so this is a lost adjustment rather than a broken clock. **If
