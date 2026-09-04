@@ -63,7 +63,7 @@ const STEPS: readonly { step: number; label: string }[] = [
   { step: 1, label: 'Gig' },
   { step: 2, label: 'Setlist' },
   { step: 3, label: 'Visuals' },
-  { step: 4, label: 'Check' },
+  { step: 4, label: 'Sign-off' },
 ]
 
 /**
@@ -184,7 +184,7 @@ function ScreenGig({
   return (
     <section className="gig-flow-page" data-testid="gig-flow-screen-1">
       <p className="gig-flow-lede">
-        A gig is a date and a place. Everything else about it — the songs, the room, the check —
+        A gig is a date and a place. Everything else about it — the songs, the room, the sign-off —
         follows from those, and none of it is a decision about your disk.
       </p>
 
@@ -262,7 +262,7 @@ function ScreenGig({
       )}
 
       {/* **EVERY FORWARD CONTROL NAMES ITS DESTINATION** (Jorge, 2026-09-04, walking `v0.53.0`).
-          `To the setlist →`, `To the visuals →`, `To the check →` — one vocabulary, and the arrow
+          `To the setlist →`, `To the visuals →`, `To the sign-off →` — one vocabulary, and the arrow
           is Bombista's mark for the same thing.
 
           **It said `Save the gig →` for one round and that was wrong**: `gig.json` has already
@@ -441,7 +441,7 @@ function ScreenSetlist({
 
           **Disabled with the reason attached, never absent** — `GatedAction`'s rule, which this
           control follows rather than vanishing. The bar's own step 3 is shut on the same condition,
-          so there is no second door around it. **Step 4 stays open**: the check is the screen that
+          so there is no second door around it. **Step 4 stays open**: the sign-off is the screen that
           NAMES what is missing, and shutting it would hide the answer. */}
       <div className="gig-actions">
         <button
@@ -508,9 +508,30 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
   const [error, setError] = useState<string | null>(null)
   const frame = useRef<HTMLIFrameElement | null>(null)
   /**
+   * **THE CONTROL THAT LEAVES IS THE CONTROL THAT WRITES** (Jorge, 2026-09-04, walking `v0.54.0`).
+   *
+   * **Two controls where one leaves and the other writes is a trap even when both work**, and this
+   * was the second time that shape appeared — after `Save the gig →` on step 1. `Save to gig` is
+   * gone from Muralista in a gig context, and this press asks for the save, waits for the answer,
+   * and only then leaves.
+   *
+   * **Pregonero does not write `visuals.json` and must not**: it is Muralista's file, and the whole
+   * of the ownership rule is that nothing is written on behalf of a tool that did not run. So this
+   * is an instruction to the tool, not a write — one word out, one boolean back.
+   *
+   * **It leaves only if the save happened.** Navigating away from a failed write would report
+   * success by arriving somewhere, which is the defect `Confirm setup` was fixed for once already.
+   */
+  const [saving, setSaving] = useState(false)
+  const [saveProblem, setSaveProblem] = useState<string | null>(null)
+  // Held in a ref so the message listener is subscribed once. A listener that re-subscribes on
+  // every render can miss the one message it exists for, which arrives from another window.
+  const forward = useRef(onForward)
+  forward.current = onForward
+  /**
    * **WHICH OF MURALISTA'S OWN SCREENS IS SHOWING**, and it is the only thing that crosses.
    *
-   * **`To the check →` belongs on `2 OUTPUT` and nowhere else** (Jorge, 2026-09-04). While you are
+   * **`To the sign-off →` belongs on `2 OUTPUT` and nowhere else** (Jorge, 2026-09-04). While you are
    * on `THE DEAL` or `1 SHAPES` it is a second forward control on a screen that already has one —
    * the nesting problem this step spent a round removing, one layer down.
    *
@@ -532,9 +553,28 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (frame.current === null || event.source !== frame.current.contentWindow) return
-      const data = event.data as { muralista?: unknown; step?: unknown } | null
-      if (!data || data.muralista !== 'flow-step' || typeof data.step !== 'string') return
-      setToolStep(data.step)
+      const data = event.data as { muralista?: unknown; step?: unknown; ok?: unknown; reason?: unknown } | null
+      if (!data) return
+      if (data.muralista === 'flow-step' && typeof data.step === 'string') {
+        setToolStep(data.step)
+        return
+      }
+      if (data.muralista === 'save-result') {
+        setSaving(false)
+        if (data.ok === true) {
+          setSaveProblem(null)
+          // **THE FOLDER IS RE-READ BEFORE ANYTHING ADVANCES**, and that is the whole of the
+          // `v0.54.0` blocker: the room was saved and the sign-off said it was not, because
+          // readiness was a snapshot taken when this screen mounted and nothing looked again.
+          void refreshGigReadiness().then(() => forward.current())
+        } else {
+          setSaveProblem(
+            typeof data.reason === 'string' && data.reason !== ''
+              ? data.reason
+              : 'Muralista did not save the room.'
+          )
+        }
+      }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
@@ -622,14 +662,32 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
           you are inside Muralista's own flow*, and in those two states nobody is. Leaving the step
           with no way onward would be the dead end this project has a rule about. */}
       {(!hosted || error !== null || toolStep === 'output') && (
-        <div className="gig-actions">
+        <div className="gig-actions gig-flow-footer">
+          {saveProblem !== null && (
+            <p className="setup-song-problem" data-testid="gig-flow-save-problem">
+              {saveProblem}
+            </p>
+          )}
           <button
             type="button"
             className="ctrl-btn gig-flow-primary"
             data-testid="gig-flow-forward"
-            onClick={onForward}
+            disabled={saving}
+            onClick={() => {
+              const win = frame.current?.contentWindow
+              // No frame means no room to save — outside the desktop app, or a server that would
+              // not start. The step is still leavable, because a step with no way onward is the
+              // dead end this project has a rule about.
+              if (!win) {
+                void refreshGigReadiness().then(() => forward.current())
+                return
+              }
+              setSaving(true)
+              setSaveProblem(null)
+              win.postMessage({ muralista: 'save' }, '*')
+            }}
           >
-            To the check →
+            {saving ? 'Saving the room…' : 'To the sign-off →'}
           </button>
         </div>
       )}
@@ -638,7 +696,21 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
 }
 
 /**
- * **Screen 4: the check.**
+ * **Screen 4: the sign-off.**
+ *
+ * **`4 SIGN-OFF`, `Sign off the gig`, and nothing else** (Jorge, 2026-09-04). *Check*, *confirm*,
+ * *validate* and *complete* all went: **two near-synonyms on one screen is what made it unreadable**
+ * — sign-off and complete — and one word in the two places it must appear is the fix. The noun in
+ * the bar, the verb on the button, nothing to tell apart.
+ *
+ * **And it is the honest word where *ready* was not.** The screen's own top line says everything
+ * below was checked against the files and only Jorge can check it against the wall. He is not
+ * asserting the gig is ready; **he is signing for the part the machine cannot see** — which is what
+ * `timelineSignedOff` already means in the SP JSON.
+ *
+ * **The stored field is still `setup`, and `confirmSetup` is still its writer.** The word that
+ * changed is the one on the screen; renaming the field would be a migration this project's rules
+ * forbid, and renaming the function without it would leave the code disagreeing with the file.
  *
  * **Not a form.** One line per thing that has to be true, each passing or failing, then one action
  * that leaves. Nothing on it is typed and nothing on it is stored except the press at the bottom.
@@ -859,14 +931,19 @@ function ScreenCheck({
         />
       </ul>
 
+      {/* **THE STATUS STAYS AND THE WORD CHANGES WITH THE REST** (Jorge, 2026-09-04). He named this
+          line as a status that survives the prose cut, and quoted it as it stood — but it names the
+          same act the button does, and leaving *confirmed* here beside `Sign off the gig` would put
+          two words for one act on the one screen whose confusion was two words for one act. Same
+          sentence, same job, one vocabulary. */}
       {confirmation === null ? (
         <p className="gig-hint" data-testid="gig-check-confirmation">
-          Setup has not been confirmed for this gig. Arming warns about that; it does not refuse.
+          This gig has not been signed off. Arming warns about that; it does not refuse.
         </p>
       ) : confirmation.stale ? (
         <div className="setup-lapsed" data-testid="gig-check-lapsed">
           <p>
-            Setup was confirmed on {confirmation.confirmedAt}, and has <strong>lapsed</strong>:
+            Signed off on {confirmation.confirmedAt}, and it has <strong>lapsed</strong>:
           </p>
           <ul>
             {confirmation.moved.map((line) => (
@@ -876,8 +953,8 @@ function ScreenCheck({
         </div>
       ) : (
         <p className="gig-hint" data-testid="gig-check-confirmation">
-          Setup was confirmed on {confirmation.confirmedAt}, and everything it was confirmed against
-          is still as it was.
+          Signed off on {confirmation.confirmedAt}, and everything it was signed off against is
+          still as it was.
         </p>
       )}
 
@@ -902,7 +979,7 @@ function ScreenCheck({
           disabled={busy || !checksPass}
           onClick={onConfirm}
         >
-          {confirmation === null ? 'Confirm setup' : 'Confirm setup again'}
+          {confirmation === null ? 'Sign off the gig' : 'Sign off the gig again'}
         </button>
       </div>
       {/* **A red line beside a live button needs a sentence, or the screen is lying by omission.**
@@ -910,22 +987,22 @@ function ScreenCheck({
           to be inferred from the colour. */}
       {!checksPass ? (
         <p className="setup-song-problem" data-testid="gig-check-blocked">
-          Setup cannot be confirmed while a line above is failing.
+          The gig cannot be signed off while a line above is failing.
         </p>
       ) : (
         blocked.length > 0 && (
           <p className="gig-hint" data-testid="gig-check-reported">
-            The failing lines above do not stop setup being confirmed — they stop those songs being
-            armed, which is a gate on the night rather than on the gig.
+            The failing lines above do not stop the gig being signed off — they stop those songs
+            being armed, which is a gate on the night rather than on the gig.
           </p>
         )
       )}
-      <p className="gig-hint">
-        Confirming records that these checks passed and <strong>what they passed against</strong> —
-        the song files, the room, the displays — so it can notice it has stopped being true. It
-        never records a matrix, a layout or a pixel size, and it blocks nothing. A gig can be
-        changed afterwards; coming back here re-checks the files.
-      </p>
+      {/* **THE CLOSING PARAGRAPH IS GONE** (Jorge, 2026-09-04, under the prose rule: it teaches).
+          What it said is true and lives where it belongs — `confirmSetup` in `gigSession.ts` and
+          the *setup confirmation* section of `CLAUDE.md`. **One clause of it was also false here**:
+          *coming back here re-checks the files* was a sentence inherited from `GigView`, and this
+          flow did not re-read at all until the `v0.54.0` blocker was found. It re-reads now, so the
+          sentence could have stayed — and it goes anyway, because it was teaching. */}
     </section>
   )
 }
@@ -958,6 +1035,30 @@ export function GigFlowView() {
   useEffect(() => {
     void refreshGigReadiness()
   }, [])
+
+  /**
+   * **THE SIGN-OFF STEP RE-READS THE GIG FOLDER, AND THIS IS THE `v0.54.0` BLOCKER.**
+   *
+   * Jorge pressed `Save to gig`, reached step 4, and was told `No ./visuals.json yet`. **The file
+   * was on disk.** The write goes through the localhost mount into the gig folder — verified, a
+   * `PUT` returning 204 and `visuals.json` landing beside `gig.json` and nowhere else — so it was
+   * neither *never written* nor *written somewhere else*. **Readiness was answering from a snapshot
+   * taken when this component mounted**: `refreshGigReadiness` ran once, with `[]` deps, and
+   * nothing looked at the folder again. Muralista wrote the file in a frame, on a filesystem this
+   * renderer never re-read.
+   *
+   * **The screen was lying about its own behaviour**, because its own copy said *coming back here
+   * re-checks the files* — a sentence that was true of `GigView`, the screen this flow replaced,
+   * and that travelled to a flow which never re-reads.
+   *
+   * **Keyed on arriving at the step, not on the route in.** The forward control re-reads before it
+   * advances so there is no flash of the stale answer; this covers every other way in — the step
+   * bar, and coming back to a gig later.
+   */
+  useEffect(() => {
+    if (here !== 4) return
+    void refreshGigReadiness()
+  }, [here])
 
   /**
    * **Prefilled from the gig, once per gig.** Nothing on this screen is ever typed twice: the date
@@ -1077,7 +1178,7 @@ export function GigFlowView() {
    * was created, no song was added, and the visuals opened. **A defect against an existing ruling,
    * not a new rule.**
    *
-   * **Step 4 stays open**, because the check is the screen that names what is missing and shutting
+   * **Step 4 stays open**, because the sign-off is the screen that names what is missing and shutting
    * it would hide the answer — and `Confirm setup` is strict there regardless, on readiness's own
    * `canConfirm`.
    *
@@ -1147,7 +1248,7 @@ export function GigFlowView() {
    * bar as the only bar — and this is the same shape, in the same classes, for the same reason.
    *
    * **The gig flow's bar is left behind on the way in**, which is the whole of what *not nested*
-   * means here. `Back` returns to the flow at the step it was entered from; `To the check →` is the
+   * means here. `Back` returns to the flow at the step it was entered from; `To the sign-off →` is the
    * way onward and lands on step 4.
    */
   if (here === 3 && !hasSetlist) {

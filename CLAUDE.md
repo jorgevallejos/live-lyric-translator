@@ -427,8 +427,9 @@ requirement, and it is also the escape hatch that makes the setup flow's strictn
 no preload and no `electronAPI`: giving it one would be the slide from *Pregonero launches a tool* to
 *they share state at runtime*, which is the shape the design rejected.
 
-**One thing crosses at runtime and it is not data: which of its own screens the hosted tool is
-showing** (2026-09-04). Muralista's `announceFlowStep` posts one string — `deal`, `shapes` or
+**Two things cross at runtime and neither is data.** (2026-09-04.)
+
+**Out: which of its own screens the hosted tool is showing.** Muralista's `announceFlowStep` posts one string — `deal`, `shapes` or
 `output` — to `window.parent`, and `ScreenVisuals` shows `To the check →` only for `output`. **It
 exists because an outer flow's forward control must not sit on a screen inside the inner one**, which
 is the nesting complaint one layer down from the one that moved Muralista out of a box. **No gig, no
@@ -437,8 +438,30 @@ Muralista learns nothing about who is listening — it is the same class of thin
 `bombista serve`, *what to draw* rather than *who is asking*, going the other way. **Only the frame
 is believed**: the message is taken only when `event.source` is that iframe's own window, because any
 page on the machine can post to this one. **The temptation this must not slide into is the tool
-reporting anything about the work** — a song, a shape, a save. The test for a second message is the
-same as the first: does it describe the tool's own UI, and nothing else?
+reporting anything about the work** — a song, a shape, a file's contents.
+
+**In: `save`, and the outcome comes back.** `ScreenVisuals`'s `To the sign-off →` posts
+`{ muralista: 'save' }` and Muralista answers `{ muralista: 'save-result', ok, reason }`. It exists
+because **the control that leaves must be the control that writes** (Jorge, 2026-09-04): two
+controls where one leaves and the other saves is a trap even when both work, and the leaving control
+belongs to the embedder. **Pregonero does not write `visuals.json` and must not** — it is
+Muralista's file, and nothing is written on behalf of a tool that did not run — so this is an
+instruction, not a write. **It leaves only if the save happened.**
+
+**THE LINE, and it governs any third message in either direction: a tool may be told what to do with
+its own state, and may report its own UI state and the outcome of what it was told. It may never
+report the work.** `reason` is Muralista's own status sentence, the one it would have printed beside
+its own button; a shape, a song, a geometry or a file's contents crossing would be the boundary
+breaking rather than bending.
+
+**Pregonero opens the windows a hosted tool asks for, and refuses every other** — `main.cjs`'s
+`setWindowOpenHandler`. Muralista's `Open output window` reported *Chrome blocked the popup* and
+Chrome had not: a framed page's `window.open` reaches the main window's handler, and that handler
+denied everything but the projection window. **Not the camera's family** — that was a policy the
+embedder had to grant; this was a decision the embedder was already making, wrongly. It is opened
+here rather than allowed through, so the window is this process's: titled, sized, closable, and gone
+when the app quits. **The URL is checked against the port the tool server actually bound to**, never
+matched loosely.
 
 **And the frame carries one permissions-policy allowlist, `allow="camera"`** — the fix for a camera
 that listed nothing. A permissions policy is not a bridge: it hands the page a device it asks the

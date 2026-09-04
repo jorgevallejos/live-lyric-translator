@@ -401,12 +401,54 @@ describe('confirming setup', () => {
     // since. The button would save nothing and add something already there.
     await goToCheck()
     const buttons = [...screen.getByTestId('gig-flow-check').querySelectorAll('button')]
-    expect(buttons.map((b) => b.textContent)).toEqual(['Confirm setup'])
+    expect(buttons.map((b) => b.textContent)).toEqual(['Sign off the gig'])
     expect(screen.getByTestId('gig-flow-check').textContent).not.toMatch(/save to the gigs list/i)
     expect(screen.getByTestId('gig-flow-check').textContent).not.toMatch(/control view/i)
   })
 
-  it('says setup can be made again, because a gig can be edited afterwards', async () => {
+  /**
+   * **ONE WORD, IN THE TWO PLACES IT MUST APPEAR** (Jorge, 2026-09-04): the noun in the bar and the
+   * verb on the button. *Check*, *confirm*, *validate* and *complete* all went — **two near-synonyms
+   * on one screen is what made it unreadable**, and a test is the only thing that keeps a fifth
+   * from arriving one convenient sentence at a time.
+   *
+   * `checked against the files` survives on the lede, and deliberately: that line is not a name for
+   * the act, it is what the machine did, and Jorge quoted it approvingly on the walk.
+   */
+  /**
+   * **THE SIGN-OFF RE-READS THE FOLDER ON ARRIVAL** (the `v0.54.0` blocker). The screen's own copy
+   * said *coming back here re-checks the files* and the flow never re-read: `refreshGigReadiness`
+   * ran once, on mount, and Muralista wrote `visuals.json` in a frame afterwards. **The screen was
+   * lying about its own behaviour** — the worst of the two classes this repo names, because a false
+   * answer is indistinguishable from a true one.
+   */
+  it('re-reads the gig folder on arrival, whichever way you came', async () => {
+    everythingGood()
+    await goToCheck()
+    const after = readGigFolder.mock.calls.length
+    // Leave and come back by the bar. Nothing else changes; the folder is read again anyway.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-2'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+    })
+    await waitFor(() => expect(readGigFolder.mock.calls.length).toBeGreaterThan(after), WAIT)
+  })
+
+  it('carries no second word for the act it is named after', async () => {
+    everythingGood()
+    await goToCheck()
+    const text = screen.getByTestId('gig-flow-check').textContent ?? ''
+    for (const word of [/\bconfirm/i, /\bvalidat/i, /\bcomplete/i]) {
+      expect(`${word}:${word.test(text)}`).toBe(`${word}:false`)
+    }
+    // `Check` only as the verb for what was done to the files, never as the name of this screen.
+    expect(text).not.toMatch(/the check\b/i)
+    expect(text).toMatch(/sign(ed)? off/i)
+  })
+
+  it('says the gig can be signed off again, because a gig can be edited afterwards', async () => {
     everythingGood({
       gigText: gigJson({
         setup: { confirmedAt: '2026-05-01T10:00:00.000Z', against: { songs: {}, visuals: null, display: '' } },
@@ -415,6 +457,6 @@ describe('confirming setup', () => {
     await goToCheck()
     await waitFor(() => expect(screen.getByTestId('gig-flow-confirm')).toBeTruthy(), WAIT)
     // Either state is legitimate — what matters is that the press is still offered.
-    expect(screen.getByTestId('gig-flow-confirm').textContent).toBe('Confirm setup again')
+    expect(screen.getByTestId('gig-flow-confirm').textContent).toBe('Sign off the gig again')
   })
 })
