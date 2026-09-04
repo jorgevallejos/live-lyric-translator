@@ -658,26 +658,31 @@ describe('the way forward', () => {
     rememberGigFolder(null)
   })
 
-  it('says on step 1 that the press moves you, as well as what it writes', async () => {
+  /**
+   * **EVERY FORWARD CONTROL NAMES ITS DESTINATION** (Jorge, 2026-09-04, walking `v0.53.0`).
+   * `Save the gig →` read as though saving were optional, when `gig.json` has already been written
+   * by the time the button says it.
+   */
+  it('names where step 1 goes, not what it writes', async () => {
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-commit')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('gig-flow-commit').textContent).toBe('Create the gig →')
+    expect(screen.getByTestId('gig-flow-commit').textContent).toBe('To the setlist →')
   })
 
-  it('carries the arrow on the same press once the gig exists', async () => {
+  it('says the same thing once the gig exists — the write is not the news', async () => {
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
     await renderFlow()
     await waitFor(
-      () => expect(screen.getByTestId('gig-flow-commit').textContent).toBe('Save the gig →'),
+      () => expect(screen.getByTestId('gig-flow-commit').textContent).toBe('To the setlist →'),
       WAIT
     )
   })
 
   it('gives the setlist step a control that goes to the visuals', async () => {
     rememberGigFolder(FOLDER)
-    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
-    await installCatalogue([], [], [])
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-2')).toBeTruthy(), WAIT)
     await act(async () => {
@@ -685,10 +690,62 @@ describe('the way forward', () => {
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
     expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the visuals →')
+    expect((screen.getByTestId('gig-flow-forward') as HTMLButtonElement).disabled).toBe(false)
     await act(async () => {
       fireEvent.click(screen.getByTestId('gig-flow-forward'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy(), WAIT)
+  })
+
+  /**
+   * **A GIG WITH NO SETLIST IS NOT A GIG, AND NOW NOTHING WALKS PAST IT** (Jorge, 2026-09-04).
+   * Step 2 has said that since it was built and nothing enforced it: a gig was created, no song
+   * was added, and the visuals opened. A defect against an existing ruling, not a new rule.
+   */
+  it('holds the visuals shut while the gig has no setlist, and says why', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-2')).toBeTruthy(), WAIT)
+    // The bar's own step 3 is shut, so there is no door around the control.
+    expect((screen.getByTestId('gig-flow-step-3') as HTMLButtonElement).disabled).toBe(true)
+    // And step 4 stays open: the check is the screen that NAMES what is missing.
+    expect((screen.getByTestId('gig-flow-step-4') as HTMLButtonElement).disabled).toBe(false)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-2'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
+    // Disabled with the reason attached, never absent — `GatedAction`'s rule.
+    expect((screen.getByTestId('gig-flow-forward') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByTestId('gig-flow-forward-blocked').textContent).toContain('not a gig')
+    expect(screen.queryByTestId('gig-flow-visuals')).toBeNull()
+  })
+
+  it('opens the visuals the moment a song is in the running order', async () => {
+    let onDisk: string | null = null
+    writeGigFile.mockImplementation((_folder: string, text: string) => {
+      onDisk = text
+      return Promise.resolve({ ok: true })
+    })
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockImplementation(() =>
+      Promise.resolve(folderRead({ gigPresent: true, gigText: onDisk ?? gigJson() }))
+    )
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-2')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-2'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-add-duelo')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-add-duelo'))
+    })
+    await waitFor(
+      () => expect((screen.getByTestId('gig-flow-step-3') as HTMLButtonElement).disabled).toBe(false),
+      WAIT
+    )
   })
 
   /**
@@ -698,7 +755,8 @@ describe('the way forward', () => {
    */
   it('leaves the gig flow’s step bar behind when the visuals open', async () => {
     rememberGigFolder(FOLDER)
-    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-steps')).toBeTruthy(), WAIT)
     await act(async () => {
@@ -713,7 +771,8 @@ describe('the way forward', () => {
 
   it('comes back to the gig flow, at the step the visuals were entered from', async () => {
     rememberGigFolder(FOLDER)
-    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
     await act(async () => {
@@ -731,14 +790,25 @@ describe('the way forward', () => {
     expect(screen.getByTestId('gig-flow-steps')).toBeTruthy()
   })
 
+  /**
+   * **The way on from the visuals is Muralista's `2 OUTPUT`'s to give** (Jorge, 2026-09-04): the
+   * outer flow's forward control must not sit on a screen inside the inner one. Muralista says
+   * which of its own cells is showing; `GigFlowVisuals.test.tsx` covers that in full, and this
+   * covers the step it lands on.
+   */
   it('goes on from the visuals to the check', async () => {
     rememberGigFolder(FOLDER)
-    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-3')).toBeTruthy(), WAIT)
     await act(async () => {
       fireEvent.click(screen.getByTestId('gig-flow-step-3'))
     })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy(), WAIT)
+    // `canHostTools` is false in this file, so Muralista is not on this screen and there is no
+    // inner flow to be inside: the way onward is there, because a step with none is a dead end.
+    // The hosted rule — only on Muralista's `2 OUTPUT` — is covered in `GigFlowVisuals.test.tsx`.
     await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
     expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the check →')
     await act(async () => {
@@ -750,7 +820,8 @@ describe('the way forward', () => {
   /** **Step 4's leaving action is unchanged**, and carries no arrow: it does not go to a step. */
   it('leaves step 4’s action exactly as it was', async () => {
     rememberGigFolder(FOLDER)
-    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
+    await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
     await act(async () => {

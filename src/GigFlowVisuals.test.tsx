@@ -101,6 +101,11 @@ beforeEach(() => {
       date: '2026-05-16',
       venue: { name: 'BOM Festival', city: 'Brussels' },
       visuals: './visuals.json',
+      // **The gig has a setlist**, because since 2026-09-04 the visuals step is unreachable
+      // without one — *a gig with no setlist is not a gig*, enforced at last. The file need not
+      // resolve: readiness counts the running order, and an unreadable song is still a song in it.
+      songs: [{ id: 'duelo', title: 'Duelo', file: 'duelo.json' }],
+      setlist: ['duelo'],
     }),
     gigError: null,
     gigPresent: true,
@@ -115,6 +120,21 @@ afterEach(() => {
   cleanup()
   window.location.hash = ''
 })
+
+/**
+ * **Muralista saying which of its own screens is showing**, exactly as `announceFlowStep` does:
+ * one string, posted from the frame's own window. The `source` is what Pregonero checks, so the
+ * test has to send it from there too — a message from anywhere else is ignored by design.
+ */
+function announceMuralistaStep(step: string) {
+  const frame = screen.getByTestId('gig-flow-visuals-frame') as HTMLIFrameElement
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      data: { muralista: 'flow-step', step },
+      source: frame.contentWindow,
+    })
+  )
+}
 
 /** Opens the flow on an existing gig and steps to 3. */
 async function goToVisuals() {
@@ -160,9 +180,15 @@ describe('the visuals step', () => {
     await goToVisuals()
     await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
     const frame = screen.getByTestId('gig-flow-visuals-frame')
-    for (const attr of ['preload', 'nodeintegration', 'webpreferences', 'allow']) {
+    for (const attr of ['preload', 'nodeintegration', 'webpreferences']) {
       expect(frame.getAttribute(attr)).toBeNull()
     }
+    // **`allow` USED TO BE ON THAT LIST, AND IT IS A CLOSED LIST NOW INSTEAD** (2026-09-04).
+    // A permissions-policy allowlist is not a bridge: it hands the page a DEVICE it asks the
+    // browser for itself, and nothing about Pregonero crosses with it. Asserted whole rather than
+    // merely non-empty, for the same reason `localhostServer` names its writable files one by one:
+    // the next feature that wants `microphone` or `display-capture` has to argue for it here.
+    expect(frame.getAttribute('allow')).toBe('camera')
   })
 
   it('says what it is doing while the server is coming up', async () => {
@@ -198,8 +224,66 @@ describe('the visuals step', () => {
     expect(text).not.toMatch(/gig\.json/i)
     expect(text).not.toMatch(/visuals\.json/i)
     expect(screen.queryByTestId('gig-flow-visuals-endpoint')).toBeNull()
-    // The screen is the frame and the one way onward, and nothing else.
-    expect(text.replace(/\s+/g, ' ').trim()).toBe('To the check →')
+    // The screen is the frame and nothing else — the way onward is not even there yet.
+    expect(text.replace(/\s+/g, ' ').trim()).toBe('')
+  })
+
+  /**
+   * **`To the check →` BELONGS ON `2 OUTPUT` AND NOWHERE ELSE** (Jorge, 2026-09-04). On THE DEAL
+   * and 1 SHAPES it is a second forward control on a screen that already has one — the nesting
+   * problem this step spent a round removing, one layer down.
+   */
+  it('keeps the outer flow’s forward control off Muralista’s own screens', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    // Nothing said yet: the control is off rather than on a guess.
+    expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
+
+    await act(async () => announceMuralistaStep('deal'))
+    expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
+
+    await act(async () => announceMuralistaStep('shapes'))
+    expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
+
+    await act(async () => announceMuralistaStep('output'))
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the check →')
+
+    // And it goes away again if Muralista goes back — the control follows the screen, it does not
+    // latch on the first time the output is seen.
+    await act(async () => announceMuralistaStep('shapes'))
+    expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
+  })
+
+  /**
+   * **Only the frame is believed.** Any page on this machine can post to this window, and a
+   * control that advances a flow is not a thing to hand to whoever shouts.
+   */
+  it('ignores a step announcement that did not come from the frame', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { muralista: 'flow-step', step: 'output' },
+          source: window,
+        })
+      )
+    })
+    expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
+  })
+
+  /**
+   * **THE CAMERA, AND THE ONE ATTRIBUTE THAT WAS MISSING** (walked 2026-09-04). Muralista's
+   * `Enable camera` listed no camera on a machine with two. A cross-origin iframe gets `camera`
+   * DISABLED by Permissions Policy unless the embedder allows it, and Pregonero's renderer is
+   * `file://` while the tool is served from `http://127.0.0.1`. Measured in Electron 41: without
+   * this attribute `enumerateDevices()` returns one videoinput with an empty id and a blank label
+   * and `getUserMedia` rejects `NotAllowedError`; with it both cameras come back by name.
+   */
+  it('lets the camera through to the frame, which is what makes it list one', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-visuals-frame').getAttribute('allow')).toBe('camera')
   })
 
   it('is disabled with the reason, never absent, outside the desktop app', async () => {

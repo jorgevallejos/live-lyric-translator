@@ -427,6 +427,25 @@ requirement, and it is also the escape hatch that makes the setup flow's strictn
 no preload and no `electronAPI`: giving it one would be the slide from *Pregonero launches a tool* to
 *they share state at runtime*, which is the shape the design rejected.
 
+**One thing crosses at runtime and it is not data: which of its own screens the hosted tool is
+showing** (2026-09-04). Muralista's `announceFlowStep` posts one string — `deal`, `shapes` or
+`output` — to `window.parent`, and `ScreenVisuals` shows `To the check →` only for `output`. **It
+exists because an outer flow's forward control must not sit on a screen inside the inner one**, which
+is the nesting complaint one layer down from the one that moved Muralista out of a box. **No gig, no
+song, no file and no geometry travels, in either direction**, nothing is read out of the frame, and
+Muralista learns nothing about who is listening — it is the same class of thing as `--no-header` on
+`bombista serve`, *what to draw* rather than *who is asking*, going the other way. **Only the frame
+is believed**: the message is taken only when `event.source` is that iframe's own window, because any
+page on the machine can post to this one. **The temptation this must not slide into is the tool
+reporting anything about the work** — a song, a shape, a save. The test for a second message is the
+same as the first: does it describe the tool's own UI, and nothing else?
+
+**And the frame carries one permissions-policy allowlist, `allow="camera"`** — the fix for a camera
+that listed nothing. A permissions policy is not a bridge: it hands the page a device it asks the
+browser for itself. It is asserted **whole** in `GigFlowVisuals.test.tsx`, the way
+`localhostServer.cjs` names its writable files one by one, so the next feature wanting `microphone`
+or `display-capture` has to argue for it there.
+
 **Muralista** is served from `electron/localhostServer.cjs` and opened in a `BrowserWindow`, over
 `http://127.0.0.1` and **never `file://`** — its File System Access API needs a secure context, and
 `file://` also hits the `webSecurity` block on media this repo already solved once with `media://`.

@@ -2,12 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.10.0",
-  "sha256": "7eda28556b258cac7db85ffe3b1d6b45b7ec57e204b351f80ad03a50c11bea26",
+  "tag": "v1.11.0",
+  "sha256": "2c0c7b95e42842684d4dd6e20e7eb4e387a7893522a38981d251e980e5d5c3f3",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT",
     "INTRO_PLACEHOLDER"
   ],
-  "vendoredOn": "2026-09-03",
-  "note": "Re-vendored at v1.10.0 for the page, not for the stand-ins: v1.10.0 made the stage capture a Backdrop source and left LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER untouched. The digest moved because the file did; the two values this repo reads out of it did not."
+  "vendoredOn": "2026-09-04",
+  "note": "Re-vendored at v1.11.0 for the page, not for the stand-ins: v1.11.0 removed `1 LAYOUT`, cut Export/Import/Identify off the toolbar and took the left-hand prose off, and left LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER untouched. The digest moved because the file did; the two values this repo reads out of it did not."
 }
