@@ -1,0 +1,185 @@
+{
+  "visualsVersion": 1,
+  "gigId": "probe",
+  "cameraDeviceId": null,
+  "cameraQuad": null,
+  "shapes": [
+    {
+      "id": "s-mtn6ylayog2",
+      "name": "Frame",
+      "corners": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "outline": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "layer": {
+        "type": "song-video",
+        "src": null,
+        "opacity": 1
+      },
+      "visible": true
+    },
+    {
+      "id": "s-mtn6ylb1xa3",
+      "name": "Lyrics at the foot",
+      "corners": [
+        [
+          0,
+          0.78
+        ],
+        [
+          1,
+          0.78
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "outline": [
+        [
+          0,
+          0.78
+        ],
+        [
+          1,
+          0.78
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "layer": {
+        "type": "song-lyrics",
+        "src": null,
+        "opacity": 1,
+        "text": "\"Wat een lekkernij zul jij zijn,\" zucht hij,\nen ik proef al het onvermijdelijke afscheid\nvan mijn modderplasherinneringen.",
+        "maxSize": 0.2,
+        "aspect": 1,
+        "align": "center",
+        "color": "#ffffff",
+        "outline": true,
+        "outlineWidth": 0.08
+      },
+      "visible": true,
+      "visibleWhen": {
+        "shape": "s-mtn6ylayog2",
+        "is": "filled"
+      }
+    },
+    {
+      "id": "s-mtn6ylb21pf",
+      "name": "Lyrics across the frame",
+      "corners": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "outline": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "layer": {
+        "type": "song-lyrics",
+        "src": null,
+        "opacity": 1,
+        "text": "\"Wat een lekkernij zul jij zijn,\" zucht hij,\nen ik proef al het onvermijdelijke afscheid\nvan mijn modderplasherinneringen.",
+        "maxSize": 0.2,
+        "aspect": 1,
+        "align": "center",
+        "color": "#ffffff",
+        "outline": true,
+        "outlineWidth": 0.08
+      },
+      "visible": true,
+      "visibleWhen": {
+        "shape": "s-mtn6ylayog2",
+        "is": "empty"
+      }
+    }
+  ],
+  "songVisuals": {
+    "defaults": {
+      "song-lyrics": [
+        "s-mtn6ylb1xa3",
+        "s-mtn6ylb21pf"
+      ],
+      "song-video": [
+        "s-mtn6ylayog2"
+      ]
+    },
+    "songs": {},
+    "assets": {
+      "duelo": {
+        "s-mtn6ylayog2": "cerdo.mp4"
+      }
+    }
+  }
+}

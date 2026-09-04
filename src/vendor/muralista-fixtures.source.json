@@ -2,12 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.14.0",
-  "sha256": "824e085701c2f99b25b08350183f68ae3818f04dbc6038961fa86388c1e2bae7",
+  "tag": "v1.15.0",
+  "sha256": "2723d95086e5db0a4970e36efabd564730fab2082d3f6f831849ed7a3fac1a8a",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT",
     "INTRO_PLACEHOLDER"
   ],
   "vendoredOn": "2026-09-04",
-  "note": "Re-vendored at v1.14.0 for the page, not for the stand-ins: v1.14.0 added song visual setup on `1 SHAPES` \u2014 a song selector, assignment-only mode, and the per-song asset field `songVisuals.assets` that *the song holds no media* needed a home for. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
+  "note": "Re-vendored at v1.15.0 for the page, not for the stand-ins: v1.15.0 added conditional visibility \u2014 a shape may declare `visibleWhen` about another shape \u2014 and made the designed three-shape default expressible in that vocabulary. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
 }
