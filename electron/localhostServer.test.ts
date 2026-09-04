@@ -345,24 +345,97 @@ describe('the listing', () => {
     })
   })
 
-  it('gives NAMES, never paths — a caller cannot learn where the folder is', async () => {
+  /**
+   * **The constraint that mattered was never *one segment*, it was *not absolute*** (Jorge,
+   * 2026-09-04). `tragedia/pig.mov` leaks no more about where the folder lives than `pig.mov`
+   * does — and root-only made the picker useless on a real folder, where every animation sits one
+   * level down in a per-song directory.
+   */
+  it('gives paths RELATIVE TO THE MOUNT — a caller cannot learn where the folder is', async () => {
     await withServer(async (port, dir) => {
-      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      fs.mkdirSync(path.join(dir, 'tragedia'))
+      fs.writeFileSync(path.join(dir, 'tragedia', 'pig.mp4'), 'x')
       const body = await (await fetch(`http://127.0.0.1:${port}/visuals/`)).text()
-      expect(body).toContain('pig.mp4')
+      expect(JSON.parse(body)).toEqual({ names: ['tragedia/pig.mp4'] })
       expect(body).not.toContain(dir)
-      expect(body).not.toContain('/')
+      expect(body).not.toContain(os.tmpdir())
     })
   })
 
-  it('lists files only: no directories, so the tree below is not described either', async () => {
+  /** **The finding that caused this**: one README at the root and every animation a level down. */
+  it('recurses, so a folder whose assets are all one level down is not empty', async () => {
     await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'README.md'), 'x')
+      fs.mkdirSync(path.join(dir, 'tragedia-de-cerdo-asado'))
+      fs.writeFileSync(path.join(dir, 'tragedia-de-cerdo-asado', 'Tragedia.mov'), 'x')
+      fs.writeFileSync(path.join(dir, 'tragedia-de-cerdo-asado', 'notes.md'), 'x')
+      expect(await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()).toEqual({
+        names: ['tragedia-de-cerdo-asado/Tragedia.mov'],
+      })
+    })
+  })
+
+  /**
+   * **Filtered to what a shape can hold**, because the consumer is a picker for what plays there
+   * and a `README.md` is not something anyone assigns to one. **On the listing only** — the fetch
+   * below still serves whatever is in the mount.
+   */
+  it('offers media and nothing else, while still SERVING anything in the mount', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'notes.md'), 'not an asset')
       fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
-      fs.mkdirSync(path.join(dir, 'raw'))
-      fs.writeFileSync(path.join(dir, 'raw', 'secret.mov'), 'x')
       expect(await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()).toEqual({
         names: ['pig.mp4'],
       })
+      // Offered and served are different questions: a mapping may already name this.
+      expect((await fetch(`http://127.0.0.1:${port}/visuals/notes.md`)).status).toBe(200)
+    })
+  })
+
+  it('lists no directories, only walks them', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      fs.mkdirSync(path.join(dir, 'raw'))
+      const { names } = (await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()) as {
+        names: string[]
+      }
+      expect(names).toEqual(['pig.mp4'])
+    })
+  })
+
+  /** **A symlink is the one entry that could leave the mount without a `..`.** Neither followed
+   *  nor listed: `isFile()` and `isDirectory()` are both false for it, so this is the default. */
+  it('neither follows nor lists a symlink out of the mount', async () => {
+    await withServer(async (port, dir) => {
+      const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'pregonero-outside-'))
+      fs.writeFileSync(path.join(outside, 'elsewhere.mp4'), 'x')
+      fs.symlinkSync(outside, path.join(dir, 'escape'))
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      try {
+        expect(await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()).toEqual({
+          names: ['pig.mp4'],
+        })
+      } finally {
+        fs.rmSync(outside, { recursive: true, force: true })
+      }
+    })
+  })
+
+  /** A wrongly-pointed folder costs a truncated list, never a stalled app. */
+  it('stops descending at a bounded depth', async () => {
+    await withServer(async (port, dir) => {
+      let deep = dir
+      for (let i = 0; i < 8; i++) {
+        deep = path.join(deep, `d${i}`)
+        fs.mkdirSync(deep)
+        fs.writeFileSync(path.join(deep, `at${i}.mp4`), 'x')
+      }
+      const { names } = (await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()) as {
+        names: string[]
+      }
+      expect(names.length).toBeGreaterThan(0)
+      expect(names.length).toBeLessThan(8)
+      expect(names.every((n) => n.split('/').length <= 4)).toBe(true)
     })
   })
 

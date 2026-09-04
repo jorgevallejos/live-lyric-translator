@@ -2,12 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.16.0",
-  "sha256": "1b225b4cd5d13ba2dd39f81a60e7441431d16f9adafba19fa2d4b2176ff04d33",
+  "tag": "v1.17.0",
+  "sha256": "1007aeecc1a9583a3230569542cda52ec584a525c5e479ed10725be43950b915",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT",
     "INTRO_PLACEHOLDER"
   ],
   "vendoredOn": "2026-09-04",
-  "note": "Re-vendored at v1.16.0 for the page, not for the stand-ins: v1.16.0 is the `1 SHAPES` redesign \u2014 Scope at the top, the Shape accordion under its row, the mode on the canvas, and the stand-in text rendered by the output's own renderer. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
+  "note": "Re-vendored at v1.17.0 for the page, not for the stand-ins: v1.17.0 renames the default shapes, fixes the accordion's fields swallowing focus, reaches the output window through the window handle because a framed page is in a different storage partition, and accepts a relative path from the recursive listing. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
 }
