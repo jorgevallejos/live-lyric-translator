@@ -250,6 +250,13 @@ function ScreenGig({
         </p>
       )}
 
+      {/* **THE ARROW IS THE POINT** (Jorge, 2026-09-04). This press already wrote the file and
+          already moved to step 2, and it said neither: a control that reads `Create the gig` is a
+          control that finished something, so the only thing on the screen that looked like a way
+          onward was the next step's name in the bar. **Clicking a step's name is too subtle to be
+          the way through a flow.** The arrow is Bombista's mark for the same thing — `Begin →`,
+          `Process song →`, `Confirm timeline →` — and this flow borrows its vocabulary everywhere
+          else already. */}
       <div className="gig-actions">
         <button
           type="button"
@@ -258,7 +265,7 @@ function ScreenGig({
           disabled={busy || (!exists && !answered)}
           onClick={onCommit}
         >
-          {exists ? 'Save the gig' : 'Create the gig'}
+          {exists ? 'Save the gig →' : 'Create the gig →'}
         </button>
       </div>
     </section>
@@ -286,7 +293,15 @@ function ScreenGig({
  * fails readiness at step 2 with *The gig has no setlist.* Valid is not ready, and this screen is
  * where the difference is felt.
  */
-function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void }) {
+function ScreenSetlist({
+  busy,
+  onChange,
+  onForward,
+}: {
+  busy: boolean
+  onChange: () => void
+  onForward: () => void
+}) {
   const setlistId = getActiveSetlistId()
   const order = getOrderedEntriesForActiveSetlist()
   const chosen = new Set(order.map((entry) => entry.ref.id))
@@ -404,6 +419,26 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
         here writes the file.
       </p>
 
+      {/* **THE WAY ONWARD, AND THIS STEP HAD NONE** (Jorge, 2026-09-04). Every edit here has
+          already written the file, so there is no act left to name and the control names where it
+          goes instead — which is what Bombista's `Begin →` does on the one page of its flow that
+          also has nothing to commit.
+
+          **It is not a gate.** A gig with no setlist is not a gig, and the screen says so, but the
+          verdict on that belongs to step 4, which refuses to confirm — one opinion about readiness,
+          in the one place that has it. */}
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn gig-flow-primary"
+          data-testid="gig-flow-forward"
+          disabled={busy}
+          onClick={onForward}
+        >
+          To the visuals →
+        </button>
+      </div>
+
       {/* **Nothing here points at the old setup screen, and that is deliberate** (Jorge,
           2026-09-03). The line that used to stand here announced that visuals and the check were
           not built and offered `#/gig/steps` as the way to do them anyway — a screen this flow
@@ -418,13 +453,22 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
 }
 
 /**
- * **Screen 3: the room, and it is Muralista doing it.**
+ * **Screen 3: the room, and it is Muralista doing it — in the whole window.**
  *
- * **The tool in a frame, not a door to it** (2026-09-03). Muralista's own flow — `THE DEAL ·
- * 1 LAYOUT · 2 SHAPES · 3 OUTPUT` — runs inside this page the way Bombista's three pages run inside
- * the song flow, so pressing *keep the default* over there is not a launch into another program.
- * A door with an `Open Muralista` button is what this replaces; `MuralistaDoor` is still the
- * unhosted answer and still the one used from `GigView`.
+ * **It opens the way the song flow opens** (Jorge, 2026-09-04, walking `v0.52.0`). It used to be
+ * Muralista in a box inside the gig flow's step 3: two step bars nested, a masthead over a toolbar
+ * over a frame, and **the tool that needs the most room getting the least of it**. Jorge's words:
+ * *too verbose*, *a very little frame*, *steps within steps is stressing*.
+ *
+ * **The song flow is the worked example and this now matches it**: the hosted tool gets the whole
+ * window with Pregonero's own chrome around it — `Back`, a title — and the tool's own step bar as
+ * the only bar on the screen. Entering visuals leaves the gig flow's bar behind; `Back` returns to
+ * the gig flow, at the step it was entered from.
+ *
+ * **And the two prose blocks are gone.** *Where things land on the wall is Muralista's…* and *It
+ * opens on this gig: `gig.json` is read from its folder…* both described the plumbing, which is
+ * what this project has deleted from every screen it has appeared on. What they said is true and
+ * is recorded here, which is where it belongs:
  *
  * **It never asks for a folder, and that is the whole of what Pregonero contributes.** Pregonero
  * made this gig's `setup/` and knows where it is, so it serves that folder and Muralista reads and
@@ -437,7 +481,7 @@ function ScreenSetlist({ busy, onChange }: { busy: boolean; onChange: () => void
  * `stage.png`; Pregonero puts those bytes on disk without looking at them, exactly as it does the
  * visuals.
  */
-function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
+function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; onForward: () => void }) {
   const hosted = canHostTools()
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -460,12 +504,6 @@ function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
 
   return (
     <section className="gig-flow-page gig-flow-visuals" data-testid="gig-flow-visuals">
-      <p className="gig-flow-lede">
-        Where things land on the wall is <strong>Muralista’s</strong>, and this is Muralista: the
-        shapes and the type of each, mapped standing in front of the wall, which is the only place
-        those decisions can honestly be made. One setup serves every song in the gig.
-      </p>
-
       {!hosted ? (
         // **Disabled, not absent.** Muralista is fully usable on its own by requirement, and the
         // escape hatch below is the real answer — but a screen with no control on it reads as a
@@ -478,9 +516,9 @@ function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
             onClick={() => undefined}
           />
           <p className="gig-hint">
-            Open <code>mapper.html</code> in Chrome and hand it this gig’s folder — that is where{' '}
-            <code>gig.json</code> is, and where <code>visuals.json</code> goes beside it. Pregonero
-            discovers the room on the next re-check.
+            Open <code>mapper.html</code> in Chrome and hand it this gig&rsquo;s folder — that is
+            where <code>gig.json</code> is, and where <code>visuals.json</code> goes beside it.
+            Pregonero discovers the room on the next re-check.
           </p>
           {folderPath !== null && (
             <p className="folders-source-path" data-testid="gig-flow-visuals-folder">
@@ -497,25 +535,28 @@ function ScreenVisuals({ folderPath }: { folderPath: string | null }) {
           Starting Muralista…
         </p>
       ) : (
-        <>
-          {/* **A frame, and nothing but a frame.** No preload, no `nodeIntegration`, nothing read
-              out of it and nothing put into it. What Pregonero knows about this page is the
-              address it was told to draw. */}
-          <iframe
-            className="gig-flow-frame"
-            data-testid="gig-flow-visuals-frame"
-            title="Muralista"
-            src={url}
-          />
-          <p className="gig-hint" data-testid="gig-flow-visuals-endpoint">
-            It opens on this gig: <code>gig.json</code> is read from its folder and{' '}
-            <code>visuals.json</code> is written back beside it.{' '}
-            <strong>You are not asked where</strong> — Pregonero made that folder and knows it.
-            Muralista decides every byte; Pregonero puts them on disk without reading them and
-            learns the room afterwards by reading the file.
-          </p>
-        </>
+        // **A frame, and nothing but a frame.** No preload, no `nodeIntegration`, nothing read out
+        // of it and nothing put into it. What Pregonero knows about this page is the address it was
+        // told to draw.
+        <iframe
+          className="gig-flow-frame"
+          data-testid="gig-flow-visuals-frame"
+          title="Muralista"
+          src={url}
+        />
       )}
+
+      {/* The way onward, in the same place and the same words as every other step of this flow. */}
+      <div className="gig-actions">
+        <button
+          type="button"
+          className="ctrl-btn gig-flow-primary"
+          data-testid="gig-flow-forward"
+          onClick={onForward}
+        >
+          To the check →
+        </button>
+      </div>
     </section>
   )
 }
@@ -817,6 +858,10 @@ export function GigFlowView() {
   const readiness = useGigReadiness()
   const [busy, setBusy] = useState(false)
   const [here, setHere] = useState(1)
+  // **Where `Back` goes from the visuals screen.** That screen leaves the gig flow's bar behind, so
+  // the bar cannot say where you came from; this does. Entering from step 2 and entering from the
+  // bar on step 4 are both ordinary, and both come back to where they were.
+  const [cameFrom, setCameFrom] = useState(2)
   const [asking, setAsking] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   // The version the screen redraws off after a setlist edit. The store is not reactive, and the
@@ -948,6 +993,12 @@ export function GigFlowView() {
   // order into a file, step 3 hands that same folder to Muralista, and step 4 reads what is in it —
   // and there is no folder until step 1 has been committed.
   const reachable = exists ? BUILT : 1
+
+  /** Every move between steps goes through here, so entering visuals always records its way back. */
+  const go = (step: number) => {
+    if (step === 3 && here !== 3) setCameFrom(here)
+    setHere(step)
+  }
   // **The header names the night, not the folder.** The folder is an opaque id since 2026-09-03,
   // and a header reading `k3f9x2abcd` tells nobody which gig they are in. Same rule as the row on
   // Backstage, through the same function; screen 1 is where the folder's own name is shown.
@@ -958,8 +1009,15 @@ export function GigFlowView() {
   const body = (() => {
     if (here === 4)
       return <ScreenCheck readiness={readiness} busy={busy} onConfirm={confirmAndLeave} />
-    if (here === 3) return <ScreenVisuals folderPath={readiness.folderPath} />
-    if (here === 2) return <ScreenSetlist key={revision} busy={busy} onChange={setlistChanged} />
+    if (here === 2)
+      return (
+        <ScreenSetlist
+          key={revision}
+          busy={busy}
+          onChange={setlistChanged}
+          onForward={() => go(3)}
+        />
+      )
     return (
       <ScreenGig
         exists={exists}
@@ -978,6 +1036,41 @@ export function GigFlowView() {
       />
     )
   })()
+
+  /**
+   * **THE VISUALS STEP IS NOT DRAWN INSIDE THIS FLOW** (Jorge, 2026-09-04, walking `v0.52.0`).
+   *
+   * It was: Muralista in a box under the gig flow's step bar, so two step bars nested and the tool
+   * that most needs the window got a panel of it. **The song flow is the worked example** — it
+   * hands Bombista the whole window with Pregonero's chrome, `Back` and a title, and Bombista's own
+   * bar as the only bar — and this is the same shape, in the same classes, for the same reason.
+   *
+   * **The gig flow's bar is left behind on the way in**, which is the whole of what *not nested*
+   * means here. `Back` returns to the flow at the step it was entered from; `To the check →` is the
+   * way onward and lands on step 4.
+   */
+  if (here === 3) {
+    return (
+      <div className="songs-screen gig-visuals-screen">
+        <header className="songs-top-bar">
+          <button
+            type="button"
+            className="songs-back"
+            data-testid="gig-flow-visuals-back"
+            onClick={() => setHere(cameFrom)}
+          >
+            Back
+          </button>
+          <h1 className="songs-title" data-testid="gig-flow-visuals-title">
+            {title}
+          </h1>
+        </header>
+        <main className="songs-body gig-visuals-body">
+          <ScreenVisuals folderPath={readiness.folderPath} onForward={() => setHere(4)} />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="songs-screen gig-flow-screen">
@@ -1011,7 +1104,7 @@ export function GigFlowView() {
       </header>
 
       <main className="songs-body gig-flow-body">
-        <GigStepBar here={here} reachable={reachable} onGo={setHere} />
+        <GigStepBar here={here} reachable={reachable} onGo={go} />
         {body}
       </main>
     </div>
