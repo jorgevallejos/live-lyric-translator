@@ -66,13 +66,38 @@ beforeAll(() => {
 
 const FOLDER = '/gigs/setup/k3f9x2abcd'
 
-function song(id: string, title: string, src?: string): LibrarySong {
+function song(id: string, title: string): LibrarySong {
   return {
     id,
     title,
     items: [{ languages: { es: 'línea' } }],
-    ...(src ? { media: { type: 'video', src } } : {}),
   } as LibrarySong
+}
+
+/**
+ * **A room that says what a song plays.** Since *the song holds no media* (Jorge, 2026-09-03) the
+ * video's name lives in `visuals.json`, so this screen — the one that lists every name the files
+ * ask for — reads it from there.
+ */
+function broadcastRoomWithSongVideo(): void {
+  localStorage.setItem(GIG_FOLDER_KEY, FOLDER)
+  localStorage.setItem(
+    KEY_VISUALS_BROADCAST,
+    JSON.stringify({
+      folderPath: FOLDER,
+      gigId: 'k3f9x2abcd',
+      visuals: {
+        visualsVersion: 1,
+        gigId: 'k3f9x2abcd',
+        shapes: [{ id: 'v-1', name: 'Frame', layer: { type: 'song-video' } }],
+        songVisuals: {
+          defaults: { 'song-video': ['v-1'] },
+          songs: {},
+          assets: { tragedia: { 'v-1': 'tragedia.mp4' } },
+        },
+      },
+    })
+  )
 }
 
 /** A room with a logo, exactly the shape E4 left unresolvable. */
@@ -100,13 +125,14 @@ beforeEach(() => {
   vi.clearAllMocks()
   fileExists.mockResolvedValue(true)
   describeDisplays.mockResolvedValue({ count: 1, displays: [], fingerprint: '1728x1117@2*' })
-  installLibrary([song('tragedia', 'Tragedia', 'tragedia.mp4')])
+  installLibrary([song('tragedia', 'Tragedia')])
 })
 
 afterEach(cleanup)
 
 describe('the folders screen', () => {
   it('shows all three folders as unset to begin with', async () => {
+    broadcastRoomWithSongVideo()
     render(<FoldersView />)
     expect(screen.getByTestId('folders-songs-value').textContent).toContain('Not set')
     expect(screen.getByTestId('folders-gigs-value').textContent).toContain('Not set')

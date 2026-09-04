@@ -297,3 +297,116 @@ describe('the write path', () => {
     }
   })
 })
+
+/**
+ * **The one read verb, and the write rule's mirror** (Jorge, 2026-09-04, `project-context.md`,
+ * *A mount may say what is in it*).
+ *
+ * **Why it exists at all:** a cross-origin frame cannot open a directory picker — Chromium refuses,
+ * and unlike the camera there is no permissions-policy token that opens it — so a hosted Muralista
+ * had no way to offer a name from the visuals folder. **Standalone it already works by names in a
+ * folder**, holding a directory handle and storing the name rather than the folder; the listing
+ * gives the hosted case the same mechanism instead of a second one.
+ *
+ * **These pin the constraints, not the convenience.** Names only, the mount root only, files only,
+ * read-only. Each one is a door that was deliberately left shut, and a listing is the kind of thing
+ * that grows a `?path=` the first time somebody finds it convenient.
+ */
+describe('the listing', () => {
+  async function withServer(run: (port: number, dir: string) => Promise<void>) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pregonero-list-'))
+    const server = createLocalhostServer()
+    server.mount('visuals', dir)
+    const port = await server.start()
+    try {
+      await run(port, dir)
+    } finally {
+      server.stop()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  it('answers the mount root with the names it holds, sorted', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      fs.writeFileSync(path.join(dir, 'anthem.webm'), 'x')
+      const res = await fetch(`http://127.0.0.1:${port}/visuals/`)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toMatch(/application\/json/)
+      expect(await res.json()).toEqual({ names: ['anthem.webm', 'pig.mp4'] })
+    })
+  })
+
+  it('answers the same without the trailing slash, because both are the mount root', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      const res = await fetch(`http://127.0.0.1:${port}/visuals`)
+      expect(await res.json()).toEqual({ names: ['pig.mp4'] })
+    })
+  })
+
+  it('gives NAMES, never paths — a caller cannot learn where the folder is', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      const body = await (await fetch(`http://127.0.0.1:${port}/visuals/`)).text()
+      expect(body).toContain('pig.mp4')
+      expect(body).not.toContain(dir)
+      expect(body).not.toContain('/')
+    })
+  })
+
+  it('lists files only: no directories, so the tree below is not described either', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      fs.mkdirSync(path.join(dir, 'raw'))
+      fs.writeFileSync(path.join(dir, 'raw', 'secret.mov'), 'x')
+      expect(await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()).toEqual({
+        names: ['pig.mp4'],
+      })
+    })
+  })
+
+  it('drops dotfiles, which are not assets', async () => {
+    await withServer(async (port, dir) => {
+      fs.writeFileSync(path.join(dir, '.DS_Store'), 'x')
+      fs.writeFileSync(path.join(dir, 'pig.mp4'), 'x')
+      expect(await (await fetch(`http://127.0.0.1:${port}/visuals/`)).json()).toEqual({
+        names: ['pig.mp4'],
+      })
+    })
+  })
+
+  /**
+   * **THE MOUNT ROOT ONLY, so there is no walk.** A listing that took a subdirectory would let a
+   * page enumerate a tree one request at a time, which is the difference between *say what is here*
+   * and *browse this machine*. Traversal is already refused by `resolveRequest`; this is the second
+   * lock on the same door, and the one that stops a legitimate subfolder being listed too.
+   */
+  it('refuses to list anything but the mount root', async () => {
+    await withServer(async (port, dir) => {
+      fs.mkdirSync(path.join(dir, 'raw'))
+      fs.writeFileSync(path.join(dir, 'raw', 'secret.mov'), 'x')
+      // A subdirectory falls through to the file path, which looks for its index.html and fails.
+      expect((await fetch(`http://127.0.0.1:${port}/visuals/raw/`)).status).toBe(404)
+      expect((await fetch(`http://127.0.0.1:${port}/visuals/..`)).status).toBe(404)
+    })
+  })
+
+  it('answers 404 for a mount that is not there, saying nothing about the disk', async () => {
+    await withServer(async (port) => {
+      expect((await fetch(`http://127.0.0.1:${port}/nope/`)).status).toBe(404)
+    })
+  })
+
+  /** **No write surface anywhere near it.** A listable mount is not a writable one. */
+  it('adds no way to write', async () => {
+    await withServer(async (port, dir) => {
+      const res = await fetch(`http://127.0.0.1:${port}/visuals/pig.mp4`, {
+        method: 'PUT',
+        body: 'x',
+      })
+      expect(res.status).toBe(405)
+      expect(fs.existsSync(path.join(dir, 'pig.mp4'))).toBe(false)
+    })
+  })
+})

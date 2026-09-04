@@ -138,6 +138,7 @@ function createLocalhostServer(options = {}) {
   const readFile = options.readFile || fs.readFile
   const writeFile = options.writeFile || fs.writeFile
   const statSync = options.statSync || fs.statSync
+  const readdir = options.readdir || fs.readdir
   let server = null
   let port = null
 
@@ -186,10 +187,67 @@ function createLocalhostServer(options = {}) {
     })
   }
 
+  /**
+   * **`GET /<mount>/` — the file names this mount holds, and nothing else.**
+   *
+   * ## Why a mount may say what is in it (Jorge, 2026-09-04)
+   *
+   * **Both doors into a hosted picker are shut.** A cross-origin frame cannot open a directory
+   * picker — measured in Electron 41: *SecurityError: Cross origin sub frames aren't allowed to
+   * show a file picker* — and unlike the camera there is **no permissions-policy token that opens
+   * it**. Without a listing a page cannot enumerate a mount either, so hosted Muralista had no way
+   * at all to offer a name from the visuals folder.
+   *
+   * **It is a real boundary move and is recorded as one.** `mount` below draws this line for
+   * writes — *a mount that took any name would be a writable folder, which is a different thing
+   * entirely* — and this is the read side of it: a mount stops being *serve the file someone names*
+   * and becomes *say what is here*.
+   *
+   * **What decided it was consistency, not convenience.** Standalone Muralista already works by
+   * names in a folder: it holds a directory handle, and the mapping stores the name and never the
+   * folder. **The listing gives the hosted case the same mechanism rather than a second one.**
+   *
+   * **The alternative rejected: Pregonero opening a native picker when the frame asks.** A
+   * better-looking dialog, and it would let the frame command the host — a far larger move than
+   * letting a mount describe itself.
+   *
+   * ## The constraints, which are the write rule's mirror
+   *
+   * - **NAMES ONLY, NEVER PATHS.** `readdir` yields the entries of one directory; nothing is
+   *   joined, nothing absolute is emitted, and a caller cannot learn where the folder is.
+   * - **THE MOUNT ROOT ONLY.** `parts.length !== 1` is refused, so there is no listing of a
+   *   subdirectory and therefore no walk. Traversal is already impossible — `resolveRequest`
+   *   refuses anything outside the base — and this is the second lock on the same door.
+   * - **FILES ONLY.** Directories are dropped rather than listed, so the shape of the tree below
+   *   is not described either. Dotfiles go with them: they are not assets.
+   * - **READ-ONLY, and no write surface anywhere near it.** `PUT` is answered before this is
+   *   reached, by a different function, against a different list.
+   */
+  function handleListing(req, res, parts) {
+    const root = mounts.get(parts[0])
+    if (!root) return refuse(res, 404, 'Not found')
+    readdir(root, { withFileTypes: true }, (err, entries) => {
+      if (err) return refuse(res, 404, 'Not found')
+      const names = entries
+        .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
+        .map((entry) => entry.name)
+        .sort()
+      const body = JSON.stringify({ names })
+      res.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+      })
+      res.end(req.method === 'HEAD' ? undefined : body)
+    })
+  }
+
   function handle(req, res) {
     const method = req.method || 'GET'
     if (method === 'PUT') return handleWrite(req, res)
     if (method !== 'GET' && method !== 'HEAD') return refuse(res, 405, 'Method not allowed')
+    // The mount root, and only the mount root. `/<mount>` and `/<mount>/` both arrive as one part.
+    const parts = requestParts(req.url || '/')
+    if (parts !== null && parts.length === 1) return handleListing(req, res, parts)
     const resolved = resolveRequest(mounts, req.url || '/')
     if (resolved === null) {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })

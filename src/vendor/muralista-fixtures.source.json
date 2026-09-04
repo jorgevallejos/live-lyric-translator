@@ -2,12 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.13.0",
-  "sha256": "c2b929da93e2ca6a7964ecd4317959d62ce5583273d5f37c61c06f1fcfa9061e",
+  "tag": "v1.14.0",
+  "sha256": "824e085701c2f99b25b08350183f68ae3818f04dbc6038961fa86388c1e2bae7",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT",
     "INTRO_PLACEHOLDER"
   ],
   "vendoredOn": "2026-09-04",
-  "note": "Re-vendored at v1.13.0 for the page, not for the stand-ins: v1.13.0 moved the forward control back to bottom-left, took the name band off in a gig and put the toolbar on the step row, and drew the shape outlines on the stage photograph. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
+  "note": "Re-vendored at v1.14.0 for the page, not for the stand-ins: v1.14.0 added song visual setup on `1 SHAPES` \u2014 a song selector, assignment-only mode, and the per-song asset field `songVisuals.assets` that *the song holds no media* needed a home for. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
 }

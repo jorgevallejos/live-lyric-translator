@@ -127,6 +127,9 @@ function visualsWithVideo(gigId = GIG_ID) {
     songVisuals: {
       defaults: { 'song-lyrics': ['lyrics'], 'song-video': ['frame'] },
       songs: {},
+      // **What the song puts in the video shape**, since *the song holds no media*: the name lives
+      // here, assigned in Muralista, and the song carries words and timing only.
+      assets: { duelo: { frame: 'duelo.mp4' } },
     },
   })
 }
@@ -325,7 +328,6 @@ describe('the check screen', () => {
           id: 'duelo',
           title: 'Duelo',
           items: [{ languages: { es: 'Hola' } }],
-          media: { type: 'video', src: 'duelo.mp4' },
           timeline: [{ start: 0, end: 1 }],
         } as unknown as LibrarySong,
       },
