@@ -340,9 +340,11 @@ describe('the check screen', () => {
     // The song's own file read perfectly. That is the point of the split.
     expect(verdict('files')).toBe('Pass')
     // **Reported, not blocking**: the ruling widened the gate for the unreadable file and named
-    // nothing else. The sentence under the button is what says so.
+    // nothing else. **The sentence that used to say so is gone** (Jorge, 2026-09-04): the muted
+    // `NOT YET` says it now, which is what it is for, and a paragraph explaining a state that reads
+    // correctly is the prose rule again. The behaviour it described is what this asserts.
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(false)
-    expect(screen.getByTestId('gig-check-reported')).toBeTruthy()
+    expect(screen.queryByTestId('gig-check-reported')).toBeNull()
   })
 
   it('does not call an empty setlist a passing song line', async () => {
@@ -434,6 +436,23 @@ describe('confirming setup', () => {
       fireEvent.click(screen.getByTestId('gig-flow-step-4'))
     })
     await waitFor(() => expect(readGigFolder.mock.calls.length).toBeGreaterThan(after), WAIT)
+  })
+
+  /**
+   * **A4: THE SENTENCE THAT MAKES THE WORD MEAN SOMETHING** (Jorge, 2026-09-04). Everything below
+   * was checked by the machine; the wall is the part only Jorge can check. **That is why `sign-off`
+   * is not a synonym for `confirm`** — without it the word floats. Pinned, because it is one line
+   * of prose on a screen this project keeps cutting prose from, and it is the load-bearing one.
+   */
+  it('keeps the one sentence the word depends on, and drops the instruction', async () => {
+    everythingGood()
+    await goToCheck()
+    const text = screen.getByTestId('gig-flow-check').textContent ?? ''
+    expect(text).toContain('Only you can check it against the wall')
+    expect(text).not.toContain('standing in the room')
+    // And the two lines that explained the state are gone; the state says it itself.
+    expect(text).not.toContain('Arming warns about that')
+    expect(text).not.toContain('do not stop the gig being signed off')
   })
 
   it('carries no second word for the act it is named after', async () => {

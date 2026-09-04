@@ -443,7 +443,7 @@ function ScreenSetlist({
           control follows rather than vanishing. The bar's own step 3 is shut on the same condition,
           so there is no second door around it. **Step 4 stays open**: the sign-off is the screen that
           NAMES what is missing, and shutting it would hide the answer. */}
-      <div className="gig-actions">
+      <div className="gig-actions gig-flow-footer">
         <button
           type="button"
           className="ctrl-btn gig-flow-primary"
@@ -453,12 +453,12 @@ function ScreenSetlist({
         >
           To the visuals →
         </button>
+        {blockedBy !== null && (
+          <p className="setup-song-problem" data-testid="gig-flow-forward-blocked">
+            {blockedBy}
+          </p>
+        )}
       </div>
-      {blockedBy !== null && (
-        <p className="setup-song-problem" data-testid="gig-flow-forward-blocked">
-          {blockedBy}
-        </p>
-      )}
 
       {/* **Nothing here points at the old setup screen, and that is deliberate** (Jorge,
           2026-09-03). The line that used to stand here announced that visuals and the check were
@@ -663,11 +663,6 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
           with no way onward would be the dead end this project has a rule about. */}
       {(!hosted || error !== null || toolStep === 'output') && (
         <div className="gig-actions gig-flow-footer">
-          {saveProblem !== null && (
-            <p className="setup-song-problem" data-testid="gig-flow-save-problem">
-              {saveProblem}
-            </p>
-          )}
           <button
             type="button"
             className="ctrl-btn gig-flow-primary"
@@ -689,6 +684,11 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
           >
             {saving ? 'Saving the room…' : 'To the sign-off →'}
           </button>
+          {saveProblem !== null && (
+            <p className="setup-song-problem" data-testid="gig-flow-save-problem">
+              {saveProblem}
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -845,9 +845,15 @@ function ScreenCheck({
 
   return (
     <section className="gig-flow-page gig-flow-check" data-testid="gig-flow-check">
+      {/* **A4: THE SENTENCE THAT MAKES THE WORD MEAN SOMETHING** (Jorge, 2026-09-04). Everything
+          below was checked by the machine; the wall is the part only he can check. **That is why
+          `sign-off` is not a synonym for `confirm`** — he is signing for what the machine cannot
+          see. Without it the word floats.
+
+          *Do this standing in the room* went with the two sentences below: it is an instruction
+          about where to be, and the sentence that survives already implies it. */}
       <p className="gig-flow-lede">
-        <strong>Do this standing in the room.</strong> Everything below was checked against the
-        files. Only you can check it against the wall.
+        Everything below was checked against the files. Only you can check it against the wall.
       </p>
 
       <ul className="gig-check-list" data-testid="gig-check-list">
@@ -931,16 +937,15 @@ function ScreenCheck({
         />
       </ul>
 
-      {/* **THE STATUS STAYS AND THE WORD CHANGES WITH THE REST** (Jorge, 2026-09-04). He named this
-          line as a status that survives the prose cut, and quoted it as it stood — but it names the
-          same act the button does, and leaving *confirmed* here beside `Sign off the gig` would put
-          two words for one act on the one screen whose confusion was two words for one act. Same
-          sentence, same job, one vocabulary. */}
-      {confirmation === null ? (
-        <p className="gig-hint" data-testid="gig-check-confirmation">
-          This gig has not been signed off. Arming warns about that; it does not refuse.
-        </p>
-      ) : confirmation.stale ? (
+      {/* **A4: *This gig has not been signed off. Arming warns about that; it does not refuse.* IS
+          GONE** (Jorge, 2026-09-04). It was kept one round ago as a status. **The muted `NOT YET`
+          did its work this time** — he read the screen and acted on it — and a line explaining what
+          the state means, beside a state that now reads correctly, is the prose rule again.
+
+          **What replaced it is nothing**, and that is the point: the button says `Sign off the gig`
+          and is live, which already says the gig is not signed off. The two lines that report a
+          signing that HAS happened stay, because those are facts a screen cannot otherwise show. */}
+      {confirmation === null ? null : confirmation.stale ? (
         <div className="setup-lapsed" data-testid="gig-check-lapsed">
           <p>
             Signed off on {confirmation.confirmedAt}, and it has <strong>lapsed</strong>:
@@ -989,14 +994,7 @@ function ScreenCheck({
         <p className="setup-song-problem" data-testid="gig-check-blocked">
           The gig cannot be signed off while a line above is failing.
         </p>
-      ) : (
-        blocked.length > 0 && (
-          <p className="gig-hint" data-testid="gig-check-reported">
-            The failing lines above do not stop the gig being signed off — they stop those songs
-            being armed, which is a gate on the night rather than on the gig.
-          </p>
-        )
-      )}
+      ) : null}
       {/* **THE CLOSING PARAGRAPH IS GONE** (Jorge, 2026-09-04, under the prose rule: it teaches).
           What it said is true and lives where it belongs — `confirmSetup` in `gigSession.ts` and
           the *setup confirmation* section of `CLAUDE.md`. **One clause of it was also false here**:
