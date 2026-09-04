@@ -754,6 +754,50 @@ narrower measure makes them read as one question asked three times — the exact
 side-by-side layout was built to prevent.
 
 
+### Eight releases that could not start (2026-09-04)
+
+**`v0.44.0` to `v0.51.0` were unlaunchable.** The debrief removal in `v0.44.0` (`84da83d`) took
+`writeGigFile,` and `writeDebriefFile,` out of one destructuring in `electron/main.cjs` **and took
+the closing brace with them**, leaving `= require('./gigFolder.cjs')`. Electron reported
+`SyntaxError: Unexpected token '='` at line 10 and the app died before the first window.
+
+**Every release since was built, installed, hash-verified and recorded as *unwalked*.** That is a
+different word from *unlaunchable*, and the difference is the whole finding: eight rounds of work
+were reported as shipped on an app nobody could open.
+
+**The deletion left two defects, not one.** With the brace restored the file parses, and
+`writeGigFile` was still called at `main.cjs:513` and imported nowhere — a `ReferenceError` at the
+first gig write. Both came from one careless edit to one binding list.
+
+#### Why four green checks said nothing
+
+- **Vitest never loads `electron/*.cjs`.** The main process is invisible to jsdom, which this repo
+  already knew and had written down for `media://`.
+- **`npm run lint` is `eslint src`**, so it does not reach the folder at all.
+- **`tsc --noEmit`** covers the TypeScript in `src/`.
+- **The renderer hash check** compares `index-*.js` and `index-*.css` out of the installed asar
+  against the source tree. **It proves the right bytes are on the machine and says nothing about
+  whether they run** — and the main process is not in either asset.
+
+#### The guard: `scripts/checkMainProcess.cjs`
+
+`node --check` over every `.cjs` under `electron/`, wired in front of `vite build` so **a file that
+cannot parse fails the build rather than the launch**. An empty file list is a failure, not a pass:
+a check that silently covers nothing reports green forever the moment the folder is renamed.
+
+**What it does not catch, said out loud:** a name bound nowhere — the second half of this very
+defect — and anything that only fails at runtime. **`eslint`'s `no-undef` over `electron/` catches
+the first class**, verified against the real defect on 2026-09-04: with the brace restored and the
+import still missing it reports `'writeGigFile' is not defined` at `main.cjs:513`. It is **not
+enabled**, because the folder also trips `no-empty` today and turning the rules on for it is a
+decision with a cleanup attached. Reported to Jorge, not taken.
+
+#### And a round now ends launched
+
+Every round since the walk began ended *installed, not launched*, to protect the walk's reset — and
+that is exactly how this survived eight releases. **The reset is cheaper than a dead app.**
+
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

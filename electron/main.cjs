@@ -7,7 +7,8 @@ const { readSongFile } = require('./readSongFile.cjs')
 const {
   readGigFolder,
   createGigFolder,
- = require('./gigFolder.cjs')
+  writeGigFile,
+} = require('./gigFolder.cjs')
 const { validateSongForPerformance } = require('./bombistaValidate.cjs')
 const { describeDisplays } = require('./displays.cjs')
 const { runBombista, bombistaVersion } = require('./bombistaRun.cjs')
