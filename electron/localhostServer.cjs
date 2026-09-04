@@ -70,6 +70,60 @@ const path = require('path')
  */
 const MAX_WRITE_BYTES = 16 * 1024 * 1024
 
+/**
+ * **What a listing offers: the things a shape can hold.** Video and image, because the consumer is
+ * a picker for what plays in a shape — the same two families `ShapeStatic` and `ShapeVideo` render
+ * and `FILE_FILTERS.video` accepts.
+ *
+ * **On the listing only.** A `GET` of any path in the mount still serves it: what is offered and
+ * what is served are different questions, and a mapping written before this list existed may name
+ * a file it would not suggest.
+ */
+const LISTING_EXTENSIONS = new Set([
+  '.mp4', '.mov', '.webm', '.m4v', '.mkv',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
+])
+
+/** The walk's limits. A wrongly-pointed folder must cost a truncated list, never a stalled app. */
+const LISTING_MAX_DEPTH = 4
+const LISTING_MAX_ENTRIES = 500
+
+/**
+ * Every asset under `root`, as paths relative to it, sorted.
+ *
+ * Breadth-first so a shallow file is never lost to a deep folder when the cap bites, and so the
+ * order a truncated list arrives in is the order a person would look in.
+ */
+async function listAssets(root, readdir) {
+  const readOne = (dir) =>
+    new Promise((resolve) => {
+      readdir(dir, { withFileTypes: true }, (err, entries) => resolve(err ? [] : entries))
+    })
+
+  const found = []
+  let queue = [{ dir: root, prefix: '' }]
+  for (let depth = 0; depth < LISTING_MAX_DEPTH && queue.length > 0; depth++) {
+    const next = []
+    for (const { dir, prefix } of queue) {
+      for (const entry of await readOne(dir)) {
+        if (entry.name.startsWith('.')) continue
+        // A symlink is neither followed nor listed: it is the one entry that could leave the mount
+        // without a `..`, and `isFile()`/`isDirectory()` are false for it, so this is the default.
+        const rel = prefix === '' ? entry.name : `${prefix}/${entry.name}`
+        if (entry.isDirectory()) {
+          next.push({ dir: path.join(dir, entry.name), prefix: rel })
+        } else if (entry.isFile()) {
+          const dot = entry.name.lastIndexOf('.')
+          const ext = dot === -1 ? '' : entry.name.slice(dot).toLowerCase()
+          if (LISTING_EXTENSIONS.has(ext) && found.length < LISTING_MAX_ENTRIES) found.push(rel)
+        }
+      }
+    }
+    queue = next
+  }
+  return found.sort()
+}
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -211,34 +265,53 @@ function createLocalhostServer(options = {}) {
    * better-looking dialog, and it would let the frame command the host — a far larger move than
    * letting a mount describe itself.
    *
+   * ## It recurses, and that is a correction rather than a loosening (Jorge, 2026-09-04)
+   *
+   * **Root-only made the picker useless on a real folder.** Jorge's visuals folder holds exactly
+   * one file at its root — a `README.md` — and every animation one level down in a per-song
+   * directory. So the dropdown offered `Nothing — dark` and `Readme.md`, and nothing else existed
+   * as far as this endpoint was concerned.
+   *
+   * **The original constraint said *names, never paths*, and that was about not leaking where the
+   * folder lives.** `tragedia-de-cerdo-asado/Tragedia.mov` leaks no more than `Tragedia.mov` does:
+   * both are relative to a mount whose location the caller cannot learn either way. **The
+   * constraint that mattered is kept and the one that was a proxy for it is dropped.**
+   *
    * ## The constraints, which are the write rule's mirror
    *
-   * - **NAMES ONLY, NEVER PATHS.** `readdir` yields the entries of one directory; nothing is
-   *   joined, nothing absolute is emitted, and a caller cannot learn where the folder is.
-   * - **THE MOUNT ROOT ONLY.** `parts.length !== 1` is refused, so there is no listing of a
-   *   subdirectory and therefore no walk. Traversal is already impossible — `resolveRequest`
-   *   refuses anything outside the base — and this is the second lock on the same door.
-   * - **FILES ONLY.** Directories are dropped rather than listed, so the shape of the tree below
-   *   is not described either. Dotfiles go with them: they are not assets.
+   * - **RELATIVE TO THE MOUNT, NEVER ABSOLUTE.** Paths are joined from the walk's own segments and
+   *   the root is never in them, so a caller still cannot learn where the folder is.
+   * - **ROOTED IN THE MOUNT, NO TRAVERSAL.** The walk starts at the base and descends by directory
+   *   entry; `..` is not a name `readdir` can yield, and every fetch of a listed path still goes
+   *   through `resolveRequest`, which refuses anything outside the base.
+   * - **SYMLINKS ARE NOT FOLLOWED.** `withFileTypes` reports a link as a link, and it is neither
+   *   descended nor listed — a link is the one entry that could leave the mount without a `..`.
+   * - **FILES ONLY, AND ASSETS AT THAT.** Directories are not listed, only walked. Dotfiles and
+   *   dot-directories are dropped. And the result is **filtered to media extensions**, because the
+   *   consumer is a picker for what plays in a shape: a `README.md` and a `notes.md` are not things
+   *   anyone assigns to one, and with recursion the noise grows with the folder. **The filter is on
+   *   the LISTING and never on the fetch** — `GET /<mount>/<path>` still serves whatever is there,
+   *   because what is OFFERED and what is SERVED are different questions and a mapping may already
+   *   name a file this list would not suggest.
+   * - **BOUNDED.** A folder of animations beside a folder of everything else is one wrong setting
+   *   away, so the walk stops at `LISTING_MAX_DEPTH` and `LISTING_MAX_ENTRIES` rather than reading a
+   *   disk into a dropdown.
    * - **READ-ONLY, and no write surface anywhere near it.** `PUT` is answered before this is
    *   reached, by a different function, against a different list.
    */
   function handleListing(req, res, parts) {
     const root = mounts.get(parts[0])
     if (!root) return refuse(res, 404, 'Not found')
-    readdir(root, { withFileTypes: true }, (err, entries) => {
-      if (err) return refuse(res, 404, 'Not found')
-      const names = entries
-        .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
-        .map((entry) => entry.name)
-        .sort()
-      const body = JSON.stringify({ names })
-      res.writeHead(200, {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'no-store',
+    listAssets(root, readdir)
+      .then((names) => {
+        const body = JSON.stringify({ names })
+        res.writeHead(200, {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store',
+        })
+        res.end(req.method === 'HEAD' ? undefined : body)
       })
-      res.end(req.method === 'HEAD' ? undefined : body)
-    })
+      .catch(() => refuse(res, 404, 'Not found'))
   }
 
   function handle(req, res) {
@@ -320,4 +393,4 @@ function createLocalhostServer(options = {}) {
   }
 }
 
-module.exports = { createLocalhostServer, resolveRequest, MAX_WRITE_BYTES }
+module.exports = { createLocalhostServer, resolveRequest, listAssets, MAX_WRITE_BYTES, LISTING_EXTENSIONS }
