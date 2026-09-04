@@ -480,8 +480,18 @@ token opens it — and without a listing a page cannot enumerate a mount either.
 visuals folder read-only and passes `?media=/visuals/`, the same shape and the same absolute-URL
 refusal as `?gig=`. **What decided it was consistency**: standalone Muralista already works by names
 in a folder, and this gives the hosted case the same mechanism rather than a second one. **The
-constraints are the write rule's mirror** — names only, never paths, the mount root only so there is
-no walk, files only, read-only — and each is asserted in `localhostServer.test.ts`.
+constraints are the write rule's mirror** — relative to the mount and never absolute, rooted with no
+traversal, symlinks neither followed nor listed, files only, read-only — and each is asserted in
+`localhostServer.test.ts`.
+
+**It recurses, since 2026-09-04, and that was a correction rather than a loosening.** Root-only made
+the picker useless on a real folder: the visuals folder holds one `README.md` at its root and every
+animation a level down in a per-song directory, so the dropdown offered the README and nothing else.
+**The constraint that mattered was *not absolute*, not *one segment*** — `tragedia/pig.mov` leaks no
+more about where the folder lives than `pig.mov` does. The walk is **bounded** in depth and count, so
+a wrongly pointed folder costs a truncated list rather than a stalled app, and it is **filtered to
+media extensions on the LISTING and never on the fetch**: what is offered and what is served are
+different questions, and a mapping may already name a file the list would not suggest.
 
 **And the frame carries one permissions-policy allowlist, `allow="camera"`** — the fix for a camera
 that listed nothing. A permissions policy is not a bridge: it hands the page a device it asks the
