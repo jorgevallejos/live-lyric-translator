@@ -25,7 +25,7 @@ import {
 } from './platform'
 import { setSongFlowRequest } from './songFlowState'
 import { gigsUsingSong, type GigUse } from './songUsage'
-import { PencilIcon, TrashCanIcon } from './RowIcons'
+import { PencilIcon, PlayTriangleIcon, TrashCanIcon } from './RowIcons'
 import { GatedAction } from './GatedAction'
 
 /**
@@ -134,6 +134,27 @@ function basename(path: string): string {
  * **The pencil is the way in, and it is what `Setup` did**: it opens the gig folder and enters the
  * gig flow, which is the same control the song rows carry for the same act.
  *
+ * **THE PLAY TRIANGLE IS THE WAY OUT** (Jorge, 2026-09-03, built 09-04). It selects that gig and
+ * lands on `Standby` with the gig's name in the first column and its first song in the second,
+ * unarmed. **`Backstage` and `Standby` are joined by ordinary navigation**: `Setup` goes in, this
+ * comes out, selecting on the way.
+ *
+ * **It is performance work sitting on a setup screen, and that is not a mistake**: the act is
+ * selection, and selection is performance's. So setup does not wait on it and it is not missing
+ * from step 5.
+ *
+ * **It calls `openGigFolder`, which is the one selection this app has.** That function is the whole
+ * memory of *which gig is open* — one path, read by the Projection window — and the pencil beside
+ * it calls the same one. **When the control view gains its own full-screen picker it calls this
+ * too.** Two doors performing one act is fine; two mechanisms is how they drift, and a second idea
+ * of the current gig is exactly the class of defect this repo has already paid for twice.
+ *
+ * **No confirmation, and it selects even when setup is incomplete.** Readiness is reported at
+ * arming, which is where the gate is; blocking selection would stop Jorge looking at his own gig.
+ *
+ * **The label names the act, not the destination.** `Select`, in the register the pencil's `Edit`
+ * and the bin's `Delete` already set.
+ *
  * **`Locate…` is gone because it has no destination.** Under the single-`setup/` ruling a gig can
  * only live at `<gigs>/setup/<gig>`, so there is nowhere to locate one to. Its removal falls out of
  * this redesign rather than needing a decision of its own.
@@ -150,12 +171,14 @@ function GigRow({
   path,
   label,
   busy,
+  onSelect,
   onOpen,
   onDelete,
 }: {
   path: string
   label: string
   busy: boolean
+  onSelect: () => void
   onOpen: () => void
   onDelete: () => void
 }) {
@@ -166,6 +189,19 @@ function GigRow({
     <li className="setup-home-row setup-gig-row" data-testid={`setup-gig-row-${id}`}>
       <span className="setup-home-row-name">{label}</span>
       <div className="setup-home-row-actions">
+        {/* First of the three, because it is the one act that leaves — and it reads left to right
+            as *take this one out* before the two that work on it in place. */}
+        <button
+          type="button"
+          className="manage-setlists-action-btn manage-setlists-icon-btn setup-gig-select-btn"
+          disabled={busy}
+          aria-label={`Select ${label}`}
+          title="Select"
+          data-testid={`setup-gig-select-${id}`}
+          onClick={onSelect}
+        >
+          <PlayTriangleIcon />
+        </button>
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
@@ -897,6 +933,14 @@ export function SetupHomeView() {
     })
   }
 
+  /**
+   * **Out to `Standby`**, the control view, carrying the gig that was just selected. Ordinary
+   * navigation: nothing is armed by arriving, and nothing starts until Arm is pressed.
+   */
+  const toStandby = () => {
+    window.location.hash = '#/'
+  }
+
   const toSetup = () => {
     window.location.hash = '#/gig'
   }
@@ -1123,6 +1167,12 @@ export function SetupHomeView() {
                       path={path}
                       label={gigLabels.get(path) ?? basename(path)}
                       busy={busy}
+                      onSelect={run(async () => {
+                        // **The same selection the pencil makes**, and the only one this app has.
+                        // What differs is where you land: the gig flow, or the stage.
+                        await openGigFolder(path)
+                        toStandby()
+                      })}
                       onOpen={run(async () => {
                         await openGigFolder(path)
                         toSetup()

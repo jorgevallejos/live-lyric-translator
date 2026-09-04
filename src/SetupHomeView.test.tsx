@@ -15,7 +15,7 @@ import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY } from './contentFolders'
 import { setLibraryEntries, type LibrarySong } from './setlistStore'
 import { forgetLaunchAnnouncements } from './launchAnnouncements'
 import { clearSongFlowRequest, getSongFlowRequest } from './songFlowState'
-import { rememberGigFolder } from './gigFolderStore'
+import { getRememberedGigFolder, rememberGigFolder } from './gigFolderStore'
 
 const runBombista = vi.fn()
 const readSongFileText = vi.fn()
@@ -583,15 +583,24 @@ describe('Setup home', () => {
    * **`Locate…` and `Forget` both go** — the first has no destination under the single-`setup/`
    * ruling, and the second dropped a reference while leaving the folder. The bin deletes.
    */
-  it('shows a gig as its name, a pencil and a bin, and no path', async () => {
+  it('shows a gig as its name, a play triangle, a pencil and a bin, and no path', async () => {
+    // **The triangle came on 2026-09-04.** It is first because it is the one act that leaves;
+    // the other two work on the row in place. Its label names the act — `Select` — not the
+    // destination, in the register `Edit` and `Delete` already set.
     installGigs(['a', 'b'])
     await renderHome()
     const row = screen.getByTestId('setup-gig-row-a')
     expect(row.textContent).toContain('a')
     expect(row.textContent).not.toContain('/gigs/a')
     const buttons = [...row.querySelectorAll('button')]
-    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Edit a', 'Delete a'])
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Select a',
+      'Edit a',
+      'Delete a',
+    ])
     expect(row.textContent).not.toMatch(/locate|forget|setup/i)
+    // **Not the word `Play`, which would overclaim**: nothing starts until you arm.
+    expect(row.textContent).not.toMatch(/play/i)
   })
 
   /**
@@ -805,6 +814,55 @@ describe('Setup home', () => {
       fireEvent.click(screen.getByTestId('setup-gig-open-a'))
     })
     await waitFor(() => expect(window.location.hash).toBe('#/gig'))
+  })
+
+  // ── The play triangle: Backstage's way out to Standby ────────────────────────────────────
+  //
+  // **The act is selection, and selection is performance's** (Jorge, 2026-09-03) — which is why a
+  // performance control sits on a setup screen and why setup does not wait on it.
+
+  it('selects the gig and lands on Standby from the play triangle', async () => {
+    installGigs(['a'])
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-select-a'))
+    })
+    await waitFor(() => expect(window.location.hash).toBe('#/'))
+  })
+
+  it('selects through the one mechanism the pencil uses, never a second idea of the open gig', async () => {
+    // **Two doors performing one act is fine; two mechanisms is how they drift.** `openGigFolder`
+    // is the whole memory of which gig is open — one path — and when the control view gains its own
+    // full-screen picker it calls the same one.
+    installGigs(['a', 'b'])
+    rememberGigFolder('/gigs/setup/a')
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-select-b'))
+    })
+    await waitFor(() => expect(getRememberedGigFolder()).toBe('/gigs/setup/b'))
+  })
+
+  it('asks nothing on the way, and selects a gig whose setup is not finished', async () => {
+    // **No confirmation**, and readiness is reported at arming, which is where the gate is.
+    // Blocking selection would stop Jorge looking at his own gig.
+    installGigs(['a'])
+    readGigFolder.mockResolvedValue({
+      folderPath: '/gigs/setup/a',
+      gigText: JSON.stringify({ gigVersion: 1, id: 'k3f9x2abcd' }),
+      gigError: null,
+      gigPresent: true,
+      visualsText: null,
+      visualsError: null,
+      visualsPresent: false,
+    })
+    await renderHome()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('setup-gig-select-a'))
+    })
+    expect(screen.queryByTestId('setup-gig-select-confirm')).toBeNull()
+    await waitFor(() => expect(window.location.hash).toBe('#/'))
+    await waitFor(() => expect(getRememberedGigFolder()).toBe('/gigs/setup/a'))
   })
 
   // ── `New` goes straight into the flow, and nothing is written first ──────────────────────
