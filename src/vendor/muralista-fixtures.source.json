@@ -2,12 +2,12 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.12.0",
-  "sha256": "02a2eb4a37decddccdb3e33fccea6a6b4aa2b426efbc9f8a74db654d8ff45b94",
+  "tag": "v1.13.0",
+  "sha256": "c2b929da93e2ca6a7964ecd4317959d62ce5583273d5f37c61c06f1fcfa9061e",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT",
     "INTRO_PLACEHOLDER"
   ],
   "vendoredOn": "2026-09-04",
-  "note": "Re-vendored at v1.12.0 for the page, not for the stand-ins: v1.12.0 moved the forward control to a page footer, emptied `2 OUTPUT` of its panel, and made the save an instruction the embedder gives. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched \u2014 the digest moved because the file did."
+  "note": "Re-vendored at v1.13.0 for the page, not for the stand-ins: v1.13.0 moved the forward control back to bottom-left, took the name band off in a gig and put the toolbar on the step row, and drew the shape outlines on the stage photograph. LYRICS_PREVIEW_TEXT and INTRO_PLACEHOLDER are untouched."
 }
