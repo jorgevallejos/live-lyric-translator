@@ -160,7 +160,7 @@ describe('the step bar', () => {
     expect(bar).toMatch(/1\s*Gig/)
     expect(bar).toMatch(/2\s*Setlist/)
     expect(bar).toMatch(/3\s*Visuals/)
-    expect(bar).toMatch(/4\s*Check/)
+    expect(bar).toMatch(/4\s*Sign-off/)
   })
 
   /**
@@ -216,7 +216,7 @@ describe('the step bar', () => {
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-3')).toBeTruthy(), WAIT)
     for (const [step, label] of [
       [3, 'Visuals'],
-      [4, 'Check'],
+      [4, 'Sign-off'],
     ] as const) {
       const text = screen.getByTestId(`gig-flow-step-${step}`).textContent ?? ''
       expect(text).not.toMatch(/later/i)
@@ -796,7 +796,7 @@ describe('the way forward', () => {
    * which of its own cells is showing; `GigFlowVisuals.test.tsx` covers that in full, and this
    * covers the step it lands on.
    */
-  it('goes on from the visuals to the check', async () => {
+  it('goes on from the visuals to the sign-off', async () => {
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
     await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
@@ -810,15 +810,19 @@ describe('the way forward', () => {
     // inner flow to be inside: the way onward is there, because a step with none is a dead end.
     // The hosted rule — only on Muralista's `2 OUTPUT` — is covered in `GigFlowVisuals.test.tsx`.
     await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the check →')
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the sign-off →')
     await act(async () => {
       fireEvent.click(screen.getByTestId('gig-flow-forward'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
   })
 
-  /** **Step 4's leaving action is unchanged**, and carries no arrow: it does not go to a step. */
-  it('leaves step 4’s action exactly as it was', async () => {
+  /**
+   * **Step 4's action is the one word, as a verb**, and carries no arrow: it does not go to a step.
+   * `Check`, `Confirm`, `Validate` and `Complete` all went on 2026-09-04 — two near-synonyms on one
+   * screen is what made it unreadable.
+   */
+  it('names step 4’s action with the one word, as a verb', async () => {
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
     await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
@@ -828,6 +832,6 @@ describe('the way forward', () => {
       fireEvent.click(screen.getByTestId('gig-flow-step-4'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-confirm')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('gig-flow-confirm').textContent).toBe('Confirm setup')
+    expect(screen.getByTestId('gig-flow-confirm').textContent).toBe('Sign off the gig')
   })
 })

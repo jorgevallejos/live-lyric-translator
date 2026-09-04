@@ -246,12 +246,112 @@ describe('the visuals step', () => {
     expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
 
     await act(async () => announceMuralistaStep('output'))
-    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the check →')
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the sign-off →')
 
     // And it goes away again if Muralista goes back — the control follows the screen, it does not
     // latch on the first time the output is seen.
     await act(async () => announceMuralistaStep('shapes'))
     expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
+  })
+
+  /**
+   * **THE CONTROL THAT LEAVES IS THE CONTROL THAT WRITES** (Jorge, 2026-09-04, walking `v0.54.0`).
+   * Two controls where one leaves and the other writes is a trap even when both work — the second
+   * time that shape appeared, after `Save the gig →`. `Save to gig` is gone from Muralista in a gig
+   * context and this press asks for it.
+   */
+  it('asks Muralista to save the room, and waits for the answer', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    const frame = screen.getByTestId('gig-flow-visuals-frame') as HTMLIFrameElement
+    const posted: unknown[] = []
+    Object.defineProperty(frame, 'contentWindow', {
+      configurable: true,
+      value: {
+        postMessage: (data: unknown) => posted.push(data),
+      },
+    })
+    await act(async () => announceMuralistaStep('output'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-forward'))
+    })
+    expect(posted).toEqual([{ muralista: 'save' }])
+    // **It has not left**, and it says what it is doing while it waits.
+    expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy()
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('Saving the room…')
+    expect((screen.getByTestId('gig-flow-forward') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  /**
+   * **It leaves only if the save happened.** Navigating away from a failed write would report
+   * success by arriving somewhere, which is the defect `Confirm setup` was fixed for once already.
+   */
+  it('stays put and names the refusal when the room was not saved', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    const frame = screen.getByTestId('gig-flow-visuals-frame') as HTMLIFrameElement
+    const source = { postMessage: () => undefined }
+    Object.defineProperty(frame, 'contentWindow', { configurable: true, value: source })
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { muralista: 'flow-step', step: 'output' },
+          source: source as unknown as Window,
+        })
+      )
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-forward'))
+    })
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { muralista: 'save-result', ok: false, reason: 'HTTP 500' },
+          source: source as unknown as Window,
+        })
+      )
+    })
+    expect(screen.getByTestId('gig-flow-save-problem').textContent).toBe('HTTP 500')
+    expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy()
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the sign-off →')
+  })
+
+  /**
+   * **THE `v0.54.0` BLOCKER, AND IT WAS NEITHER OF THE FIRST TWO POSSIBILITIES.** The room was
+   * saved and the sign-off said `No ./visuals.json yet`. The write lands in the gig folder — a
+   * `PUT` through the mount returning 204, `visuals.json` beside `gig.json` and nowhere else — so
+   * it was **written, and readiness was answering from a snapshot taken when the screen mounted.**
+   * The folder is re-read before anything advances.
+   */
+  it('re-reads the gig folder before it leaves, which is the blocker', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    const frame = screen.getByTestId('gig-flow-visuals-frame') as HTMLIFrameElement
+    const source = { postMessage: () => undefined }
+    Object.defineProperty(frame, 'contentWindow', { configurable: true, value: source })
+    const before = readGigFolder.mock.calls.length
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { muralista: 'flow-step', step: 'output' },
+          source: source as unknown as Window,
+        })
+      )
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-forward'))
+    })
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { muralista: 'save-result', ok: true, reason: null },
+          source: source as unknown as Window,
+        })
+      )
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
+    // The folder was looked at again. Before the fix this count never moved after mount.
+    expect(readGigFolder.mock.calls.length).toBeGreaterThan(before)
   })
 
   /**

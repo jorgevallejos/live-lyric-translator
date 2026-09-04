@@ -248,6 +248,48 @@ const GIG_MOUNT = 'gig-setup'
  */
 const GIG_WRITABLE_FILES = ['visuals.json', 'stage.png']
 
+/**
+ * Whether a URL is one this process is serving. The port is minted by `toolServer.start()`, so the
+ * comparison is against what it actually bound to rather than a pattern that could match a stranger.
+ */
+function isToolServerUrl(candidate) {
+  const port = toolServer.port
+  if (!port) return false
+  try {
+    const u = new URL(candidate)
+    return u.protocol === 'http:' && u.hostname === '127.0.0.1' && u.port === String(port)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A window on a page the tool server is already serving — Muralista's output role, which paints the
+ * wall. **No preload and no Node**, exactly like the tool window below: it is a page in a window.
+ * One at a time, under its own key, so opening it twice focuses the one that is there.
+ */
+const TOOL_OUTPUT_KEY = 'tool-output'
+
+function openToolOutputWindow(url) {
+  const existing = toolWindows.get(TOOL_OUTPUT_KEY)
+  if (existing && !existing.isDestroyed()) {
+    existing.loadURL(url)
+    existing.focus()
+    return
+  }
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 720,
+    backgroundColor: '#000000',
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  })
+  toolWindows.set(TOOL_OUTPUT_KEY, win)
+  win.on('closed', () => {
+    if (toolWindows.get(TOOL_OUTPUT_KEY) === win) toolWindows.delete(TOOL_OUTPUT_KEY)
+  })
+  void win.loadURL(url)
+}
+
 async function openToolWindow(key, folder, page, title, gigFolder) {
   let port
   try {
@@ -362,11 +404,34 @@ function createWindow() {
     mainWindow = null
   })
 
+  /**
+   * **PREGONERO OPENS THE WINDOW, BECAUSE PREGONERO IS WHAT REFUSED IT** (walked 2026-09-04).
+   *
+   * Muralista's `Open output window` reported *Chrome blocked the popup*, and Chrome had not: this
+   * handler is on the main window's `webContents`, a framed page's `window.open` reaches it, and
+   * **this handler denied everything that was not the projection window**. So the refusal was
+   * Pregonero's own, and the address-bar advice was wrong copy in the one place a person cannot act
+   * on it. **Not the same family as the camera** — that was a Permissions Policy the embedder had
+   * to grant; this is a decision the embedder was already making, wrongly.
+   *
+   * **Opened here rather than allowed through**, which is the second half of the reason. `allow`
+   * would hand the frame a window Pregonero has no handle on; making it means the window is this
+   * process's — titled, sized, closable, and gone when the app quits. The wall must not keep a
+   * window nobody can find.
+   *
+   * **It is the tool server's own origin and nothing else.** A URL is checked against the address
+   * this process is serving on, not matched loosely: the frame can ask for a window on the page it
+   * is already showing, and for nothing else on the machine.
+   */
   win.webContents.setWindowOpenHandler(({ url: openUrl }) => {
     if (openUrl.includes('#/projection')) {
       createProjectionWindow((projectionWin) => {
         projectionWin.loadURL(openUrl)
       })
+      return { action: 'deny' }
+    }
+    if (isToolServerUrl(openUrl)) {
+      openToolOutputWindow(openUrl)
       return { action: 'deny' }
     }
     return { action: 'deny' }

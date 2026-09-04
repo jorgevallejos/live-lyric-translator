@@ -2,11 +2,11 @@
   "page": "mapper.html",
   "owner": "muralista",
   "path": "mapper/",
-  "tag": "v1.11.0",
+  "tag": "v1.12.0",
   "files": {
-    "mapper.html": "6eec399f36869ad5d83d216d0f3f9c154e2805aea11d0b4839dd55bc2b4c1714",
-    "mapper.css": "86425b2d93dc11cbb1b293dd15492283c40a25e55315e6aca4e758c480a4269b",
-    "mapper.js": "2c0c7b95e42842684d4dd6e20e7eb4e387a7893522a38981d251e980e5d5c3f3",
+    "mapper.html": "bb073f4a5d76ab8c416704fee3aafa3b8876edee9383950b54afbda519cde3a7",
+    "mapper.css": "362230933f80a2152ade3f7737de9bdb0ede07abc09753afe508076977e97148",
+    "mapper.js": "02a2eb4a37decddccdb3e33fccea6a6b4aa2b426efbc9f8a74db654d8ff45b94",
     "warp.js": "17e3a25ef61074b622965c6df2e2b8ec7a50fc6f5ffb698c160eead701c15cb6",
     "stageCapture.js": "f62c074c14127a1a183a6c80f2894a26a7495ef854f1925848b88fd4b95226cb"
   },
