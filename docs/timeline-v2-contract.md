@@ -9,7 +9,7 @@ Bombista and Pregonero are being built **in parallel, in separate sessions**. Ne
 ```json
 {
   "timelineVersion": 2,
-  "leadIn": { "durationSec": 7.26, "source": "measured", "confidence": "low", "apply": false },
+  "leadIn": { "durationSec": 7.26, "source": "measured", "confidence": "low" },
   "timeline": [ { "start": 0.00, "end": 5.84 } ]
 }
 ```
@@ -32,7 +32,6 @@ The producer rule and the consumer rule are deliberately different.
 | `leadIn.durationSec` | float ≥ 0 | Seconds of audio before the first sung word. |
 | `leadIn.source` | `"measured"` \| `"manual"` \| `"none"` | `measured` = Bombista computed it; `manual` = a human overrode it. |
 | `leadIn.confidence` | `"low"` \| `"high"` | Always `low` when `measured` — faster-whisper clamps the first sung word toward 0. |
-| `leadIn.apply` | bool | `true` when the song has `media.type == "video"`, else `false`. Bombista sets the default; a human may flip it. |
 | `timeline[]` | `{start, end}` | Entry *i* corresponds to `lyrics[i]`. **Entry 0 always starts at `0.00`.** Monotonic: `start[i] >= end[i-1]`. |
 
 Lyrics arrays contain **sung lines only** — no section markers, no meta entries. Both tools reject anything else, naming the offending index.
@@ -48,10 +47,33 @@ All emitted values are **rounded to 2 decimals**. This is not cosmetic: `13.1 - 
 
 The timeline is relative to a **start cue**. What provides the cue depends on the song; the file is identical either way.
 
-| mode | cue | `leadIn.apply` |
+| mode | cue | the lead-in |
 |---|---|---|
-| **Auto** (no animation) | the performer's first pedal press | `false` — a live intro can run any length |
-| **Video** (animation is the clock) | video start **+** `leadIn.durationSec` | `true` — the lead-in is fixed by the media |
+| **Auto** (no animation) | the performer's first pedal press | **not applied** — a live intro can run any length |
+| **Video** (animation is the clock) | video start **+** `leadIn.durationSec` | **applied** — the lead-in is fixed by the media |
+
+### Who decides the mode, and why the file does not say (2026-09-04)
+
+**`leadIn.apply` was a field and is not one any more.** Bombista derived it from
+`media.type == "video"`; under *the song holds no media* nothing declares media, so that default
+would have **silently flipped to `false` and cost every video song its lead-in correction** — visible
+only as subtitles arriving a lead-in early, on a wall, in front of people.
+
+**`leadIn` splits the way the media did.** Its measured **value** stays with the timeline: it is a
+real measurement of the words, which is Bombista's output. **The decision to apply it is Pregonero's**,
+taken from whether a video is assigned to this song for this gig in `visuals.json`. After the split
+Pregonero is the only party that could know.
+
+**Both sides, concretely.** Bombista writes the three remaining `leadIn` keys and nothing about mode;
+`to_dict` does not even take the song any more. Pregonero passes the mode into `resolveVideoSongTime`
+as an argument, defaulting to *not applied*.
+
+**A file carrying `apply` still parses on both sides, and both ignore it.** Nothing is migrated: files
+written before today have the key, and refusing them would make walk state unreadable for no gain.
+
+**One consequence outside playback:** an SRT or LRC is against the **recording**, whose clock always
+includes the lead-in, so `writers._absolute_entries` now adds it back unconditionally. It was gated on
+`apply`, which was the wrong question there — **an Auto-mode song's subtitles were off by the lead-in.**
 
 ## Golden fixture — Libertad, 20 lines
 
@@ -60,7 +82,7 @@ Derived from the real accepted run of 2026-08-11 (`leadIn` 7.26 subtracted from 
 ```json
 {
   "timelineVersion": 2,
-  "leadIn": { "durationSec": 7.26, "source": "measured", "confidence": "low", "apply": false },
+  "leadIn": { "durationSec": 7.26, "source": "measured", "confidence": "low" },
   "timeline": [
     { "start": 0.00,  "end": 5.84 },
     { "start": 5.84,  "end": 9.64 },
@@ -96,7 +118,7 @@ An earlier acceptance criterion said *"after migration, Tragedia must behave on 
 
 Two separate things were being conflated:
 
-1. **Is the representation change lossless?** A maths property. Prove it against the golden fixture below, in unit tests, on both sides — no song playback involved. Bombista: `round(raw − leadIn, 2)` reproduces `raw` within 0.005 when the lead-in is added back. Pregonero: with `leadIn.apply == true`, the cue time for every line equals `normalised + leadIn.durationSec` within the same tolerance.
+1. **Is the representation change lossless?** A maths property. Prove it against the golden fixture below, in unit tests, on both sides — no song playback involved. Bombista: `round(raw − leadIn, 2)` reproduces `raw` within 0.005 when the lead-in is added back. Pregonero: in Video mode, the cue time for every line equals `normalised + leadIn.durationSec` within the same tolerance.
 2. **Is Tragedia's data correct?** A separate, pre-existing defect. It is fixed by Bombista **re-extracting** Tragedia from audio pulled out of the animation video (`ffmpeg -i video.mp4 -vn -ac 1 -ar 16000 audio.wav`), not by anything Pregonero does. That is a later gate, after the parallel streams merge.
 
 Do not block P2 on Tragedia. Prove (1) now; (2) is a data job for the Bombista stream.

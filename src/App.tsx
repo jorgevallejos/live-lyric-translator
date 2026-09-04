@@ -2068,7 +2068,13 @@ function ProjectionView() {
   // except that the element is now inside a shape and the text is in a different one.
   const [videoCueIndex, setVideoCueIndex] = useState(-1)
   const [videoStarted, setVideoStarted] = useState(false)
-  const cueInputs = useRef({ lines, timeline: [] as TimelineEntry[], leadIn: undefined as TimelineLeadIn | undefined, offset: 0 })
+  const cueInputs = useRef({
+    lines,
+    timeline: [] as TimelineEntry[],
+    leadIn: undefined as TimelineLeadIn | undefined,
+    offset: 0,
+    applyLeadIn: false,
+  })
   cueInputs.current = {
     lines,
     timeline: currentLibrarySong?.timeline ?? [],
@@ -2077,10 +2083,19 @@ function ProjectionView() {
     // block, which no longer exists; `videoCueLookup` documents that 0 with no lead-in is
     // bit-for-bit the original formula.
     offset: 0,
+    /**
+     * **WHETHER THE LEAD-IN APPLIES IS THIS WINDOW'S ANSWER NOW** (Jorge, 2026-09-04).
+     *
+     * The contract's own table: Video mode applies it, Auto mode does not — *a live intro can run
+     * any length*. **Video mode is now *a video is assigned to this song for this gig*,** and
+     * `isVideoMode` above is exactly that read. Bombista used to answer it from `media.type`, and
+     * once no song declares media that answer silently flips to `false` for every video song.
+     */
+    applyLeadIn: isVideoMode,
   }
   const handleVideoTime = useRef((currentTime: number) => {
-    const { timeline, offset, leadIn } = cueInputs.current
-    setVideoCueIndex(resolveVideoCueIndex(timeline, currentTime, offset, leadIn))
+    const { timeline, offset, leadIn, applyLeadIn } = cueInputs.current
+    setVideoCueIndex(resolveVideoCueIndex(timeline, currentTime, offset, leadIn, applyLeadIn))
   }).current
 
   useEffect(() => {
