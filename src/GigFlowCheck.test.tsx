@@ -249,6 +249,28 @@ describe('the check screen', () => {
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
   })
 
+  /**
+   * **`Confirm setup` STAYS STRICT ABOUT THE VISUALS, AND THAT IS A RULING** (Jorge, 2026-09-04,
+   * asked for by name on the `v0.53.0` walk). A gig with no visuals has no shape for the lyrics to
+   * land in, so nothing reaches the wall — the strictness is what stops a gig being confirmed into
+   * a dark room. **What makes it painless is that Muralista's default satisfies it**, and since
+   * that tool's `v1.11.0` the default is simply what is there when you arrive at the shapes: the
+   * cost of clearing this line is pressing `Save to gig`.
+   *
+   * Pinned as its own test because the temptation on a walk that hits it is to soften the gate,
+   * and the answer is that the gate is right and the cost was the thing that moved.
+   */
+  it('refuses the confirmation over a missing room, and the refusal is on screen', async () => {
+    everythingGood({ visualsText: null })
+    await goToCheck()
+    await waitFor(
+      () => expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true),
+      WAIT
+    )
+    // A red line beside a live button needs a sentence; a shut button needs one more.
+    expect(screen.getByTestId('gig-check-blocked')).toBeTruthy()
+  })
+
   it('fails the gig line when the night has no venue', async () => {
     everythingGood({ gigText: gigJson({ venue: {} }) })
     await goToCheck()

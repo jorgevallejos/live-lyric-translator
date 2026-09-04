@@ -92,7 +92,15 @@ const BUILT = 4
  * judged that distinction not worth the words: **disabled is enough**, and the segment is dimmed
  * and inert like every other shut control in the app.
  */
-function GigStepBar({ here, reachable, onGo }: { here: number; reachable: number; onGo: (step: number) => void }) {
+function GigStepBar({
+  here,
+  isOpen,
+  onGo,
+}: {
+  here: number
+  isOpen: (step: number) => boolean
+  onGo: (step: number) => void
+}) {
   return (
     <div className="gig-stepband">
       <nav className="gig-steps" data-testid="gig-flow-steps" aria-label="Gig setup">
@@ -110,7 +118,10 @@ function GigStepBar({ here, reachable, onGo }: { here: number; reachable: number
               </span>
             )
           }
-          const open = step <= reachable
+          // **A PREDICATE, NOT A HIGH-WATER MARK** (2026-09-04). It was `step <= reachable`, which
+          // can only express *everything up to here*; the visuals step is now shut on a condition
+          // of its own — an empty setlist — that says nothing about step 4.
+          const open = isOpen(step)
           return (
             <button
               key={step}
@@ -250,13 +261,15 @@ function ScreenGig({
         </p>
       )}
 
-      {/* **THE ARROW IS THE POINT** (Jorge, 2026-09-04). This press already wrote the file and
-          already moved to step 2, and it said neither: a control that reads `Create the gig` is a
-          control that finished something, so the only thing on the screen that looked like a way
-          onward was the next step's name in the bar. **Clicking a step's name is too subtle to be
-          the way through a flow.** The arrow is Bombista's mark for the same thing — `Begin →`,
-          `Process song →`, `Confirm timeline →` — and this flow borrows its vocabulary everywhere
-          else already. */}
+      {/* **EVERY FORWARD CONTROL NAMES ITS DESTINATION** (Jorge, 2026-09-04, walking `v0.53.0`).
+          `To the setlist →`, `To the visuals →`, `To the check →` — one vocabulary, and the arrow
+          is Bombista's mark for the same thing.
+
+          **It said `Save the gig →` for one round and that was wrong**: `gig.json` has already
+          been written by the time this button reads that, so naming the save made saving sound
+          optional. What the press actually does that the person cares about is take them to the
+          setlist, and that is what it says. The write still happens and still gates the move — a
+          failed write keeps you here, in front of the problem. */}
       <div className="gig-actions">
         <button
           type="button"
@@ -265,7 +278,7 @@ function ScreenGig({
           disabled={busy || (!exists && !answered)}
           onClick={onCommit}
         >
-          {exists ? 'Save the gig →' : 'Create the gig →'}
+          To the setlist →
         </button>
       </div>
     </section>
@@ -297,10 +310,12 @@ function ScreenSetlist({
   busy,
   onChange,
   onForward,
+  blockedBy,
 }: {
   busy: boolean
   onChange: () => void
   onForward: () => void
+  blockedBy: string | null
 }) {
   const setlistId = getActiveSetlistId()
   const order = getOrderedEntriesForActiveSetlist()
@@ -419,25 +434,31 @@ function ScreenSetlist({
         here writes the file.
       </p>
 
-      {/* **THE WAY ONWARD, AND THIS STEP HAD NONE** (Jorge, 2026-09-04). Every edit here has
-          already written the file, so there is no act left to name and the control names where it
-          goes instead — which is what Bombista's `Begin →` does on the one page of its flow that
-          also has nothing to commit.
+      {/* **THE WAY ONWARD, AND IT IS A GATE** (Jorge, 2026-09-04, walking `v0.53.0`).
+          **A gig with no setlist is not a gig** — this screen has said so since it was built, and
+          nothing enforced it: a gig was created, no song was added, and the visuals opened. A
+          defect against an existing ruling rather than a new rule.
 
-          **It is not a gate.** A gig with no setlist is not a gig, and the screen says so, but the
-          verdict on that belongs to step 4, which refuses to confirm — one opinion about readiness,
-          in the one place that has it. */}
+          **Disabled with the reason attached, never absent** — `GatedAction`'s rule, which this
+          control follows rather than vanishing. The bar's own step 3 is shut on the same condition,
+          so there is no second door around it. **Step 4 stays open**: the check is the screen that
+          NAMES what is missing, and shutting it would hide the answer. */}
       <div className="gig-actions">
         <button
           type="button"
           className="ctrl-btn gig-flow-primary"
           data-testid="gig-flow-forward"
-          disabled={busy}
+          disabled={busy || blockedBy !== null}
           onClick={onForward}
         >
           To the visuals →
         </button>
       </div>
+      {blockedBy !== null && (
+        <p className="setup-song-problem" data-testid="gig-flow-forward-blocked">
+          {blockedBy}
+        </p>
+      )}
 
       {/* **Nothing here points at the old setup screen, and that is deliberate** (Jorge,
           2026-09-03). The line that used to stand here announced that visuals and the check were
@@ -485,6 +506,39 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
   const hosted = canHostTools()
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const frame = useRef<HTMLIFrameElement | null>(null)
+  /**
+   * **WHICH OF MURALISTA'S OWN SCREENS IS SHOWING**, and it is the only thing that crosses.
+   *
+   * **`To the check →` belongs on `2 OUTPUT` and nowhere else** (Jorge, 2026-09-04). While you are
+   * on `THE DEAL` or `1 SHAPES` it is a second forward control on a screen that already has one —
+   * the nesting problem this step spent a round removing, one layer down.
+   *
+   * **Muralista announces it; Pregonero does not ask.** One string naming one of Muralista's three
+   * cells, posted to `window.parent`. Nothing is read out of the frame, nothing is injected into
+   * it, no preload reaches it, and no gig, song, file or geometry crosses in either direction —
+   * `announceFlowStep` in `mapper.js` is the whole of the other side. It is the same class of
+   * thing as `--no-header` on `bombista serve`: *what to draw*, never *who is asking*.
+   *
+   * **Only the frame is believed.** The message is taken only when its source is this iframe's own
+   * window: any other page on the machine can post to this one, and a control that advances a flow
+   * is not a thing to hand to whoever shouts.
+   *
+   * **Null until it speaks.** An older Muralista, or one that has not rendered yet, says nothing,
+   * and the control stays off rather than appearing on a guess.
+   */
+  const [toolStep, setToolStep] = useState<string | null>(null)
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (frame.current === null || event.source !== frame.current.contentWindow) return
+      const data = event.data as { muralista?: unknown; step?: unknown } | null
+      if (!data || data.muralista !== 'flow-step' || typeof data.step !== 'string') return
+      setToolStep(data.step)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
 
   useEffect(() => {
     if (!hosted) return
@@ -539,24 +593,46 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
         // of it and nothing put into it. What Pregonero knows about this page is the address it was
         // told to draw.
         <iframe
+          ref={frame}
           className="gig-flow-frame"
           data-testid="gig-flow-visuals-frame"
           title="Muralista"
+          /* **THE CAMERA, AND THIS ONE ATTRIBUTE IS THE WHOLE OF WHY IT WAS MISSING**
+             (walked 2026-09-04, cause found the same day). Muralista's `Enable camera` listed no
+             camera on a machine with two. It is **Permissions Policy**, not a macOS permission and
+             not an entitlement: a cross-origin iframe gets `camera` DISABLED by default, and
+             Pregonero's renderer is `file://` while the tool is served from `http://127.0.0.1`.
+             Measured in Electron 41 on this machine — without this attribute
+             `document.featurePolicy.allowsFeature('camera')` is `false`, `enumerateDevices()`
+             returns ONE videoinput with an empty id and a blank label, and `getUserMedia` rejects
+             `NotAllowedError`; with it, both real cameras come back by name and the stream opens.
+             **Nothing else was needed** — the packaged `Info.plist` already carries
+             `NSCameraUsageDescription`, and Electron's default handler grants the request.
+             **Standalone Muralista is top-level, which is why this never showed up before the tool
+             moved into a frame.** */
+          allow="camera"
           src={url}
         />
       )}
 
-      {/* The way onward, in the same place and the same words as every other step of this flow. */}
-      <div className="gig-actions">
-        <button
-          type="button"
-          className="ctrl-btn gig-flow-primary"
-          data-testid="gig-flow-forward"
-          onClick={onForward}
-        >
-          To the check →
-        </button>
-      </div>
+      {/* **ONLY ON `2 OUTPUT`.** See `toolStep` above for why, and for what crosses to know it.
+
+          **Unless there is no inner flow to be inside.** Outside the desktop app, and when the
+          server refused to start, Muralista is not on this screen at all — the rule is *not while
+          you are inside Muralista's own flow*, and in those two states nobody is. Leaving the step
+          with no way onward would be the dead end this project has a rule about. */}
+      {(!hosted || error !== null || toolStep === 'output') && (
+        <div className="gig-actions">
+          <button
+            type="button"
+            className="ctrl-btn gig-flow-primary"
+            data-testid="gig-flow-forward"
+            onClick={onForward}
+          >
+            To the check →
+          </button>
+        </div>
+      )}
     </section>
   )
 }
@@ -989,10 +1065,34 @@ export function GigFlowView() {
     void publishSetlistToGig().finally(() => setBusy(false))
   }
 
-  // Steps 2, 3 and 4 are reachable once the gig is on disk, and not before. Step 2 writes a running
-  // order into a file, step 3 hands that same folder to Muralista, and step 4 reads what is in it —
-  // and there is no folder until step 1 has been committed.
-  const reachable = exists ? BUILT : 1
+  /**
+   * **WHICH STEPS ARE OPEN, AND EACH ON ITS OWN CONDITION.**
+   *
+   * Steps 2, 3 and 4 need the gig on disk: step 2 writes a running order into a file, step 3 hands
+   * that same folder to Muralista, and step 4 reads what is in it — and there is no folder until
+   * step 1 has been committed.
+   *
+   * **AND STEP 3 NEEDS A SETLIST** (Jorge, 2026-09-04, walking `v0.53.0`). *A gig with no setlist
+   * is not a gig* has been step 2's own design since it was built, and nothing enforced it: a gig
+   * was created, no song was added, and the visuals opened. **A defect against an existing ruling,
+   * not a new rule.**
+   *
+   * **Step 4 stays open**, because the check is the screen that names what is missing and shutting
+   * it would hide the answer — and `Confirm setup` is strict there regardless, on readiness's own
+   * `canConfirm`.
+   *
+   * **The verdict is readiness's**, read off `songs`, not a second opinion assembled here.
+   */
+  const hasSetlist = readiness.songs.length > 0
+  const stepIsOpen = (step: number) => {
+    if (step === 1) return true
+    if (!exists) return false
+    if (step === 3) return hasSetlist
+    return step <= BUILT
+  }
+  const visualsBlockedBy = hasSetlist
+    ? null
+    : 'A gig with no setlist is not a gig. Add a song above before mapping the room.'
 
   /** Every move between steps goes through here, so entering visuals always records its way back. */
   const go = (step: number) => {
@@ -1016,6 +1116,7 @@ export function GigFlowView() {
           busy={busy}
           onChange={setlistChanged}
           onForward={() => go(3)}
+          blockedBy={visualsBlockedBy}
         />
       )
     return (
@@ -1049,7 +1150,15 @@ export function GigFlowView() {
    * means here. `Back` returns to the flow at the step it was entered from; `To the check →` is the
    * way onward and lands on step 4.
    */
-  if (here === 3) {
+  if (here === 3 && !hasSetlist) {
+    // **The condition can go away while you are standing on the step** — every song taken back out
+    // of the running order on step 2, then the bar's step 3 pressed before this render. Falling
+    // back to the setlist is the same answer the bar gives, rather than a screen that is open
+    // because it already was.
+    setHere(2)
+  }
+
+  if (here === 3 && hasSetlist) {
     return (
       <div className="songs-screen gig-visuals-screen">
         <header className="songs-top-bar">
@@ -1104,7 +1213,7 @@ export function GigFlowView() {
       </header>
 
       <main className="songs-body gig-flow-body">
-        <GigStepBar here={here} reachable={reachable} onGo={go} />
+        <GigStepBar here={here} isOpen={stepIsOpen} onGo={go} />
         {body}
       </main>
     </div>
