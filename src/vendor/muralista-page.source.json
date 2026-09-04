@@ -2,16 +2,16 @@
   "page": "mapper.html",
   "owner": "muralista",
   "path": "mapper/",
-  "tag": "v1.17.0",
+  "tag": "v1.18.0",
   "files": {
-    "mapper.html": "66af1e5e461d2c51fdcf9f4c6816bd2bd3527e5d4aaa4f68bc67b295a394c00a",
-    "mapper.css": "6c0e74631babc07fe30f3a96d6a6c00ffe57c40e33a0d6b972c2db054d06d1bc",
-    "mapper.js": "1007aeecc1a9583a3230569542cda52ec584a525c5e479ed10725be43950b915",
+    "mapper.html": "d5485dbbf7e6940552e57289a3ba4b96e99ce2f909ccf0a1be9cb07d09094ff9",
+    "mapper.css": "dad54ee52940a698d8ec9c6a96a21990f75b4e2df0578f1093c898600e04ae64",
+    "mapper.js": "25d3f7c0fe1d1da3d40d66620ebdae8d913731217ee3b6991b7a74a8533a3df3",
     "warp.js": "17e3a25ef61074b622965c6df2e2b8ec7a50fc6f5ffb698c160eead701c15cb6",
     "stageCapture.js": "f62c074c14127a1a183a6c80f2894a26a7495ef854f1925848b88fd4b95226cb"
   },
   "vendoredOn": "2026-09-04",
   "why": "Muralista's page is served from here rather than from a folder the user points at. Pregonero cannot guess where mapper.html is on a machine, and a setting that has to be discovered before anything works is the dead-end shape this redesign exists to remove. Vendoring by tag with a hash test is what already demotes warp.js from a fork to a cache, and it does the same here.",
   "notVendored": "media/ (90 MB of Muralista's own test clips) and white.html. They are its test content, not its page.",
-  "fifthFile": "stageCapture.js arrived at v1.8.0 with the stage capture. mapper.js imports it the way it imports warp.js, so a page served without it is a page that throws on load \u2014 which is exactly why the file list is asserted whole rather than merely hashed."
+  "fifthFile": "stageCapture.js arrived at v1.8.0 with the stage capture. mapper.js imports it the way it imports warp.js, so a page served without it is a page that throws on load — which is exactly why the file list is asserted whole rather than merely hashed."
 }

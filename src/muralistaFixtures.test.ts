@@ -22,8 +22,8 @@ import { resolve } from 'node:path'
 import source from './vendor/muralista-fixtures.source.json'
 import {
   MURALISTA_FIXTURE_TAG,
-  MURALISTA_INTRO_STAND_IN,
   MURALISTA_LYRICS_STAND_IN,
+  readDeclaration,
   vendoredMapperSource,
 } from './muralistaFixtures'
 
@@ -46,8 +46,9 @@ describe('the vendored Muralista fixtures', () => {
     expect(MURALISTA_FIXTURE_TAG).toBe(source.tag)
   })
 
-  it('are the two stand-ins the manifest says they are', () => {
-    expect(source.fixtures).toEqual(['LYRICS_PREVIEW_TEXT', 'INTRO_PLACEHOLDER'])
+  /** One fixture since 2026-09-04, when `INTRO_PLACEHOLDER` went with Muralista's intro card. */
+  it('is the stand-in the manifest says it is', () => {
+    expect(source.fixtures).toEqual(['LYRICS_PREVIEW_TEXT'])
   })
 })
 
@@ -61,15 +62,15 @@ describe('reading a stand-in out of the vendored source', () => {
     expect(declared).toBe(true)
   })
 
-  it('gets all three parts of the intro stand-in', () => {
-    const text = vendoredMapperSource()
-    for (const part of ['annotation', 'title', 'tagline'] as const) {
-      expect(MURALISTA_INTRO_STAND_IN[part].length).toBeGreaterThan(0)
-      expect(text).toContain(MURALISTA_INTRO_STAND_IN[part])
-    }
-  })
-
-  it('keeps the two apart — replacing one must never look like replacing the other', () => {
-    expect(MURALISTA_LYRICS_STAND_IN).not.toBe(MURALISTA_INTRO_STAND_IN.tagline)
+  /**
+   * **The intro stand-in's two tests were here and went with it** (2026-09-04). Muralista's
+   * `INTRO_PLACEHOLDER` no longer exists, so what is asserted instead is that asking for it fails
+   * loudly — the failure mode this module was built to prevent is a fixture read that quietly
+   * returns something stale.
+   */
+  it('throws rather than guessing when a fixture is gone from the vendored file', () => {
+    expect(() => readDeclaration(vendoredMapperSource(), 'INTRO_PLACEHOLDER')).toThrow(
+      /not in the vendored/
+    )
   })
 })

@@ -13,7 +13,6 @@ import {
   difficultyOf,
   harderThanLyricsStandIn,
   harderThanLyricsStandInWhy,
-  INTRO_STAND_IN_DIFFICULTY,
   LYRICS_STAND_IN_DIFFICULTY,
   MURALISTA_LYRICS_LINE,
 } from './worstCase'
@@ -105,30 +104,5 @@ describe('a real line against the stand-in', () => {
       LYRICS_STAND_IN_DIFFICULTY.hardRows
     )}c`
     expect(harderThanLyricsStandInWhy(worst)).toHaveLength(3)
-  })
-})
-
-describe('the intro stand-in, which is a different stand-in', () => {
-  it('has all three parts, and none of them is empty', () => {
-    for (const part of ['annotation', 'title', 'tagline'] as const) {
-      expect(INTRO_STAND_IN_DIFFICULTY[part].length).toBeGreaterThan(0)
-      expect(INTRO_STAND_IN_DIFFICULTY[part].longestWord).toBeGreaterThan(0)
-    }
-  })
-
-  it('does not move when the lyrics stand-in does, because they are independent', () => {
-    // Not a coincidence worth asserting loosely: `LYRICS_PREVIEW_TEXT` seeds a `song-lyrics` slot
-    // and `INTRO_PLACEHOLDER` is what the intro card paints. v1.5.0 replaced the first and left
-    // the second untouched, and a round measured the wrong one as a result.
-    expect(MURALISTA_LYRICS_LINE).not.toBe(INTRO_STAND_IN_DIFFICULTY.tagline)
-    expect(INTRO_STAND_IN_DIFFICULTY.tagline).not.toEqual(LYRICS_STAND_IN_DIFFICULTY)
-  })
-
-  it('arrives with no hard rows, because the intro card cannot paint one', () => {
-    // `.intro-tagline` has no `white-space: pre-line`, so a `\n` in any of the three renders as a
-    // space. A stand-in carrying one would be claiming a row the template does not honour.
-    for (const part of ['annotation', 'title', 'tagline'] as const) {
-      expect(INTRO_STAND_IN_DIFFICULTY[part].hardRows).toBe(1)
-    }
   })
 })

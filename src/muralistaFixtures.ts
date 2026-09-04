@@ -1,5 +1,5 @@
 /**
- * **Muralista's two stand-ins, read out of the vendored copy rather than typed in again.**
+ * **Muralista's stand-in text, read out of the vendored copy rather than typed in again.**
  *
  * This module exists because typing them in again is exactly what went wrong. `worstCase.ts` used
  * to carry a hand-copy of `LYRICS_PREVIEW_TEXT` with its numbers hardcoded beside it. Muralista
@@ -13,15 +13,14 @@
  * hashes it. Same shape as the warp: **a cache, not a fork.** A fix goes into Muralista and comes
  * back across; nothing in `src/vendor` is ever edited here.
  *
- * **THERE ARE TWO STAND-INS AND THEY ARE INDEPENDENT.** That fact is the whole reason this module
- * is plural, and the vault had never written it down:
+ * **THERE WERE TWO STAND-INS AND THEY WERE INDEPENDENT**, which is why this module is plural:
  *
  * - `LYRICS_PREVIEW_TEXT` — one string, the default of an editable field, seeding a `song-lyrics`
- *   slot. Its one consumer in Muralista is `setLayerType()`.
- * - `INTRO_PLACEHOLDER` — three strings (annotation, title, tagline), and everything
- *   `applySongIntroLayer()` paints. The tagline is the smallest thing on the wall.
+ *   slot. Its one consumer in Muralista is `setLayerType()`. **This is the one that is left.**
+ * - `INTRO_PLACEHOLDER` — three strings, everything Muralista's intro card painted. Gone with the
+ *   card on 2026-09-04, along with the type it belonged to.
  *
- * Replacing one does not move the other, which is why `v1.5.0` fixed the lyrics one and left the
+ * Replacing one never moved the other, which is why `v1.5.0` fixed the lyrics one and left the
  * intro one un-measured until `v1.6.0`.
  *
  * **TOOLING ONLY — never import this, or `worstCase.ts`, into the app.** It reads a 300 KB file
@@ -32,12 +31,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import source from './vendor/muralista-fixtures.source.json'
-
-export type MuralistaIntroPlaceholder = {
-  annotation: string
-  title: string
-  tagline: string
-}
 
 /** The vendored bytes on disk — what is checked in, not what a bundler made of it. */
 export function vendoredMapperSource(): string {
@@ -57,7 +50,7 @@ export function vendoredMapperSource(): string {
  * survive is the declaration disappearing or changing shape — and that should throw, loudly,
  * rather than fall back to something.
  */
-function readDeclaration(sourceText: string, name: string): unknown {
+export function readDeclaration(sourceText: string, name: string): unknown {
   const head = `\nconst ${name} =`
   const start = sourceText.indexOf(head)
   if (start < 0) {
@@ -90,20 +83,16 @@ export const MURALISTA_LYRICS_STAND_IN: string = (() => {
 })()
 
 /**
- * `INTRO_PLACEHOLDER` — the three strings the `song-intro` card paints. Only the title is ever
- * real, and only while a gig is connected and a song is being previewed; the annotation and the
- * tagline live in the song file, which is below Muralista's line.
+ * **THE INTRO STAND-IN WAS THE SECOND OF THE TWO AND IT IS GONE** (2026-09-04). `INTRO_PLACEHOLDER`
+ * was three strings — annotation, title, tagline — and everything the intro card painted *in
+ * Muralista*. The card stopped being a shape type there, so the declaration went with it, and
+ * `readDeclaration` would now throw rather than return a stale value. That is the module working:
+ * a fixture that disappears upstream is loud here, which is the whole reason this file exists.
+ *
+ * **Pregonero's own intro card is unaffected.** It never used these strings — all three of its
+ * parts come from the song file. What is lost is the measured worst case the *preview* was tuned
+ * against, and that mattered only while Muralista drew one.
  */
-export const MURALISTA_INTRO_STAND_IN: MuralistaIntroPlaceholder = (() => {
-  const value = readDeclaration(vendoredMapperSource(), 'INTRO_PLACEHOLDER')
-  const parts = value as Partial<MuralistaIntroPlaceholder>
-  for (const key of ['annotation', 'title', 'tagline'] as const) {
-    if (typeof parts?.[key] !== 'string') {
-      throw new Error(`Muralista’s INTRO_PLACEHOLDER.${key} is missing or is no longer a string.`)
-    }
-  }
-  return parts as MuralistaIntroPlaceholder
-})()
 
-/** The tag the two above were taken from, for anything that reports which boundary it checked. */
+/** The tag the one above was taken from/** The tag the two above were taken from, for anything that reports which boundary it checked. */
 export const MURALISTA_FIXTURE_TAG: string = source.tag

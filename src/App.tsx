@@ -42,7 +42,7 @@ import {
   setContactLitBroadcast,
   useContactLit,
 } from './gigContactState'
-import { ShapeContact, readContactFields } from './ShapeContact'
+import { ShapeContact, type ContactFields } from './ShapeContact'
 // **One owner for what a gig is called**, shared with Backstage's rows and the gig flow's header.
 import { gigLabelFrom } from './gigFile'
 import { PlayTriangleIcon } from './RowIcons'
@@ -1880,6 +1880,59 @@ function LanguagesView() {
   )
 }
 
+/**
+ * **WHERE THE INTRO CARD AND THE CONTACT PANEL GO — THE OPEN QUESTION, AT ITS ONE ADDRESS.**
+ *
+ * Until 2026-09-04 both had shape types of their own and the answer was *the shape somebody drew
+ * for it*. Both types are gone, from Muralista and from `SONG_AWARE_TYPES`. **The ruling: they go
+ * into a shape that already exists — the video frame or the song lyrics shape — and Pregonero
+ * decides which.** Muralista owns where things are; Pregonero owns what is showing when, and this
+ * is the seam between those two sentences.
+ *
+ * **The rule that picks between the two is not written and was deliberately not written here.**
+ * It is performance design, not plumbing. This returns nothing, so neither paints, and everything
+ * that decides *when* they should — `contactLit`, `showIntro`, `introParts` — is untouched and
+ * waiting on this one function.
+ *
+ * ## What has to be true before this can be written
+ *
+ * 1. **A rule, in words, for a room with both shapes and for a room with one.** Every gig has song
+ *    lyrics; not every gig has a video frame. Whatever the rule prefers, it must also say what it
+ *    does when the preferred shape is not in the room — and both host types resolve per song, so
+ *    the answer can differ from song to song within one gig.
+ * 2. **What happens when the rule resolves to more than one shape.** `resolveShapesForType`
+ *    returns a *set*: two lyrics shapes spanning a corner are lit together. The intro in both of
+ *    them is probably right and it has never been looked at on a wall.
+ * 3. **Whether a `visibleWhen` host may host.** A lyrics shape can be conditional on a video shape
+ *    being empty. A card painted into a shape the condition has switched off is invisible, so
+ *    either the rule skips those or `shapeIsVisible` is consulted first.
+ * 4. **THE CONTACT PANEL'S CONTENT HAS NO HOME AT ALL — this is the harder half.** Its line of
+ *    text and its QR file name were fields on the Muralista `gig-contact` layer, and that layer
+ *    went with the type. `ShapeContact` still renders them and `mediaSources` still resolves a QR,
+ *    but nothing writes either any more. The intro has no such gap: all three of its parts come
+ *    from the song file. **So the contact needs a place for its content before it needs a host**,
+ *    and that place is a decision about what a gig owns, not about layout.
+ *
+ * Both renderers stay: `ShapeIntro` and `ShapeContact` were always Pregonero's. What went was the
+ * half that said which patch of wall they landed on.
+ */
+function introContactHostShapes(
+  _lyricShapes: VisualShape[],
+  _videoShapes: VisualShape[]
+): VisualShape[] {
+  return []
+}
+
+/**
+ * The contact panel's line and QR, once there is somewhere to read them from. Point 4 above: there
+ * is not. **Explicitly not read off the host shape's layer** — a `song-lyrics` layer carries the
+ * preview text Muralista seeds it with, and a panel that painted that would be worse than a panel
+ * that does not paint.
+ */
+function contactFieldsForHost(): ContactFields | null {
+  return null
+}
+
 function ProjectionView() {
   const singleScreen =
     import.meta.env.VITE_SINGLE_SCREEN === '1' ||
@@ -2057,10 +2110,9 @@ function ProjectionView() {
   // caps it at one, and no code below may assume it is one.
   const lyricShapes = visuals ? resolveShapesForType(visuals, 'song-lyrics', currentSongId) : []
   const videoShapes = visuals ? resolveShapesForType(visuals, 'song-video', currentSongId) : []
-  const introShapes = visuals ? resolveShapesForType(visuals, 'song-intro', currentSongId) : []
-  // `gig-contact` is a gig-level fact and is never reassigned per song, so it is looked up with no
-  // song at all — which is also why it is not called `song-contact`.
-  const contactShapes = visuals ? resolveShapesForType(visuals, 'gig-contact', null) : []
+  // **The intro card and the contact panel have no shapes of their own since 2026-09-04.** Both go
+  // into a shape that already exists, and *which one* is the open question below.
+  const hostShapes = introContactHostShapes(lyricShapes, videoShapes)
   const playVideo = videoWanted && videoShapes.length > 0
 
   // **When a video is playing, the video is the clock.** Subtitles come from its own
@@ -2178,19 +2230,25 @@ function ProjectionView() {
       />
     )
   }
+  // **The two conditions below are unchanged and they are the half that was always Pregonero's.**
+  // `contactLit` and `showIntro` answer *when*, out of the armed flag, the played log, the setlist
+  // and the song file. What they have no answer for today is *where*, so both loops run over an
+  // empty list and neither paints. See `introContactHostShapes`.
   if (contactLit) {
-    for (const shape of contactShapes) {
+    for (const shape of hostShapes) {
+      const fields = contactFieldsForHost()
+      if (!fields) break
       contentByShapeId.set(
         shape.id,
         <ShapeContact
-          fields={readContactFields(shape.layer)}
+          fields={fields}
           boxWidth={textLayoutBoxWidth(shapeFrame(shape), 1, outputWidth, outputHeight)}
         />
       )
     }
   }
   if (showIntro) {
-    for (const shape of introShapes) {
+    for (const shape of hostShapes) {
       contentByShapeId.set(
         shape.id,
         <ShapeIntro

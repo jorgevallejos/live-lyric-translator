@@ -26,7 +26,7 @@
  * `node:fs`. Nothing in the running app has ever needed it, and the day something does, the
  * fixture has to arrive some other way.
  */
-import { MURALISTA_INTRO_STAND_IN, MURALISTA_LYRICS_STAND_IN } from './muralistaFixtures'
+import { MURALISTA_LYRICS_STAND_IN } from './muralistaFixtures'
 
 /**
  * What makes one string harder to lay out than another, in the two ways the fit can fail.
@@ -62,7 +62,7 @@ export function difficultyOf(text: string): LineDifficulty {
  * Muralista's `LYRICS_PREVIEW_TEXT`, from the vendored copy.
  *
  * Re-exported under this name because *lyrics* is the half of the boundary Pregonero renders
- * inside. The intro stand-in is the other one — see `INTRO_STAND_IN_DIFFICULTY`.
+ * inside. It is the only half left; the intro stand-in went with Muralista's intro card.
  */
 export const MURALISTA_LYRICS_LINE: string = MURALISTA_LYRICS_STAND_IN
 
@@ -70,22 +70,16 @@ export const MURALISTA_LYRICS_LINE: string = MURALISTA_LYRICS_STAND_IN
 export const LYRICS_STAND_IN_DIFFICULTY = difficultyOf(MURALISTA_LYRICS_LINE)
 
 /**
- * The same three numbers for each part of the intro card.
- *
- * **The intro stand-in is independent of the lyrics one**, which is the fact whose absence let a
- * round measure the wrong thing: replacing `LYRICS_PREVIEW_TEXT` in Muralista `v1.5.0` moved
- * nothing here, and `INTRO_PLACEHOLDER` went un-measured until `v1.6.0`. The three parts are sized
- * as multiples of one number the auto-fit searches over, so **whichever part binds first decides
- * the block** — and on a narrow shape that is the title, not the tagline, because the tagline is
- * 0.28 of the title and an unbreakable run therefore costs it 3.6 times less.
+ * **THE INTRO CARD'S THREE SETS OF NUMBERS WERE HERE AND ARE GONE** (2026-09-04). They measured
+ * `INTRO_PLACEHOLDER`, the stand-in Muralista's own intro card painted, and that card stopped
+ * being a shape type. The finding they produced is still true and still written down in
+ * `project-context.md`: the title binds first, not the tagline, because the tagline is 0.28 of the
+ * title and an unbreakable run costs it 3.6 times less. **If Pregonero ever previews its own intro
+ * against a worst case, that is the arithmetic to start from.**
  */
-export const INTRO_STAND_IN_DIFFICULTY = {
-  annotation: difficultyOf(MURALISTA_INTRO_STAND_IN.annotation),
-  title: difficultyOf(MURALISTA_INTRO_STAND_IN.title),
-  tagline: difficultyOf(MURALISTA_INTRO_STAND_IN.tagline),
-}
 
 /**
+ * Whether `text` is harder than the lyrics stand-in/**
  * Whether `text` is harder than the lyrics stand-in on **any** axis.
  *
  * Deliberately *any* rather than *all*: the boundary has to hold for every real line, so a line

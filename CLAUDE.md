@@ -665,14 +665,40 @@ of size one naturally; **no code may depend on that.**
 |---|---|---|
 | `song-lyrics` | The playing song's timed lyric lines | `ShapeText` with the layer's own formatting |
 | `song-video` | The playing song's `media`, and **the clock the lyrics read against** | `ShapeVideo`, `object-fit: fill` — the quad *is* the framing |
-| `song-intro` | Title, translated title, tagline, from the song file | `ShapeIntro` — a **locked template**, no formatting controls |
-| `gig-contact` | One line of text plus an optional QR code | `ShapeContact` — a locked template, defined once at gig visual setup |
+**There were four types.** `song-intro` and `gig-contact` were retired on 2026-09-04 — see *The
+intro card and the contact panel have no shapes of their own* below.
 
-**Pregonero fills content; it never styles it.** `ShapeIntro`'s proportions are Muralista's, matched
+**Pregonero fills content; it never styles it.** `ShapeIntro`'s proportions were Muralista's, matched
 value for value against `mapper.css`: the title is a fraction of the shape with auto-fit below it,
 and every other measure is a multiple of the title, so the card shrinks as one thing. There are no
 controls, so **those proportions are the entire design** — the only handles are the shape's position
-and size, which move all three parts together.
+and size, which move all three parts together. Muralista's own copy of them went with its intro card;
+**this one is now the only one**, which makes `ShapeIntro` the file to read, not a mirror to check.
+
+### The intro card and the contact panel have no shapes of their own
+
+> **`song-intro` and `gig-contact` stopped being shape types on 2026-09-04**, in both repos.
+> Pregonero renders both into a shape that already exists — the video frame or the song lyrics
+> shape — and decides which.
+
+**THE LINE: Muralista owns where things are, Pregonero owns what is showing when.** An intro is a
+*when* — before the cue — and a contact panel is a *when* — after the last song. Neither needs a
+place of its own. It settled a thing the canvas could not show: on the wall the intro landed on a
+whiteboard and the contact on bare planks, because a shape that is up only when nothing else is
+still had to claim its own territory.
+
+**THE RULE THAT PICKS BETWEEN THE TWO HOST SHAPES IS NOT WRITTEN.** It was deliberately out of scope
+— performance design, not plumbing. It has exactly one address, `introContactHostShapes` in
+`App.tsx`, which returns nothing, so **neither card paints today**. Everything that decides *when*
+they show is untouched: `contactLit`, `showIntro` and `introParts` all still work, and 17 tests in
+`ProjectionView.test.tsx` are `it.skip` with the fixture change they need written on them.
+
+Four things have to be true before that function can be written, and they are listed in full in its
+doc comment. The hardest is not the rule: **the contact panel's content has no home at all.** Its
+line of text and its QR file name were fields on the Muralista `gig-contact` layer, and nothing
+writes either any more. `ShapeContact` still renders them; `contactFieldsForHost()` returns `null`
+and explicitly does **not** read the host shape's own layer, because a `song-lyrics` layer carries
+Muralista's preview text and a panel painting that would be worse than a panel that does not paint.
 
 ### Shapes Pregonero does not coordinate
 
@@ -706,13 +732,15 @@ window is handed the answer rather than copies of the inputs, so there is one im
 condition. The value is read at mount and on every `storage` event, and **an absent key reads as
 lit** — the power-up answer.
 
-`gig-contact` is a **gig-level fact**: it is looked up with no song at all, and a per-song
-reassignment of it is dropped rather than honoured. That is why it is not called `song-contact`.
+`gig-contact` was a **gig-level fact**, looked up with no song at all — which is why it was not
+called `song-contact`. With the type gone, an old file's assignment of it is dropped at parse:
+`readAssignmentMap` keeps only the types in `SONG_AWARE_TYPES`.
 
 **What it replaced, and both are gone:** the **end card** (`endCardState.ts`, its content file and
 its CSS) and the **logo-when-nothing-is-armed** fallback in Projection. Both existed to put
-something on the wall when no song was presenting, which a `gig-contact` shape does properly — tuned
-to the room instead of read from a text file. With the logo gone, the Projection window no longer
+something on the wall when no song was presenting, which the contact panel does properly — tuned
+to the room instead of read from a text file. **Their removal outlives the panel's own parking**:
+neither may come back, whatever the contact ends up being drawn into. With the logo gone, the Projection window no longer
 waits for an arm transition before showing anything: reopened mid-song it shows the line that is
 playing, where it used to show the logo until the next arm.
 
