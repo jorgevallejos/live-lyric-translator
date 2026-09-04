@@ -597,6 +597,44 @@ is simply not rendered — not blacked out, not declared empty. The gap between 
 free with no blackout state. **A hidden shape does not resolve either** — filtered in
 `resolveShapesForType`, the one lookup, so the arm gate and the wall cannot disagree about it.
 
+### A shape may say when it shows, and it asks about another shape
+
+**Cowork proposed a flag saying *for songs with video / without*, and Jorge rejected it** (2026-09-04):
+that is domain knowledge Muralista does not have — whether a song has a video lives below its line.
+**His replacement asks about another SHAPE**, which is Muralista's own vocabulary: **Muralista
+declares the relationship, Pregonero evaluates it**, because Pregonero is the one that knows what
+content landed. Each tool says only what it can know.
+
+    { "id": "lyrics-foot", "visibleWhen": { "shape": "video-frame", "is": "filled" } }
+
+**On the shape, never in a connectors list** — reading a shape tells you when it shows, and deleting
+it takes its condition with it, so nothing orphans. **An object rather than a string**, so a `when`
+or an `after` can join later without a redesign. **This is the condition, not an animation system.**
+
+**It is about CONTENT, never existence.** Shapes are gig level and always exist; what varies per song
+is whether they got content. **Filled means an asset is assigned for that song** in
+`songVisuals.assets`. `shapeCondition` and `shapeShowsForSong` in `visualsFile.ts` are the readers,
+and the condition is applied **inside `resolveShapesForType`** — the one lookup — for the same reason
+the hidden flag is: a shape that satisfied the arm gate and then painted nothing is exactly the
+disagreement one readiness function exists to prevent.
+
+**One level, so cycles are impossible.** A condition may only point at a shape that has none of its
+own. Muralista enforces it on the way into the file and `parseVisualsFile` drops any condition that
+survives pointing at a conditional shape, a missing one, or itself — **so nothing here ever recurses**,
+and a dropped condition leaves the shape showing unconditionally rather than vanishing.
+
+**The designed default is three shapes, and this is what made it expressible**: a frame-filling
+`song-video` shape, a `song-lyrics` shape at its foot *when the video is filled*, and a `song-lyrics`
+shape across the frame *when it is empty*. **Both lyrics shapes are the gig-level default for the
+type** — the condition is what separates them, not the assignment — and `src/fixtures/muralista-default-room.json`
+is Muralista's own bytes, asserted in `muralistaDefaultRoom.test.ts`, because that is the fact each
+repo's unit tests could each be right about and still get wrong together.
+
+**An unassigned video shape is not a finding.** It was for one round; the default makes it the
+commonest case there is. What fails instead is `songIsCarried` — **nothing in the room would paint
+anything for this song** — which counts a lyrics shape as always painting and a video shape as
+painting only when that song assigned it something.
+
 **The lookup, and it is the whole of it.** The playing song is X; for each song-aware type, take
 the shapes reassigned to X if there are any, otherwise the gig-level shapes of that type. **It
 resolves to a set and every shape in it is lit.** Nothing caps it at one — two shapes showing the
