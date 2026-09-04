@@ -641,3 +641,122 @@ describe('screen 2: the setlist', () => {
     expect(screen.queryByTestId('gig-flow-catalogue-gone')).toBeNull()
   })
 })
+
+/**
+ * **THE FLOW HAS A WAY FORWARD ON EVERY STEP** (Jorge, 2026-09-04, walking `v0.52.0`).
+ *
+ * It did not. Step 1's button wrote the file and moved on and said neither, and steps 2 and 3 had
+ * no control at all — so the only thing on the screen that led anywhere was the next step's name in
+ * the bar, which is **too subtle to be the way through a flow**.
+ *
+ * **The vocabulary is Bombista's**, which this flow borrows everywhere else: an arrow on the press
+ * that moves you — `Begin →`, `Process song →`, `Confirm timeline →`. Step 4's `Confirm setup` is
+ * the leaving action and keeps no arrow, because it does not go to a next step.
+ */
+describe('the way forward', () => {
+  beforeEach(() => {
+    rememberGigFolder(null)
+  })
+
+  it('says on step 1 that the press moves you, as well as what it writes', async () => {
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-commit')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-commit').textContent).toBe('Create the gig →')
+  })
+
+  it('carries the arrow on the same press once the gig exists', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await renderFlow()
+    await waitFor(
+      () => expect(screen.getByTestId('gig-flow-commit').textContent).toBe('Save the gig →'),
+      WAIT
+    )
+  })
+
+  it('gives the setlist step a control that goes to the visuals', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await installCatalogue([], [], [])
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-2')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-2'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the visuals →')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-forward'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy(), WAIT)
+  })
+
+  /**
+   * **The visuals step opens like the song flow, not inside it** (Jorge, 2026-09-04). It was
+   * Muralista framed under the gig flow's step bar — two step bars nested, and the tool that needs
+   * the most room getting the least. Entering it leaves the gig flow's bar behind.
+   */
+  it('leaves the gig flow’s step bar behind when the visuals open', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-steps')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-3'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy(), WAIT)
+    expect(screen.queryByTestId('gig-flow-steps')).toBeNull()
+    // Pregonero's own chrome is what is left: Back, and a title naming the night.
+    expect(screen.getByTestId('gig-flow-visuals-back').textContent).toBe('Back')
+    expect(screen.getByTestId('gig-flow-visuals-title').textContent).toContain('BOM Festival')
+  })
+
+  it('comes back to the gig flow, at the step the visuals were entered from', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-3'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-visuals-back'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-steps')).toBeTruthy()
+  })
+
+  it('goes on from the visuals to the check', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-3')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-3'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the check →')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-forward'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
+  })
+
+  /** **Step 4's leaving action is unchanged**, and carries no arrow: it does not go to a step. */
+  it('leaves step 4’s action exactly as it was', async () => {
+    rememberGigFolder(FOLDER)
+    readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson() }))
+    await renderFlow()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-confirm')).toBeTruthy(), WAIT)
+    expect(screen.getByTestId('gig-flow-confirm').textContent).toBe('Confirm setup')
+  })
+})

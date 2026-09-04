@@ -43,6 +43,8 @@ import {
 import { ShapeContact, readContactFields } from './ShapeContact'
 // **One owner for what a gig is called**, shared with Backstage's rows and the gig flow's header.
 import { gigLabelFrom } from './gigFile'
+import { PlayTriangleIcon } from './RowIcons'
+import { SetupValue } from './SetupValue'
 import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
 import { BeatCircle } from './BeatCircle'
@@ -1029,15 +1031,18 @@ function ControlView() {
 
                       **`No gig` from nothing**, which is what `gate === 'off'` means: with no
                       folder open there is no date, no venue and no folder to fall back to. */}
-                  <span className="control-setup-value" data-testid="control-gig-value">
-                    {gigReadiness.gate === 'off' || gigReadiness.folderPath === null
-                      ? 'No gig'
-                      : gigLabelFrom(
-                          gigReadiness.date,
-                          gigReadiness.venue?.name ?? null,
-                          gigReadiness.folderPath
-                        )}
-                  </span>
+                  <SetupValue
+                    testId="control-gig-value"
+                    text={
+                      gigReadiness.gate === 'off' || gigReadiness.folderPath === null
+                        ? 'No gig'
+                        : gigLabelFrom(
+                            gigReadiness.date,
+                            gigReadiness.venue?.name ?? null,
+                            gigReadiness.folderPath
+                          )
+                    }
+                  />
                 </div>
                 <div className="control-setup-extras">
                   <span className="control-setup-note" data-testid="control-gig-summary">
@@ -1061,7 +1066,7 @@ function ControlView() {
                 <span className="control-setup-label">Song</span>
                 <div className="control-setup-content">
                   {currentSongId && lines.length > 0 ? (
-                    <span className="control-setup-value">{currentSongTitle}</span>
+                    <SetupValue text={currentSongTitle} />
                   ) : null}
                 </div>
                 <div className="control-setup-extras" />
@@ -1077,7 +1082,7 @@ function ControlView() {
                 <span className="control-setup-label">Lyrics display</span>
                 <div className="control-setup-content">
                   {effectiveLang ? (
-                    <span className="control-setup-value">{languagesDisplay}</span>
+                    <SetupValue text={languagesDisplay} />
                   ) : null}
                 </div>
                 <div className="control-setup-extras">
@@ -1148,9 +1153,12 @@ function ControlView() {
                 <div className="control-setup-section">
                   <span className="control-setup-label">Projection</span>
                   <div className="control-setup-content">
-                    <span className="control-setup-value">
-                      {getProjectionStatusText(projectionOpen, isVideoMode ? effectiveDisplayMode : undefined)}
-                    </span>
+                    <SetupValue
+                      text={getProjectionStatusText(
+                        projectionOpen,
+                        isVideoMode ? effectiveDisplayMode : undefined
+                      )}
+                    />
                     {/* **The fallback is visible, never silent.** A projection window that quietly
                         stayed on the laptop is otherwise discovered by looking at a blank wall. */}
                     {projectionOpen && placement.placed && placement.display !== null && (
@@ -1221,7 +1229,7 @@ function ControlView() {
               <div className="control-setup-section">
                 <span className="control-setup-label">Arm</span>
                 <div className="control-setup-content">
-                  <span className="control-setup-value">Unarmed</span>
+                  <SetupValue text="Unarmed" />
                 </div>
                 <div className="control-setup-extras">
                   {songBlockedReasons.length > 0 && (
@@ -1586,6 +1594,9 @@ function SongsView() {
 
   const activeOk = hasValidActiveSetlist()
   const orderedSongs = getOrderedSongsForActiveSetlist()
+  // **The fact the screen is missing is the gig, not the setlist.** `gate === 'off'` is readiness's
+  // own word for *no gig folder is open*, and the folder is what a setlist hangs off.
+  const noGig = gigReadiness.gate === 'off' || gigReadiness.folderPath === null
   const activeSetlistId = getActiveSetlistId()
   const activeSetlistName =
     activeOk && activeSetlistId !== ''
@@ -1649,9 +1660,56 @@ function SongsView() {
       </header>
       <main className="songs-body">
         {!activeOk ? (
-          <p className="setlist-prompt" data-testid="setlist-selection-prompt">
-            Choose a setlist to continue.
-          </p>
+          noGig ? (
+            /* **NO GIG MEANS NO SETLIST, AND THAT IS WHAT THIS SAYS** (Jorge, 2026-09-04, walking
+               `v0.52.0`). It read *Choose a setlist to continue*, which asks for a thing that
+               cannot exist yet: a setlist belongs to a gig, and no gig is open. The screen names
+               the missing thing and points at the one place it is chosen — the play triangle on a
+               gig's row on Backstage — with a way to get there.
+
+               **The old sentence survives beside it**, for the one state it was ever true about:
+               a gig is open and its running order is not readable as a setlist. */
+            <div className="setlist-prompt" data-testid="setlist-no-gig">
+              <p>No gig is open, so there is no setlist yet.</p>
+              <p className="setlist-prompt-where">
+                Choose tonight&rsquo;s gig on Backstage: press <PlayTriangleIcon /> on its row.
+              </p>
+              <button
+                type="button"
+                className="ctrl-btn"
+                data-testid="setlist-go-backstage"
+                onClick={() => {
+                  window.location.hash = '#/setup'
+                }}
+              >
+                Backstage
+              </button>
+            </div>
+          ) : (
+            <p className="setlist-prompt" data-testid="setlist-selection-prompt">
+              Choose a setlist to continue.
+            </p>
+          )
+        ) : !noGig && orderedSongs.length === 0 ? (
+          /* **A gig whose running order is empty**, which is what every new gig is: the setlist is
+             the gig's own and starts empty. Same rule — name the missing thing and point at where
+             it is filled, which is the gig flow's Setlist step. */
+          <div className="setlist-prompt" data-testid="setlist-empty">
+            <p>This gig&rsquo;s setlist is empty.</p>
+            <p className="setlist-prompt-where">
+              Songs are put in it on the gig&rsquo;s <strong>Setlist</strong> step.
+            </p>
+            <button
+              type="button"
+              className="ctrl-btn"
+              data-testid="setlist-go-gig"
+              onClick={() => {
+                window.location.hash = '#/gig'
+              }}
+            >
+              Set up the gig
+            </button>
+          </div>
         ) : (
           <>
             {orderedSongs.map((song) => {

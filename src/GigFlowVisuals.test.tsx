@@ -184,6 +184,24 @@ describe('the visuals step', () => {
     expect(screen.queryByTestId('gig-flow-visuals-frame')).toBeNull()
   })
 
+  /**
+   * **BOTH PROSE BLOCKS CAME OFF** (Jorge, 2026-09-04). *Where things land on the wall is
+   * Muralista's…* and *It opens on this gig: `gig.json` is read from its folder…* described the
+   * plumbing, which is what this project has deleted from every screen it has appeared on. What
+   * they said is true and now lives in the comment on `ScreenVisuals`.
+   */
+  it('says nothing about the plumbing on the screen', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)
+    const text = screen.getByTestId('gig-flow-visuals').textContent ?? ''
+    expect(text).not.toMatch(/land on the wall|lands on the wall/i)
+    expect(text).not.toMatch(/gig\.json/i)
+    expect(text).not.toMatch(/visuals\.json/i)
+    expect(screen.queryByTestId('gig-flow-visuals-endpoint')).toBeNull()
+    // The screen is the frame and the one way onward, and nothing else.
+    expect(text.replace(/\s+/g, ' ').trim()).toBe('To the check →')
+  })
+
   it('is disabled with the reason, never absent, outside the desktop app', async () => {
     // Muralista is fully usable on its own by requirement, and the escape hatch is the real answer
     // here — but a screen with no control on it reads as a wall rather than as a fork in the road.
