@@ -954,6 +954,27 @@ authored yet, and it would have shipped waiting for the first one.
 **The test is asserted to fail without the fix**, because a green test over a case that never
 occurs is worth nothing.
 
+### The artist's name reaches Bombista, and only in that direction (2026-09-06)
+
+**The name collected at first run was written and never read.** It is read now: `serveArgs` passes
+`--artist` to `bombista serve` (Bombista `v1.14.0`), which seeds page 1's artist field **for a song
+that names none**.
+
+**The direction is the design.** Bombista prefills FROM the preference and never writes to it, and
+**Pregonero never reads that field back**. Cowork proposed the opposite — capturing the name out of
+Bombista's page 1 the first time a song is made — and **Jorge rejected it**: *opportunistic and
+fishy — you capture something for a purpose different from the one I had in mind when I filled it
+in.* **A value collected for one purpose is not silently promoted to another**, which is the whole
+reason the first-run screen exists rather than a harvest.
+
+**Omitted when there is no name**, rather than passed empty: an option that is always there and
+usually carries nothing is a thing to explain, and Bombista's own default for the field is already
+the empty string. It is a plain string on both sides and not a tri-state like `--deal`, because an
+unanswered seed and an empty seed are the same thing.
+
+**A sixth answer, and it stays inside the line the other five keep.** It says what to put in a box.
+It does not tell Bombista who is calling, what a catalogue is, or that a gig exists.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

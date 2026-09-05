@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { adoptSongFile, getCatalogueEntries } from './setlistStore'
 import { refreshGigReadiness } from './gigSession'
-import { getSongFilesFolder, getSongsFolder } from './contentFolders'
+import { getArtistName, getSongFilesFolder, getSongsFolder } from './contentFolders'
 import { joinPath } from './paths'
 import {
   emittedSong,
@@ -56,7 +56,7 @@ import { LeaveWithoutSaving } from './LeaveWithoutSaving'
 /**
  * **Everything Pregonero says to Bombista, in one place.**
  *
- * Five answers, none of which tells Bombista who is calling and none of which changes a byte of
+ * Six answers, none of which tells Bombista who is calling and none of which changes a byte of
  * what it writes. The defaults behind them are all right for running Bombista on its own and all
  * wrong inside a window that already has a title and already knows where the songs are — which is
  * why they are options on `serve` rather than a second mode.
@@ -91,6 +91,19 @@ import { LeaveWithoutSaving } from './LeaveWithoutSaving'
  *   its cache; omitting it here would leave that fallback deciding, and it would say *show it*
  *   every single time, because this flow never writes to that cache.
  *
+ * - **`--artist`, and it travels ONE WAY** (2026-09-06). The name collected on first run seeds the
+ *   artist field of a song that names none, so it is not retyped for every new song. **Bombista
+ *   prefills FROM it and never writes to it**, and Pregonero never reads the field back: the
+ *   opposite — capturing the name out of Bombista's page 1 the first time a song is made — was
+ *   Cowork's proposal and **Jorge rejected it**, *opportunistic and fishy — you capture something
+ *   for a purpose different from the one I had in mind when I filled it in.* **A value collected
+ *   for one purpose is not silently promoted to another**, which is the whole reason the first-run
+ *   screen exists.
+ *
+ *   **Omitted when there is no name**, rather than passed empty: an option that is always there
+ *   and usually carries nothing is a thing to explain, and Bombista's own default for the field is
+ *   already the empty string.
+ *
  *   **Nothing remembers that it was seen** — on either side. There is no *do not show again*: the
  *   catalogue fills on the first save and answers `--no-deal` from then on, which is one fewer
  *   thing for the walk's reset to clear.
@@ -103,7 +116,8 @@ import { LeaveWithoutSaving } from './LeaveWithoutSaving'
 export function serveArgs(
   request: SongFlowRequest,
   songsFolder: string | null,
-  producedASong: boolean
+  producedASong: boolean,
+  artist: string | null = null
 ): string[] {
   return [
     '--staging',
@@ -112,6 +126,7 @@ export function serveArgs(
     producedASong ? '--no-deal' : '--deal',
     ...(songsFolder === null ? [] : ['--browse-from', songsFolder]),
     ...(request.songPath === null ? [] : ['--song', request.songPath]),
+    ...(artist === null || artist === '' ? [] : ['--artist', artist]),
   ]
 }
 
@@ -336,7 +351,7 @@ export function SongFlowView() {
 
     void (async () => {
       const started = await startBombistaFlow(
-        serveArgs(request, getSongsFolder(), hasProducedASong())
+        serveArgs(request, getSongsFolder(), hasProducedASong(), getArtistName())
       )
       if (!alive) return
       if (!started.ok) {

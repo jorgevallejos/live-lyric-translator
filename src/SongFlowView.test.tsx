@@ -179,6 +179,25 @@ describe('the song flow', () => {
   // cache is not the directory this flow works in. Bombista does not know what a catalogue is and
   // must not learn, so what crosses is a boolean.
 
+  /**
+   * **The artist's name travels one way** (2026-09-06). The name collected on first run seeds
+   * Bombista's artist field so it is not retyped for every new song. **Bombista prefills FROM it
+   * and never writes to it**, and nothing here ever reads that field back: capturing the name out
+   * of Bombista's page 1 was Cowork's proposal and Jorge rejected it — *a value collected for one
+   * purpose is not silently promoted to another*, which is why the first-run screen exists.
+   */
+  it('passes the artist name it was given, and omits the option when there is none', async () => {
+    const request = { staging: '/s', startedAt: 0, songPath: null, title: 'x' }
+    const withName = serveArgs(request, '/songs', true, 'Chango Pepper')
+    expect(withName).toContain('--artist')
+    expect(withName[withName.indexOf('--artist') + 1]).toBe('Chango Pepper')
+
+    // **Omitted rather than passed empty**: an option always present and usually carrying nothing
+    // is a thing to explain, and Bombista's own default for the field is already empty.
+    expect(serveArgs(request, '/songs', true, null)).not.toContain('--artist')
+    expect(serveArgs(request, '/songs', true, '')).not.toContain('--artist')
+  })
+
   it('asks for the deal while the catalogue is empty', async () => {
     expect(
       serveArgs({ staging: '/s', startedAt: 0, songPath: null, title: 'x' }, '/songs', false)
