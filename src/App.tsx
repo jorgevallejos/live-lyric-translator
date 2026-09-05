@@ -1909,53 +1909,56 @@ function LanguagesView() {
 }
 
 /**
- * **WHERE THE INTRO CARD AND THE CONTACT PANEL GO — THE OPEN QUESTION, AT ITS ONE ADDRESS.**
+ * **WHERE THE INTRO CARD AND THE MESSAGE HOME GO** (Jorge, 2026-09-05).
  *
- * Until 2026-09-04 both had shape types of their own and the answer was *the shape somebody drew
- * for it*. Both types are gone, from Muralista and from `SONG_AWARE_TYPES`. **The ruling: they go
- * into a shape that already exists — the video frame or the song lyrics shape — and Pregonero
- * decides which.** Muralista owns where things are; Pregonero owns what is showing when, and this
- * is the seam between those two sentences.
+ * **Within the mode that is lit, the card goes to the `song-video` shape if that mode has one, and
+ * to the `song-lyrics` shape otherwise.** That is the whole rule, and both arguments arrive already
+ * narrowed: `resolveShapesForType` has resolved the per-song reassignment, dropped hidden shapes
+ * and dropped every shape belonging to a mode that is not live.
  *
- * **The rule that picks between the two is not written and was deliberately not written here.**
- * It is performance design, not plumbing. This returns nothing, so neither paints, and everything
- * that decides *when* they should — `contactLit`, `showIntro`, `introParts` — is untouched and
- * waiting on this one function.
+ * **Jorge's reason is experience rather than theory.** Setting up the visuals, it was natural to
+ * match the size and position of the video frame and the song lyrics shape; **the card is display
+ * content and belongs on the big surface when there is one.**
  *
- * ## What has to be true before this can be written
+ * **This supersedes *the intro goes wherever this song's words will go***, ruled earlier the same
+ * day. That rule sent the card to the shape the lyrics resolve to, which for a song with video is
+ * the narrow strip at the foot of the frame.
  *
- * 1. **A rule, in words, for a room with both shapes and for a room with one.** Every gig has song
- *    lyrics; not every gig has a video frame. Whatever the rule prefers, it must also say what it
- *    does when the preferred shape is not in the room — and both host types resolve per song, so
- *    the answer can differ from song to song within one gig.
- * 2. **What happens when the rule resolves to more than one shape.** `resolveShapesForType`
- *    returns a *set*: two lyrics shapes spanning a corner are lit together. The intro in both of
- *    them is probably right and it has never been looked at on a wall.
- * 3. **Whether a `visibleWhen` host may host.** A lyrics shape can be conditional on a video shape
- *    being empty. A card painted into a shape the condition has switched off is invisible, so
- *    either the rule skips those or `shapeIsVisible` is consulted first.
- * 4. **THE CONTACT PANEL'S CONTENT HAS NO HOME AT ALL — this is the harder half.** Its line of
- *    text and its QR file name were fields on the Muralista `gig-contact` layer, and that layer
- *    went with the type. `ShapeContact` still renders them and `mediaSources` still resolves a QR,
- *    but nothing writes either any more. The intro has no such gap: all three of its parts come
- *    from the song file. **So the contact needs a place for its content before it needs a host**,
- *    and that place is a decision about what a gig owns, not about layout.
+ * ## The four things that had to be true before this could be written, and where each landed
  *
- * Both renderers stay: `ShapeIntro` and `ShapeContact` were always Pregonero's. What went was the
- * half that said which patch of wall they landed on.
+ * 1. **A rule for a room with both shapes and for a room with one.** Above. Every gig has song
+ *    lyrics and not every gig has a video frame, so the fallback is the one that always exists,
+ *    and both are resolved per song — a gig can answer differently song to song.
+ * 2. **More than one shape: light them all.** The set is returned whole, as the set-returning
+ *    lookup has done since 24/08. Two lyrics shapes spanning a corner both carry the card.
+ * 3. **A hidden or unlit host cannot host, by construction.** The kickoff put this as *a
+ *    `visibleWhen` shape can never host* — **`visibleWhen` no longer exists**, having been replaced
+ *    by named modes on 2026-09-05, so the mechanism named there is gone. The conclusion survives
+ *    for a better reason: `resolveShapesForType` filters on `shapeIsVisible` and
+ *    `shapeShowsForSong` before returning, so a shape that is not lighting never reaches this
+ *    function at all.
+ * 4. **The message home's content still has no home, and that is deliberate.** Its line and its QR
+ *    were fields on the Muralista `gig-contact` layer and went with the type. **The template and
+ *    the gig-flow step that fills it are held back** — they are judged at a wall, not at a desk —
+ *    so `contactFieldsForHost` still answers null and the message home still does not paint.
+ *    **This function is no longer what is stopping it.**
+ *
+ * **The main shape did not get smarter and this does not make it so.** The shape stays a place
+ * that holds content; the part that is smart is Pregonero, deciding what that place holds at each
+ * moment. The vocabulary is intact — what changed is only who does the deciding.
  */
 function introContactHostShapes(
-  _lyricShapes: VisualShape[],
-  _videoShapes: VisualShape[]
+  lyricShapes: VisualShape[],
+  videoShapes: VisualShape[]
 ): VisualShape[] {
-  return []
+  return videoShapes.length > 0 ? videoShapes : lyricShapes
 }
 
 /**
- * The contact panel's line and QR, once there is somewhere to read them from. Point 4 above: there
- * is not. **Explicitly not read off the host shape's layer** — a `song-lyrics` layer carries the
- * preview text Muralista seeds it with, and a panel that painted that would be worse than a panel
- * that does not paint.
+ * The message home's line and QR, once there is somewhere to read them from. Point 4 above: there
+ * is not, and holding it is a decision rather than an omission. **Explicitly not read off the host
+ * shape's layer** — a `song-lyrics` layer carries the preview text Muralista seeds it with, and a
+ * card that painted that would be worse than a card that does not paint.
  */
 function contactFieldsForHost(): ContactFields | null {
   return null
@@ -2138,8 +2141,9 @@ function ProjectionView() {
   // caps it at one, and no code below may assume it is one.
   const lyricShapes = visuals ? resolveShapesForType(visuals, 'song-lyrics', currentSongId) : []
   const videoShapes = visuals ? resolveShapesForType(visuals, 'song-video', currentSongId) : []
-  // **The intro card and the contact panel have no shapes of their own since 2026-09-04.** Both go
-  // into a shape that already exists, and *which one* is the open question below.
+  // **The intro card and the message home have no shapes of their own since 2026-09-04.** Both go
+  // into a shape that already exists: the video frame when the live mode has one, the song lyrics
+  // shape otherwise — see `introContactHostShapes`.
   const hostShapes = introContactHostShapes(lyricShapes, videoShapes)
   const playVideo = videoWanted && videoShapes.length > 0
 
@@ -2260,30 +2264,55 @@ function ProjectionView() {
   }
   // **The two conditions below are unchanged and they are the half that was always Pregonero's.**
   // `contactLit` and `showIntro` answer *when*, out of the armed flag, the played log, the setlist
-  // and the song file. What they have no answer for today is *where*, so both loops run over an
-  // empty list and neither paints. See `introContactHostShapes`.
+  // and the song file. **They now have an answer for *where* too** — see `introContactHostShapes`
+  // — so the intro paints. **The message home still does not**, and not for want of a host: its
+  // line and its QR have nowhere to be written down yet, which is a decision about what a gig owns
+  // and is deliberately held for a wall.
+  /**
+   * **THE CARD GOES OVER WHAT THE HOST ALREADY HOLDS, NEVER INSTEAD OF IT** (2026-09-06).
+   *
+   * Both cards borrow a shape that has its own content, and replacing it deadlocks the one case
+   * that matters. `showIntro` is `introParts !== null && !(playVideo && videoStarted)`, and
+   * **`videoStarted` is reported by `ShapeVideo` itself** — so a card that replaced the video
+   * would unmount the element that is the only thing able to say the video had started, and the
+   * card would never come down. **The video is the clock; it has to stay mounted.**
+   *
+   * Stacking is also what the ruling describes rather than a workaround for it: the card is *in*
+   * the video frame, over a clip sitting paused on its first frame, and it lifts when the video
+   * runs. On a lyrics host the thing underneath is the lyric text, which at index −1 is empty and
+   * at zero opacity.
+   */
+  const overlayHost = (node: ReactNode) => (shape: VisualShape) => {
+    const beneath = contentByShapeId.get(shape.id)
+    contentByShapeId.set(
+      shape.id,
+      <>
+        {beneath}
+        {node}
+      </>
+    )
+  }
   if (contactLit) {
-    for (const shape of hostShapes) {
-      const fields = contactFieldsForHost()
-      if (!fields) break
-      contentByShapeId.set(
-        shape.id,
-        <ShapeContact
-          fields={fields}
-          boxWidth={textLayoutBoxWidth(shapeFrame(shape), 1, outputWidth, outputHeight)}
-        />
-      )
+    const fields = contactFieldsForHost()
+    if (fields) {
+      for (const shape of hostShapes) {
+        overlayHost(
+          <ShapeContact
+            fields={fields}
+            boxWidth={textLayoutBoxWidth(shapeFrame(shape), 1, outputWidth, outputHeight)}
+          />
+        )(shape)
+      }
     }
   }
   if (showIntro) {
     for (const shape of hostShapes) {
-      contentByShapeId.set(
-        shape.id,
+      overlayHost(
         <ShapeIntro
           parts={introParts!}
           boxWidth={textLayoutBoxWidth(shapeFrame(shape), 1, outputWidth, outputHeight)}
         />
-      )
+      )(shape)
     }
   }
 
