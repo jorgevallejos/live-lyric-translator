@@ -152,6 +152,15 @@ Pulled forward from the general backlog because it was deadline-critical for the
   cueTime[i] = timeline[i].start × scale
   ```
   The pulse also runs at `performedBpm`, deriving from the same number so it cannot drift from the cues. Non-negotiables: **never overwrite `tempo.bpm`** (a fact about the recording the whole scale depends on) — a persisted performed tempo lives in its own key, `performedBpm`; **adjustable only while idle, frozen once armed** (changing it mid-song would jump the current line); **default `performedBpm == tempo.bpm`** (scale 1.0, byte-identical to today unless nudged); **a song with no `tempo` block gets no pulse and no scaling** — no invented fallback BPM.
+- **P9 IS GONE — Pregonero stores no tempo (Jorge, 2026-09-05, shipped in `v0.70.0`).** The whole
+  of the above is removed: the box on Standby, the per-song `llt.performedBpm.v1` key, and
+  `performedTempo.ts` with `getTempoScale`, `scaleTimeline` and `resolvePerformedBpm`. **Tempo has
+  one home and it is the song file**, so the cue times are the recording's own timings and the
+  pulse is the song's own `tempo.bpm`. **The key was deleted rather than moved to a side**, which
+  is what makes the question of which reset clears it stop existing. The one non-negotiable above
+  survives by construction rather than by rule: `tempo.bpm` cannot be retimed against a past gig
+  when there is no second tempo to retime it against. The reasoning is in
+  `projects/tramoya-integration/journey-performance.md`, *Pregonero stores no tempo*.
 - **P10 (pulse audio) — considered and explicitly parked, 2026-08-14, Jorge's call.** The pulse is visual only (`BeatCircle`'s dot row; no `AudioContext`/oscillator/audio asset anywhere in `src/`) — P5's "click track" wording was loose, not a missing feature. An audible click is out of scope and not currently planned; kept as a record of the shape it would take if it ever is: a short WebAudio blip on `absoluteBeat` change, accented on `beatInBar === 1`, with an on/off control, and an open output-device question (laptop speaker is useless on stage; likely wants an in-ear/monitor path). It would inherit P5's phase behaviour for free.
 
 ### Tramoya integration — what changed inside this repo (2026-08-26–27)

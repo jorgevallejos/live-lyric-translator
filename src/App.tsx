@@ -90,14 +90,6 @@ import {
 } from './screenSizeState'
 import type { LyricLine, SongItem } from './songState'
 import { computeAutoAdvanceIndex, isCueStartMode, resolveAdvanceMode, type AdvanceMode } from './autoAdvanceState'
-import {
-  getStoredPerformedBpm,
-  setStoredPerformedBpm,
-  resolvePerformedBpm,
-  getTempoScale,
-  scaleTimeline,
-  isUsableBpm,
-} from './performedTempo'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -773,62 +765,20 @@ function ControlView() {
     ? 'Auto needs a timeline.'
     : null
 
-  // ── P9: performed-tempo scaling ──────────────────────────────────────────────────────────
-  // tempo.bpm is a fact about the RECORDING and the anchor the whole scale depends on — it is
-  // read here and never written. The performed tempo lives in its own store (performedTempo.ts).
-  const declaredBpm = songTempo?.bpm
-  const [performedBpmField, setPerformedBpmField] = useState<string>('')
-  const [storedPerformedBpm, setStoredPerformedBpmState] = useState<number | null>(null)
-  // The box always carries a number — the stored performed tempo if there is one, otherwise the
-  // recording's own. That is what removed the second "recorded at N" label: the recorded tempo
-  // IS the box's contents until it is nudged. It also gives the spinner arrows somewhere to step
-  // from; from an empty field they would start at `min`. Keyed on the primitive bpm, never on
-  // the song object, which is a fresh reference every render (see CLAUDE.md).
-  useEffect(() => {
-    const stored = currentSongId ? getStoredPerformedBpm(currentSongId) : null
-    setStoredPerformedBpmState(stored)
-    setPerformedBpmField(
-      stored !== null ? String(stored) : declaredBpm !== undefined ? String(declaredBpm) : ''
-    )
-  }, [currentSongId, declaredBpm])
-  // Defaults to the declared tempo → scale exactly 1.0 → today's behaviour, byte-identical.
-  const performedBpm = resolvePerformedBpm(declaredBpm, storedPerformedBpm)
-  const tempoScale = getTempoScale(declaredBpm, performedBpm)
-  // The pulse runs at the performed tempo. Both the pulse and the cue times derive from this
-  // same number, so they cannot drift apart. A new object each render is safe: useBeatClock
-  // keys its effects on primitive tempo fields, never on object identity (see CLAUDE.md).
-  const pulseTempo = songTempo && performedBpm !== undefined
-    ? { ...songTempo, bpm: performedBpm }
-    : songTempo
-  const handlePerformedBpmChange = (raw: string) => {
-    setPerformedBpmField(raw)
-    const parsed = Number(raw)
-    const next = raw.trim() === '' || !isUsableBpm(parsed) ? null : parsed
-    if (currentSongId) setStoredPerformedBpm(currentSongId, next)
-    setStoredPerformedBpmState(next)
-  }
-  // Half a BPM is the finest tempo Jorge can actually mean, so that is the grid the arrows step
-  // on and the grid a typed value lands on. Snapping happens on blur rather than per keystroke —
-  // snapping "90.3" the moment the 3 is typed makes the field unusable.
+  // ── PREGONERO STORES NO TEMPO (Jorge, 2026-09-05) ────────────────────────────────────────
   //
-  // The one value exempt from the grid is the recording's own tempo. A song measured at 66.67
-  // must be allowed to sit at 66.67: rounding it to 66.5 would silently retime every cue against
-  // the recording, which is exactly the failure performedTempo.ts exists to prevent.
-  const handlePerformedBpmBlur = () => {
-    const raw = performedBpmField.trim()
-    if (raw === '') {
-      if (declaredBpm !== undefined) setPerformedBpmField(String(declaredBpm))
-      return
-    }
-    const parsed = Number(raw)
-    if (!isUsableBpm(parsed)) return
-    if (parsed === declaredBpm) return
-    const snapped = Math.round(parsed * 2) / 2
-    if (snapped === parsed) return
-    setPerformedBpmField(String(snapped))
-    if (currentSongId) setStoredPerformedBpm(currentSongId, snapped)
-    setStoredPerformedBpmState(snapped)
-  }
+  // **`llt.performedBpm.v1` is deleted, not moved to a side.** A performed tempo per song, held
+  // in `localStorage`, was flagged on 04/09 as arguably setup and left for Jorge to rule. **He
+  // ruled it out of existence: tempo has one home and it is the song file.**
+  //
+  // **So the pulse and the cue times are the song's own `tempo.bpm`**, and there is nothing to
+  // scale against — `getTempoScale`, `scaleTimeline` and `resolvePerformedBpm` went with the
+  // store, because at one home they were the identity function wearing a name. The rule they
+  // were built to protect is now structural rather than remembered: **`tempo.bpm` cannot be
+  // retimed against a past gig if there is no second tempo to retime it against.**
+  //
+  // **And the question of which reset clears it stops existing**, which is what the ruling was
+  // reaching for — see `journey-performance.md`.
 
   const {
     phase: beatPhase,
@@ -840,7 +790,7 @@ function ControlView() {
     restart: restartBeatClock,
     reset: resetBeatClock,
   } = useBeatClock(
-    pulseTempo,
+    songTempo,
     showArmedShell && !showVideoPerformance
   )
 
@@ -904,8 +854,6 @@ function ControlView() {
   // P9: read through a ref, not an effect dep — the scale is frozen for the duration of a
   // performance (the control is only reachable before arming), so a change must never re-target
   // the current line mid-song.
-  const tempoScaleRef = useRef(tempoScale)
-  tempoScaleRef.current = tempoScale
   const applyRemoteStateRef = useRef(applyRemoteState)
   applyRemoteStateRef.current = applyRemoteState
   const sendCommandWithStateRef = useRef(sendCommandWithState)
@@ -914,11 +862,9 @@ function ControlView() {
     if (showVideoPerformance) return
     if (effectiveAdvanceMode !== 'auto' || !hasTimeline) return
     if (songElapsedMs <= 0) return
-    // P9: cue times are the recording's timings scaled by declaredBpm / performedBpm. At the
-    // default (performedBpm == tempo.bpm) the scale is exactly 1 and scaleTimeline returns the
-    // original array untouched.
-    const cueTimeline = scaleTimeline(timelineRef.current, tempoScaleRef.current)
-    const targetIndex = computeAutoAdvanceIndex(cueTimeline, songElapsedMs)
+    // **The cue times are the recording's own timings, unscaled.** Nothing stands between the
+    // song file and the clock since the performed tempo went — see the block above.
+    const targetIndex = computeAutoAdvanceIndex(timelineRef.current, songElapsedMs)
     if (targetIndex === index) return
     // A real cue (index >= 0) un-blanks; before the first cue / in gaps (index -1) stays blank.
     const targetBlank = targetIndex < 0
@@ -1186,31 +1132,10 @@ function ControlView() {
                       </div>
                     </div>
                   )}
-                  {/* P9: performed tempo. Only meaningful for a song that declares a tempo —
-                      no tempo block means no pulse and no scaling, and no fallback BPM is
-                      invented. This lives in the setup panel, which is not rendered once the
-                      song is armed: that IS the "frozen once armed" guarantee, since changing
-                      the scale mid-song would jump the current line under the performer. */}
-                  {!showVideoPerformance && songTempo && (
-                    <div className="control-setup-toggle-area">
-                      <div className="ctrl-toggle-group">
-                        <span className="ctrl-toggle-label">Performed tempo</span>
-                        <div className="ctrl-performed-bpm">
-                          <input
-                            type="number"
-                            className="ctrl-performed-bpm-input"
-                            data-testid="performed-bpm-input"
-                            aria-label="Performed tempo in BPM"
-                            min="1"
-                            step="0.5"
-                            value={performedBpmField}
-                            onChange={(e) => handlePerformedBpmChange(e.target.value)}
-                            onBlur={handlePerformedBpmBlur}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* **THE PERFORMED-TEMPO BOX IS GONE** (Jorge, 2026-09-05). It let a song be
+                      performed at a tempo other than the recording's, stored per song under
+                      `llt.performedBpm.v1`. **Tempo has one home and it is the song file**, so
+                      there is no second number to type and nothing for a reset to clear. */}
                 </div>
                 <div className="control-setup-buttons">
                   <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToLanguages}>
