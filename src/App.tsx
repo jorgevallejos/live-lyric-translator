@@ -9,6 +9,7 @@ import { ShapeFill } from './ShapeFill'
 import { readTextFields, textLayoutBoxWidth } from './shapeTextLayout'
 import {
   resolveShapesForType,
+  shapeShowsForSong,
   songAssetFor,
   songVideoAssets,
   shapeFrame,
@@ -2260,14 +2261,31 @@ function ProjectionView() {
     }
   }
 
-  // **Everything that is not song-aware is on because the projector is on.** Pregonero does not
-  // coordinate these, start them, stop them or hold state for them, and there is no case here for
-  // any particular one of them — a `logo` case would be the mistake. Painting them unconditionally
-  // is the absence of a rule rather than a rule, and it is what makes the wall never fully black
-  // between songs without anything arranging that.
+  /**
+   * **Everything that is not song-aware is on because the projector is on.** Pregonero does not
+   * coordinate these, start them, stop them or hold state for them, and there is no case here for
+   * any particular one of them — a `logo` case would be the mistake. Painting them unconditionally
+   * is the absence of a rule rather than a rule, and it is what makes the wall never fully black
+   * between songs without anything arranging that.
+   *
+   * **"Unconditionally" stopped being true on 2026-09-05, and this loop did not notice** (found
+   * 2026-09-06, reading the two renderers side by side). Named modes let **any** shape join a mode
+   * — Muralista's grouped list will drag a logo, a fill or a text card into one — and the mode is
+   * evaluated here in `resolveShapesForType`, **which only ever sees the song-aware types.** This
+   * loop skips those and then painted everything else with no mode check at all.
+   *
+   * **So a static shape in a mode was live in every mode on Pregonero's wall and in one mode on
+   * Muralista's**, which is the two tools disagreeing about the same file — exactly what having one
+   * lookup exists to prevent, escaping through the one path that does not use it.
+   *
+   * `shapeShowsForSong` is that lookup's own predicate, so there is still one implementation of the
+   * rule. A shape in no mode answers `true` and pays nothing, which is every shape in a real room
+   * today.
+   */
   const fillShapes: VisualShape[] = []
   for (const shape of visuals?.shapes ?? []) {
     if (!shapeIsVisible(shape)) continue
+    if (visuals && !shapeShowsForSong(visuals, shape, currentSongId || null)) continue
     const type = shapeTypeOf(shape)
     if ((SONG_AWARE_TYPES as readonly string[]).includes(type)) continue
     if (type === 'fill') {

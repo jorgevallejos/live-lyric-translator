@@ -930,6 +930,30 @@ and a test asserts the sentence mentions no wall, no projector and no QR.
 first song's `artist` field are all *usually right*, which is the worst kind of wrong for a value
 that ends up on a wall in front of a room.
 
+### The mode rule escaped through the one path that does not use the lookup (2026-09-06)
+
+**Found by reading the two renderers side by side while building Muralista's shapes round**, not by
+a walk — which is the only reason it is here before it reached a wall.
+
+**Named modes are evaluated inside `resolveShapesForType`, and that function only ever sees the
+song-aware types.** The loop in `App.tsx` that paints logos, pictures, text cards and fills skips
+those types by design — *everything that is not song-aware is on because the projector is on* — and
+then painted everything else **with no mode check at all**.
+
+**But any shape can join a mode.** Muralista's grouped list will drag a logo, a fill or a text card
+into one, and its own output window honours `shapeShowsInMode` for every shape it draws. **So a
+static shape in a mode was live in every mode on Pregonero's wall and in one mode on Muralista's** —
+the two tools disagreeing about the same file, which is exactly what having one lookup exists to
+prevent, escaping through the one path that does not go through it.
+
+**The fix is that lookup's own predicate**, `shapeShowsForSong`, so there is still one
+implementation of the rule. A shape in no mode answers `true` and pays nothing, which is every shape
+in a real room today — **which is also why nothing caught it**: the failure needs a room nobody has
+authored yet, and it would have shipped waiting for the first one.
+
+**The test is asserted to fail without the fix**, because a green test over a case that never
+occurs is worth nothing.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20
