@@ -103,6 +103,32 @@ States: `SETUP` → `READY_TO_ARM` → `ARMED` → (performing when index ≥ 0 
 - `dialog:openFolder` is the picker for any folder this machine remembers — the songs root, the gigs root and the media folder. The gig folder keeps its own handler because its picker offers to create one; this one never does.
 - **Every picker takes a `defaultPath` and reopens where it last was**, per picker (`src/pickerMemory.ts` remembers the folder each one was in, and hands it over on the next call). A convenience, not a setting: nothing in Preferences, and safe because remembering *where a dialog opened* is not remembering *an answer* — the dialog shows you where you are and you can walk away from it.
 
+### The line between the two products, and where it is measured
+
+**The shell makes things, the player uses them.** Backstage, the song flow and the gig flow make;
+Standby and the performing view use a finished gig. **Arming is not the product boundary** — it is a
+state inside the player, since a standalone player that cannot choose the song, set the languages,
+open the projection and arm is not a player.
+
+**`src/productBoundary.ts` declares which modules are on which side, and `productBoundary.test.ts`
+checks the declaration against the real import graph.** It goes red on the day the line is crossed
+rather than on the day someone tries to separate the two products. **A new module fails the test
+until it is classified**, which is most of the value: the crossing that matters is the one nobody
+thought about.
+
+**Two facts it records rather than fixes**, both deliberate:
+
+- **`App.tsx` contains both products** — it defines Standby, the performing view and the projection
+  window while importing every one of the shell's screens to route to them. It is the extraction's
+  first work item, and the `UNSPLIT` set is pinned at `App.tsx` and `main.tsx` so the cost cannot
+  grow unnoticed.
+- **`mediaSources.ts` imports `isStaticType` from `ShapeStatic.tsx`**, so a shared reader reaches
+  into a player renderer. A one-line move would fix it and it was not made: the round that drew the
+  line moved no code to make a test pass.
+
+**Do not make this test pass by moving code.** A crossing is either a wrong classification — fix the
+declaration and say why — or a real design question.
+
 ### Where each file lives, and who owns it
 
 **One question, asked twice: is this file the author's, or the machine's?** `src/fileLayout.ts` is
