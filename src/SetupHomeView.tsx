@@ -25,7 +25,7 @@ import {
 } from './platform'
 import { setSongFlowRequest } from './songFlowState'
 import { gigsUsingSong, type GigUse } from './songUsage'
-import { PencilIcon, PlayTriangleIcon, TrashCanIcon } from './RowIcons'
+import { PencilIcon, TrashCanIcon } from './RowIcons'
 import { GatedAction } from './GatedAction'
 
 /**
@@ -171,14 +171,12 @@ function GigRow({
   path,
   label,
   busy,
-  onSelect,
   onOpen,
   onDelete,
 }: {
   path: string
   label: string
   busy: boolean
-  onSelect: () => void
   onOpen: () => void
   onDelete: () => void
 }) {
@@ -188,20 +186,13 @@ function GigRow({
   return (
     <li className="setup-home-row setup-gig-row" data-testid={`setup-gig-row-${id}`}>
       <span className="setup-home-row-name">{label}</span>
+      {/* **A GIG ROW IS NAME, PENCIL, BIN** (Jorge, 2026-09-05). The play triangle came off:
+          **nothing opens a gig for performance from the room where gigs are made.** Choosing
+          tonight's gig is `Choose` on Standby, which is where performing happens, and this room
+          makes gigs and edits them. The 03/09 shape — *a gig row is its name, a pencil and a bin,
+          like a song row is its title, its mode and the same two marks* — is what is left, and it
+          is what that ruling asked for before the triangle was added to it on 04/09. */}
       <div className="setup-home-row-actions">
-        {/* First of the three, because it is the one act that leaves — and it reads left to right
-            as *take this one out* before the two that work on it in place. */}
-        <button
-          type="button"
-          className="manage-setlists-action-btn manage-setlists-icon-btn setup-gig-select-btn"
-          disabled={busy}
-          aria-label={`Select ${label}`}
-          title="Select"
-          data-testid={`setup-gig-select-${id}`}
-          onClick={onSelect}
-        >
-          <PlayTriangleIcon />
-        </button>
         <button
           type="button"
           className="manage-setlists-action-btn manage-setlists-icon-btn"
@@ -933,14 +924,6 @@ export function SetupHomeView() {
     })
   }
 
-  /**
-   * **Out to `Standby`**, the control view, carrying the gig that was just selected. Ordinary
-   * navigation: nothing is armed by arriving, and nothing starts until Arm is pressed.
-   */
-  const toStandby = () => {
-    window.location.hash = '#/'
-  }
-
   const toSetup = () => {
     window.location.hash = '#/gig'
   }
@@ -1167,12 +1150,6 @@ export function SetupHomeView() {
                       path={path}
                       label={gigLabels.get(path) ?? basename(path)}
                       busy={busy}
-                      onSelect={run(async () => {
-                        // **The same selection the pencil makes**, and the only one this app has.
-                        // What differs is where you land: the gig flow, or the stage.
-                        await openGigFolder(path)
-                        toStandby()
-                      })}
                       onOpen={run(async () => {
                         await openGigFolder(path)
                         toSetup()
