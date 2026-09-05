@@ -146,13 +146,14 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(standbyState()).toBe('READY_TO_ARM')
 
     await act(async () => { fireEvent.click(getArmButton()) })
-    // P5 (amends the pre-P5 "no beat circle on arm" assertion): arming starts the free-running
-    // pulse — a plain click the performer plays an intro to — but not the count-in, and not the
-    // transport.
-    expect(screen.getByTestId('beat-circle-running')).toBeTruthy()
-    expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
+    // **NOTHING ON ARM IN `manual`** (Jorge, 2026-09-05). P5's free-running pulse is still
+    // there, on its own epoch — it is what the count-in re-anchors — but it is not drawn: in
+    // `manual` nothing is running on its own, so there is nothing to keep the performer with.
+    // This song has a tempo and no timeline, which is what makes it `manual`.
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
 
-    // R2: the count-in begins on the explicit Start step, before any lyric.
+    // R2: the count-in begins on the explicit Start step, before any lyric — and **the count-in
+    // IS something running on its own**, which is the whole reason that step exists.
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
@@ -205,7 +206,10 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(dotsEl.querySelectorAll('[data-testid="beat-circle-dot"]')[0].className).toMatch(/active/)
   })
 
-  it('after count-in, count-in phase disappears and running phase appears', async () => {
+  it('after the count-in, the indicator goes — in `manual` he is the clock', async () => {
+    // The count-in ends and the song begins. **From that moment nothing is running on its own**
+    // — a manual song advances on the performer's press — so the indicator has nothing to
+    // report and goes with the count-in that produced it.
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -217,7 +221,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     act(() => { vi.advanceTimersByTime(2100) })
 
     expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
-    expect(screen.getByTestId('beat-circle-running')).toBeTruthy()
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 
   it('does NOT auto-navigate past the first lyric when count-in ends (begin event) — Next stays manual', async () => {
@@ -256,5 +260,121 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     act(() => { vi.advanceTimersByTime(2100) })
 
     expect(screen.queryByTestId('beat-circle')).toBeNull()
+  })
+})
+
+/**
+ * **`clock` AND `video` ONLY, NEVER `manual`** (Jorge, 2026-09-05).
+ *
+ * **This supersedes moments 6 and 7**, which both said the indicator shows in all three drive
+ * modes. **The indicator exists to keep Jorge with something running on its own** — the timeline
+ * in `clock`, the animation in `video`. In `manual` nothing is running: he is the clock, so
+ * there is nothing to drift from and nothing to report. And a manual-only song frequently
+ * carries no tempo at all, so in the one mode where it would be drawn there is often no pulse.
+ *
+ * **Drive mode is not a concept in this code**, so `clock` is read off the two axes that are:
+ * `isAutoArmed` — non-video, Auto advance, has a timeline.
+ */
+describe('the beat indicator, by drive mode', () => {
+  const TEMPO = { bpm: 120, numerator: 4, denominator: 4, countInBars: 1 } as const
+
+  /** A `clock` song: a timeline to drive off, a tempo to pulse at, no video. */
+  function installClockSong(): void {
+    installLibrary(
+      SONGS.map((s) => ({
+        id: s.id,
+        title: s.title,
+        items: VALID_LINES,
+        ...(s.id === 'duelo'
+          ? {
+              tempo: { ...TEMPO },
+              timelineVersion: 2 as const,
+              timeline: [
+                { start: 0, end: 30 },
+                { start: 30, end: 60 },
+              ],
+            }
+          : {}),
+      }))
+    )
+  }
+
+  /** A `manual` song: a tempo, and no timeline to drive off. */
+  function installManualSong(): void {
+    installLibrary(
+      SONGS.map((s) => ({
+        id: s.id,
+        title: s.title,
+        items: VALID_LINES,
+        ...(s.id === 'duelo' ? { tempo: { ...TEMPO } } : {}),
+      }))
+    )
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearStorage()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    cleanup()
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI
+  })
+
+  async function armIt() {
+    setupControlViewWithReadinessPassing()
+    render(<App initialHash="#/" />)
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { fireEvent.click(getArmButton()) })
+  }
+
+  it('in `clock`, it is there the moment the song is loaded — before any press', async () => {
+    // **The beat starts when a song loads**, and arming is what loads the first song. Jorge's
+    // reason, in his words: so he can get into the rhythm and eventually press start.
+    vi.useFakeTimers()
+    installClockSong()
+    await armIt()
+    act(() => { vi.advanceTimersByTime(50) })
+    expect(screen.getByTestId('beat-circle')).toBeTruthy()
+    // A free-running pulse is a plain click, never a phantom count-in.
+    expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
+  })
+
+  it('in `manual`, it is not there on arm', async () => {
+    vi.useFakeTimers()
+    installManualSong()
+    await armIt()
+    act(() => { vi.advanceTimersByTime(2100) })
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
+  })
+
+  it('is not drawn for a song with no tempo, in any mode', async () => {
+    // **One condition, not an exception.** A manual-only song carries no tempo block by design,
+    // so there is no pulse to draw — and that answer does not depend on the mode.
+    vi.useFakeTimers()
+    installClockSong()
+    setupControlViewWithReadinessPassing()
+    setCurrentSongId('pimiento')
+    setCurrentSongTitle('Pimiento')
+    render(<App initialHash="#/" />)
+    await act(async () => { await Promise.resolve() })
+    await act(async () => { fireEvent.click(getArmButton()) })
+    act(() => { vi.advanceTimersByTime(2100) })
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
+  })
+
+  it('in `clock`, it survives the press and runs on into the song', async () => {
+    // It runs through *loaded, not yet cued* — the intro card up — through the press, and into
+    // *running*.
+    vi.useFakeTimers()
+    installClockSong()
+    await armIt()
+    act(() => { vi.advanceTimersByTime(50) })
+    expect(screen.getByTestId('beat-circle')).toBeTruthy()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
+    act(() => { vi.advanceTimersByTime(50) })
+    expect(getSongIndex()).toBe(0)
+    expect(screen.getByTestId('beat-circle')).toBeTruthy()
   })
 })

@@ -791,7 +791,10 @@ function ControlView() {
     reset: resetBeatClock,
   } = useBeatClock(
     songTempo,
-    showArmedShell && !showVideoPerformance
+    showArmedShell && !showVideoPerformance,
+    // **The loaded song. A change to it is a load, and a load starts the beat** — one rule
+    // covering both of Jorge's triggers, arming and `next`. See `useBeatClock`.
+    currentSongId
   )
 
   // T2: Auto lyric-advance behaves like Video mode but driven by the beat clock. When the
@@ -1271,6 +1274,10 @@ function ControlView() {
         )}
         {showArmedShell && showVideoPerformance && (
           <VideoPerformancePanel
+            // **The panel is remounted per song, so mount is *a song loaded*** — the trigger the
+            // beat indicator starts on, written once rather than as a second `next` path here.
+            key={currentSongId}
+            songFinished={isEndOfSong}
             absolutePath={resolvedVideoPath}
             timeline={currentLibrarySong!.timeline ?? []}
             leadIn={currentLibrarySong!.leadIn}
@@ -1284,7 +1291,44 @@ function ControlView() {
         {showArmedShell && !showVideoPerformance && (
           <>
             <div className="control-performing-stage" data-testid="performing-content" style={{ position: 'relative' }}>
-              {songTempo && (
+              {/* **THE BEAT INDICATOR: `clock` AND `video` ONLY, NEVER `manual`** (Jorge,
+                  2026-09-05). **This supersedes moments 6 and 7**, which both said it shows in
+                  all three drive modes.
+
+                  **Two reasons, and the second settles it.** The indicator exists to keep Jorge
+                  with something that is running on its own — the timeline here, the animation in
+                  the video panel. **In `manual` nothing is running: he is the clock**, so there
+                  is nothing to drift from and nothing to report. And a manual-only song may carry
+                  no tempo at all, so in the one mode where it would be drawn there is frequently
+                  no pulse to draw.
+
+                  **`isAutoArmed` is `clock`.** Drive mode is not a concept in this code yet — it
+                  is assembled from two axes that are (`isVideoMode`, and the Transitions toggle)
+                  — and `isAutoArmed` is exactly *non-video, Auto, has a timeline*, which is what
+                  `clock` names. **P6 falls out of it for free:** a `Next` mid-song takes the
+                  wheel, `effectiveAdvanceMode` becomes `manual`, and the indicator goes with it,
+                  because from that press onward he is the clock.
+
+                  **One condition, not an exception:** drawn when the mode is `clock` and the
+                  song has a tempo. A song without one shows nothing, in any mode.
+
+                  **It stops when the song finishes.** `isEndOfSong` is the app's own word for
+                  that — the last lyric line is up, the transport button has flipped to `Unarm`
+                  and the next song is being offered. It starts again on `next`, because that
+                  loads a song.
+
+                  **ONE PLACE THIS WAS INTERPRETED RATHER THAN EXECUTED, AND IT IS FLAGGED.**
+                  The ruling reads *not in `manual`, at the cue or during the song*, and **R2's
+                  Manual Start step is a count-in that only exists to be watched** — a manual
+                  song with a tempo gets an explicit `Start` so the performer can catch the tempo
+                  before singing. Hiding the indicator there leaves a control with no observable
+                  effect, which is a shape this app forbids elsewhere. **And the ruling's own
+                  reason does not reach it:** during a count-in something IS running on its own,
+                  which is the whole of why the count-in was built.
+                  **So the count-in stays visible in `manual` and the running pulse does not.**
+                  If Jorge meant the count-in too, the fix is to delete R2's Start step with it
+                  rather than to leave it silent — which is his call, not this run's. */}
+              {songTempo && !isEndOfSong && (isAutoArmed || beatPlayState === 'count-in') && (
                 <div
                   className="control-beat-clock-wrap"
                   style={{
