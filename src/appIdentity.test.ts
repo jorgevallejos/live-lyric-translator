@@ -27,10 +27,14 @@ describe('the application names itself Tramoya', () => {
     expect(pkg.build.dmg.title).toBe('Tramoya')
   })
 
-  it('names the data directory through the product name, which is what Electron reads', () => {
-    // `app.getPath('userData')` is `Application Support/<CFBundleName>`, and electron-builder
-    // writes `CFBundleName` from `productName`. Asserting the manifest is asserting the path.
-    expect(pkg.build.productName).toBe('Tramoya')
+  it('names the data directory through `name`, which is the field Electron actually reads', () => {
+    // **Measured on the 2026-09-06 install, not inferred.** `app.getPath('userData')` is
+    // `Application Support/<app.getName()>`, and `app.getName()` reads the `package.json` inside
+    // the asar — where electron-builder leaves `name` alone and writes `productName` only into
+    // `Info.plist`. The old bundle's `CFBundleName` was `Pregonero` and its directory was the
+    // lowercase `pregonero`; this one's is `Tramoya` and its directory is `tramoya`.
+    //
+    // **So `productName` alone would have renamed the app and left its data where it was.**
     expect(pkg.name).toBe('tramoya')
   })
 })
