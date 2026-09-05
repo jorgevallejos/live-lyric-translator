@@ -14,6 +14,7 @@ import { setBlank, setCurrentSongId, setProjectionLanguage, setSingingLanguage, 
 import { dropLibraryCache, type LibrarySong } from './setlistStore'
 import { getPlayedSongs } from './playedSongsState'
 import { installLibrary } from './testSupport/library'
+import { standbyState } from './testSupport/standbyState'
 
 const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
@@ -286,9 +287,7 @@ describe('the hard gate at arm time', () => {
     armableControlSetup()
     await renderAt('#/')
     await waitFor(
-      () => expect(screen.getByTestId('performance-state-label').textContent).toBe(
-        'Performance: Ready to Arm'
-      ),
+      () => expect(standbyState()).toBe('READY_TO_ARM'),
       { timeout: WAIT_TIMEOUT }
     )
     expect(screen.queryByTestId('arm-blocked-reasons')).toBeNull()
@@ -314,7 +313,7 @@ describe('the hard gate at arm time', () => {
     )
     const main = screen.getByRole('main')
     expect(within(main).getByRole('button', { name: 'Arm' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByTestId('performance-state-label').textContent).toBe('Performance: Setup')
+    expect(standbyState()).toBe('SETUP')
   })
 
   it('says the escape hatch out loud', async () => {
@@ -348,9 +347,7 @@ describe('the hard gate at arm time', () => {
     )
     await renderAt('#/')
     await waitFor(
-      () => expect(screen.getByTestId('performance-state-label').textContent).toBe(
-        'Performance: Ready to Arm'
-      ),
+      () => expect(standbyState()).toBe('READY_TO_ARM'),
       { timeout: WAIT_TIMEOUT }
     )
     expect(screen.queryByTestId('arm-blocked-reasons')).toBeNull()

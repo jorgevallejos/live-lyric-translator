@@ -14,6 +14,7 @@ import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-libra
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
+import { standbyState } from './testSupport/standbyState'
 import {
   ARTIST_NAME_KEY,
   GIGS_FOLDER_KEY,
@@ -66,7 +67,7 @@ describe('first run', () => {
     expect(screen.getByTestId('first-run')).toBeTruthy()
     // Not behind the hydration screen, and not behind the control view.
     expect(screen.queryByTestId('song-library-loading')).toBeNull()
-    expect(screen.queryByTestId('performance-state-label')).toBeNull()
+    expect(standbyState()).toBeNull()
   })
 
   it('still asks when only the songs folder is set', async () => {

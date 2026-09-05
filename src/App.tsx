@@ -97,7 +97,6 @@ import {
   scaleTimeline,
   isUsableBpm,
 } from './performedTempo'
-import { APP_VERSION } from './appVersion'
 import './control.css'
 
 /** v0.5: labels from performance control state machine (SETUP | READY_TO_ARM | ARMED) */
@@ -973,31 +972,35 @@ function ControlView() {
     <div className="control-screen">
       {showSetupPanel && (
         <header className="control-masthead" role="banner">
-          <span className="control-masthead-id">
-            <span className="control-masthead-wordmark">Pregonero</span>
-            <span className="control-masthead-tagline">Live lyric translation</span>
-          </span>
-          {/* **THE ROOM IS CALLED `Standby`** (Jorge, 2026-09-04). It had no name: Backstage got
-              one on 02/09 and the stage did not. **Standby is the stage manager's call before a
-              cue**, which is exactly what this screen is — choose the gig, choose the song, choose
-              the mode, stand by — and **arming is the GO**.
+          {/* **THE MASTHEAD IS THE ROOM'S NAME AND NOTHING ELSE** (Jorge, 2026-09-05). The
+              wordmark `Pregonero / Live lyric translation` and the by-line
+              `v0.xx.x / A Tramoya tool / by Chango Pepper` are both gone.
 
-              Titled the way Backstage is: an `h1` naming the room, at `.songs-title`'s weight and
-              size. It sits in the masthead rather than in a bar of its own because this screen
-              already has a masthead, and **it is inside `showSetupPanel`**, so it is gone the
-              instant you arm — the performing view is a different room and does not change. */}
+              **Third time this argument has run**: Bombista's header went on 02/09 and Muralista's
+              label on 04/09, for the same reason — **the tool introducing itself to someone who did
+              not choose it.** Jorge opened his own app; it does not need to say whose it is or what
+              it is called.
+
+              **Where the version survives, because that rule cost a day.** Two builds calling
+              themselves one number is the trap, so the number has to be readable somewhere: it is
+              in the macOS About panel, `Tramoya → About Tramoya`, from the bundle's own
+              `CFBundleShortVersionString`. **That is a stronger claim than a string in the
+              renderer**, because it is the bundle describing itself rather than the page.
+
+              **The design also says: standalone, the player keeps its name and version, as
+              Bombista does on `--no-header`. There is no standalone yet** — Pregonero is not a
+              framed page, so *hosted* is the only mode that exists and the branch would be
+              unreachable code guarding a boundary nothing has measured. It arrives with the
+              extraction, not before it.
+
+              **THE ROOM IS CALLED `Standby`** (Jorge, 2026-09-04). **Standby is the stage manager's
+              call before a cue**, which is exactly what this screen is — choose the gig, choose the
+              song, choose the mode, stand by — and **arming is the GO**. It is inside
+              `showSetupPanel`, so it is gone the instant you arm: the performing view is a
+              different room and does not change. */}
           <h1 className="control-room-name" data-testid="control-room-name">
             Standby
           </h1>
-          <span className="control-masthead-by">
-            <span>v{APP_VERSION}</span>
-            <span>
-              A <span className="control-masthead-tramoya">Tramoya</span> tool
-            </span>
-            <span>
-              by <b>Chango Pepper</b>
-            </span>
-          </span>
         </header>
       )}
 
@@ -1026,9 +1029,14 @@ function ControlView() {
       <main className={`control-center ${showSetupPanel ? 'control-center-setup' : ''}`}>
         {showSetupPanel && (
           <>
-            <p className="control-state-label" data-testid="performance-state-label">
-              {controlStateLabel}
-            </p>
+            {/* **`Performance: Setup` is gone** (Jorge, 2026-09-05), and it goes for a second
+                reason on top of the masthead's. **Those two words now name the two halves of the
+                split** — the shell prepares, the player performs — so a heading pairing them
+                describes nothing and contradicts both.
+
+                **The state is still on the screen, in the column that owns it.** `ARM` reads
+                `Unarmed`, and its button is enabled exactly when the state is `READY_TO_ARM`. That
+                is the same distinction the heading spelled out, shown where it is acted on. */}
             <div
               className={
                 controlState === 'SETUP'
@@ -1283,6 +1291,7 @@ function ControlView() {
                   <button
                     type="button"
                     className="ctrl-btn ctrl-arm"
+                    data-testid="control-arm-button"
                     onClick={handleArmAndRestart}
                     disabled={!canArm}
                   >

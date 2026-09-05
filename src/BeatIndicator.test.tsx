@@ -28,6 +28,7 @@ import {
 import type { SongItem } from './songState'
 import { SONGS } from './songs'
 import { installLibrary } from './testSupport/library'
+import { standbyState } from './testSupport/standbyState'
 
 function createStorage(): Storage {
   const store = new Map<string, string>()
@@ -129,7 +130,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     render(<App initialHash="#/" />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('performance-state-label').textContent).toBe('Performance: Ready to Arm')
+      expect(standbyState()).toBe('READY_TO_ARM')
     }, { timeout: WAIT_TIMEOUT })
     await act(async () => { fireEvent.click(getArmButton()) })
 
@@ -142,7 +143,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     render(<App initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
-    expect(screen.getByTestId('performance-state-label').textContent).toBe('Performance: Ready to Arm')
+    expect(standbyState()).toBe('READY_TO_ARM')
 
     await act(async () => { fireEvent.click(getArmButton()) })
     // P5 (amends the pre-P5 "no beat circle on arm" assertion): arming starts the free-running
