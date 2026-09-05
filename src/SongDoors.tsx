@@ -46,7 +46,7 @@ export const DOOR_LABEL: Record<SongDoor, string> = {
  */
 
 export const SONG_INPUT_RULE =
-  'A song needs lyrics and audio. The timeline comes from aligning one against the other, so a song with no audio cannot leave this step — that is a fact about the work, not a rule Pregonero invented.'
+  'A song needs lyrics and audio. The timeline comes from aligning one against the other, so a song with no audio cannot leave this step — that is a fact about the work, not a rule Tramoya invented.'
 
 type Props = {
   songId: string

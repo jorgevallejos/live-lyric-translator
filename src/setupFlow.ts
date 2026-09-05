@@ -70,9 +70,9 @@ export const STEP_PURPOSE: Record<number, string> = {
  * the moment the rule matters: the thing this step needs is not Pregonero's to make.
  */
 export const STEP_ESCAPE_HATCH: Record<number, string> = {
-  1: 'Or write gig.json by hand in the folder and come back — Pregonero reads what is in the file rather than replacing it.',
+  1: 'Or write gig.json by hand in the folder and come back — Tramoya reads what is in the file rather than replacing it.',
   2: 'Or name the running order in gig.json yourself and come back — the file states it, and this app performs what the file says.',
-  3: 'Or map the wall directly in Muralista and come back — it needs no Pregonero, and the room is discovered on the next re-check.',
+  3: 'Or map the wall directly in Muralista and come back — it needs no Tramoya, and the room is discovered on the next re-check.',
   4: 'Or leave setup unconfirmed: arming warns, it never refuses. The hard gate is per-song completeness, which is a different thing.',
 }
 

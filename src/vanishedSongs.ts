@@ -19,6 +19,7 @@
  * added to.
  */
 
+/** The key is an address and is deliberately not renamed — see `contentFolders.ts`. */
 const KEY = 'pregoneroAnnouncedVanishedSongs'
 
 function readAnnounced(): string[] {

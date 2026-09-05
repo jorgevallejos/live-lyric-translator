@@ -259,7 +259,7 @@ describe('Setup home', () => {
     expect(named).toContain('24 lines against 20')
     expect(named).not.toContain('ok.json')
     expect(screen.getByTestId('setup-songs-unreadable-note').textContent).toBe(
-      'The file is untouched and stays where it is. It is not in Pregonero’s song list, so it cannot be added to a gig.'
+      'The file is untouched and stays where it is. It is not in Tramoya’s song list, so it cannot be added to a gig.'
     )
     expect(screen.getByTestId('setup-songs-unreadable-popup').textContent).not.toContain('Bombista')
   })
@@ -282,7 +282,7 @@ describe('Setup home', () => {
     // **The plural has its own sentence.** The singular one shipped under a plural title on the
     // 2026-09-02 walk, saying *the file* over a list of two.
     expect(screen.getByTestId('setup-songs-unreadable-note').textContent).toBe(
-      'The files are untouched and stay where they are. They are not in Pregonero’s song list, so they cannot be added to a gig.'
+      'The files are untouched and stay where they are. They are not in Tramoya’s song list, so they cannot be added to a gig.'
     )
   })
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This App Does
 
-Pregonero (renamed from Live Lyric Translator, 2026-08-14) is a macOS Electron desktop app for live concert subtitle projection. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
+Tramoya (renamed from Pregonero, 2026-09-06; and from Live Lyric Translator before that, 2026-08-14) is a macOS Electron desktop app for live concert subtitle projection. **Pregonero is the player inside it** — Standby and the performing view — and is not the name of the application any more. A performer advances lyric lines in a **Control window**, while a synchronized **Projection window** displays translated lyrics to the audience. Songs are organized into setlists.
 
 Lines can advance in two per-song **playback modes**: **Manual** (keyboard/foot pedal — always available and always wins on override) and **Video** (subtitles locked to a synchronized animation video via `video.currentTime`).
 
@@ -130,9 +130,22 @@ that file, so the row and the folder are allowed to disagree; and **the gate on 
 rule rather than a side effect**, `gigIdentityIsAnswered`, because an opaque id exists from the
 first instant and no longer refuses to be minted for a half-made gig.
 
-**There is no Tramoya folder and none is created.** The app's own bookkeeping — the gig list, the
-Bombista path, the preferences — is per-machine, is not Jorge's, and lives in Application Support.
-The word `tramoya` is the suite's name in its own repo and never appears on screen.
+**No folder of the app's own is created inside the author's folders.** The app's own bookkeeping —
+the gig list, the Bombista path, the preferences — is per-machine, is not Jorge's, and lives in
+Application Support: **`~/Library/Application Support/Tramoya` for the packaged app**, named from
+`productName`, and `…/tramoya` under `npm run dev`, named from `package.json`'s `name`.
+
+**Those are one directory, not two, and that is a fact about the disk rather than the app.** The
+volume is case-insensitive, so the packaged app's `Tramoya` and the dev run's `tramoya` resolve to
+the same folder — whichever ran first is the casing Finder shows. Verified on this machine before
+the rename: `Application Support/pregonero` was lowercase, created by `npm run dev`, and the
+packaged app whose `CFBundleName` is `Pregonero` had been writing into it ever since.
+
+**The path moved on 2026-09-06 with the rename and nothing was carried across.** The old
+`pregonero` directory is left where it is, orphaned on purpose, because this app migrates nothing —
+so the first launch after the rename is a machine that has answered no folders.
+
+**The word `tramoya` is now on screen**, which it was not before: it is the application's name.
 
 **Nothing was migrated.** No fallback reads the old locations, and no compatibility path was written:
 where a stored value was the wrong shape it is removed and the app makes the right one.

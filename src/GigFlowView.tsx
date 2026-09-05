@@ -249,7 +249,7 @@ function ScreenGig({
           </>
         ) : (
           <>
-            Your gig data goes in a folder inside the one <code>setup</code> folder Pregonero keeps
+            Your gig data goes in a folder inside the one <code>setup</code> folder Tramoya keeps
             in your gigs folder. <strong>Nothing else in there is touched</strong>, and{' '}
             <strong>nothing at all is written until you have answered the date and the venue</strong>.
           </>
@@ -707,7 +707,7 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
           <p className="gig-hint">
             Open <code>mapper.html</code> in Chrome and hand it this gig&rsquo;s folder — that is
             where <code>gig.json</code> is, and where <code>visuals.json</code> goes beside it.
-            Pregonero discovers the room on the next re-check.
+            Tramoya discovers the room on the next re-check.
           </p>
           {folderPath !== null && (
             <p className="folders-source-path" data-testid="gig-flow-visuals-folder">

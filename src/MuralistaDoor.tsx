@@ -120,7 +120,7 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
             Open <code>mapper.html</code> in Chrome and hand it the <code>setup</code> folder inside
             this gig — that is where <code>gig.json</code> is, and where{' '}
             <code>visuals.json</code> goes beside it. Muralista is fully usable on its own, and
-            Pregonero discovers the room on the next re-check.
+            Tramoya discovers the room on the next re-check.
           </p>
           <SetupFolderPath path={setupFolder} />
         </div>
@@ -191,12 +191,12 @@ export function MuralistaDoor({ scope = 'song' }: { scope?: MuralistaScope } = {
               <>
                 It opens on this gig: <code>gig.json</code> is read from its <code>setup</code>{' '}
                 folder and <code>visuals.json</code> is written back beside it.{' '}
-                <strong>You are not asked where</strong> — Pregonero made that folder and knows it.
+                <strong>You are not asked where</strong> — Tramoya made that folder and knows it.
               </>
             )}
           </p>
           <p className="gig-hint">
-            Muralista decides every byte of <code>visuals.json</code>; Pregonero puts them on disk
+            Muralista decides every byte of <code>visuals.json</code>; Tramoya puts them on disk
             without reading them and learns the room afterwards by reading the file.{' '}
             <strong>Done</strong> only saves you closing the window and re-checking, which happens
             on the next open anyway.

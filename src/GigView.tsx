@@ -768,7 +768,7 @@ export function GigView() {
         <section className="gig-identity">
           {readiness.folderPath === null ? (
             <p className="gig-empty" data-testid="gig-none">
-              No gig open. Gigs are made in the gig flow, from Backstage. Pregonero keeps every
+              No gig open. Gigs are made in the gig flow, from Backstage. Tramoya keeps every
               gig’s data in one <code>setup</code> folder inside your gigs folder and{' '}
               <strong>touches nothing else in there</strong> — the poster, the contract and the
               stage plan stay yours.
@@ -815,7 +815,7 @@ export function GigView() {
               </p>
             ) : (
               <p>
-                The running order in <code>gig.json</code> had been changed outside Pregonero (
+                The running order in <code>gig.json</code> had been changed outside Tramoya (
                 {readiness.adoption.displaced.join(', ')}) and has been replaced by the one edited
                 here.
               </p>
