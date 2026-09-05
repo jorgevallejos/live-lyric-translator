@@ -135,7 +135,7 @@ One column per thing that has to be right, and arming is blocked until they all 
 
 That gate exists because the failure it prevents is a public one — hitting the pedal on a dark night and discovering the projection window was never opened.
 
-Songs carrying a timeline also show a **Transitions** toggle here (Manual / Auto) and a **performed tempo** field, for when tonight's tempo isn't the recorded one.
+Songs carrying a timeline also show a **Transitions** toggle here (Manual / Auto).
 
 ### 5. Perform
 
