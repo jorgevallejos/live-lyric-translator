@@ -13,6 +13,7 @@ import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
+import { standbyState } from './testSupport/standbyState'
 import {
   ARTIST_NAME_KEY,
   GIGS_FOLDER_KEY,
@@ -71,7 +72,7 @@ describe('the app’s deal', () => {
     // Before the folders, before the hydration screen, before the control view.
     expect(screen.queryByTestId('first-run')).toBeNull()
     expect(screen.queryByTestId('song-library-loading')).toBeNull()
-    expect(screen.queryByTestId('performance-state-label')).toBeNull()
+    expect(standbyState()).toBeNull()
   })
 
   it('carries three blocks and no more', async () => {
