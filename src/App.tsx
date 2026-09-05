@@ -46,7 +46,7 @@ import {
 import { ShapeContact, type ContactFields } from './ShapeContact'
 // **One owner for what a gig is called**, shared with Backstage's rows and the gig flow's header.
 import { gigLabelFrom } from './gigFile'
-import { PlayTriangleIcon } from './RowIcons'
+import { GigsView } from './GigsView'
 import { SetupValue } from './SetupValue'
 import { useEffect, useState, useRef } from 'react'
 import { useBeatClock } from './useBeatClock'
@@ -66,6 +66,7 @@ import {
 } from './setlistStore'
 import { addPlayedSong, getPlayedSongs, hasPlayedSong, isSetlistComplete } from './playedSongsState'
 import { useGigReadiness } from './useGigReadiness'
+import { useGigsExist } from './useGigsExist'
 import { refreshGigReadiness } from './gigSession'
 import { GigFlowView } from './GigFlowView'
 import { GigView } from './GigView'
@@ -293,6 +294,9 @@ function ControlView() {
   // The gig's readiness delta. Rendered here in two places — the hard gate below, and the Gig
   // section of the setup panel. Nothing in this component re-derives what "ready" means.
   const gigReadiness = useGigReadiness()
+  // **Whether the `GIG` column draws `Choose` at all.** Read from the folder on arriving here, not
+  // stored — see `useGigsExist`.
+  const gigsExist = useGigsExist()
   const songReadyForGig = isSongReadyToArm(gigReadiness, currentSongId)
   const songBlockedReasons = songReadyForGig ? [] : whySongCannotArm(gigReadiness, currentSongId)
   // **A warning, never a refusal.** The setup confirmation is a milestone: it blocks nothing, and
@@ -568,6 +572,10 @@ function ControlView() {
 
   const goToSetupHome = () => {
     window.location.hash = '#/setup'
+  }
+
+  const goToGigs = () => {
+    window.location.hash = '#/gigs'
   }
 
 
@@ -1077,11 +1085,45 @@ function ControlView() {
                   </span>
                 </div>
                 <div className="control-setup-buttons">
-                  {/* **One button, and it leaves the stage.** The control view is the performance
-                      surface; everything that is desk work is one level below it, on Setup home.
-                      `Folders` came off this column deliberately — where songs and media live on
-                      this machine is configuration rather than content, and it lives in
-                      preferences now, reached from that screen. */}
+                  {/* **`Choose` above `Setup`, and it is shown only when there is a gig to
+                      choose** (Jorge, 2026-09-05). It opens the full-screen picker, exactly as
+                      `Setlist` does for songs — **one pattern for both columns.**
+
+                      **This supersedes *the gig name itself is the control*** (03/09). That made
+                      the value the button because the panel is read at a distance in a dark room;
+                      **the reasoning reverses on its own terms, because every other column already
+                      carries a button in that slot**, so a button in a known position is the
+                      easier target in the dark rather than the harder one.
+
+                      **`Play` and `Select` were both rejected.** `Play` already means a transport
+                      action in this suite — Muralista's `Play / Pause / Restart` — and here it
+                      would sit two columns from `Arm` and read as *start something*; a button that
+                      opens a list must not be named for an action it does not take. `Select` names
+                      the mechanism, against the run of `Backstage`, `Save to the catalogue` and
+                      `Sign off the gig`. **`Choose` is already the app's word for opening a
+                      picker**, on the folders screen.
+
+                      **From nothing there is no button and no empty picker.** The column reads
+                      `No gig`, the only control is `Setup`, and that says *go make one* without a
+                      screen to say it in — the same shape as `No gigs yet.` with `New` above it.
+
+                      **`Setup` is the shell's door drawn onto the player's screen.** The control
+                      view is the performance surface; everything that is desk work is one level
+                      below it, on Setup home. `Folders` came off this column deliberately — where
+                      songs and media live on this machine is configuration rather than content,
+                      and it lives in preferences now, reached from that screen. */}
+                  {gigsExist && (
+                    <div className="control-setup-button-row">
+                      <button
+                        type="button"
+                        className="ctrl-btn ctrl-setup-link"
+                        data-testid="control-gig-choose"
+                        onClick={goToGigs}
+                      >
+                        Choose
+                      </button>
+                    </div>
+                  )}
                   <div className="control-setup-button-row">
                     <button type="button" className="ctrl-btn ctrl-setup-link" onClick={goToSetupHome}>
                       Setup
@@ -1691,15 +1733,21 @@ function SongsView() {
             /* **NO GIG MEANS NO SETLIST, AND THAT IS WHAT THIS SAYS** (Jorge, 2026-09-04, walking
                `v0.52.0`). It read *Choose a setlist to continue*, which asks for a thing that
                cannot exist yet: a setlist belongs to a gig, and no gig is open. The screen names
-               the missing thing and points at the one place it is chosen — the play triangle on a
-               gig's row on Backstage — with a way to get there.
+               the missing thing and points at the one place it is chosen.
+
+               **That place moved on 2026-09-05** and this sentence moved with it. It named the
+               play triangle on a gig's row on Backstage; the triangle is gone, and tonight's gig
+               is chosen with `Choose` on Standby. **Backstage is still where a gig is made**, so
+               the way there stays — for the machine that has no gigs at all, which is the one case
+               `Choose` is not on the screen for.
 
                **The old sentence survives beside it**, for the one state it was ever true about:
                a gig is open and its running order is not readable as a setlist. */
             <div className="setlist-prompt" data-testid="setlist-no-gig">
               <p>No gig is open, so there is no setlist yet.</p>
               <p className="setlist-prompt-where">
-                Choose tonight&rsquo;s gig on Backstage: press <PlayTriangleIcon /> on its row.
+                Choose tonight&rsquo;s gig on Standby, with <strong>Choose</strong> in the GIG
+                column — or make one on Backstage.
               </p>
               <button
                 type="button"
@@ -2554,6 +2602,15 @@ function App({ initialHash }: { initialHash?: string } = {}) {
       <>
         <ConcertSessionTimerRunner />
         <SongsView />
+      </>
+    )
+  // **`#/gigs` is the gig picker `Choose` opens**, the `GIG` column's full-screen list — the same
+  // pattern `#/songs` is for the `SONG` column. **It rides on Standby, which is the player's.**
+  if (hash === '#/gigs')
+    return (
+      <>
+        <ConcertSessionTimerRunner />
+        <GigsView />
       </>
     )
   if (hash === '#/languages')

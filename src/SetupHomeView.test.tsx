@@ -583,24 +583,20 @@ describe('Setup home', () => {
    * **`Locate…` and `Forget` both go** — the first has no destination under the single-`setup/`
    * ruling, and the second dropped a reference while leaving the folder. The bin deletes.
    */
-  it('shows a gig as its name, a play triangle, a pencil and a bin, and no path', async () => {
-    // **The triangle came on 2026-09-04.** It is first because it is the one act that leaves;
-    // the other two work on the row in place. Its label names the act — `Select` — not the
-    // destination, in the register `Edit` and `Delete` already set.
+  it('shows a gig as its name, a pencil and a bin, and no path', async () => {
+    // **The triangle came on 2026-09-04 and went on 2026-09-05.** Nothing opens a gig for
+    // performance from the room where gigs are made: tonight's gig is chosen with `Choose` on
+    // Standby. What is left is the 03/09 shape — name, pencil, bin — which is what that ruling
+    // asked for before the triangle was added to it.
     installGigs(['a', 'b'])
     await renderHome()
     const row = screen.getByTestId('setup-gig-row-a')
     expect(row.textContent).toContain('a')
     expect(row.textContent).not.toContain('/gigs/a')
     const buttons = [...row.querySelectorAll('button')]
-    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
-      'Select a',
-      'Edit a',
-      'Delete a',
-    ])
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Edit a', 'Delete a'])
     expect(row.textContent).not.toMatch(/locate|forget|setup/i)
-    // **Not the word `Play`, which would overclaim**: nothing starts until you arm.
-    expect(row.textContent).not.toMatch(/play/i)
+    expect(row.textContent).not.toMatch(/play|select/i)
   })
 
   /**
@@ -816,53 +812,29 @@ describe('Setup home', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/gig'))
   })
 
-  // ── The play triangle: Backstage's way out to Standby ────────────────────────────────────
+  // ── Nothing here opens a gig for performance ─────────────────────────────────────────────
   //
-  // **The act is selection, and selection is performance's** (Jorge, 2026-09-03) — which is why a
-  // performance control sits on a setup screen and why setup does not wait on it.
+  // **The play triangle came off on 2026-09-05** (Jorge). *The act is selection, and selection is
+  // performance's* was the 03/09 reasoning that put a performance control on a setup screen; the
+  // conclusion moved rather than the premise. Selection stayed performance's and **went to the
+  // room where performing happens** — `Choose` on Standby, which opens the same full-screen picker
+  // `Setlist` opens for songs.
 
-  it('selects the gig and lands on Standby from the play triangle', async () => {
-    installGigs(['a'])
+  it('offers no way out to Standby from a gig row', async () => {
+    installGigs(['a', 'b'])
     await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-gig-select-a'))
-    })
-    await waitFor(() => expect(window.location.hash).toBe('#/'))
+    expect(screen.queryByTestId('setup-gig-select-a')).toBeNull()
+    expect(screen.queryByTestId('setup-gig-select-b')).toBeNull()
   })
 
-  it('selects through the one mechanism the pencil uses, never a second idea of the open gig', async () => {
-    // **Two doors performing one act is fine; two mechanisms is how they drift.** `openGigFolder`
-    // is the whole memory of which gig is open — one path — and when the control view gains its own
-    // full-screen picker it calls the same one.
+  it('does not change which gig is open by drawing the list', async () => {
+    // **The row's remaining acts work on the gig in place.** The pencil opens it into the flow,
+    // and that is a selection; nothing else on this screen touches `openGigFolder`, so arriving
+    // here and looking cannot move tonight's gig out from under the stage.
     installGigs(['a', 'b'])
     rememberGigFolder('/gigs/setup/a')
     await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-gig-select-b'))
-    })
-    await waitFor(() => expect(getRememberedGigFolder()).toBe('/gigs/setup/b'))
-  })
-
-  it('asks nothing on the way, and selects a gig whose setup is not finished', async () => {
-    // **No confirmation**, and readiness is reported at arming, which is where the gate is.
-    // Blocking selection would stop Jorge looking at his own gig.
-    installGigs(['a'])
-    readGigFolder.mockResolvedValue({
-      folderPath: '/gigs/setup/a',
-      gigText: JSON.stringify({ gigVersion: 1, id: 'k3f9x2abcd' }),
-      gigError: null,
-      gigPresent: true,
-      visualsText: null,
-      visualsError: null,
-      visualsPresent: false,
-    })
-    await renderHome()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('setup-gig-select-a'))
-    })
-    expect(screen.queryByTestId('setup-gig-select-confirm')).toBeNull()
-    await waitFor(() => expect(window.location.hash).toBe('#/'))
-    await waitFor(() => expect(getRememberedGigFolder()).toBe('/gigs/setup/a'))
+    expect(getRememberedGigFolder()).toBe('/gigs/setup/a')
   })
 
   // ── `New` goes straight into the flow, and nothing is written first ──────────────────────
