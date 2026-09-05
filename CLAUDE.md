@@ -132,14 +132,19 @@ first instant and no longer refuses to be minted for a half-made gig.
 
 **No folder of the app's own is created inside the author's folders.** The app's own bookkeeping —
 the gig list, the Bombista path, the preferences — is per-machine, is not Jorge's, and lives in
-Application Support: **`~/Library/Application Support/Tramoya` for the packaged app**, named from
-`productName`, and `…/tramoya` under `npm run dev`, named from `package.json`'s `name`.
+Application Support: **`~/Library/Application Support/tramoya`**, packaged and under `npm run dev`
+alike.
 
-**Those are one directory, not two, and that is a fact about the disk rather than the app.** The
-volume is case-insensitive, so the packaged app's `Tramoya` and the dev run's `tramoya` resolve to
-the same folder — whichever ran first is the casing Finder shows. Verified on this machine before
-the rename: `Application Support/pregonero` was lowercase, created by `npm run dev`, and the
-packaged app whose `CFBundleName` is `Pregonero` had been writing into it ever since.
+**The directory is named from `package.json`'s `name`, and never from `productName` or
+`CFBundleName`** — measured on the 2026-09-06 install, not inferred. Electron's `app.getName()`
+reads the `package.json` inside the asar, where electron-builder leaves `name` untouched and writes
+`productName` only into `Info.plist` as `CFBundleName`. The evidence either side of the rename is
+the same shape: the old bundle's `CFBundleName` was `Pregonero` and its directory was the lowercase
+`pregonero`; the new bundle's is `Tramoya` and its directory is the lowercase `tramoya`, created on
+first launch.
+
+**So a rename that changes `productName` alone leaves the data directory exactly where it was.**
+Both fields have to move, and `src/appIdentity.test.ts` asserts both for that reason.
 
 **The path moved on 2026-09-06 with the rename and nothing was carried across.** The old
 `pregonero` directory is left where it is, orphaned on purpose, because this app migrates nothing —

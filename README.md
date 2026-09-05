@@ -56,7 +56,7 @@ be changed later in Preferences.
 **To see that screen again, quit Tramoya and delete its stored state:**
 
 ```bash
-rm -rf "$HOME/Library/Application Support/Tramoya/Local Storage"
+rm -rf "$HOME/Library/Application Support/tramoya/Local Storage"
 ```
 
 **Quit the app first.** Chromium holds that database open while it runs and rewrites it on exit, so
