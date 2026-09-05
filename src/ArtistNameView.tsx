@@ -83,7 +83,7 @@ export function ArtistNameView({ onDone }: { onDone: () => void }) {
             announces a feature it does not have is the class of claim this project has a rule
             about. What IS true today is that the app stops asking. */}
         <p className="artist-name-why" data-testid="artist-name-why">
-          Pregonero fills this in for you when a new song is made, so you are not asked again. It is
+          Tramoya fills this in for you when a new song is made, so you are not asked again. It is
           a preference, not part of any song — change it in Preferences whenever you like.
         </p>
 

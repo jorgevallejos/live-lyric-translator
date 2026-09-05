@@ -262,7 +262,7 @@ export function FoldersView() {
               }}
             />
             <span className="folders-row-hint">
-              The name the work goes out under. Pregonero fills it in when a new song is made.
+              The name the work goes out under. Tramoya fills it in when a new song is made.
             </span>
           </div>
         </section>
@@ -368,7 +368,7 @@ export function FoldersView() {
               a wrong path fails naming itself rather than quietly falling back to another binary.
             </p>
             <p className="gig-hint">
-              Without Bombista at all, Pregonero still opens gigs, still arms and still performs — a
+              Without Bombista at all, Tramoya still opens gigs, still arms and still performs — a
               song simply carries no <code>bombista</code> verdict, which is a missing check and not
               a failed one.
             </p>

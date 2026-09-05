@@ -1,8 +1,12 @@
-# Pregonero
+# Tramoya
 
-**A Spanish song performed for an audience that doesn't speak Spanish is a song they can hear but not be inside. Pregonero puts them inside it — the right line, in their language, on the screen behind you, at the moment you sing it.**
+**A Spanish song performed for an audience that doesn't speak Spanish is a song they can hear but not be inside. Tramoya puts them inside it — the right line, in their language, on the screen behind you, at the moment you sing it.**
 
-The name is the town crier: the one who makes the words reach everyone.
+**The application is Tramoya** — the stage machinery: it owns the folders, the catalogue and the
+gigs, and it holds the three tools. **Pregonero is the player inside it**, the town crier who makes
+the words reach everyone: given a finished gig it arms, follows the pulse or the pedal or the
+animation, and puts words on the wall. It was the name of the whole app until 2026-09-06.
+**The repository is still called `pregonero`.**
 
 ## Why it isn't just subtitles
 
@@ -23,13 +27,13 @@ That override is the whole design, not a feature bullet. A live show does not ge
 
 No network, no accounts, no API keys. Songs are local JSON, the two windows talk to each other over `localhost`, and the projection keeps working in a venue with no wifi — which is most of them.
 
-Pregonero **displays** translations; it doesn't produce them. The translations are yours, written into the song JSON with whatever tools you like. Line *timings* can be authored by hand or generated offline by [Bombista](https://github.com/jorgevallejos/bombista), its sibling tool, whose output Pregonero reads directly.
+Tramoya **displays** translations; it doesn't produce them. The translations are yours, written into the song JSON with whatever tools you like. Line *timings* can be authored by hand or generated offline by [Bombista](https://github.com/jorgevallejos/bombista), its sibling tool, whose output Tramoya reads directly.
 
 **macOS only.** Packaging targets `--mac`, and the live setup below is a Mac one.
 
 ## Install
 
-Pregonero builds and tests on **Node.js 20**, which is what CI runs.
+Tramoya builds and tests on **Node.js 20**, which is what CI runs.
 
 ```bash
 git clone https://github.com/jorgevallejos/pregonero.git
@@ -45,14 +49,14 @@ npm test
 
 ## First run, and how to get back to it
 
-The first time Pregonero opens it asks for two folders — **songs** and **gigs** — and shows nothing
+The first time Tramoya opens it asks for two folders — **songs** and **gigs** — and shows nothing
 else until both are chosen. Every launch after that goes straight to the control screen. They can
 be changed later in Preferences.
 
-**To see that screen again, quit Pregonero and delete its stored state:**
+**To see that screen again, quit Tramoya and delete its stored state:**
 
 ```bash
-rm -rf "$HOME/Library/Application Support/Pregonero/Local Storage"
+rm -rf "$HOME/Library/Application Support/Tramoya/Local Storage"
 ```
 
 **Quit the app first.** Chromium holds that database open while it runs and rewrites it on exit, so
@@ -169,4 +173,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-*Pregonero is part of **Tramoya**, the stage machinery behind [Chango Pepper](https://changopepper.com) — Latin American roots, storytelling and contemporary arrangements, written in Spanish and played to audiences that mostly aren't, which is the whole reason this tool exists. The repository was called `live-lyric-translator` until August 2026.*
+*Tramoya is the stage machinery behind [Chango Pepper](https://changopepper.com) — Latin American roots, storytelling and contemporary arrangements, written in Spanish and played to audiences that mostly aren't, which is the whole reason this tool exists. The repository was called `live-lyric-translator` until August 2026, and the application was called Pregonero until September 2026.*

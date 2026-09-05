@@ -525,7 +525,7 @@ function NewSong({
       : songsFolder === null
         ? 'There is no songs folder yet, so there is nowhere for a song to land.'
         : !hosted
-          ? 'bombista cannot be run from here. Run bombista serve in a terminal — it is fully usable on its own — and come back; Pregonero re-reads the files when you return.'
+          ? 'bombista cannot be run from here. Run bombista serve in a terminal — it is fully usable on its own — and come back; Tramoya re-reads the files when you return.'
           : null
 
   // **The precondition never removes the action.** It disables it and says why — see
@@ -640,8 +640,8 @@ function UnreadableSongsPopup({
             plural title on the walk, saying *the file* over a list of two. */}
         <p className="ctrl-timeline-save-message" data-testid="setup-songs-unreadable-note">
           {files.length === 1
-            ? 'The file is untouched and stays where it is. It is not in Pregonero’s song list, so it cannot be added to a gig.'
-            : 'The files are untouched and stay where they are. They are not in Pregonero’s song list, so they cannot be added to a gig.'}
+            ? 'The file is untouched and stays where it is. It is not in Tramoya’s song list, so it cannot be added to a gig.'
+            : 'The files are untouched and stay where they are. They are not in Tramoya’s song list, so they cannot be added to a gig.'}
         </p>
         <div className="ctrl-timeline-save-actions">
           <button type="button" className="ctrl-btn" onClick={onClose}>
