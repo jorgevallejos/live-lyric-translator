@@ -2,11 +2,11 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.20.0",
-  "sha256": "99fbba9d5fc7e7b56bb1bbfcffaeae0f1470024b02652f63e18c75b314e86040",
+  "tag": "v1.21.0",
+  "sha256": "cfa72d1abca9a6d4e45c9d66f9231a684299f54b0aa75397a09794c3c2af062e",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT"
   ],
   "vendoredOn": "2026-09-06",
-  "note": "Re-vendored at v1.20.0. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture. v1.20.0 drops the song scope on 2 OUTPUT, makes shapes editable from any scope, renders media as media on the canvas, and marks the selected shape on the wall."
+  "note": "Re-vendored at v1.21.0. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture. v1.21.0 seeds the video frame into its mode, moves SCOPE and PREVIEWING above the canvas as two dropdowns, identifies the speaker on the output seam so a reloaded control page is followed, and asks its host for a file rather than opening a picker it cannot constrain."
 }
