@@ -2,11 +2,11 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.18.0",
-  "sha256": "25d3f7c0fe1d1da3d40d66620ebdae8d913731217ee3b6991b7a74a8533a3df3",
+  "tag": "v1.19.0",
+  "sha256": "e344d1c70fdb41b42a5643ed6b43a8505e4d7cf0b0396d07d9a956c8b5f30a75",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT"
   ],
-  "vendoredOn": "2026-09-04",
-  "note": "Re-vendored at v1.18.0. INTRO_PLACEHOLDER IS NO LONGER IN THE FILE: `song-intro` and `gig-contact` stopped being shape types, so Muralista's intro card, its proportions and its three stand-in strings went with them. LYRICS_PREVIEW_TEXT is untouched and is the only fixture left. v1.18.0 also makes `Previewing:` drive the output window and moves the transport into the song."
+  "vendoredOn": "2026-09-05",
+  "note": "Re-vendored at v1.19.0. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture. v1.19.0 turns conditional visibility into named modes, and takes the stand-in OUT OF THE CANVAS while leaving it on the output window - which is where the boundary this fixture measures was always tuned."
 }

@@ -616,43 +616,77 @@ is simply not rendered — not blacked out, not declared empty. The gap between 
 free with no blackout state. **A hidden shape does not resolve either** — filtered in
 `resolveShapesForType`, the one lookup, so the arm gate and the wall cannot disagree about it.
 
-### A shape may say when it shows, and it asks about another shape
+### Named modes: a set of shapes that appear together
 
 **Cowork proposed a flag saying *for songs with video / without*, and Jorge rejected it** (2026-09-04):
 that is domain knowledge Muralista does not have — whether a song has a video lives below its line.
 **His replacement asks about another SHAPE**, which is Muralista's own vocabulary: **Muralista
 declares the relationship, Pregonero evaluates it**, because Pregonero is the one that knows what
-content landed. Each tool says only what it can know.
+content landed. That split is unchanged. What moved on 2026-09-05 is **where the condition lives.**
 
-    { "id": "lyrics-foot", "visibleWhen": { "shape": "video-frame", "is": "filled" } }
+**The condition used to sit on each shape, and exclusivity was an unwritten assumption that the two
+conditions partition.** Nothing enforced it: two independent rules can both be true or both be
+false, and the room then paints twice or not at all. **Jorge named the two modes out loud** —
+`Song with lyrics`, `Song with video and lyrics` — and a name with nowhere to live is the symptom of
+a missing concept. **A mode is a condition plus a set of shapes.**
 
-**On the shape, never in a connectors list** — reading a shape tells you when it shows, and deleting
-it takes its condition with it, so nothing orphans. **An object rather than a string**, so a `when`
-or an `after` can join later without a redesign. **This is the condition, not an animation system.**
+    "modes": [
+      { "id": "m-1", "name": "Song with lyrics",           "when": { "shape": "video-frame", "is": "empty"  } },
+      { "id": "m-2", "name": "Song with video and lyrics", "when": { "shape": "video-frame", "is": "filled" } }
+    ],
+    "shapes": [ { "id": "lyrics-foot", "mode": "m-2" } ]
+
+**Exclusivity comes from the RULE now.** The list is ordered, **the first mode whose condition is
+true wins**, and **when none matches no mode is live and only the no-mode shapes paint** — stated
+rather than left to fall out, because two complementary conditions never reach that case and a list
+has to answer it anyway. `activeModeFor` and `shapeShowsForSong` in `visualsFile.ts` are the
+readers, applied **inside `resolveShapesForType`** — the one lookup — for the same reason the hidden
+flag is: a shape that satisfied the arm gate and then painted nothing is exactly the disagreement
+one readiness function exists to prevent.
+
+**A shape belongs to one mode or to none, and no mode means always displayed.** Membership is a
+field on the shape, so *exactly one* is structural rather than a rule to enforce, and deleting a
+shape takes its grouping with it. The live room is the winning mode's shapes plus every no-mode
+shape.
 
 **It is about CONTENT, never existence.** Shapes are gig level and always exist; what varies per song
 is whether they got content. **Filled means an asset is assigned for that song** in
-`songVisuals.assets`. `shapeCondition` and `shapeShowsForSong` in `visualsFile.ts` are the readers,
-and the condition is applied **inside `resolveShapesForType`** — the one lookup — for the same reason
-the hidden flag is: a shape that satisfied the arm gate and then painted nothing is exactly the
-disagreement one readiness function exists to prevent.
+`songVisuals.assets`.
 
-**One level, so cycles are impossible.** A condition may only point at a shape that has none of its
-own. Muralista enforces it on the way into the file and `parseVisualsFile` drops any condition that
-survives pointing at a conditional shape, a missing one, or itself — **so nothing here ever recurses**,
-and a dropped condition leaves the shape showing unconditionally rather than vanishing.
+**THE LIST IS HONEST OR IT IS NOT A LIST.** Muralista's authoring surface seeds exactly two modes and
+offers **no way to make a third** — the door is real and stays shut until a second kind of condition
+exists — **and the format says list.** A reader that quietly assumed two would be the half of a
+contract mismatch that refuses what the writer wrote, which is the shape of the five mismatches of
+02/09 and of `countInBars`. So **both repos render a hand-written three-mode room in a test**:
+`visualsFile.test.ts` here and `mapper/modes.test.mjs` there, on the same room, including the case
+where two conditions are true at once and order decides.
+
+**The one-level rule and its cycle argument are retired**, and nothing replaces them: a mode points
+at a shape and a shape points at a mode, so no edge can close on itself. A mode whose condition is
+missing or malformed reads `null` and is **never live**; membership naming a mode the file does not
+hold is dropped, and the shape becomes always-on — the safe direction and the visible one, where
+*live in no mode at all* paints nothing with nothing saying why.
 
 **The designed default is three shapes, and this is what made it expressible**: a frame-filling
-`song-video` shape, a `song-lyrics` shape at its foot *when the video is filled*, and a `song-lyrics`
-shape across the frame *when it is empty*. **Both lyrics shapes are the gig-level default for the
-type** — the condition is what separates them, not the assignment — and `src/fixtures/muralista-default-room.json`
-is Muralista's own bytes, asserted in `muralistaDefaultRoom.test.ts`, because that is the fact each
-repo's unit tests could each be right about and still get wrong together.
+`song-video` shape **in no mode**, a `song-lyrics` shape at its foot in *Song with video and lyrics*,
+and a `song-lyrics` shape across the frame in *Song with lyrics*. **Both lyrics shapes are the
+gig-level default for the type** — the mode is what separates them, not the assignment — and
+`src/fixtures/muralista-default-room.json` is Muralista's own bytes, asserted in
+`muralistaDefaultRoom.test.ts`, because that is the fact each repo's unit tests could each be right
+about and still get wrong together. **It is re-made, never edited.**
 
 **An unassigned video shape is not a finding.** It was for one round; the default makes it the
 commonest case there is. What fails instead is `songIsCarried` — **nothing in the room would paint
 anything for this song** — which counts a lyrics shape as always painting and a video shape as
-painting only when that song assigned it something.
+painting only when that song assigned it something. **A song matching no mode at all fails the same
+way**, which is what makes the stated fallback reportable rather than merely dark.
+
+**And one more line on the sign-off: per mode, how many shapes of each kind are live.** Modes made
+the room exclusive *between themselves*; **the always group is not a mode and is deliberately not
+exclusive with anything** — a backdrop, a logo and a video frame all belong there. So a no-mode
+lyrics shape and a mode's lyrics shape are both live at once, stacked, and **that is authorable by
+accident**. `modeCensus` and `doubledShapeLines` report it; **nothing refuses it**, because two
+lyrics shapes live at once is also how a corner or a pillar gets spanned.
 
 **The lookup, and it is the whole of it.** The playing song is X; for each song-aware type, take
 the shapes reassigned to X if there are any, otherwise the gig-level shapes of that type. **It

@@ -14,7 +14,12 @@ import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-libra
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
-import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY, VISUALS_FOLDER_KEY } from './contentFolders'
+import {
+  ARTIST_NAME_KEY,
+  GIGS_FOLDER_KEY,
+  SONGS_FOLDER_KEY,
+  VISUALS_FOLDER_KEY,
+} from './contentFolders'
 
 const chooseFolderPath = vi.fn()
 
@@ -32,6 +37,7 @@ afterEach(cleanup)
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
+  localStorage.setItem(ARTIST_NAME_KEY, 'Chango Pepper')
   vi.clearAllMocks()
   window.location.hash = '#/'
 })
@@ -49,6 +55,9 @@ async function launch() {
       fireEvent.click(begin)
     })
   }
+  // **And the artist's name is screen two of three since 2026-09-05.** This file is about the
+  // folders; the name is answered in `beforeEach` so it is already past. `ArtistNameView.test.tsx`
+  // is the file that wants that gate.
 }
 
 describe('first run', () => {

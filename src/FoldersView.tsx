@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  getArtistName,
   getBombistaPath,
   getGigsFolder,
   getVisualsFolder,
   getSongsFolder,
+  setArtistName,
   setBombistaPath,
   setGigsFolder,
   setVisualsFolder,
@@ -98,6 +100,7 @@ export function FoldersView() {
   const [songsFolder, setSongsFolderState] = useState<string | null>(getSongsFolder)
   const [gigsFolder, setGigsFolderState] = useState<string | null>(getGigsFolder)
   const [visualsFolder, setVisualsFolderState] = useState<string | null>(getVisualsFolder)
+  const [artist, setArtist] = useState<string>(() => getArtistName() ?? '')
   const [bombista, setBombista] = useState<{ present: boolean; version: string | null } | null>(null)
   const [bombistaWhere, setBombistaWhere] = useState<BombistaLocation | null>(null)
   const [bombistaPath, setBombistaPathState] = useState<string | null>(getBombistaPath)
@@ -233,6 +236,36 @@ export function FoldersView() {
             Folders can only be chosen from the desktop app.
           </p>
         )}
+
+        {/* **The artist's name, and this is where it is CHANGED** (Jorge, 2026-09-05). It is asked
+            on its own screen at first run, on the principle that settles the whole group: *each
+            artist-level fact is asked at the moment it is first needed and lives in Preferences
+            afterwards.* **Preferences is where a setting is changed, never where you find out it
+            exists** — the same rule the gigs root already holds.
+
+            First on the page, above the folders, because it is who rather than where. */}
+        <section className="folders-section">
+          <h2 className="gig-section-title">You</h2>
+          <div className="folders-row" data-testid="folders-artist">
+            <span className="folders-row-label">Artist</span>
+            <input
+              className="folders-row-input"
+              data-testid="folders-artist-input"
+              type="text"
+              value={artist}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Not set"
+              onChange={(e) => {
+                setArtist(e.target.value)
+                setArtistName(e.target.value)
+              }}
+            />
+            <span className="folders-row-hint">
+              The name the work goes out under. Pregonero fills it in when a new song is made.
+            </span>
+          </div>
+        </section>
 
         <section className="folders-section">
           <h2 className="gig-section-title">Folders on this machine</h2>

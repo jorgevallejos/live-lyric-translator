@@ -925,6 +925,35 @@ function ScreenCheck({
                 : ['There is no mapping yet to check.']
           }
         />
+        {/* **The double-paint line** (Jorge, 2026-09-05, with named modes). Modes made the room
+            exclusive between themselves by construction; **the always group is not a mode and is
+            not exclusive with anything**, correctly — a backdrop, a logo and a video frame all
+            belong there. So a no-mode lyrics shape and a mode's lyrics shape are both live at
+            once, stacked, and that is authorable by accident.
+
+            **Reported, not refused in Muralista**, because two lyrics shapes live at once is also
+            how a corner or a pillar gets spanned — this repo has said so about
+            `resolveShapesForType` since the day it was written. Capping it would remove a real
+            thing to prevent an accident. */}
+        <CheckLine
+          id="modes"
+          claim="In every mode, the wall says each thing once."
+          // **No room is NOT YET, never PASS.** Saying the wall says each thing once when there is
+          // no wall mapped is a claim about a mapping that is not there, which is the class of
+          // false answer this project has a rule about — the `belongs` line above it says the same.
+          //
+          // **`null` is what tells that apart from a clean room**, and it has to be a field rather
+          // than `steps[3].status`: this check is one of the things that puts step 3 at `not-yet`,
+          // so reading the step back would say *no mapping* about the very room it just failed.
+          status={
+            readiness.doubledShapes === null
+              ? 'not-yet'
+              : readiness.doubledShapes.length === 0
+                ? 'complete'
+                : 'not-yet'
+          }
+          detail={readiness.doubledShapes ?? ['There is no mapping yet to check.']}
+        />
         <CheckLine
           id="songs"
           claim="Every song in the setlist can be performed."

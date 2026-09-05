@@ -13,7 +13,12 @@ import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ensureStorage } from './testSupport/storage'
-import { GIGS_FOLDER_KEY, SONGS_FOLDER_KEY, VISUALS_FOLDER_KEY } from './contentFolders'
+import {
+  ARTIST_NAME_KEY,
+  GIGS_FOLDER_KEY,
+  SONGS_FOLDER_KEY,
+  VISUALS_FOLDER_KEY,
+} from './contentFolders'
 import { DEAL_BLOCKS } from './AppDealView'
 
 vi.mock('./platform', async (importOriginal) => ({
@@ -30,6 +35,10 @@ afterEach(cleanup)
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
+  // **The artist's name is screen two of three since 2026-09-05**, and this file is about the
+  // deal, which is screen one. Answering the name here puts the screen after the deal back to the
+  // folders, which is the boundary every assertion below is drawn against.
+  localStorage.setItem(ARTIST_NAME_KEY, 'Chango Pepper')
   vi.clearAllMocks()
   window.location.hash = '#/'
 })

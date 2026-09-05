@@ -73,6 +73,7 @@ import { SetupHomeView } from './SetupHomeView'
 import { SongFlowView } from './SongFlowView'
 import { FirstRunView } from './FirstRunView'
 import { AppDealView, isDealDue } from './AppDealView'
+import { ArtistNameView, isArtistNameDue } from './ArtistNameView'
 import { hasRequiredFolders } from './contentFolders'
 import { armWarnings, isSongReadyToArm, whySongCannotArm, type GigReadiness } from './gigReadiness'
 import { LAST_STEP } from './setupFlow'
@@ -2347,6 +2348,15 @@ function App({ initialHash }: { initialHash?: string } = {}) {
    * never taken.
    */
   const [dealDue, setDealDue] = useState(isDealDue)
+  /**
+   * **The artist's name, and it is the second of three screens** (Jorge, 2026-09-05).
+   *
+   * THE DEAL · WHO YOU ARE · YOUR FOLDERS. **Its own screen and not a third folder column**: the
+   * folders screen answers *where your things are*, and a name is a different kind of question —
+   * see `ArtistNameView`. Read from the world once, like the other two, so `Continue →` is a
+   * transition rather than a remembered dismissal.
+   */
+  const [artistNameDue, setArtistNameDue] = useState(isArtistNameDue)
 
   useEffect(() => {
     if (isProjectionRoute) {
@@ -2423,12 +2433,14 @@ function App({ initialHash }: { initialHash?: string } = {}) {
   //
   // **No step bar joins them.** They are two screens, not a flow: the offer, and then the first
   // thing asked of you.
-  if (!isProjectionRoute && !foldersReady) {
+  if (!isProjectionRoute && (!foldersReady || artistNameDue)) {
     return (
       <>
         <ConcertSessionTimerRunner />
         {dealDue ? (
           <AppDealView onBegin={() => setDealDue(false)} />
+        ) : artistNameDue ? (
+          <ArtistNameView onDone={() => setArtistNameDue(false)} />
         ) : (
           <FirstRunView onDone={() => setFoldersReady(true)} />
         )}

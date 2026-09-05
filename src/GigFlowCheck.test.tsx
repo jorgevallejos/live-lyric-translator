@@ -134,6 +134,54 @@ function visualsWithVideo(gigId = GIG_ID) {
   })
 }
 
+/** The designed default at Muralista `v1.19.0`: a video frame in no mode, one lyrics shape each. */
+function visualsWithModes(gigId = GIG_ID) {
+  return JSON.stringify({
+    visualsVersion: 1,
+    gigId,
+    modes: [
+      { id: 'm-plain', name: 'Song with lyrics', when: { shape: 'frame', is: 'empty' } },
+      { id: 'm-video', name: 'Song with video and lyrics', when: { shape: 'frame', is: 'filled' } },
+    ],
+    shapes: [
+      {
+        id: 'frame',
+        outline: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        corners: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        layer: { type: 'song-video' },
+      },
+      {
+        id: 'across',
+        outline: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        corners: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        layer: { type: 'song-lyrics' },
+        mode: 'm-plain',
+      },
+      {
+        id: 'foot',
+        outline: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        corners: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        layer: { type: 'song-lyrics' },
+        mode: 'm-video',
+      },
+    ],
+    songVisuals: {
+      defaults: { 'song-lyrics': ['across', 'foot'], 'song-video': ['frame'] },
+      songs: {},
+    },
+  })
+}
+
+/** The same room with one lyrics shape dragged out of its group and not dragged back. */
+function visualsDoublePaint() {
+  const room = JSON.parse(visualsWithModes()) as {
+    shapes: { id: string; mode?: string }[]
+  }
+  const foot = room.shapes.find((s) => s.id === 'foot')!
+  delete foot.mode
+  return JSON.stringify(room)
+}
+
 function gigJson(over: Record<string, unknown> = {}) {
   return JSON.stringify({
     gigVersion: 1,
@@ -231,6 +279,50 @@ describe('the check screen', () => {
     expect(screen.getByTestId('gig-check-belongs-detail').textContent).toContain('different room')
     // The gate is readiness's: a refusal above stops the confirmation.
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  /**
+   * **THE DOUBLE-PAINT LINE** (Jorge, 2026-09-05, with named modes).
+   *
+   * **Named modes made the room exclusive between themselves by construction. This is the failure
+   * they did not close.** The always group is not a mode and is deliberately not exclusive with
+   * anything — a backdrop, a logo and a video frame all belong there — so a no-mode lyrics shape
+   * and a mode's lyrics shape are both live at once, stacked, and **that is authorable by accident**:
+   * drag a shape out of a group to look at something, forget to drag it back, and the room reads
+   * fine in Muralista.
+   *
+   * **It is reported, never refused in Muralista**, because two lyrics shapes live at once is also
+   * how a corner or a pillar gets spanned.
+   */
+  it('fails the modes line when two shapes of one kind are live in a mode', async () => {
+    everythingGood({ visualsText: visualsDoublePaint() })
+    await goToCheck()
+    // **`Not yet`, not `Fails`, and the distinction is the one this repo already draws.** `Fails`
+    // is `broken`, which is reserved for the loud refusals — a file that will not parse, an
+    // unknown `visualsVersion`, another gig's room. This room parses and is this gig's; what is
+    // wrong with it is a gap, and the detail line is what says which gap.
+    await waitFor(() => expect(verdict('modes')).toBe('Not yet'), WAIT)
+    expect(screen.getByTestId('gig-check-modes-detail').textContent).toContain(
+      'Song with lyrics: 2 song-lyrics shapes live at once.'
+    )
+    expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('passes the modes line on a room that says each thing once', async () => {
+    everythingGood({ visualsText: visualsWithModes() })
+    await goToCheck()
+    await waitFor(() => expect(verdict('modes')).toBe('Pass'), WAIT)
+  })
+
+  /** No room is NOT YET, never PASS. Claiming a mapping that is not there is the class of false
+      answer this project has a rule about — the `belongs` line says the same. */
+  it('leaves the modes line unanswered when the room has never been mapped', async () => {
+    everythingGood({ visualsText: null })
+    await goToCheck()
+    await waitFor(() => expect(verdict('modes')).toBe('Not yet'), WAIT)
+    expect(screen.getByTestId('gig-check-modes-detail').textContent).toContain(
+      'There is no mapping yet to check.'
+    )
   })
 
   it('fails the mapped line, not the belongs line, for a file that will not parse', async () => {

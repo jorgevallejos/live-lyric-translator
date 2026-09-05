@@ -850,6 +850,86 @@ redesign is what is *in* them, not how they are laid out, and that is not this r
 ticked rather than read. What went with the column is `.control-rig-list`, its one CSS rule.
 
 
+### Named modes, and the first-run screen that asks who the artist is (2026-09-05)
+
+**Two changes in one round, and only one of them is shared with Muralista.**
+
+#### The mode is the concept, and this repo's half is the lookup
+
+Muralista owns the design (see its `project-context.md`); what lands here is that **`visuals.json`
+gains an ordered `modes` list and a shape carries `mode` instead of `visibleWhen`.**
+
+**`songIsCarried` did not have to move, and that is the design working rather than an oversight.**
+The kickoff named it as the thing to change; the change is one level down, in
+`resolveShapesForType`, because **there has only ever been one lookup and so there was only one
+place for the rule to change.** Every caller — the arm gate, the readiness check, the wall — went
+from *does this shape's own condition hold* to *is this shape in the mode that will be live for this
+song* without touching a line, which is what having one lookup buys.
+
+**What is new here is the fallback.** A mode list can have no winner, where two complementary
+conditions never could. **When none matches, no mode is live and only the no-mode shapes paint** —
+and a song in that state fails `songIsCarried`, which is what makes the state reportable rather than
+merely dark.
+
+**And the list is read at whatever length it comes in.** Muralista seeds two and offers no way to
+make a third; the format says list. A reader assuming two would be the half of a contract mismatch
+that refuses what the writer wrote — the shape of the five mismatches of 02/09 — so
+`visualsFile.test.ts` renders the same hand-written three-mode room `mapper/modes.test.mjs` does,
+including the case where two conditions are true at once and **order decides**.
+
+#### The sign-off gains one line, and what it caught in the writing
+
+**Per mode, how many shapes of each kind are live** (Jorge). **Modes made the room exclusive between
+themselves by construction; the always group is not a mode and is deliberately not exclusive with
+anything** — a backdrop, a logo and a video frame all belong there. So a no-mode lyrics shape and a
+mode's lyrics shape are both live at once, stacked, **authorable by accident**.
+
+**The first implementation counted membership, and the existing readiness fixtures caught it.** A
+room may hold two `song-lyrics` shapes where the gig-level default names one and a song reassigns to
+the other — **that is reassignment working**, and counting every shape of the type called it a
+double paint. **What is live is what `resolveShapesForType` returns**, so the census is that lookup
+with the per-song half removed: the gig-level default, filtered to what is visible and what the mode
+makes live. Recorded because the fixture was right and the new check was wrong, which is the
+direction that is easy to get backwards.
+
+**`doubledShapes` is `string[] | null`, and the null earns its place**: `null` is *there is no room
+to check* and `[]` is *checked, and it says each thing once*. Collapsing them would print PASS over
+a gig with no mapping — the false-answer class this repo already has a rule about. It could not be
+derived from `steps[3].status` either, because this check is one of the things that puts step 3 at
+`not-yet`, so reading the step back would say *no mapping* about the very room it had just failed.
+
+**Reported, never refused in Muralista.** Two lyrics shapes live at once is also how a corner or a
+pillar gets spanned — this repo has said so about `resolveShapesForType` since the day it was
+written — and capping it would remove a real thing to prevent an accident.
+
+#### The artist's name: first run is three screens now
+
+**THE DEAL · WHO YOU ARE · YOUR FOLDERS.** The principle is Jorge's and it settles the whole group:
+**each artist-level fact is asked at the moment it is first needed and lives in Preferences
+afterwards.**
+
+**Its own screen, not a third folder column.** *The folders screen answers where your things are,
+and a name is a different kind of question.* Six rounds bought that screen's clarity — equal
+columns, a hard rule between them, so they read as separate questions before either is read — and
+its whole premise is that its columns are the same kind of thing. **The earlier objection was to the
+folders screen, not to first run**, and Cowork over-corrected from one to the other.
+
+**Not captured from Bombista's page 1**, which was Cowork's proposal and **Jorge rejected it**:
+*opportunistic and fishy — you capture something for a purpose different from the one I had in mind
+when I filled it in.* **A value collected for one purpose is not silently promoted to another.**
+Bombista prefills *from* this preference; it does not feed it. **That prefill is not built** — it is
+a third repo, and this round is two.
+
+**What the screen may promise.** The message home — the line, the URL, the QR — is decided (see
+`tramoya-integration/journey-performance.md`) and is the **first gig's** work. So the copy says the
+durable half: the app stops asking, and the name is a preference rather than part of any song. **A
+screen announcing a feature it does not have is the class of claim this project has a rule about**,
+and a test asserts the sentence mentions no wall, no projector and no QR.
+
+**Absence is null and never a guess.** The machine's user name, the songs folder's name and the
+first song's `artist` field are all *usually right*, which is the worst kind of wrong for a value
+that ends up on a wall in front of a room.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

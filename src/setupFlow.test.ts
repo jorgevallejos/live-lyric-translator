@@ -11,6 +11,7 @@ function readiness(
   missing: Record<number, string[]> = {}
 ): GigReadiness {
   return {
+    doubledShapes: [],
     folderPath: '/gigs/g',
     gigId: 'g',
     date: null,
