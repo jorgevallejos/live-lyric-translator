@@ -173,6 +173,24 @@ function visualsWithModes(gigId = GIG_ID) {
 }
 
 /** The same room with one lyrics shape dragged out of its group and not dragged back. */
+/**
+ * The seeded room with **a logo shape naming a file this machine cannot turn into bytes** — which
+ * is exactly what Jorge walked: a static shape, not a song's media, so nothing in the setlist's
+ * own checks ever looks at it.
+ */
+function visualsWithStaticLogo() {
+  const room = JSON.parse(visualsWithModes()) as Record<string, unknown>
+  const shapes = room.shapes as Record<string, unknown>[]
+  shapes.push({
+    id: 'logo',
+    name: 'Logo',
+    outline: [[0, 0], [1, 0], [1, 1], [0, 1]],
+    corners: [[0, 0], [1, 0], [1, 1], [0, 1]],
+    layer: { type: 'image', src: 'logo.png' },
+  })
+  return JSON.stringify(room)
+}
+
 function visualsDoublePaint() {
   const room = JSON.parse(visualsWithModes()) as {
     shapes: { id: string; mode?: string }[]
@@ -306,6 +324,49 @@ describe('the check screen', () => {
       'Song with lyrics: 2 song-lyrics shapes live at once.'
     )
     expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  /**
+   * **THE ROOM'S OWN FILES** (Jorge, 2026-09-05). **The gig signed off with a named missing file**
+   * — a logo whose name resolved to nothing — and nothing on this screen mentioned it.
+   *
+   * **It was known.** `collectMediaSources` gathered exactly these names and its only caller was
+   * Preferences, so **the machine knew and the sign-off did not ask.** Readiness walked the
+   * setlist's video assets and stopped.
+   *
+   * **Reported, never blocking**, on Jorge's own rule — *name the mode, do not refuse the song* —
+   * so the button stays live. Sign-off is the moment he accepts what the machine cannot check, and
+   * what it can check has to be in front of him while he does it.
+   */
+  it('names a file the ROOM asks for that does not resolve, without blocking sign-off', async () => {
+    // The one file that is not there. Everything else on this machine resolves, so the line is
+    // answering about the room's own name and nothing else.
+    fileExists.mockImplementation((path: string) => Promise.resolve(!path.endsWith('logo.png')))
+    everythingGood({ visualsText: visualsWithStaticLogo() })
+    await goToCheck()
+    await waitFor(() => expect(verdict('room-files')).toBe('Not yet'), WAIT)
+    expect(screen.getByTestId('gig-check-room-files-detail').textContent).toContain('logo.png')
+    // **Not blocking is the finding, not a side effect.** If this ever goes true the rule changed.
+    expect((screen.getByTestId('gig-flow-confirm') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('passes the room-files line when the room names no files at all', async () => {
+    everythingGood({ visualsText: visualsWithModes() })
+    await goToCheck()
+    await waitFor(() => expect(verdict('room-files')).toBe('Pass'), WAIT)
+  })
+
+  /**
+   * **The half that keeps the line honest.** Readiness reads the resolution map, and a name with no
+   * entry in it reads as missing — so **a room file that resolves perfectly would be reported
+   * missing unless something resolves it.** `resolveMedia` walked the setlist's video assets and
+   * stopped, which is why this is the test that fails without that change: a green line here is the
+   * difference between a report and a false alarm on every gig with a logo in it.
+   */
+  it('passes the room-files line for a room file that DOES resolve', async () => {
+    everythingGood({ visualsText: visualsWithStaticLogo() })
+    await goToCheck()
+    await waitFor(() => expect(verdict('room-files')).toBe('Pass'), WAIT)
   })
 
   it('passes the modes line on a room that says each thing once', async () => {

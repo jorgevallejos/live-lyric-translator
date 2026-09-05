@@ -975,6 +975,45 @@ unanswered seed and an empty seed are the same thing.
 **A sixth answer, and it stays inside the line the other five keep.** It says what to put in a box.
 It does not tell Bombista who is calling, what a catalogue is, or that a gig exists.
 
+### Pregonero picks the file, because Muralista cannot constrain the pick (2026-09-06)
+
+**Ruled by Jorge, 2026-09-05: media stays inside the visuals folder — no copy, no reference.** A
+file chosen outside it is refused, and moving it in is his to do. **It is not an exception to the
+boundary rule but the rule stated properly:** *visuals is used to read, not to write*, and **the
+tools own a room where they write and own nothing where they only read.**
+
+**Muralista asks and this side answers**, which is a new direction across that seam and stays inside
+its line. **It cannot ask for itself:** a cross-origin frame cannot open a file picker, and an
+`<input type=file>` hands over a bare name with no path — so it could not tell a `logo.png` in the
+visuals folder from one on the Desktop. **A false accept is worse than a false reject**, and a false
+accept here is a shape pointing at a file that vanishes between setup and the night.
+
+**A name goes back, never a path** — the currency `?media=` already deals in and the only thing a
+mapping stores — **and the refusal is shown on this side**, because naming the folder means naming a
+path. `src/visualsPick.ts` is the whole of it; `nameInsideFolder` compares **segment-wise and never
+by prefix**, because `/vault/visuals-old/logo.png` starts with `/vault/visuals` and is a different
+folder.
+
+**The popup adds no new kind.** It is *a condition created outside the tools*, said once and
+dropped — the same category as a song file that will not read. **Note for the record:** the round's
+kickoff called that the *second* of the three kinds while `LeaveWithoutSaving.tsx` calls the
+consent dialog the second. The numbering disagrees; the categories do not, and nothing was added.
+
+### The sign-off asked about the songs' files and never about the room's (2026-09-06)
+
+**The gig signed off with a named missing file.** `collectMediaSources` already gathered every name
+the room asks for — a logo, a picture, a static video — and **its only caller was Preferences**, so
+the machine knew and the sign-off did not ask. `resolveMedia` walked the setlist's video assets and
+stopped.
+
+**Reported, never blocking**, on Jorge's own rule: *name the mode, do not refuse the song.* Not
+blocking is correct and stays correct. **But sign-off is the moment he accepts what the machine
+cannot check**, so what it already knows has to be in front of him there.
+
+**Two tests, and each fails without a different half.** One proves the line appears for a file that
+is missing; the other proves it does **not** appear for a room file that resolves — which is the
+half `resolveMedia` buys, and without it every gig with a logo in it would carry a false alarm.
+
 ## Discovery
 
 ### Chords in the app — design session 2026-08-20

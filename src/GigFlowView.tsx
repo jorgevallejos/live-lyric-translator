@@ -9,6 +9,7 @@ import {
 import { useGigReadiness } from './useGigReadiness'
 import { gigIdentityIsAnswered, gigLabelFrom } from './gigFile'
 import { getGigsFolder } from './contentFolders'
+import { chooseVisualInsideFolder, type VisualPickKind } from './visualsPick'
 import { gigFolderIn } from './fileLayout'
 import { LeaveWithoutSaving } from './LeaveWithoutSaving'
 import { canHostTools, serveTool } from './platform'
@@ -502,6 +503,56 @@ function ScreenSetlist({
  * `stage.png`; Pregonero puts those bytes on disk without looking at them, exactly as it does the
  * visuals.
  */
+/**
+ * **A FILE PICKED OUTSIDE THE VISUALS FOLDER, REFUSED** (Jorge, 2026-09-05).
+ *
+ * **A popup, not an inline error**, and it adds no new kind: it is **a condition created outside
+ * the tools**, said once and dropped — the same category as a song file that will not read and a
+ * gig folder that cannot be opened, and the same overlay they use. Somebody reached outside the one
+ * folder a shape may draw from, and nothing in the app can repair that; moving the file in is
+ * theirs to do.
+ *
+ * **It names the folder because that is the whole content of the answer.** *Not allowed* would send
+ * a person looking for a setting; the path is the instruction.
+ *
+ * **Nothing is left behind.** No name crossed to Muralista, so the shape stays empty and **a shape
+ * pointing outside the visuals folder never exists at all** — the invalid state is unreachable
+ * rather than merely reported.
+ */
+function VisualOutsideFolderPopup({ folder, onClose }: { folder: string; onClose: () => void }) {
+  return (
+    <div className="ctrl-timeline-save-overlay" data-testid="gig-flow-visual-outside-popup">
+      <div
+        className="ctrl-timeline-save-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="That file is outside the visuals folder"
+      >
+        <p className="ctrl-timeline-save-message" data-testid="gig-flow-visual-outside-title">
+          {folder === ''
+            ? 'There is no visuals folder yet'
+            : 'That file is outside the visuals folder'}
+        </p>
+        {folder !== '' && (
+          <p className="folders-source-path" data-testid="gig-flow-visual-outside-folder">
+            {folder}
+          </p>
+        )}
+        <p className="ctrl-timeline-save-message">
+          {folder === ''
+            ? 'Set it in Preferences, then pick the file again. A shape can only hold a file that lives inside it.'
+            : 'A shape can only hold a file that lives inside it. Move the file in there and pick it again — nothing has been changed.'}
+        </p>
+        <div className="ctrl-timeline-save-actions">
+          <button type="button" className="ctrl-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; onForward: () => void }) {
   const hosted = canHostTools()
   const [url, setUrl] = useState<string | null>(null)
@@ -549,14 +600,58 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
    * and the control stays off rather than appearing on a guess.
    */
   const [toolStep, setToolStep] = useState<string | null>(null)
+  /**
+   * **The folder a refused pick has to be in, or null when nothing was refused.** The empty string
+   * is the *no visuals folder is set* case, which is the same refusal with nothing to name.
+   */
+  const [pickProblem, setPickProblem] = useState<string | null>(null)
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (frame.current === null || event.source !== frame.current.contentWindow) return
-      const data = event.data as { muralista?: unknown; step?: unknown; ok?: unknown; reason?: unknown } | null
+      const data = event.data as {
+        muralista?: unknown
+        step?: unknown
+        ok?: unknown
+        reason?: unknown
+        accept?: unknown
+      } | null
       if (!data) return
       if (data.muralista === 'flow-step' && typeof data.step === 'string') {
         setToolStep(data.step)
+        return
+      }
+      /**
+       * **MURALISTA ASKS FOR A FILE AND THIS SIDE OPENS THE DIALOG** (Jorge, 2026-09-05: *media
+       * stays inside the visuals folder — no copy, no reference*).
+       *
+       * **It cannot ask for itself.** A cross-origin frame cannot open a file picker, and an
+       * `<input type=file>` hands over a bare name with no path — so it could not tell a `logo.png`
+       * in the visuals folder from one on the Desktop. **A false accept is worse than a false
+       * reject**, which is why the question crosses.
+       *
+       * **A name goes back, never a path.** That is the currency `?media=` already deals in and the
+       * only thing a mapping stores; **the folder is this side's to know**, which is also why the
+       * refusal is shown here rather than there.
+       *
+       * **A refused pick leaves nothing behind**: no message names a file, so the shape stays empty
+       * and **a shape pointing outside the visuals folder never exists at all.**
+       */
+      if (data.muralista === 'pick-visual') {
+        const kind: VisualPickKind = data.accept === 'video' ? 'video' : 'image'
+        void chooseVisualInsideFolder(kind).then((pick) => {
+          if (pick.outcome === 'picked') {
+            frame.current?.contentWindow?.postMessage(
+              { muralista: 'pick-visual-result', name: pick.name },
+              '*'
+            )
+            return
+          }
+          // **Dismissed says nothing.** Nothing happened, so nothing is reported: a dialog over a
+          // cancelled dialog is the app arguing with a decision already made.
+          if (pick.outcome === 'refused') setPickProblem(pick.folder)
+          else if (pick.outcome === 'no-folder') setPickProblem('')
+        })
         return
       }
       if (data.muralista === 'save-result') {
@@ -653,6 +748,9 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
           allow="camera"
           src={url}
         />
+      )}
+      {pickProblem !== null && (
+        <VisualOutsideFolderPopup folder={pickProblem} onClose={() => setPickProblem(null)} />
       )}
 
       {/* **ONLY ON `2 OUTPUT`.** See `toolStep` above for why, and for what crosses to know it.
@@ -953,6 +1051,29 @@ function ScreenCheck({
                 : 'not-yet'
           }
           detail={readiness.doubledShapes ?? ['There is no mapping yet to check.']}
+        />
+        {/* **THE ROOM'S OWN FILES** (Jorge, 2026-09-05). The gig signed off with a named missing
+            file: a logo whose name resolved to nothing. **Not blocking is correct** — his own rule
+            is to name the mode, not refuse the song — **but sign-off is the moment he accepts what
+            the machine cannot check**, so what it already knows belongs in front of him here.
+
+            It was known: `collectMediaSources` gathered exactly these names and its only caller was
+            Preferences. **The machine knew and this screen did not ask.** */}
+        <CheckLine
+          id="room-files"
+          claim="Every file the room itself names resolves on this machine."
+          status={
+            mappedStatus !== 'complete'
+              ? 'not-yet'
+              : readiness.roomMediaMissing.length === 0
+                ? 'complete'
+                : 'not-yet'
+          }
+          detail={
+            mappedStatus !== 'complete'
+              ? ['There is no mapping yet to check.']
+              : readiness.roomMediaMissing
+          }
         />
         <CheckLine
           id="songs"

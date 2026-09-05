@@ -460,6 +460,9 @@ const FILE_FILTERS = {
   // SONG_JSON_OR_LYRICS_TXT and normalises both before its pipeline runs, so the branch belongs to
   // Bombista rather than to a question on a screen — which is what the song door used to ask.
   lyrics: { name: 'Lyrics or song file', extensions: ['txt', 'json'] },
+  // **The visuals folder's still pictures**, for the shape picker Muralista asks this process to
+  // open on its behalf. The same families the visuals listing offers, kept in step by hand.
+  image: { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif'] },
 }
 
 // **`defaultPath` is where the picker opens.** The renderer remembers it per picker

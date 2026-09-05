@@ -12,6 +12,7 @@ function readiness(
 ): GigReadiness {
   return {
     doubledShapes: [],
+    roomMediaMissing: [],
     folderPath: '/gigs/g',
     gigId: 'g',
     date: null,
