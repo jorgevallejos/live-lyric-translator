@@ -35,7 +35,8 @@ describe('the vendored Muralista page', () => {
   })
 
   it('names the whole page, so another file cannot arrive unrecorded', () => {
-    // **This is the assertion that earned itself.** `stageCapture.js` arrived at Muralista's
+    // **This is the assertion that earned itself, twice.** `modes.js` arrived at `v1.19.0` and
+    // `stageCapture.js` arrived at Muralista's
     // `v1.8.0` and `mapper.js` imports it the way it imports `warp.js` — a page served without it
     // throws on load, with the hashes of the other four all green. A list that is asserted whole
     // is what turns that into a red test instead of a blank window at a projector.
@@ -43,6 +44,7 @@ describe('the vendored Muralista page', () => {
       'mapper.css',
       'mapper.html',
       'mapper.js',
+      'modes.js',
       'stageCapture.js',
       'warp.js',
     ])

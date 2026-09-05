@@ -72,6 +72,13 @@ export const GATED_SITES = [
   'gig-flow-muralista',
   /** First run → Confirm, until both questions have an answer. */
   'first-run-confirm',
+  /**
+   * First run → Continue, on the artist's name, until it has been answered (2026-09-05). Its own
+   * site rather than a second use of `first-run-confirm`: they are two screens in the sequence, and
+   * a counted list whose entries covered two screens would count wrong — the same argument that
+   * gave `gig-flow-muralista` a site of its own.
+   */
+  'artist-name-continue',
 ] as const
 
 export type GatedSite = (typeof GATED_SITES)[number]

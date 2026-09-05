@@ -120,6 +120,7 @@ describe('a gated action', () => {
       'muralista-open-gig',
       'gig-flow-muralista',
       'first-run-confirm',
+      'artist-name-continue',
     ])
   })
 })

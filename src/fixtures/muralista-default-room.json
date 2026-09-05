@@ -3,10 +3,28 @@
   "gigId": "probe",
   "cameraDeviceId": null,
   "cameraQuad": null,
+  "modes": [
+    {
+      "id": "m-mtoiqsyg1ap",
+      "name": "Song with lyrics",
+      "when": {
+        "shape": "s-mtoiqsycqlc",
+        "is": "empty"
+      }
+    },
+    {
+      "id": "m-mtoiqsyg2wz",
+      "name": "Song with video and lyrics",
+      "when": {
+        "shape": "s-mtoiqsycqlc",
+        "is": "filled"
+      }
+    }
+  ],
   "shapes": [
     {
-      "id": "s-mtn6ylayog2",
-      "name": "Frame",
+      "id": "s-mtoiqsycqlc",
+      "name": "Video frame",
       "corners": [
         [
           0,
@@ -51,8 +69,8 @@
       "visible": true
     },
     {
-      "id": "s-mtn6ylb1xa3",
-      "name": "Lyrics at the foot",
+      "id": "s-mtoiqsyedf9",
+      "name": "Video lyrics",
       "corners": [
         [
           0,
@@ -102,14 +120,11 @@
         "outlineWidth": 0.08
       },
       "visible": true,
-      "visibleWhen": {
-        "shape": "s-mtn6ylayog2",
-        "is": "filled"
-      }
+      "mode": "m-mtoiqsyg2wz"
     },
     {
-      "id": "s-mtn6ylb21pf",
-      "name": "Lyrics across the frame",
+      "id": "s-mtoiqsyfvmq",
+      "name": "Song lyrics",
       "corners": [
         [
           0,
@@ -159,26 +174,23 @@
         "outlineWidth": 0.08
       },
       "visible": true,
-      "visibleWhen": {
-        "shape": "s-mtn6ylayog2",
-        "is": "empty"
-      }
+      "mode": "m-mtoiqsyg1ap"
     }
   ],
   "songVisuals": {
     "defaults": {
       "song-lyrics": [
-        "s-mtn6ylb1xa3",
-        "s-mtn6ylb21pf"
+        "s-mtoiqsyedf9",
+        "s-mtoiqsyfvmq"
       ],
       "song-video": [
-        "s-mtn6ylayog2"
+        "s-mtoiqsycqlc"
       ]
     },
     "songs": {},
     "assets": {
       "duelo": {
-        "s-mtn6ylayog2": "cerdo.mp4"
+        "s-mtoiqsycqlc": "cerdo.mp4"
       }
     }
   }
