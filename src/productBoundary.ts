@@ -104,6 +104,7 @@ export const PLAYER: readonly string[] = [
   'performanceState.ts',
   'performanceControlStateMachine.ts',
   'autoAdvanceState.ts',
+  'driveMode.ts',
   'autoBlackout.ts',
   'concertSessionState.ts',
   'gigContactState.ts',

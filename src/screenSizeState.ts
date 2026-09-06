@@ -49,9 +49,19 @@ export function getProjectionStatusText(
 // ── DisplayMode storage ────────────────────────────────────────────────────
 
 
-/** Returns the default display mode: always 'none' (no video frame) regardless of whether
- * the song has media. The performer opts in to Small/Big video display explicitly via the
- * Videoclip toggle; media presence no longer implies an automatic video display default. */
+/**
+ * Returns the default display mode: always 'none' (no video frame) regardless of whether the song
+ * has media.
+ *
+ * **The reason recorded here was read before it was overturned, and it did not survive** (2026-09-06).
+ * It said *the performer opts in to Small/Big video display explicitly via the Videoclip toggle;
+ * media presence no longer implies an automatic video display default* — **a reason entirely about
+ * the Videoclip control**, which is gone, because size was never a third thing.
+ *
+ * **The opt-in it protected survives**: choosing `video` as the drive mode is still an explicit
+ * choice, and it is a performance one rather than a format one. **Whether the video runs is
+ * `driveMode.ts` now**, and this whole chain is dead behind it.
+ */
 export function getDefaultDisplayMode(_songHasMedia: boolean): DisplayMode {
   return 'none'
 }
