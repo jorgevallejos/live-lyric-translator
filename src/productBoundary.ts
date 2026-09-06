@@ -109,6 +109,7 @@ export const PLAYER: readonly string[] = [
   'autoBlackout.ts',
   'concertSessionState.ts',
   'gigContactState.ts',
+  'gigPhase.ts',
   'shapeTextLayout.ts',
   'videoCueLookup.ts',
   'videoTransport.ts',
