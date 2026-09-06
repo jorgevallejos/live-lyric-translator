@@ -158,6 +158,10 @@ export const SHARED: readonly string[] = [
   // **This declaration itself**, which describes both products and is owned by neither. Listed
   // rather than special-cased, because the rule is that every module is classified.
   'productBoundary.ts',
+  // **The host seam's predicate.** Which hashes belong to the framed page — the one fact both
+  // sides of the frame need, and neither product's code. It lived in `PlayerApp.tsx` until
+  // `v0.107.0`, where that single import pulled the whole player into the shell's bundle.
+  'playerRoutes.ts',
   // The one surface the two products share, and the widgets it is built from.
   'FirstRunView.tsx',
   'FoldersView.tsx',
@@ -229,22 +233,37 @@ export const SHARED: readonly string[] = [
 export const UNSPLIT: readonly string[] = []
 
 /**
- * **THE HOST SEAM: the one edge from the shell into the player, and it is one import.**
+ * **THE HOST SEAM IS A URL, AND THERE IS NO LONGER AN EDGE AT ALL.**
  *
- * `App.tsx` mounts `PlayerApp`. Today that is a component; **when the player becomes a framed page
- * it becomes a URL**, and this is the line that changes. Pinned as the only permitted
- * `SHELL → PLAYER` edge so a second one — the shell reaching past the seam into a player screen or
- * a player module — turns the boundary test red.
+ * This list said: *`App.tsx` mounts `PlayerApp`. Today that is a component; when the player becomes
+ * a framed page it becomes a URL, and this is the line that changes.* **`v0.107.0` is where it
+ * changed.** `App.tsx` returns `<PlayerFrame />`, whose `src` is a relative page, and imports
+ * nothing of the player's.
+ *
+ * **It was empty of meaning for a release before it was empty of entries**, and that is the finding
+ * worth keeping. The frame was drawn in `v0.102.0`. The import stayed — two small symbols, a route
+ * predicate and a timer wrapper — and an import is all-or-nothing, so the shell went on bundling
+ * every view the player has. **This list was green throughout**, because one named edge is what it
+ * was written to permit. `shellBundle.test.ts` is the test that would have caught it: it asks what
+ * the entry graph *reaches*, not what a file imports.
+ *
+ * **Empty is now the assertion.** Any `SHELL → PLAYER` edge turns the boundary test red.
  */
-export const HOST_SEAM: readonly string[] = ['App.tsx -> PlayerApp.tsx']
+export const HOST_SEAM: readonly string[] = []
 
 /**
- * **The one crossing that exists today, named rather than fixed.** `mediaSources.ts` imports
- * `isStaticType` from `ShapeStatic.tsx` — a pure predicate in a component file, so a shared reader
- * reaches into a player renderer. Moving the predicate is a one-line change and this round's rule
- * was that nothing moves to make a test pass.
+ * **No crossing, since `v0.107.0`.** There was one: `mediaSources.ts` imported `isStaticType` from
+ * `ShapeStatic.tsx` — a pure predicate in a component file, so a shared reader reached into a
+ * player renderer. It was named rather than fixed, on the rule that nothing moves to make a test
+ * pass, and that was the right call at the time.
+ *
+ * **The repo split is what made it worth paying**, and the price it had been quietly charging was
+ * larger than *one edge*: through `FoldersView` → `mediaSources`, that import pulled `ShapeStatic`
+ * and `ShapeText` into the shell's bundle. **The predicate is a fact about the file format**, so it
+ * moved to `visualsFile.ts` beside `shapeTypeOf`, where a shared reader can have it without
+ * reaching anywhere.
  */
-export const KNOWN_CROSSINGS: readonly string[] = ['mediaSources.ts -> ShapeStatic.tsx']
+export const KNOWN_CROSSINGS: readonly string[] = []
 
 /**
  * **What the player is allowed to take from the catalogue, and it is all reads.**

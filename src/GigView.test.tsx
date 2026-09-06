@@ -47,7 +47,7 @@ vi.mock('./platform', async (importOriginal) => ({
 
 const App = (await import('./App')).default
 const PlayerRoot = (await import('./PlayerRoot')).PlayerRoot
-const { isPlayerRoute } = await import('./PlayerApp')
+const { isPlayerRoute } = await import('./playerRoutes')
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
 const FOLDER = '/gigs/setup/k3f9x2abcd'

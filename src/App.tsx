@@ -28,7 +28,7 @@
  * history would be a second answer to which window this is.
  */
 import { useEffect, useState } from 'react'
-import { isPlayerRoute, ConcertSessionTimerRunner } from './PlayerApp'
+import { isPlayerRoute } from './playerRoutes'
 import { PlayerFrame } from './PlayerFrame'
 import {
   autoSelectFirstSongForActiveSetlist,
@@ -166,41 +166,30 @@ function App({ initialHash }: { initialHash?: string } = {}) {
   // **No step bar joins them.** They are two screens, not a flow: the offer, and then the first
   // thing asked of you.
   if (!isProjectionRoute && (!foldersReady || artistNameDue)) {
-    return (
-      <>
-        <ConcertSessionTimerRunner />
-        {dealDue ? (
-          <AppDealView onBegin={() => setDealDue(false)} />
-        ) : artistNameDue ? (
-          <ArtistNameView onDone={() => setArtistNameDue(false)} />
-        ) : (
-          <FirstRunView onDone={() => setFoldersReady(true)} />
-        )}
-      </>
+    return dealDue ? (
+      <AppDealView onBegin={() => setDealDue(false)} />
+    ) : artistNameDue ? (
+      <ArtistNameView onDone={() => setArtistNameDue(false)} />
+    ) : (
+      <FirstRunView onDone={() => setFoldersReady(true)} />
     )
   }
 
   if (!isProjectionRoute && songLibState === 'loading') {
     return (
-      <>
-        <ConcertSessionTimerRunner />
-        <div className="app-loading" data-testid="song-library-loading" aria-busy="true">
-          Loading…
-        </div>
-      </>
+      <div className="app-loading" data-testid="song-library-loading" aria-busy="true">
+        Loading…
+      </div>
     )
   }
   if (!isProjectionRoute && songLibState === 'error') {
     return (
-      <>
-        <ConcertSessionTimerRunner />
-        <div className="app-hydrate-error" role="alert" data-testid="song-library-error">
-          <p>{songLibError}</p>
-          <button type="button" onClick={() => setSongLibRetryKey((k) => k + 1)}>
-            Retry
-          </button>
-        </div>
-      </>
+      <div className="app-hydrate-error" role="alert" data-testid="song-library-error">
+        <p>{songLibError}</p>
+        <button type="button" onClick={() => setSongLibRetryKey((k) => k + 1)}>
+          Retry
+        </button>
+      </div>
     )
   }
 
