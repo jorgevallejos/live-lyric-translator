@@ -179,7 +179,10 @@ describe('what framing the player would have to carry', () => {
       'LanguagesView.tsx',
       'ProjectionView.tsx',
       'ShapeVideo.tsx',
-      'gigContactState.ts',
+      // **The card channel, formerly inside `gigContactState.ts`** (2026-09-06). The count did not
+      // move: the wire came out of the player's condition module and into a `SHARED` one of its
+      // own, because the gig flow's Cards step writes it and the condition is still the player's.
+      'cardBroadcast.ts',
       'performanceState.ts',
       'useSongNavigation.ts',
       'videoRunsBroadcast.ts',

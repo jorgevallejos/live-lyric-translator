@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest'
 import pkg from '../package.json'
 import { SONGS_FOLDER_KEY, VISUALS_FOLDER_KEY, GIGS_FOLDER_KEY, MURALISTA_FOLDER_KEY, BOMBISTA_PATH_KEY, ARTIST_NAME_KEY } from './contentFolders'
 import { GIG_FOLDER_KEY } from './gigFolderStore'
-import { KEY_CONTACT_LIT_BROADCAST } from './gigContactState'
+import { KEY_CONTACT_LIT_BROADCAST } from './cardBroadcast'
 import { KEY_VISUALS_BROADCAST } from './visualsBroadcast'
 
 describe('the application names itself Tramoya', () => {

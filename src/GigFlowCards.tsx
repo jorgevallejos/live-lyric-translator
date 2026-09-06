@@ -40,13 +40,16 @@
  * is are Muralista's, decided at the wall on the visuals step. This shows what is in the card.
  */
 import { useEffect, useRef, useState } from 'react'
-import { ShapeContact } from './ShapeContact'
-import { ShapeIntro, type IntroParts } from './ShapeIntro'
-import { UNIT_SIZE } from './vendor/warp.js'
+import { type IntroParts } from './ShapeIntro'
 import { getRememberedMessageHome, rememberMessageHome } from './messageHomePrefs'
 import { getOrderedSongsForActiveSetlist, type LibrarySong } from './setlistStore'
 import { chooseVisualInsideFolder } from './visualsPick'
 import type { MessageHome } from './gigFile'
+import {
+  getContactBroadcast,
+  setContactLitBroadcast,
+  type CardPreview,
+} from './cardBroadcast'
 
 /**
  * **The line, carried by the step** (Jorge, 2026-09-05). Offered as a real value on a machine that
@@ -81,77 +84,15 @@ export function toMessageHome(fields: CardFields): MessageHome {
 }
 
 /**
- * One card, drawn at wall proportions and scaled into the page.
+ * **THERE IS NO IN-PAGE PREVIEW ANY MORE** (Jorge, 2026-09-06), and `CardPreview`,
+ * `useMeasuredWidth` and their nominal width went with it.
  *
- * **The unit box is the whole of the preview's geometry.** Content is laid out in a `UNIT_SIZE`
- * square exactly as the compositor lays it out, and the square is scaled down — so what changes
- * between here and the wall is the quad, which is Muralista's and is not this screen's question.
+ * They drew the card into a scaled `UNIT_SIZE` box on this screen. **The card is on the projector
+ * while this step is open instead** — *the real thing at real size on the real wall is the
+ * preview* — which is the same move that made Muralista's `2 OUTPUT` the photograph rather than a
+ * simulation. **Two scaled-down simulations of a wall, on a screen, is what let the intro card's
+ * translation line ship too small to read from the back of a room.**
  */
-function CardPreview({ testId, children }: { testId: string; children: React.ReactNode }) {
-  const [ref, width] = useMeasuredWidth(NOMINAL_PREVIEW_WIDTH)
-  const scale = width / UNIT_SIZE
-  return (
-    <div className="gig-cards-preview" data-testid={testId} ref={ref}>
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: `${UNIT_SIZE}px`,
-          height: `${UNIT_SIZE}px`,
-          transform: `scale(${scale})`,
-          transformOrigin: '0 0',
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
-
-/**
- * **The width this preview renders at when nothing has been measured.** It is not a design
- * decision and no layout depends on it: in a browser the observer fires before paint. It exists so
- * jsdom — which does no layout, so every box is 0 wide — draws the card at a sane scale instead of
- * at zero, and so the first frame is never blank.
- */
-const NOMINAL_PREVIEW_WIDTH = 640
-
-/**
- * **The element's own width, now.** The preview is *the full width of the app* (Jorge,
- * 2026-09-06), and a constant cannot be that — it was 320px, and the step read as cramped because
- * of it. The `UNIT_SIZE` box is scaled to whatever the container turns out to be, so the preview
- * follows the window the way the wall follows the projector.
- *
- * **`ResizeObserver` is guarded because jsdom does not have one.** The window `resize` fallback is
- * the same one `useOutputSize` uses; it catches the case that matters and misses a container that
- * changes without the window changing, which cannot happen on this screen.
- */
-function useMeasuredWidth(fallback: number) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  const [width, setWidth] = useState(fallback)
-
-  useEffect(() => {
-    const el = ref.current
-    if (el === null) return
-    const measure = () => {
-      const measured = el.getBoundingClientRect().width
-      if (measured <= 0) return
-      // Same number, same state: React bails out and nothing downstream recomputes.
-      setWidth((previous) => (Math.abs(previous - measured) < 0.5 ? previous : measured))
-    }
-    measure()
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', measure)
-      return () => window.removeEventListener('resize', measure)
-    }
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
-  return [ref, width] as const
-}
 
 export function ScreenCards({
   fields,
@@ -167,6 +108,8 @@ export function ScreenCards({
   const [songs, setSongs] = useState<LibrarySong[]>([])
   const [songId, setSongId] = useState<string>('')
   const [outsideFolder, setOutsideFolder] = useState<string | null>(null)
+  /** Which card is on the wall. **The picker is the whole of this screen's preview.** */
+  const [showing, setShowing] = useState<'message-home' | 'intro'>('message-home')
 
   useEffect(() => {
     const ordered = getOrderedSongsForActiveSetlist()
@@ -182,6 +125,49 @@ export function ScreenCards({
         tagline: undefined,
       }
     : null
+
+  /**
+   * **THE CARD GOES ON THE PROJECTOR WHILE THIS STEP IS OPEN** (Jorge, 2026-09-06).
+   *
+   * **The real thing at real size on the real wall is the preview** — the same move that made
+   * Muralista's `2 OUTPUT` the photograph rather than a simulation. **The argument is evidence,
+   * not taste:** the intro card's translation line turned out to be too small to read at wall
+   * distance, and that would have been caught here rather than at moment 6 if the card had been on
+   * the wall.
+   *
+   * **It does not contradict `v0.91.0`**, which took this window OFF the projector during the
+   * visuals step. There the card was an intruder over Muralista's output; **here it is the
+   * subject.**
+   *
+   * **The projector is handed back on leaving**: the preview is cleared, so whatever the gig's
+   * state says takes the wall again, and the window closes because this step is what opened it.
+   */
+  useEffect(() => {
+    window.electronAPI?.openProjection?.()
+    return () => {
+      setContactLitBroadcast(getContactBroadcast().lit, toMessageHome(fieldsRef.current), null)
+      window.electronAPI?.closeProjection?.()
+    }
+  }, [])
+
+  // The fields are read in the cleanup above, which must not re-run when they change.
+  const fieldsRef = useRef(fields)
+  fieldsRef.current = fields
+
+  const previewJson = JSON.stringify(
+    showing === 'intro' && introParts ? { kind: 'intro', parts: introParts } : { kind: 'message-home' }
+  )
+  const messageHomeJson = JSON.stringify(toMessageHome(fields))
+  useEffect(() => {
+    // **The card and its content cross together**, on the channel that already carries both — see
+    // `cardBroadcast.CardPreview`. The fields are this screen's live edits, not the gig file's:
+    // what he is looking at on the wall is what he is typing.
+    setContactLitBroadcast(
+      true,
+      JSON.parse(messageHomeJson) as MessageHome,
+      JSON.parse(previewJson) as CardPreview
+    )
+  }, [previewJson, messageHomeJson])
 
   /**
    * **The logo picker inherits the guard of the same day** (Jorge, 2026-09-05): a file chosen
@@ -265,62 +251,73 @@ export function ScreenCards({
         </label>
       </div>
 
-      <div className="gig-cards-previews">
-        <div className="gig-cards-preview-block">
-          <span className="control-setup-label">Message home</span>
-          <CardPreview testId="gig-cards-message-preview">
-            <ShapeContact
-              fields={toMessageHome(fields)}
-              boxWidth={UNIT_SIZE}
-              testId="gig-cards-message-card"
-            />
-          </CardPreview>
-          {/* **The preview earns its place twice**: it shows the card before the night, and with
-              every field optional it is also how you see what leaving one blank does — a rule
-              nobody has to read, on the screen where the question arises. */}
-          <p className="gig-hint" data-testid="gig-cards-empty-note">
-            {Object.keys(toMessageHome(fields)).length === 0
-              ? 'Nothing here yet, so the wall stays dark after the last song.'
-              : 'This is what the wall shows once the setlist has ended.'}
-          </p>
+      {/* **THE TWO LARGE PREVIEWS BECAME A PICKER** (Jorge, 2026-09-06). The card is on the
+          projector while this step is open — *the real thing at real size on the real wall is the
+          preview* — so what is left here is the choice of which one, and the fields above that
+          fill it. Two scaled-down simulations of a wall, on a screen, is what let the intro card's
+          translation line ship too small to read from the back of a room. */}
+      <div className="gig-cards-showing">
+        <span className="control-setup-label">On the wall</span>
+        <div className="ctrl-icon-choices gig-cards-showing-choices" role="group" aria-label="On the wall">
+          <button
+            type="button"
+            className={`ctrl-btn${showing === 'message-home' ? ' ctrl-arm' : ''}`}
+            aria-pressed={showing === 'message-home'}
+            data-testid="gig-cards-show-message"
+            disabled={busy}
+            onClick={() => setShowing('message-home')}
+          >
+            Message home
+          </button>
+          <button
+            type="button"
+            className={`ctrl-btn${showing === 'intro' ? ' ctrl-arm' : ''}`}
+            aria-pressed={showing === 'intro'}
+            data-testid="gig-cards-show-intro"
+            disabled={busy || songs.length === 0}
+            onClick={() => setShowing('intro')}
+          >
+            Title card
+          </button>
         </div>
 
-        <div className="gig-cards-preview-block">
-          <span className="control-setup-label">Title card</span>
-          {songs.length > 0 ? (
-            <label className="setup-home-field">
-              <span>Song</span>
-              <select
-                value={songId}
-                data-testid="gig-cards-song"
-                disabled={busy}
-                onChange={(e) => setSongId(e.target.value)}
-              >
-                {songs.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <p className="gig-hint" data-testid="gig-cards-no-songs">
-              No songs in the running order yet, so there is no title card to look at.
-            </p>
-          )}
-          {introParts && (
-            <CardPreview testId="gig-cards-intro-preview">
-              <ShapeIntro parts={introParts} boxWidth={UNIT_SIZE} testId="gig-cards-intro-card" />
-            </CardPreview>
-          )}
-          {/* **Nothing is filled in for this one.** All three parts come from the song file, and
-              the tagline and the translated title exist only for a song that has been hand-edited
-              — so a song straight out of Bombista shows a title and nothing else. */}
-          <p className="gig-hint">
-            Filled from the song file. A song that has not been hand-edited has a title and no
-            tagline yet.
+        {showing === 'intro' && songs.length > 0 && (
+          /* **Narrow, because it holds one song title** (Jorge, 2026-09-06). It was the full
+             width of the step, which is a field sized by its container rather than by what goes
+             in it. */
+          <label className="setup-home-field gig-cards-song-field">
+            <span>Song</span>
+            <select
+              value={songId}
+              data-testid="gig-cards-song"
+              disabled={busy}
+              onChange={(e) => setSongId(e.target.value)}
+            >
+              {songs.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {songs.length === 0 && (
+          <p className="gig-hint" data-testid="gig-cards-no-songs">
+            No songs in the running order yet, so there is no title card to look at.
           </p>
-        </div>
+        )}
+
+        {/* **The one sentence that says a fact about right now**, which is the rule for what stays
+            on a screen after the prose came off. The empty case is the one that needs saying: with
+            every field optional, nothing here means a dark wall after the last song. */}
+        <p className="gig-hint" data-testid="gig-cards-empty-note">
+          {showing === 'message-home'
+            ? Object.keys(toMessageHome(fields)).length === 0
+              ? 'Nothing here yet, so the wall stays dark after the last song.'
+              : 'On the wall now. This is what it shows once the setlist has ended.'
+            : 'On the wall now. Filled from the song file — a song that has not been hand-edited has a title and no tagline yet.'}
+        </p>
       </div>
 
       <div className="gig-actions gig-flow-footer">
