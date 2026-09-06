@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react'
 import type { LibrarySong } from './setlistStore'
 import { installLibrary } from './testSupport/library'
+import { VISUALS_VERSION } from './visualsFile'
 
 const chooseFolderPath = vi.fn()
 const fileExists = vi.fn()
@@ -87,7 +88,7 @@ function broadcastRoomWithSongVideo(): void {
       folderPath: FOLDER,
       gigId: 'k3f9x2abcd',
       visuals: {
-        visualsVersion: 1,
+        visualsVersion: VISUALS_VERSION,
         gigId: 'k3f9x2abcd',
         shapes: [{ id: 'v-1', name: 'Frame', layer: { type: 'song-video' } }],
         songVisuals: {
@@ -109,7 +110,7 @@ function broadcastRoomWithLogo(): void {
       folderPath: FOLDER,
       gigId: 'k3f9x2abcd',
       visuals: {
-        visualsVersion: 1,
+        visualsVersion: VISUALS_VERSION,
         gigId: 'k3f9x2abcd',
         shapes: [
           { id: 'logo', name: 'Logo', layer: { type: 'image', src: 'chango-pepper-logo.png' } },

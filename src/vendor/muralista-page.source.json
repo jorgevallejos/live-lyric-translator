@@ -2,11 +2,11 @@
   "page": "mapper.html",
   "owner": "muralista",
   "path": "mapper/",
-  "tag": "v1.23.0",
+  "tag": "v1.24.0",
   "files": {
     "mapper.html": "764b1d37dbc68a21a9aee3c7aee57f5e2b1d4d28e6c9dc5237834332c32c8125",
     "mapper.css": "6a1d70274f08cf77c3a5bed91940aebb734ed15c2a43fe29bccf0604d2043ca1",
-    "mapper.js": "f1f1576ebca1f67e74e11f5ac5cb761b9c7fa63fb049f8befc18fe9bdb4a242e",
+    "mapper.js": "30e985bc10705b88125904d1ea1cca15bce730322f206c3cc771cc8376c10dc8",
     "warp.js": "17e3a25ef61074b622965c6df2e2b8ec7a50fc6f5ffb698c160eead701c15cb6",
     "stageCapture.js": "f62c074c14127a1a183a6c80f2894a26a7495ef854f1925848b88fd4b95226cb",
     "modes.js": "9f3cdd1d0c80b8a5af13f344a385a3c1164ddbc017c0710859b89c27a084913b",
@@ -15,5 +15,6 @@
   "vendoredOn": "2026-09-06",
   "why": "Muralista's page is served from here rather than from a folder the user points at. Pregonero cannot guess where mapper.html is on a machine, and a setting that has to be discovered before anything works is the dead-end shape this redesign exists to remove. Vendoring by tag with a hash test is what already demotes warp.js from a fork to a cache, and it does the same here.",
   "notVendored": "media/ (90 MB of Muralista's own test clips) and white.html. They are its test content, not its page.",
-  "fifthFile": "stageCapture.js arrived at v1.8.0 with the stage capture, modes.js at v1.19.0 with named modes, and assetName.js at v1.22.0 with the fix for an asset name that may be a relative path. mapper.js imports all three the way it imports warp.js, so a page served without any of them is a page that throws on load - which is exactly why the file list is asserted whole rather than merely hashed. It has now earned itself three times."
+  "fifthFile": "stageCapture.js arrived at v1.8.0 with the stage capture, modes.js at v1.19.0 with named modes, and assetName.js at v1.22.0 with the fix for an asset name that may be a relative path. mapper.js imports all three the way it imports warp.js, so a page served without any of them is a page that throws on load - which is exactly why the file list is asserted whole rather than merely hashed. It has now earned itself three times.",
+  "note_v1_24_0": "Re-vendored at v1.24.0 for the visualsVersion bump. VISUALS_VERSION is 2 in mapper.js, and visualsDocument() is the only place that reads it, so exactly one field of what Muralista writes changed. The other six files are byte-identical to v1.23.0."
 }
