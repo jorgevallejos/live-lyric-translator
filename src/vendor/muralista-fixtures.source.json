@@ -2,11 +2,11 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.22.0",
-  "sha256": "867afb0ec10aa4a9cd445e5ec83847be202e90d71a7021b3bf49bfad2c29c105",
+  "tag": "v1.23.0",
+  "sha256": "f1f1576ebca1f67e74e11f5ac5cb761b9c7fa63fb049f8befc18fe9bdb4a242e",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT"
   ],
   "vendoredOn": "2026-09-06",
-  "note": "Re-vendored at v1.22.0. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture. v1.22.0 is one fix and it is a contract this repo is the other half of: sanitizeSongAssets refused any asset name carrying a separator, so every video assigned from a per-song directory was silently dropped on the way into visuals.json. `assetNameIsRelative` in `visualsFile.ts` is `mapper/assetName.js`, against the same cases."
+  "note": "Re-vendored at v1.23.0, a naming round: visuals.json is named the RP JSON — Room Performance — and the pointers to the retired gig-file.md follow docs/formats.md. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture."
 }

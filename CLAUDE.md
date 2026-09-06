@@ -245,8 +245,11 @@ its root are the poster, the contract and the stage plan; **the two files the
 tools write live in `<gig>/setup/`** — `gig.json` (Pregonero writes it, and is its only writer) and
 `visuals.json` (Muralista writes it, Pregonero only reads it), beside each other as the contract
 requires. Muralista is handed `<gig>/setup/` and needs no code change for it: it takes a folder and
-reads `gig.json` from its root. The authoritative description of both files lives in the vault at
-`projects/tramoya-integration/docs/gig-file.md`; the field names Pregonero reads from
+reads `gig.json` from its root. The authoritative description of all three formats lives in the vault at
+`projects/tramoya-integration/docs/formats.md` — **`GP JSON` (Gig Performance) is `gig.json`, `RP
+JSON` (Room Performance) is `visuals.json`, and `SP JSON` (Song Performance) is a song file. The
+format names are new as of 2026-09-06; the filenames are not changing.** The field names Pregonero
+reads from
 `visuals.json` are Muralista's own — `visualsVersion`, `gigId`, `shapes`, and a shape's type at
 `shape.layer.type`.
 
@@ -286,8 +289,8 @@ is which side of the read is authoritative:
 - **Writing happens when the running order is changed in Pregonero**, in `publishSetlistToGig`,
   called from the setlist screen's commit. Reading never writes a setlist that is already there.
 - **A file with no `setlist` field at all** still gets the app's written in. That is the field
-  accreting for the first time, not an overwrite — `docs/gig-file.md`, "The file exists before it is
-  finished".
+  accreting for the first time, not an overwrite — `docs/formats.md`, GP JSON, "The file exists
+  before it is finished".
 - **Either direction displacing an order is announced**, never done quietly: `readiness.adoption`
   carries what replaced what, and the gig screen says it. An id the file names that this machine
   cannot turn into a song is named too, rather than vanishing from the setlist.
