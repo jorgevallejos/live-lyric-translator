@@ -1,0 +1,69 @@
+===SPIKE-RESULTS===
+[
+  {
+    "label": "A control: file:// shell, http frame (today)",
+    "shellOrigin": "file://",
+    "frameOrigin": "http://127.0.0.1:50777",
+    "ownPreload": "undefined",
+    "viaParent": "BLOCKED: SecurityError Failed to read a named property 'electronAPI' from 'Window': Blocked a frame wit",
+    "frameWrite": "written-by-frame-A control: file:// shell, http frame (today)-1788686691722",
+    "windowOpen": "handle",
+    "projectionReads": null,
+    "projectionSharesStorage": false,
+    "frameReadsAck": null
+  },
+  {
+    "label": "B the question: http shell, SAME-ORIGIN frame",
+    "shellOrigin": "http://127.0.0.1:50777",
+    "frameOrigin": "http://127.0.0.1:50777",
+    "ownPreload": "undefined",
+    "viaParent": "pong-from-main-process",
+    "frameWrite": "written-by-frame-B the question: http shell, SAME-ORIGIN frame-1788686694023",
+    "windowOpen": "handle",
+    "projectionReads": "written-by-frame-B the question: http shell, SAME-ORIGIN frame-1788686694023",
+    "projectionSharesStorage": true,
+    "frameReadsAck": "from-projection"
+  },
+  {
+    "label": "C http shell, same-site DIFFERENT PORT frame",
+    "shellOrigin": "http://127.0.0.1:50777",
+    "frameOrigin": "http://127.0.0.1:50778",
+    "ownPreload": "undefined",
+    "viaParent": "BLOCKED: SecurityError Failed to read a named property 'electronAPI' from 'Window': Blocked a frame wit",
+    "frameWrite": "written-by-frame-C http shell, same-site DIFFERENT PORT frame-1788686696309",
+    "windowOpen": "handle",
+    "projectionReads": "written-by-frame-C http shell, same-site DIFFERENT PORT frame-1788686696309",
+    "projectionSharesStorage": true,
+    "frameReadsAck": "from-projection"
+  },
+  {
+    "label": "D same-origin + nodeIntegrationInSubFrames",
+    "shellOrigin": "http://127.0.0.1:50777",
+    "frameOrigin": "http://127.0.0.1:50777",
+    "ownPreload": "object",
+    "viaParent": "pong-from-main-process",
+    "frameWrite": "written-by-frame-D same-origin + nodeIntegrationInSubFrames-1788686698596",
+    "windowOpen": "handle",
+    "projectionReads": "written-by-frame-D same-origin + nodeIntegrationInSubFrames-1788686698596",
+    "projectionSharesStorage": true,
+    "frameReadsAck": "from-projection"
+  },
+  {
+    "label": "F CROSS-ORIGIN frame + nodeIntegrationInSubFrames (the leak test)",
+    "shellOrigin": "http://127.0.0.1:50777",
+    "frameOrigin": "http://127.0.0.1:50778",
+    "ownPreload": "object",
+    "viaParent": "BLOCKED: SecurityError Failed to read a named property 'electronAPI' from 'Window': Blocked a frame wit",
+    "frameWrite": "written-by-frame-F CROSS-ORIGIN frame + nodeIntegrationInSubFrames (the leak test)-1788686700877",
+    "windowOpen": "handle",
+    "projectionReads": "written-by-frame-F CROSS-ORIGIN frame + nodeIntegrationInSubFrames (the leak test)-1788686700877",
+    "projectionSharesStorage": true,
+    "frameReadsAck": "from-projection"
+  },
+  {
+    "label": "E shell on port P, relaunched on port Q (ephemeral port)",
+    "readsPreviousAnswers": null,
+    "survivesPortChange": false
+  }
+]
+===END===
