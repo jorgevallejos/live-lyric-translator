@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { bridge } from './bridge'
 import {
   getArtistName,
   getBombistaPath,
@@ -196,7 +197,7 @@ export function FoldersView() {
 
 
   const locate = (src: string) => {
-    const api = window.electronAPI
+    const api = bridge()
     if (!api) return
     setBusy(true)
     void (async () => {
@@ -411,7 +412,7 @@ export function FoldersView() {
                       ))}
                     </ul>
                     {row.path !== null && <p className="folders-source-path">{row.path}</p>}
-                    {!found && window.electronAPI && (
+                    {!found && bridge() && (
                       <button
                         type="button"
                         className="ctrl-btn ctrl-setup-link"

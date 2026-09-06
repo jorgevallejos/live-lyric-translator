@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-library/react'
-import App from './App'
+import { PlayerRoot } from './PlayerRoot'
 import { GigsView, sortNewestFirst, type GigChoice } from './GigsView'
 import { ensureStorage } from './testSupport/storage'
 import { installRequiredFolders } from './testSupport/folders'
@@ -115,7 +115,7 @@ async function renderStandby() {
     onProjectionClosed: vi.fn(() => vi.fn()),
   }
   await act(async () => {
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
   })
 }
 

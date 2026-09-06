@@ -25,6 +25,7 @@ const {
   APP_PRIVILEGES,
   APP_SCHEME,
   appUrl,
+  playerUrl,
   resolveAppRequest,
 } = require('./appScheme.cjs')
 
@@ -83,8 +84,9 @@ wss.on('connection', (ws) => {
 function getProjectionUrl() {
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) {
-    const base = devUrl.split('#')[0]
-    return base + '#/projection'
+    // The player's own page in dev too, so the wall is the same document either way.
+    const base = devUrl.split('#')[0].replace(/\/$/, '')
+    return `${base}/player.html#/projection`
   }
   return null
 }
@@ -94,9 +96,14 @@ function getDistRoot() {
   return path.join(app.getAppPath(), 'dist')
 }
 
+/**
+ * **The wall is the player's page, loaded directly.** It is not the shell with a route: the shell
+ * frames the player, and a window that framed it again would be a second copy of the same
+ * document. Same origin as the frame, which is how the two share `localStorage`.
+ */
 function loadProjectionUrl(win) {
   const devUrl = getProjectionUrl()
-  win.loadURL(devUrl || appUrl('#/projection'))
+  win.loadURL(devUrl || playerUrl('#/projection'))
 }
 
 function notifyProjectionOpened() {

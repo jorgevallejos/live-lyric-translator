@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { bridge } from './bridge'
 import {
   confirmSetup,
   createGig,
@@ -719,7 +720,7 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
    * away that is not one press to get back.
    */
   useEffect(() => {
-    window.electronAPI?.closeProjection?.()
+    bridge()?.closeProjection?.()
   }, [])
 
   useEffect(() => {

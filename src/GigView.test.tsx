@@ -46,6 +46,8 @@ vi.mock('./platform', async (importOriginal) => ({
 }))
 
 const App = (await import('./App')).default
+const PlayerRoot = (await import('./PlayerRoot')).PlayerRoot
+const { isPlayerRoute } = await import('./PlayerApp')
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
 const FOLDER = '/gigs/setup/k3f9x2abcd'
@@ -175,9 +177,15 @@ function armableControlSetup() {
   }
 }
 
+/**
+ * **Two roots, because there are two documents** (2026-09-06). Standby, the setlist screen, the gig
+ * picker and the languages screen are the player's own page, which the shell frames — so a test
+ * that renders the shell at one of those gets an iframe jsdom cannot load. **`isPlayerRoute` is the
+ * predicate the shell itself uses**, so this cannot disagree with it.
+ */
 async function renderAt(hash: string) {
   await act(async () => {
-    render(<App initialHash={hash} />)
+    render(isPlayerRoute(hash) ? <PlayerRoot initialHash={hash} /> : <App initialHash={hash} />)
   })
 }
 

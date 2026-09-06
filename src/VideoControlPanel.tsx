@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { bridge } from './bridge'
 import { getLyricText, isLyricLine, isSection, type SongItem, type MediaFile, type TimelineEntry } from './songState'
 import { videoCueLookup } from './videoCueLookup'
 import { absolutePathToMediaUrl, validateVideoForImport, setMediaPath, type MediaValidationWarning } from './mediaPathStore'
@@ -119,7 +120,7 @@ export function VideoControlPanel({
 
   // File-picker: link or re-link the video
   const handleLocateVideo = async () => {
-    const api = window.electronAPI
+    const api = bridge()
     if (!api) return
     const chosen = await chooseFilePath('video')
     if (!chosen) return
@@ -148,7 +149,7 @@ export function VideoControlPanel({
         <p className="ctrl-video-nopath-msg">
           Video not linked yet.
         </p>
-        {window.electronAPI && (
+        {bridge() && (
           <button type="button" className="ctrl-btn ctrl-arm" onClick={handleLocateVideo}>
             Locate video…
           </button>
@@ -214,7 +215,7 @@ export function VideoControlPanel({
         >
           {showCueStrip ? 'Hide strip' : 'Cue strip'}
         </button>
-        {window.electronAPI && (
+        {bridge() && (
           <button type="button" className="ctrl-btn" onClick={handleLocateVideo}>
             Locate video…
           </button>
