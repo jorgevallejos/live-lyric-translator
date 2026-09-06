@@ -35,12 +35,13 @@ describe('the vendored Muralista page', () => {
   })
 
   it('names the whole page, so another file cannot arrive unrecorded', () => {
-    // **This is the assertion that earned itself, twice.** `modes.js` arrived at `v1.19.0` and
-    // `stageCapture.js` arrived at Muralista's
-    // `v1.8.0` and `mapper.js` imports it the way it imports `warp.js` — a page served without it
-    // throws on load, with the hashes of the other four all green. A list that is asserted whole
-    // is what turns that into a red test instead of a blank window at a projector.
+    // **This is the assertion that earned itself three times.** `stageCapture.js` arrived at
+    // Muralista's `v1.8.0`, `modes.js` at `v1.19.0`, and `assetName.js` at `v1.22.0` — and
+    // `mapper.js` imports each of them the way it imports `warp.js`, so a page served without one
+    // throws on load with every other hash green. **A list asserted whole is what turns that into
+    // a red test instead of a blank window at a projector.**
     expect(Object.keys(page.files).sort()).toEqual([
+      'assetName.js',
       'mapper.css',
       'mapper.html',
       'mapper.js',

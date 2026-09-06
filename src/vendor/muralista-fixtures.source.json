@@ -2,11 +2,11 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.21.0",
-  "sha256": "cfa72d1abca9a6d4e45c9d66f9231a684299f54b0aa75397a09794c3c2af062e",
+  "tag": "v1.22.0",
+  "sha256": "867afb0ec10aa4a9cd445e5ec83847be202e90d71a7021b3bf49bfad2c29c105",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT"
   ],
   "vendoredOn": "2026-09-06",
-  "note": "Re-vendored at v1.21.0. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture. v1.21.0 seeds the video frame into its mode, moves SCOPE and PREVIEWING above the canvas as two dropdowns, identifies the speaker on the output seam so a reloaded control page is followed, and asks its host for a file rather than opening a picker it cannot constrain."
+  "note": "Re-vendored at v1.22.0. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture. v1.22.0 is one fix and it is a contract this repo is the other half of: sanitizeSongAssets refused any asset name carrying a separator, so every video assigned from a per-song directory was silently dropped on the way into visuals.json. `assetNameIsRelative` in `visualsFile.ts` is `mapper/assetName.js`, against the same cases."
 }
