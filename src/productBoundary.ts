@@ -57,15 +57,21 @@
  * **A green test is only worth what its classification is worth**, so the two entries that decide
  * the result are named here rather than left inside a list.
  *
- * - **`setlistStore.ts` is `SHARED`, and the design's own words make that arguable.** *The player
+ * - **`setlistStore.ts` is `SHARED`, and the split of 2026-09-06 settled why.** *The player
  *   receives a gig and never reaches into Backstage, Preferences or the catalogue* — and this
- *   module is the catalogue. **It is also the song library**, and a player has to read a song:
- *   the standalone ruling of 2026-09-05 has it resolving a song by its id against the answered
- *   catalogue, which is a read of exactly this. So the module holds both a shared read and shell-
- *   only management, and classifying it either way is wrong about half of it. **The player's whole
- *   use of it today is one symbol** — `getLibrarySongById`, in `useSongNavigation.ts` — which is
- *   the read half, so `SHARED` is the less wrong answer and this is where to look first if the
- *   split is ever attempted.
+ *   module is the catalogue. **It is also the song library**, and a player has to read a song.
+ *   Before the split that could only be argued; with the two sides in separate files it can be
+ *   counted, and the count is decisive: **the player imports six symbols and every one of them is
+ *   a read** — `getLibrarySongById`, `getOrderedSongsForActiveSetlist`, `getActiveSetlistId`,
+ *   `getSetlists`, `hasValidActiveSetlist` and the `LibrarySong` type. **The shell imports
+ *   eighteen, and they are the management half**: adopt, add, move, remove, forget, hydrate, and
+ *   the catalogue listings.
+ *
+ *   **So the module is two modules glued together, and the seam between them is already the
+ *   product boundary.** `SHARED` holds, and `PLAYER_MAY_READ_FROM_CATALOGUE` below pins it: the
+ *   player reads the running order and the songs in it, and writes nothing. **Splitting the file
+ *   is the obvious next move and was deliberately not made here** — this stage's job was to put
+ *   every file on one side of the line, and `setlistStore.ts` already is.
  * - **`gigSession.ts`, `gigReadiness.ts` and the gig list are `SHARED` for the same reason** and
  *   with less doubt: the shell writes `gig.json` and the player performs what it says. Two
  *   products reading one file is the contract, not a leak.
@@ -73,6 +79,11 @@
 
 /** Standby, the performing view, the projection window, the gig picker, and what only they use. */
 export const PLAYER: readonly string[] = [
+  'PlayerApp.tsx',
+  'ControlView.tsx',
+  'SongsView.tsx',
+  'LanguagesView.tsx',
+  'ProjectionView.tsx',
   'GigsView.tsx',
   'VideoPerformancePanel.tsx',
   'VideoControlPanel.tsx',
@@ -84,7 +95,6 @@ export const PLAYER: readonly string[] = [
   'ShapeText.tsx',
   'ShapeVideo.tsx',
   'BeatCircle.tsx',
-  'BeatIndicator.tsx',
   'useBeatClock.ts',
   'useSongNavigation.ts',
   'useWebSocket.ts',
@@ -110,6 +120,8 @@ export const PLAYER: readonly string[] = [
 
 /** Backstage, the song flow, the gig flow, first run's own screens, and what only they use. */
 export const SHELL: readonly string[] = [
+  'App.tsx',
+  'main.tsx',
   'SetupHomeView.tsx',
   'GigFlowView.tsx',
   'GigView.tsx',
@@ -171,10 +183,28 @@ export const SHARED: readonly string[] = [
 ]
 
 /**
- * **Modules that contain both products, and there are two.** The router and its entry point.
- * Pinned at exactly this list: the extraction's cost is allowed to be paid, never to grow.
+ * **Modules that contain both products. There are none, and the list is kept so it stays that
+ * way** (2026-09-06).
+ *
+ * It held `App.tsx` and `main.tsx` for one day. `App.tsx` defined Standby, the performing view and
+ * the projection window while importing every one of the shell's rooms to route to them; **that
+ * was the extraction's whole known cost, and it has been paid.** The screens are their own files,
+ * `PlayerApp.tsx` is the player's router, and `App.tsx` is the shell's.
+ *
+ * **Empty rather than deleted**, because an empty list a test asserts is a guard and a deleted one
+ * is nothing: a module that belongs to both products has to be named here to exist.
  */
-export const UNSPLIT: readonly string[] = ['App.tsx', 'main.tsx']
+export const UNSPLIT: readonly string[] = []
+
+/**
+ * **THE HOST SEAM: the one edge from the shell into the player, and it is one import.**
+ *
+ * `App.tsx` mounts `PlayerApp`. Today that is a component; **when the player becomes a framed page
+ * it becomes a URL**, and this is the line that changes. Pinned as the only permitted
+ * `SHELL → PLAYER` edge so a second one — the shell reaching past the seam into a player screen or
+ * a player module — turns the boundary test red.
+ */
+export const HOST_SEAM: readonly string[] = ['App.tsx -> PlayerApp.tsx']
 
 /**
  * **The one crossing that exists today, named rather than fixed.** `mediaSources.ts` imports
@@ -183,3 +213,24 @@ export const UNSPLIT: readonly string[] = ['App.tsx', 'main.tsx']
  * was that nothing moves to make a test pass.
  */
 export const KNOWN_CROSSINGS: readonly string[] = ['mediaSources.ts -> ShapeStatic.tsx']
+
+/**
+ * **What the player is allowed to take from the catalogue, and it is all reads.**
+ *
+ * *The player receives a gig and never reaches into Backstage, Preferences or the catalogue* is
+ * the design's line, and `setlistStore.ts` is the one `SHARED` module where it can be broken
+ * without any import crossing: **the file holds a read half the player needs and a management half
+ * that is the shell's.** So the symbols are pinned rather than the module.
+ *
+ * **A write reaching the player turns the boundary test red**, which is the failure this list
+ * exists for — `addSongToSetlist`, `adoptSongFile`, `forgetDeletedSong` and their neighbours are
+ * the shell's, and none of them is here.
+ */
+export const PLAYER_MAY_READ_FROM_CATALOGUE: readonly string[] = [
+  'LibrarySong',
+  'getActiveSetlistId',
+  'getLibrarySongById',
+  'getOrderedSongsForActiveSetlist',
+  'getSetlists',
+  'hasValidActiveSetlist',
+]

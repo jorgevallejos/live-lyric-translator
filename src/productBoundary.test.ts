@@ -13,7 +13,15 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { PLAYER, SHELL, SHARED, UNSPLIT, KNOWN_CROSSINGS } from './productBoundary'
+import {
+  PLAYER,
+  SHELL,
+  SHARED,
+  UNSPLIT,
+  HOST_SEAM,
+  KNOWN_CROSSINGS,
+  PLAYER_MAY_READ_FROM_CATALOGUE,
+} from './productBoundary'
 
 const SRC = resolve(__dirname)
 
@@ -86,11 +94,13 @@ describe('every module is on one side of the line', () => {
     expect([...declared].sort()).toEqual(MODULES)
   })
 
-  it('pins the modules that contain both products at exactly two', () => {
-    // `App.tsx` is the router and holds Standby, the performing view and the projection window
-    // while importing every one of the shell's screens. **That is the extraction's first work
-    // item and the whole of its known cost**, and it is allowed to be paid, never to grow.
-    expect([...UNSPLIT].sort()).toEqual(['App.tsx', 'main.tsx'])
+  it('leaves no module belonging to both products', () => {
+    // **`App.tsx` was the one, and the cost has been paid** (2026-09-06). It defined Standby, the
+    // performing view and the projection window while importing every one of the shell's rooms to
+    // route to them; those screens are their own files now, `PlayerApp.tsx` is the player's router
+    // and `App.tsx` is the shell's. **The empty list is the guard**: a module that belongs to both
+    // has to be named here to exist.
+    expect(UNSPLIT).toEqual([])
   })
 })
 
@@ -107,10 +117,15 @@ describe('the player does not reach into the shell', () => {
 })
 
 describe('the shell does not reach into the player either', () => {
-  it('imports nothing the player owns', () => {
-    // Stronger than was asked, and it held on the day it was written, so it is kept. The shell
-    // reads the same files the player does — that is `SHARED`, and it is the contract.
-    expect(edges(SHELL, PLAYER)).toEqual([])
+  it('reaches into the player exactly once, through the host seam', () => {
+    // **`App.tsx` mounts `PlayerApp`, and that is the whole of it.** Today it is a component;
+    // **when the player becomes a framed page it becomes a URL**, and that is the line that
+    // changes. Pinned so a second edge — the shell reaching past the seam into a player screen or
+    // a player module — turns this red.
+    //
+    // Everything else the shell needs from the player's side it reads through `SHARED`: the same
+    // `gig.json`, the same catalogue, the same song. That is the contract, not a leak.
+    expect(edges(SHELL, PLAYER)).toEqual(HOST_SEAM)
   })
 })
 
@@ -129,5 +144,27 @@ describe('what is shared belongs to neither product', () => {
 
   it('reaches into the router not at all', () => {
     expect(edges(SHARED, UNSPLIT)).toEqual([])
+  })
+})
+
+describe('the player reads the catalogue and never writes it', () => {
+  it('takes only the declared read symbols from `setlistStore`', () => {
+    // **The one place the design's line can be broken without any import crossing.**
+    // `setlistStore.ts` is `SHARED` because it holds a read half the player needs and a management
+    // half that is the shell's — so the symbols are pinned rather than the module. A write
+    // reaching the player turns this red.
+    const taken = new Set<string>()
+    for (const module of PLAYER) {
+      const src = readFileSync(join(SRC, module), 'utf8')
+      const re = /import\s+\{([^}]*)\}\s+from\s+'\.\/setlistStore'/g
+      let m: RegExpExecArray | null
+      while ((m = re.exec(src)) !== null) {
+        for (const raw of m[1]!.split(',')) {
+          const name = raw.trim().replace(/^type\s+/, '')
+          if (name) taken.add(name)
+        }
+      }
+    }
+    expect([...taken].sort()).toEqual([...PLAYER_MAY_READ_FROM_CATALOGUE].sort())
   })
 })

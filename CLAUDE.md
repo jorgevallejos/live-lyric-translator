@@ -116,18 +116,29 @@ rather than on the day someone tries to separate the two products. **A new modul
 until it is classified**, which is most of the value: the crossing that matters is the one nobody
 thought about.
 
-**Two facts it records rather than fixes**, both deliberate:
+**No module belongs to both products** (since 2026-09-06). `App.tsx` did for one day: it defined
+Standby, the performing view and the projection window while importing every one of the shell's
+rooms to route to them. **That was the extraction's whole known cost and it has been paid** — the
+screens are their own files, `PlayerApp.tsx` is the player's router and `App.tsx` is the shell's.
+`UNSPLIT` is kept as an empty list a test asserts, so a module that belongs to both has to be named
+there to exist.
 
-- **`App.tsx` contains both products** — it defines Standby, the performing view and the projection
-  window while importing every one of the shell's screens to route to them. It is the extraction's
-  first work item, and the `UNSPLIT` set is pinned at `App.tsx` and `main.tsx` so the cost cannot
-  grow unnoticed.
-- **`mediaSources.ts` imports `isStaticType` from `ShapeStatic.tsx`**, so a shared reader reaches
-  into a player renderer. A one-line move would fix it and it was not made: the round that drew the
-  line moved no code to make a test pass.
+**Three things the test pins, and each is a way the line could be crossed without an import
+looking wrong:**
 
-**Do not make this test pass by moving code.** A crossing is either a wrong classification — fix the
-declaration and say why — or a real design question.
+- **`HOST_SEAM` — `App.tsx -> PlayerApp.tsx`, the one edge from the shell into the player.** Today
+  it is a component; **when the player becomes a framed page it becomes a URL**, and that is the
+  line that changes. A second shell → player edge turns the test red.
+- **`PLAYER_MAY_READ_FROM_CATALOGUE`** — the symbols the player may take from `setlistStore.ts`,
+  all of them reads. That module is `SHARED` because it holds a read half the player needs and a
+  management half that is the shell's, so **the symbols are pinned rather than the module**: a
+  write reaching the player turns the test red without any import crossing.
+- **`KNOWN_CROSSINGS` — `mediaSources.ts -> ShapeStatic.tsx`**, a shared reader reaching into a
+  player renderer for `isStaticType`, a pure predicate in a component file. One line to fix; left
+  alone so far.
+
+**Do not make this test pass by moving code that has nothing to do with the change.** A crossing is
+either a wrong classification — fix the declaration and say why — or a real design question.
 
 ### Where each file lives, and who owns it
 

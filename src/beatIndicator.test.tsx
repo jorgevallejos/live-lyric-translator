@@ -1,5 +1,12 @@
 /** @vitest-environment jsdom */
 /**
+ * **The beat indicator's behaviour, end to end** — not a component's tests.
+ *
+ * **The file is lowercase for that reason** (2026-09-06). It was `BeatIndicator.test.tsx` beside a
+ * `BeatIndicator.tsx` it never imported: **that component had no consumer anywhere** and was
+ * deleted in the same round. What is on screen is `BeatCircle`, and what these tests drive is the
+ * whole app — arm, press, advance — so they are named for the concept rather than for a file.
+ *
  * Beat indicator integration tests — performer view.
  *
  * The performer view uses BeatCircle (§7 shared component) for the non-video
