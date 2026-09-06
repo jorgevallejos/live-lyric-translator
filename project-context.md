@@ -52,7 +52,15 @@ Remaining build docs from this round: `docs/media-assets.md`, `docs/subtitle-for
 
 **What the app did at this point (performer/audience UX; some of this is superseded by Timeline v2 below):**
 - **Projection-column setup** has fixed-px, labelled toggle controls (no more window-rescaling icons): **Display format** (Small / Big / None), **Transitions** (Manual / Auto), and a **Beat indicator** on/off (filled/empty circle). Green = active. Four equal setup columns.
-- **Manual mode:** after arm, the bottom-bar button is **Start** (Next/Prev disabled) → Start runs the count-in so the performer catches the tempo → button becomes **Restart**, Next/Prev enabled → first **Next** reveals line 1. (No Start step when beat is off / song has no tempo.)
+- ~~**Manual mode:** after arm, the bottom-bar button is **Start** (Next/Prev disabled) → Start runs
+  the count-in so the performer catches the tempo → button becomes **Restart**, Next/Prev enabled →
+  first **Next** reveals line 1.~~ **R2's Manual Start step is deleted (Jorge, 2026-09-06, shipped in
+  `v0.74.0`).** The 05/09 ruling took the beat indicator out of `manual`, and **the indicator was
+  the step's only observable effect** — a step that does nothing you can see is worse than no step.
+  **So nothing beat-related exists in `manual` at all**, and manual is what it was before R2: after
+  arm, the bottom bar is Previous / Next / Restart, and **the first press reveals the first
+  phrase**. The reasoning is in `projects/tramoya-integration/journey-performance.md`, *No count-in
+  in `manual` either*.
 - **Auto mode (as built at this point — superseded 2026-08-14 by Timeline v2 P1 for v2-timeline songs, see below):** behaves like Video mode but driven by the beat clock — **Play / Pause / Restart** transport, Play runs the count-in with the audience black, and after `tempo.countInBars` the timeline drives cues into **both** performer and audience windows.
 - **Beat↔Auto dependency:** beat OFF disables Auto and forces Manual (one-directional, with a hint).
 - **Video big/small formats** now share one full-frame layout (single **3:2** frame; both Big and Small = full-frame `contain` + superimposed subtitle at the bottom; EB Garamond SemiBold). **The only per-format difference is subtitle font size** — Small keeps the larger font (`160/3168` of frame height). Non-video songs render centered. *(Simplified from the old Small = 75.8% scaled + bottom-band geometry, which matched a now-superseded Premiere reference. The Small font was carried over unvalidated for the overlay context; needed a live projector eyeball.)*

@@ -99,14 +99,34 @@ function setupControlViewWithReadinessPassing() {
   return mockApi
 }
 
+/**
+ * **The count-in, which lives in `clock` and nowhere else** (Jorge, 2026-09-06).
+ *
+ * These tests were written against a **`manual`** song — a tempo, no timeline — because until
+ * 2026-09-06 `manual` had an explicit Start step that ran a count-in before the first lyric.
+ * **That step is deleted and nothing beat-related exists in `manual` at all**, so the count-in's
+ * own mechanics are asserted where they still happen: a legacy-timeline **Auto** song, whose
+ * `Play` runs a count-in and then drives the song from the clock.
+ *
+ * The song is deliberately a **legacy** timeline (no `timelineVersion`): a v2 one takes the
+ * cue-start path, where the first press *is* the cue and there is no count-in to watch.
+ */
 describe('Beat indicator (count-in + running) — performer view (BeatCircle)', () => {
   function installLibraryWithTempo(): void {
     const line: SongItem = { languages: { es: 't', en: 't' } }
     const songs = SONGS.map((s) => ({
       id: s.id,
       title: s.title,
-      items: [line],
-      ...(s.id === 'duelo' ? { tempo: { bpm: 120, numerator: 4, denominator: 4, countInBars: 1 } } : {}),
+      items: [line, line],
+      ...(s.id === 'duelo'
+        ? {
+            tempo: { bpm: 120, numerator: 4, denominator: 4, countInBars: 1 },
+            timeline: [
+              { start: 0, end: 30 },
+              { start: 30, end: 60 },
+            ],
+          }
+        : {}),
     }))
     installLibrary(songs)
   }
@@ -137,7 +157,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 
-  it('shows BeatCircle in count-in mode after Start is pressed', async () => {
+  it('is a plain pulse on arm and a count-in once Play is pressed', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
@@ -146,15 +166,15 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(standbyState()).toBe('READY_TO_ARM')
 
     await act(async () => { fireEvent.click(getArmButton()) })
-    // **NOTHING ON ARM IN `manual`** (Jorge, 2026-09-05). P5's free-running pulse is still
-    // there, on its own epoch — it is what the count-in re-anchors — but it is not drawn: in
-    // `manual` nothing is running on its own, so there is nothing to keep the performer with.
-    // This song has a tempo and no timeline, which is what makes it `manual`.
-    expect(screen.queryByTestId('beat-circle')).toBeNull()
+    // **The beat starts when a song loads**, and arming loads the first song. A free-running
+    // pulse is a plain click, never a phantom count-in the performer would read as meaning
+    // something.
+    act(() => { vi.advanceTimersByTime(50) })
+    expect(screen.getByTestId('beat-circle-running')).toBeTruthy()
+    expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
 
-    // R2: the count-in begins on the explicit Start step, before any lyric — and **the count-in
-    // IS something running on its own**, which is the whole reason that step exists.
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
+    // Play begins the count-in, which is what establishes the downbeat.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^play$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
     expect(screen.getByTestId('beat-circle')).toBeTruthy()
@@ -168,7 +188,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^play$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
     const numEl = screen.getByTestId('beat-circle-beat-number')
@@ -183,7 +203,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^play$/i })) })
     act(() => { vi.advanceTimersByTime(550) })
 
     const numEl = screen.getByTestId('beat-circle-beat-number')
@@ -198,7 +218,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^play$/i })) })
     act(() => { vi.advanceTimersByTime(50) })
 
     const dotsEl = screen.getByTestId('beat-circle-dots')
@@ -206,41 +226,43 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     expect(dotsEl.querySelectorAll('[data-testid="beat-circle-dot"]')[0].className).toMatch(/active/)
   })
 
-  it('after the count-in, the indicator goes — in `manual` he is the clock', async () => {
-    // The count-in ends and the song begins. **From that moment nothing is running on its own**
-    // — a manual song advances on the performer's press — so the indicator has nothing to
-    // report and goes with the count-in that produced it.
+  it('after the count-in, the count-in phase goes and the running phase stays', async () => {
+    // In `clock` the timeline keeps running once the count-in hands over, so the indicator
+    // carries on — it stops at the end of the song, not at the end of the count-in.
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
     render(<App initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^play$/i })) })
     // Count-in is 4 beats × 500ms = 2000ms
     act(() => { vi.advanceTimersByTime(2100) })
 
     expect(screen.queryByTestId('beat-circle-count-in')).toBeNull()
-    expect(screen.queryByTestId('beat-circle')).toBeNull()
+    expect(screen.getByTestId('beat-circle-running')).toBeTruthy()
   })
 
-  it('does NOT auto-navigate past the first lyric when count-in ends (begin event) — Next stays manual', async () => {
+  it('in `manual` there is no Start, and the first press reveals the first phrase', async () => {
+    // **What manual becomes, and it is simpler** (Jorge, 2026-09-06): there is no separate
+    // Start, and nothing beat-related at all. A tempo the song happens to declare changes
+    // nothing about how it is driven.
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
+    setCurrentSongId('pimiento')
+    setCurrentSongTitle('Pimiento')
     render(<App initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
-    // R2: Start begins the count-in; the first Next then reveals line 0.
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^start$/i })) })
+    act(() => { vi.advanceTimersByTime(2100) })
+
+    expect(screen.queryByRole('button', { name: /^start$/i })).toBeNull()
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
+
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^next$/i })) })
     expect(getSongIndex()).toBe(0)
-
-    act(() => { vi.advanceTimersByTime(2100) })
-    await act(async () => { await Promise.resolve() })
-
-    // The begin event (count-in complete) must NOT auto-advance the lyric index.
-    expect(getSongIndex()).toBe(0)
+    expect(screen.queryByTestId('beat-circle')).toBeNull()
   })
 
   it('beat circle is never rendered in the projection view', async () => {
