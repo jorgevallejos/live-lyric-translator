@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><title>player</title>
+<body style="font:14px system-ui;padding:1rem">
+<h3>player frame</h3><pre id="out"></pre>
+<script>
+  window.__spike = {
+    where: location.href,
+    ownPreload: typeof window.electronAPI,
+  }
+  document.getElementById('out').textContent = JSON.stringify(window.__spike, null, 2)
+</script>
