@@ -11,8 +11,16 @@ function getSetlistGridRule(css: string): string {
   return match[0]
 }
 
+/**
+ * **The setlist tile's own rule, anchored to the start of a line.**
+ *
+ * It used to match the first `.songs-song-btn {` anywhere in the file, which is a substring and
+ * not a selector: on 2026-09-06 the performing view gave the same element a
+ * `.performing-next-song-tile-wrap .songs-song-btn` rule and this helper started reading that one
+ * instead. **A selector that is matched as a substring reads whichever rule is nearest the top.**
+ */
 function getSongTileRule(css: string): string {
-  const match = css.match(/\.songs-song-btn\s*\{[\s\S]*?\}/)
+  const match = css.match(/(?:^|\n)\.songs-song-btn\s*\{[\s\S]*?\}/)
   if (!match) {
     throw new Error('Song tile rule not found')
   }
@@ -20,7 +28,7 @@ function getSongTileRule(css: string): string {
 }
 
 function getSongTileTitleRule(css: string): string {
-  const match = css.match(/\.songs-song-title\s*\{[\s\S]*?\}/)
+  const match = css.match(/(?:^|\n)\.songs-song-title\s*\{[\s\S]*?\}/)
   if (!match) {
     throw new Error('Song tile title rule not found')
   }
