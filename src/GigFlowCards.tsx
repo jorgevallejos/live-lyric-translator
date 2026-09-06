@@ -39,7 +39,7 @@
  * **The geometry is not previewed and is not this screen's** — where the card lands and how big it
  * is are Muralista's, decided at the wall on the visuals step. This shows what is in the card.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ShapeContact } from './ShapeContact'
 import { ShapeIntro, type IntroParts } from './ShapeIntro'
 import { UNIT_SIZE } from './vendor/warp.js'
@@ -87,22 +87,11 @@ export function toMessageHome(fields: CardFields): MessageHome {
  * square exactly as the compositor lays it out, and the square is scaled down — so what changes
  * between here and the wall is the quad, which is Muralista's and is not this screen's question.
  */
-function CardPreview({
-  width,
-  testId,
-  children,
-}: {
-  width: number
-  testId: string
-  children: React.ReactNode
-}) {
+function CardPreview({ testId, children }: { testId: string; children: React.ReactNode }) {
+  const [ref, width] = useMeasuredWidth(NOMINAL_PREVIEW_WIDTH)
   const scale = width / UNIT_SIZE
   return (
-    <div
-      className="gig-cards-preview"
-      data-testid={testId}
-      style={{ width: `${width}px`, height: `${width}px`, position: 'relative', overflow: 'hidden' }}
-    >
+    <div className="gig-cards-preview" data-testid={testId} ref={ref}>
       <div
         style={{
           position: 'absolute',
@@ -120,7 +109,49 @@ function CardPreview({
   )
 }
 
-const PREVIEW_WIDTH = 320
+/**
+ * **The width this preview renders at when nothing has been measured.** It is not a design
+ * decision and no layout depends on it: in a browser the observer fires before paint. It exists so
+ * jsdom — which does no layout, so every box is 0 wide — draws the card at a sane scale instead of
+ * at zero, and so the first frame is never blank.
+ */
+const NOMINAL_PREVIEW_WIDTH = 640
+
+/**
+ * **The element's own width, now.** The preview is *the full width of the app* (Jorge,
+ * 2026-09-06), and a constant cannot be that — it was 320px, and the step read as cramped because
+ * of it. The `UNIT_SIZE` box is scaled to whatever the container turns out to be, so the preview
+ * follows the window the way the wall follows the projector.
+ *
+ * **`ResizeObserver` is guarded because jsdom does not have one.** The window `resize` fallback is
+ * the same one `useOutputSize` uses; it catches the case that matters and misses a container that
+ * changes without the window changing, which cannot happen on this screen.
+ */
+function useMeasuredWidth(fallback: number) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [width, setWidth] = useState(fallback)
+
+  useEffect(() => {
+    const el = ref.current
+    if (el === null) return
+    const measure = () => {
+      const measured = el.getBoundingClientRect().width
+      if (measured <= 0) return
+      // Same number, same state: React bails out and nothing downstream recomputes.
+      setWidth((previous) => (Math.abs(previous - measured) < 0.5 ? previous : measured))
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure)
+      return () => window.removeEventListener('resize', measure)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return [ref, width] as const
+}
 
 export function ScreenCards({
   fields,
@@ -237,7 +268,7 @@ export function ScreenCards({
       <div className="gig-cards-previews">
         <div className="gig-cards-preview-block">
           <span className="control-setup-label">Message home</span>
-          <CardPreview width={PREVIEW_WIDTH} testId="gig-cards-message-preview">
+          <CardPreview testId="gig-cards-message-preview">
             <ShapeContact
               fields={toMessageHome(fields)}
               boxWidth={UNIT_SIZE}
@@ -278,7 +309,7 @@ export function ScreenCards({
             </p>
           )}
           {introParts && (
-            <CardPreview width={PREVIEW_WIDTH} testId="gig-cards-intro-preview">
+            <CardPreview testId="gig-cards-intro-preview">
               <ShapeIntro parts={introParts} boxWidth={UNIT_SIZE} testId="gig-cards-intro-card" />
             </CardPreview>
           )}

@@ -5,6 +5,8 @@
  * Deciding the two cards are not shapes answered *where they appear* and took away *where you set
  * them up*. This is the answer — one screen for both not-running states of the three-state gig.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
 import { ensureStorage } from './testSupport/storage'
@@ -152,6 +154,47 @@ describe('the screen', () => {
     await renderStep()
     expect(screen.getByTestId('gig-cards-no-songs')).toBeTruthy()
     expect(screen.queryByTestId('gig-cards-intro-preview')).toBeNull()
+  })
+
+  /**
+   * **THE TWO PREVIEWS STACK, EACH AT THE FULL WIDTH OF THE APP** (Jorge, 2026-09-06). They shipped
+   * side by side, in blocks capped at `20em`, each preview a fixed **320px** square — two small
+   * squares on a wide screen, with the fields above them. **The step was cramped.**
+   *
+   * **Nothing else about the step moves**: the fields, the live preview and the song selector are
+   * good as they are.
+   *
+   * **The preview's width stops being a number this file chose.** It is the container's, measured,
+   * and the `UNIT_SIZE` box is scaled to it — so *full width* keeps meaning full width when the
+   * window changes, which a constant cannot do. **jsdom does no layout and has no
+   * `ResizeObserver`**, so the component falls back to a nominal width there and the shape is
+   * asserted in the stylesheet, the same device the gig picker's rows use.
+   */
+  it('stacks the two previews, each at the full width, and picks no width of its own', async () => {
+    await renderStep()
+
+    const preview = screen.getByTestId('gig-cards-message-preview')
+    // No inline pixel width: the element takes the width the stylesheet gives it.
+    expect(preview.getAttribute('style') ?? '').not.toMatch(/width:\s*\d+px/)
+
+    const css = readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+    const rule = (selector: string): string => {
+      const at = css.indexOf(selector + ' {')
+      expect(at, `${selector} is not in control.css`).toBeGreaterThan(-1)
+      return css.slice(at, css.indexOf('}', at))
+    }
+
+    const row = rule('.gig-cards-previews')
+    expect(row).toMatch(/flex-direction:\s*column/)
+    expect(row).not.toMatch(/flex-wrap/)
+
+    const block = rule('.gig-cards-preview-block')
+    // The 20em cap was half of what made it cramped.
+    expect(block).not.toMatch(/max-width/)
+
+    const box = rule('.gig-cards-preview')
+    expect(box).toMatch(/width:\s*100%/)
+    expect(box).toMatch(/aspect-ratio:\s*1\s*\/\s*1/)
   })
 })
 
