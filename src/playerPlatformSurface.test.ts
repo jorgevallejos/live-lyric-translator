@@ -167,8 +167,14 @@ describe('what framing the player would have to carry', () => {
     // **Chromium partitions storage by top-level site.** Framed, the control page's top-level site
     // is the host's document; the projection window it opens is its own top-level `127.0.0.1`.
     // They do not share `localStorage`, and **this is how the wall learns what to paint**: the
-    // lyric and its index, the room, the contact boolean, the blackout, the video transport, the
-    // display mode, the armed flag.
+    // lyric and its index, the room, the message home, the blackout, the video transport, whether
+    // the video runs, the armed flag.
+    //
+    // **THIS COUNTS LISTENER MODULES, NOT KEYS, AND THE DIFFERENCE HAS BITTEN ONCE** (2026-09-06).
+    // The display-mode channel was read by a listener living inside `ProjectionView.tsx`, which was
+    // already on this list; **`videoRunsBroadcast.ts` replaced it with a module of its own, so the
+    // count went up by one while the number of keys crossing stayed the same.** A rise here is a
+    // question to ask, never an answer: **read what moved before reading it as a cost.**
     expect(crossWindowChannels()).toEqual([
       'LanguagesView.tsx',
       'ProjectionView.tsx',
@@ -176,6 +182,7 @@ describe('what framing the player would have to carry', () => {
       'gigContactState.ts',
       'performanceState.ts',
       'useSongNavigation.ts',
+      'videoRunsBroadcast.ts',
       'visualsBroadcast.ts',
     ])
   })
