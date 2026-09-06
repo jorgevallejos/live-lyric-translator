@@ -233,23 +233,19 @@ export const SHARED: readonly string[] = [
 export const UNSPLIT: readonly string[] = []
 
 /**
- * **THE HOST SEAM IS A URL, AND THERE IS NO LONGER AN EDGE AT ALL.**
+ * **THE HOST SEAM IS A URL, AND THE PLAYER IS A DIFFERENT REPOSITORY.**
  *
- * This list said: *`App.tsx` mounts `PlayerApp`. Today that is a component; when the player becomes
- * a framed page it becomes a URL, and this is the line that changes.* **`v0.107.0` is where it
- * changed.** `App.tsx` returns `<PlayerFrame />`, whose `src` is a relative page, and imports
- * nothing of the player's.
+ * There is no `HOST_SEAM` list any more, and no `SHELL → PLAYER` edge to permit or forbid: since
+ * the split of 2026-09-06 there is no player source here to import. `App.tsx` returns
+ * `<PlayerFrame />`, whose `src` is a page Pregonero built — pinned by `vendorPregonero.test.ts`.
  *
- * **It was empty of meaning for a release before it was empty of entries**, and that is the finding
- * worth keeping. The frame was drawn in `v0.102.0`. The import stayed — two small symbols, a route
- * predicate and a timer wrapper — and an import is all-or-nothing, so the shell went on bundling
- * every view the player has. **This list was green throughout**, because one named edge is what it
- * was written to permit. `shellBundle.test.ts` is the test that would have caught it: it asks what
+ * **The list was empty of meaning for a release before it was empty of entries**, and that is the
+ * finding worth keeping. The frame was drawn in `v0.102.0`; the import stayed — a route predicate
+ * and a timer wrapper — and an import is all-or-nothing, so the shell went on bundling every view
+ * the player has. **The boundary test was green throughout**, because one named edge is exactly
+ * what it was written to permit. `shellBundle.test.ts` is what would have caught it: it asks what
  * the entry graph *reaches*, not what a file imports.
- *
- * **Empty is now the assertion.** Any `SHELL → PLAYER` edge turns the boundary test red.
  */
-export const HOST_SEAM: readonly string[] = []
 
 /**
  * **No crossing, since `v0.107.0`.** There was one: `mediaSources.ts` imported `isStaticType` from
@@ -266,32 +262,10 @@ export const HOST_SEAM: readonly string[] = []
 export const KNOWN_CROSSINGS: readonly string[] = []
 
 /**
- * **What the player is allowed to take from the catalogue, and it is all reads.**
+ * **What the player may take from the catalogue is Pregonero's rule now**, and it went with the
+ * code it constrains: `setlistStore.ts` holds a read half the player needs and a management half
+ * that is the shell's, so the symbols were pinned rather than the module. That list and its test
+ * live in Pregonero, which is where a write reaching the player would now appear.
  *
- * *The player receives a gig and never reaches into Backstage, Preferences or the catalogue* is
- * the design's line, and `setlistStore.ts` is the one `SHARED` module where it can be broken
- * without any import crossing: **the file holds a read half the player needs and a management half
- * that is the shell's.** So the symbols are pinned rather than the module.
- *
- * **A write reaching the player turns the boundary test red**, which is the failure this list
- * exists for — `addSongToSetlist`, `adoptSongFile`, `forgetDeletedSong` and their neighbours are
- * the shell's, and none of them is here.
- *
- * **Two arrived on 2026-09-06 when the player became its own document**, and both are named rather
- * than waved through. `loadSetlistStore` is a read. **`autoSelectFirstSongForActiveSetlist` is a
- * write and is still the player's**: it writes the *session* — which song is loaded — and never
- * the library. Standby auto-loading the first song of the running order is the player's own
- * behaviour, and it moved here from `App.tsx` because the player is the document that shows
- * Standby now. **If a catalogue write ever appears on this list, that is the leak this exists to
- * catch; a session write is not one.**
+ * **`sharedWithPregonero.test.ts` is what keeps the two copies of the file honest here.**
  */
-export const PLAYER_MAY_READ_FROM_CATALOGUE: readonly string[] = [
-  'LibrarySong',
-  'autoSelectFirstSongForActiveSetlist',
-  'getActiveSetlistId',
-  'getLibrarySongById',
-  'getOrderedSongsForActiveSetlist',
-  'getSetlists',
-  'hasValidActiveSetlist',
-  'loadSetlistStore',
-]

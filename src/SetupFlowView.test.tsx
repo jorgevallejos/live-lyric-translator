@@ -8,7 +8,6 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { installRequiredFolders } from './testSupport/folders'
-import { standbyState } from './testSupport/standbyState'
 import { render, screen, act, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import type { SongItem } from './songState'
 import { dropLibraryCache, type LibrarySong } from './setlistStore'
@@ -48,7 +47,6 @@ vi.mock('./platform', async (importOriginal) => ({
 }))
 
 const App = (await import('./App')).default
-const PlayerRoot = (await import('./PlayerRoot')).PlayerRoot
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
 const FOLDER = '/gigs/setup/k3f9x2abcd'
@@ -765,38 +763,5 @@ describe('step 2: the setlist, as two tables', () => {
       fireEvent.click(screen.getByRole('button', { name: /2\. The setlist/ }))
     })
     expect(screen.getByTestId('setup-setlist-empty')).toBeTruthy()
-  })
-})
-
-describe('arming an unconfirmed gig warns rather than refuses', () => {
-  it('says setup is not confirmed on the control screen, and leaves Arm alone', async () => {
-    rememberGigFolder(FOLDER)
-    readGigFolder.mockResolvedValue(
-      folderRead({
-        gigPresent: true,
-        gigText: gigJson(['duelo', 'vidas']),
-        visualsPresent: true,
-        visualsText: visualsJson({ 'song-lyrics': ['lyr'] }),
-      })
-    )
-    await act(async () => {
-      render(<PlayerRoot initialHash="#/" />)
-    })
-    // **The warning came off the control screen on 2026-09-06** — *a column shows a state, never a
-    // message*. **It is removed rather than moved, and deliberately**: it is not a gate, so arming
-    // proceeds, and a popup carrying it would be a dialog in front of the one press that must never
-    // wait. Everything it said is on the gig flow's sign-off, one press away through `Setup`.
-    await waitFor(() => expect(standbyState()).not.toBeNull(), WAIT)
-    expect(screen.queryByTestId('arm-setup-warning')).toBeNull()
-
-    // **And it leaves `Arm` alone**, which is what *a milestone, not a lock* has always meant: the
-    // confirmation is never among the reasons `Arm` gives for refusing.
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('control-arm-button'))
-    })
-    const refusal = screen.queryByTestId('arm-refusal-reasons')
-    if (refusal !== null) {
-      expect(refusal.textContent).not.toMatch(/confirm/i)
-    }
   })
 })

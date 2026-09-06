@@ -1,0 +1,14 @@
+{
+  "owner": "pregonero",
+  "repository": "https://github.com/jorgevallejos/pregonero",
+  "tag": "v1.0.1",
+  "built": "npm run build",
+  "entry": "player.html",
+  "files": {
+    "assets/icon-clock-DI5EU321.png": "189430941c2911ac85da4cf4778a98e5b7c99b50ba5591550c321097b148f3e5",
+    "assets/icon-manual-DVBNW8ev.png": "96dd93055770132a60cc771135bc9af3eff2de8373fadb919eac122a26873bb6",
+    "assets/player-Dm03t7Mj.css": "d4afd45f9123c550d73ae33ede2d9dffc9a8f1ec0d7cd6f383e7c9f43e076f28",
+    "assets/player-DxFTlSew.js": "12c1d571eba5d3f3e321f2be0f17df503727e47375e530ab646da2e61bd928e3",
+    "player.html": "375b34afa6fb334900774fd9e8c571d2e317a7389d841cf967d54961a6684712"
+  }
+}
