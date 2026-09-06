@@ -40,6 +40,7 @@
  * is are Muralista's, decided at the wall on the visuals step. This shows what is in the card.
  */
 import { useEffect, useRef, useState } from 'react'
+import { bridge } from './bridge'
 import { type IntroParts } from './ShapeIntro'
 import { getRememberedMessageHome, rememberMessageHome } from './messageHomePrefs'
 import { getOrderedSongsForActiveSetlist, type LibrarySong } from './setlistStore'
@@ -143,10 +144,10 @@ export function ScreenCards({
    * state says takes the wall again, and the window closes because this step is what opened it.
    */
   useEffect(() => {
-    window.electronAPI?.openProjection?.()
+    bridge()?.openProjection?.()
     return () => {
       setContactLitBroadcast(getContactBroadcast().lit, toMessageHome(fieldsRef.current), null)
-      window.electronAPI?.closeProjection?.()
+      bridge()?.closeProjection?.()
     }
   }, [])
 

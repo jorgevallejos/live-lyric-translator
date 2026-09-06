@@ -47,7 +47,7 @@ vi.mock('./platform', async (importOriginal) => ({
   describeDisplays: vi.fn().mockResolvedValue({ count: 0, displays: [], fingerprint: '' }),
 }))
 
-const App = (await import('./App')).default
+const PlayerRoot = (await import('./PlayerRoot')).PlayerRoot
 const {
   setSongLines,
   setSongIndex,
@@ -131,7 +131,7 @@ describe('where the projection window went', () => {
   it('says only that it is open when it went to the projector', async () => {
     projectionPlacement.mockResolvedValue({ placed: true, reason: null, display: '1920x1080' })
     await act(async () => {
-      render(<App initialHash="#/" />)
+      render(<PlayerRoot initialHash="#/" />)
     })
     await waitFor(() => expect(projectionValue()).toBe('Open'))
   })
@@ -143,7 +143,7 @@ describe('where the projection window went', () => {
       display: null,
     })
     await act(async () => {
-      render(<App initialHash="#/" />)
+      render(<PlayerRoot initialHash="#/" />)
     })
     await waitFor(() => expect(projectionValue()).toBe('Open, on this screen'))
   })
@@ -151,7 +151,7 @@ describe('where the projection window went', () => {
   it('carries no note beside the value, whatever the placement was', async () => {
     projectionPlacement.mockResolvedValue({ placed: false, reason: null, display: null })
     await act(async () => {
-      render(<App initialHash="#/" />)
+      render(<PlayerRoot initialHash="#/" />)
     })
     await waitFor(() => expect(screen.getByTestId('control-gig-value')).toBeTruthy())
     expect(screen.queryByTestId('projection-placement')).toBeNull()

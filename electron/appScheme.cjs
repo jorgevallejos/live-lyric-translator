@@ -42,9 +42,17 @@ const APP_PRIVILEGES = {
   stream: true,
 }
 
-/** The one page, with the route in the hash as the app already carries it. */
+/** Tramoya's shell, with the route in the hash as the app already carries it. */
 function appUrl(hash = '') {
   return `${APP_ORIGIN}/index.html${hash}`
+}
+
+/**
+ * **Pregonero's own page.** The shell frames it and the projection window loads it directly —
+ * both from this origin, which is what lets the two share `localStorage`.
+ */
+function playerUrl(hash = '') {
+  return `${APP_ORIGIN}/player.html${hash}`
 }
 
 /**
@@ -78,4 +86,12 @@ function resolveAppRequest(root, requestUrl) {
   return target
 }
 
-module.exports = { APP_SCHEME, APP_HOST, APP_ORIGIN, APP_PRIVILEGES, appUrl, resolveAppRequest }
+module.exports = {
+  APP_SCHEME,
+  APP_HOST,
+  APP_ORIGIN,
+  APP_PRIVILEGES,
+  appUrl,
+  playerUrl,
+  resolveAppRequest,
+}

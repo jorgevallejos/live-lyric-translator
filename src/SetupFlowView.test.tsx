@@ -48,6 +48,7 @@ vi.mock('./platform', async (importOriginal) => ({
 }))
 
 const App = (await import('./App')).default
+const PlayerRoot = (await import('./PlayerRoot')).PlayerRoot
 const { rememberGigFolder, resetGigSession } = await import('./gigSession')
 
 const FOLDER = '/gigs/setup/k3f9x2abcd'
@@ -779,7 +780,7 @@ describe('arming an unconfirmed gig warns rather than refuses', () => {
       })
     )
     await act(async () => {
-      render(<App initialHash="#/" />)
+      render(<PlayerRoot initialHash="#/" />)
     })
     // **The warning came off the control screen on 2026-09-06** — *a column shows a state, never a
     // message*. **It is removed rather than moved, and deliberately**: it is not a gate, so arming

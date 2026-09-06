@@ -21,7 +21,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vite
 import { installRequiredFolders } from './testSupport/folders'
 import { render, screen, act, waitFor, within, cleanup } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
-import App from './App'
+import { PlayerRoot } from './PlayerRoot'
 import {
   setSongLines,
   setSongIndex,
@@ -154,7 +154,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     setupControlViewWithReadinessPassing()
     setCurrentSongId('pimiento')
     setCurrentSongTitle('Pimiento')
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await waitFor(() => {
       expect(standbyState()).toBe('READY_TO_ARM')
@@ -167,7 +167,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
   it('is a plain pulse on arm and a count-in once Play is pressed', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     expect(standbyState()).toBe('READY_TO_ARM')
@@ -191,7 +191,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
   it('count-in shows beat 1 at start (downbeat class applied)', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
@@ -206,7 +206,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
   it('count-in advances to beat 2 after one beat duration (500ms at 120bpm)', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
@@ -221,7 +221,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
   it('shows 4 dots matching the meter (4/4)', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
@@ -238,7 +238,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     // carries on — it stops at the end of the song, not at the end of the count-in.
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
@@ -258,7 +258,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
     setupControlViewWithReadinessPassing()
     setCurrentSongId('pimiento')
     setCurrentSongTitle('Pimiento')
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
@@ -273,7 +273,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
   })
 
   it('beat circle is never rendered in the projection view', async () => {
-    render(<App initialHash="#/projection" />)
+    render(<PlayerRoot initialHash="#/projection" />)
     await act(async () => { await Promise.resolve() })
 
     expect(screen.queryByTestId('beat-circle')).toBeNull()
@@ -282,7 +282,7 @@ describe('Beat indicator (count-in + running) — performer view (BeatCircle)', 
   it('count-in does not appear in SETUP state (not armed)', async () => {
     vi.useFakeTimers()
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
 
     await act(async () => { await Promise.resolve() })
     // Do NOT arm — remain in READY_TO_ARM
@@ -353,7 +353,7 @@ describe('the beat indicator, by drive mode', () => {
 
   async function armIt() {
     setupControlViewWithReadinessPassing()
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
   }
@@ -386,7 +386,7 @@ describe('the beat indicator, by drive mode', () => {
     setupControlViewWithReadinessPassing()
     setCurrentSongId('pimiento')
     setCurrentSongTitle('Pimiento')
-    render(<App initialHash="#/" />)
+    render(<PlayerRoot initialHash="#/" />)
     await act(async () => { await Promise.resolve() })
     await act(async () => { fireEvent.click(getArmButton()) })
     act(() => { vi.advanceTimersByTime(2100) })

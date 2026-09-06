@@ -28,7 +28,8 @@
  * history would be a second answer to which window this is.
  */
 import { useEffect, useState } from 'react'
-import { PlayerApp, isPlayerRoute, ConcertSessionTimerRunner } from './PlayerApp'
+import { isPlayerRoute, ConcertSessionTimerRunner } from './PlayerApp'
+import { PlayerFrame } from './PlayerFrame'
 import {
   autoSelectFirstSongForActiveSetlist,
   ensureSongLibraryHydrated,
@@ -217,14 +218,16 @@ function App({ initialHash }: { initialHash?: string } = {}) {
   if (hash === '#/gig/steps') return <GigView />
   if (hash === '#/preferences' || hash === '#/folders') return <FoldersView />
 
-  // **THE HOST SEAM.** Every remaining hash is the player's, and `isPlayerRoute` says so out loud
-  // rather than leaving it to a fallthrough — because when the player becomes a framed page this
-  // is the predicate that decides whether to draw a frame.
-  //
-  // **An unknown hash lands on Standby**, which is what the fallthrough always did and is the
-  // right answer for a window whose address bar nobody can see.
+  /**
+   * **THE HOST SEAM, AND IT IS A URL NOW** (2026-09-06). This file said it would be: *today it is
+   * a component; when the player becomes a framed page it becomes a URL, and this is the one line
+   * that changes.* `isPlayerRoute` was written for exactly this decision.
+   *
+   * **An unknown hash lands on Standby**, which is what the fallthrough always did and is the
+   * right answer for a window whose address bar nobody can see.
+   */
   void isPlayerRoute(hash)
-  return <PlayerApp hash={hash} />
+  return <PlayerFrame hash={hash} />
 }
 
 export default App

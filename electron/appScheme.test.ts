@@ -29,7 +29,14 @@
  */
 import { describe, it, expect } from 'vitest'
 import { sep, join } from 'node:path'
-import { APP_HOST, APP_ORIGIN, APP_SCHEME, appUrl, resolveAppRequest } from './appScheme.cjs'
+import {
+  APP_HOST,
+  APP_ORIGIN,
+  APP_SCHEME,
+  appUrl,
+  playerUrl,
+  resolveAppRequest,
+} from './appScheme.cjs'
 
 const ROOT = join(sep, 'app', 'dist')
 
@@ -41,9 +48,13 @@ describe('the origin', () => {
     expect(APP_ORIGIN).not.toMatch(/:\d/)
   })
 
-  it('names one page, and carries the route in the hash as the app already does', () => {
+  it('names two pages on one origin, and carries the route in the hash', () => {
+    // **Two pages, because there are two products** — and one origin, because that is what lets
+    // the frame reach the embedder's bridge and share storage with the projection window.
     expect(appUrl()).toBe('tramoya://app/index.html')
-    expect(appUrl('#/projection')).toBe('tramoya://app/index.html#/projection')
+    expect(playerUrl()).toBe('tramoya://app/player.html')
+    expect(playerUrl('#/projection')).toBe('tramoya://app/player.html#/projection')
+    expect(new URL(appUrl()).origin).toBe(new URL(playerUrl()).origin)
   })
 })
 
@@ -51,6 +62,10 @@ describe('what a request names', () => {
   it('serves the entry for the root', () => {
     expect(resolveAppRequest(ROOT, 'tramoya://app/')).toBe(join(ROOT, 'index.html'))
     expect(resolveAppRequest(ROOT, 'tramoya://app')).toBe(join(ROOT, 'index.html'))
+  })
+
+  it('serves the player’s page, which is the frame’s src and the wall’s url', () => {
+    expect(resolveAppRequest(ROOT, 'tramoya://app/player.html')).toBe(join(ROOT, 'player.html'))
   })
 
   it('serves a built asset by its own path', () => {

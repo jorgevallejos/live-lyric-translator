@@ -11,18 +11,30 @@
  * silently — no error, no warning, and every unit test still green, because a test frames
  * nothing.**
  *
- * So this counts the two surfaces that would have to cross a frame, and pins them:
+ * So this counts the two surfaces a frame has to answer for, and pins them:
  *
- * - **The main process.** A cross-origin frame gets no preload, by design and by this app's own
- *   rule for hosted tools — `electronAPI` is simply absent. Every call below would have to become
- *   a message.
- * - **The cross-window storage channels.** Chromium partitions storage by top-level site, so a
- *   framed control page and a top-level projection window do not share `localStorage`. Every
- *   channel below is how the wall learns what to paint.
+ * - **The main process.** Every call below is one the player makes.
+ * - **The cross-window storage channels.** Every channel below is how the wall learns what to
+ *   paint.
  *
- * **This test asserts numbers, not behaviour, and that is deliberate.** It is the cost of framing,
- * kept honest: it goes red when the player asks the platform for something new, which is the day
- * that cost changes.
+ * ## THE PLAYER IS FRAMED NOW, AND NEITHER SURFACE COST ANYTHING (2026-09-06)
+ *
+ * **The numbers did not fall. They stopped being a price**, which is the better outcome and the
+ * one this file must not go on mis-stating.
+ *
+ * The premise underneath both counts was **cross-origin**: a cross-origin frame gets no preload, so
+ * sixteen calls would become messages; Chromium partitions storage by top-level site, so eight
+ * channels would break. **The blocker was never the frame — it was `file://` being the top level.**
+ * With the shell on its own registered scheme the frame is same-origin, and measured on the packed
+ * build it **reaches `window.parent.electronAPI` directly** and **shares `localStorage` with the
+ * projection window it opens.**
+ *
+ * **So there is no bridge and no relay: the sixteen calls do not get cheaper, they never exist.**
+ *
+ * **This test asserts numbers, not behaviour, and that is still deliberate** — it goes red when the
+ * player asks the platform for something new. What that day now means is not *the frame got more
+ * expensive* but *the player grew a new dependency on the machine*, which is worth seeing either
+ * way.
  */
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -71,6 +83,11 @@ function importsOf(moduleRelPath: string): string[] {
 
 const KNOWN = new Set(sourceFiles(SRC))
 
+/** Block and line comments removed, so prose about a call is not counted as one. */
+function withoutComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+}
+
 /** Everything the player reaches, its own modules and the shared ones below them. */
 function playerClosure(): string[] {
   const seen = new Set<string>()
@@ -89,7 +106,7 @@ function playerClosure(): string[] {
  * off `window.electronAPI`.
  */
 function mainProcessCalls(): string[] {
-  const platformSrc = readFileSync(join(SRC, 'platform.ts'), 'utf8')
+  const platformSrc = withoutComments(readFileSync(join(SRC, 'platform.ts'), 'utf8'))
 
   /** The `electronAPI` methods one exported `platform.ts` function reaches. */
   function callsInsidePlatformFunction(name: string): string[] {
@@ -108,7 +125,10 @@ function mainProcessCalls(): string[] {
   const used = new Set<string>()
   for (const module of playerClosure()) {
     if (module === 'platform.ts') continue
-    const src = readFileSync(join(SRC, module), 'utf8')
+    // **Comments are prose, not calls** (2026-09-06). This scanned raw text, so a doc that wrote
+    // `electronAPI.ping()` as an EXAMPLE was counted as a seventeenth machine call. The measure is
+    // what the player calls; a sentence about what it calls is not one.
+    const src = withoutComments(readFileSync(join(SRC, module), 'utf8'))
     // Straight off the bridge, in a view that has one.
     for (const m of src.matchAll(/electronAPI[?.]*\.([a-zA-Z]+)\(/g)) used.add(m[1]!)
     for (const m of src.matchAll(/\bapi\.([a-zA-Z]+)\(/g)) if (m[1] !== 'then') used.add(m[1]!)
@@ -135,14 +155,15 @@ function crossWindowChannels(): string[] {
   )
 }
 
-describe('what framing the player would have to carry', () => {
-  it('names every main-process call the player makes, because a frame can make none of them', () => {
-    // **A cross-origin frame has no preload.** The main window's is attached to its own
-    // `webContents` and `nodeIntegrationInSubFrames` is off, so `window.electronAPI` is `undefined`
-    // in a framed page — which is also the rule this app already applies to Bombista's and
-    // Muralista's pages on purpose. **Every name here is a message that does not exist.**
+describe('what the player asks of the platform, and what framing costs it', () => {
+  it('names every main-process call the player makes, and a same-origin frame makes them all', () => {
+    // **A frame has no preload of its own**, and this app withholds one from Bombista's and
+    // Muralista's pages on purpose — `nodeIntegrationInSubFrames` would hand it to those too, which
+    // the spike measured. **A SAME-ORIGIN frame needs none: it reaches the embedder's window.**
+    // Measured on the packed build, `window.parent.electronAPI` answers.
     //
-    // Two of them are writes and one launches a subprocess, so this is not a read-only bridge.
+    // Two of these are writes and one launches a subprocess, so a bridge would not have been a
+    // read-only one. **There is no bridge. These sixteen do not get cheaper — they never cross.**
     expect(mainProcessCalls()).toEqual([
       'closeProjection',
       'createGigFolder',
@@ -163,12 +184,14 @@ describe('what framing the player would have to carry', () => {
     ])
   })
 
-  it('names every cross-window channel, because a framed page cannot share one', () => {
-    // **Chromium partitions storage by top-level site.** Framed, the control page's top-level site
-    // is the host's document; the projection window it opens is its own top-level `127.0.0.1`.
-    // They do not share `localStorage`, and **this is how the wall learns what to paint**: the
-    // lyric and its index, the room, the message home, the blackout, the video transport, whether
-    // the video runs, the armed flag.
+  it('names every cross-window channel, which a same-origin frame does share', () => {
+    // **Chromium partitions storage by top-level SITE, and a port is not part of a site.** That is
+    // what made `file://` the blocker rather than the frame: a `file://` shell shares nothing with
+    // anything. **Both documents are `tramoya://app` now**, so the framed player and the projection
+    // window it opens share `localStorage` — measured on the packed build, in both directions.
+    //
+    // **This is how the wall learns what to paint**: the lyric and its index, the room, the message
+    // home, the blackout, the video transport, whether the video runs, the armed flag.
     //
     // **THIS COUNTS LISTENER MODULES, NOT KEYS, AND THE DIFFERENCE HAS BITTEN ONCE** (2026-09-06).
     // The display-mode channel was read by a listener living inside `ProjectionView.tsx`, which was

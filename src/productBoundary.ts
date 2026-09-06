@@ -115,12 +115,19 @@ export const PLAYER: readonly string[] = [
   'beatScheduler.ts',
   'videoRunsBroadcast.ts',
   'appVersion.ts',
+  // **Pregonero's own document**: its entry, and the root that page mounts. The shell frames it
+  // and the projection window loads it directly — see `PlayerFrame.tsx` on the other side.
+  'PlayerRoot.tsx',
+  'player.tsx',
 ]
 
 /** Backstage, the song flow, the gig flow, first run's own screens, and what only they use. */
 export const SHELL: readonly string[] = [
   'App.tsx',
   'main.tsx',
+  // **The host seam, and it is a URL now.** The shell draws a frame; what is inside it is the
+  // player's page and nothing of the player is imported here.
+  'PlayerFrame.tsx',
   'SetupHomeView.tsx',
   'GigFlowView.tsx',
   'GigFlowCards.tsx',
@@ -196,6 +203,13 @@ export const SHARED: readonly string[] = [
   // red on a second shell → player edge. **The condition is the player's; the wire between two
   // windows is neither product's** — the same reason `visualsBroadcast.ts` is here.
   'cardBroadcast.ts',
+  // **The one way to the machine, and both products take it.** A framed page has no preload of its
+  // own and reaches its embedder's window; the top-level shell reads its own. One accessor, so
+  // there is no second answer to *where is the bridge*.
+  'bridge.ts',
+  // The rule for when the catalogue is ready. Each document hydrates its own cache — a document
+  // cannot hydrate from another document's memory — and this is the one place the rule lives.
+  'useSongLibraryGate.ts',
   'mediaPathStore.ts',
   'mediaSources.ts',
 ]
@@ -243,12 +257,22 @@ export const KNOWN_CROSSINGS: readonly string[] = ['mediaSources.ts -> ShapeStat
  * **A write reaching the player turns the boundary test red**, which is the failure this list
  * exists for — `addSongToSetlist`, `adoptSongFile`, `forgetDeletedSong` and their neighbours are
  * the shell's, and none of them is here.
+ *
+ * **Two arrived on 2026-09-06 when the player became its own document**, and both are named rather
+ * than waved through. `loadSetlistStore` is a read. **`autoSelectFirstSongForActiveSetlist` is a
+ * write and is still the player's**: it writes the *session* — which song is loaded — and never
+ * the library. Standby auto-loading the first song of the running order is the player's own
+ * behaviour, and it moved here from `App.tsx` because the player is the document that shows
+ * Standby now. **If a catalogue write ever appears on this list, that is the leak this exists to
+ * catch; a session write is not one.**
  */
 export const PLAYER_MAY_READ_FROM_CATALOGUE: readonly string[] = [
   'LibrarySong',
+  'autoSelectFirstSongForActiveSetlist',
   'getActiveSetlistId',
   'getLibrarySongById',
   'getOrderedSongsForActiveSetlist',
   'getSetlists',
   'hasValidActiveSetlist',
+  'loadSetlistStore',
 ]
