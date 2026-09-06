@@ -9,6 +9,8 @@
  * Backstage's gig rows with it: nothing opens a gig for performance from the room where gigs are
  * made. Those rows are covered in `SetupHomeView.test.tsx`.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-library/react'
 import App from './App'
@@ -229,18 +231,68 @@ describe('the gig picker', () => {
     })
   }
 
-  it('is one big row per gig, newest first, labelled from the file', async () => {
+  it('is one row per gig, newest first, labelled from the file', async () => {
     installGigs([
       { id: 'aaaaaaaaaa', date: '2026-05-16', venue: 'Bom Festival' },
       { id: 'bbbbbbbbbb', date: '2026-09-12', venue: 'Bar Eduard' },
     ])
     await renderPicker()
     await waitFor(() => expect(screen.getByTestId('gigs-picker-row-bbbbbbbbbb')).toBeTruthy())
-    const rows = [...screen.getByTestId('gigs-picker').querySelectorAll('button.songs-song-btn')]
+    const rows = [...screen.getByTestId('gigs-picker').querySelectorAll('button.gigs-picker-row')]
     expect(rows.map((r) => r.textContent)).toEqual([
       '2026-09-12 · Bar Eduard',
       '2026-05-16 · Bom Festival',
     ])
+  })
+
+  /**
+   * **A ROW, NOT A SONG TILE** (Jorge, 2026-09-06). What shipped reused `.songs-song-btn`: a fixed
+   * **220×130** box, centred in a `repeat(auto-fit, minmax(220px, 1fr))` grid, with
+   * `-webkit-line-clamp: 3` on the label. So `2026-05-16 · Bom Festival` wrapped over three lines
+   * and then truncated, in an otherwise empty screen. **The 03/09 design is full-width rows
+   * stacked from the top, date and venue on one line, large and left-aligned** — the same reason
+   * as everything else on this surface: it is read across a dark room.
+   *
+   * **The test that should have caught it was already here and called itself *one big row per
+   * gig*** — and then asserted `button.songs-song-btn`, pinning the tile. **A name is not an
+   * assertion.** It reads the row's own class now, and the class exists for this screen alone.
+   *
+   * **jsdom does no layout, so the shape is asserted in the stylesheet.** That is the established
+   * device on this surface (the setup panel's fold, the first-run measure), and it is the only
+   * place a fixed height or a line clamp can be seen at all.
+   */
+  it('a row is a full-width line, not a fixed tile with a clamped label', async () => {
+    installGigs([{ id: 'aaaaaaaaaa', date: '2026-05-16', venue: 'Bom Festival' }])
+    await renderPicker()
+    await waitFor(() => expect(screen.getByTestId('gigs-picker-row-aaaaaaaaaa')).toBeTruthy())
+
+    const body = screen.getByTestId('gigs-picker')
+    // The song-tile grid is escaped by a second class, exactly as every other screen escapes it.
+    expect(body.className.split(/\s+/)).toContain('gigs-picker-body')
+    expect(body.querySelector('.songs-song-btn')).toBeNull()
+    expect(body.querySelector('.songs-song-title')).toBeNull()
+
+    const css = readFileSync(resolve(__dirname, 'control.css'), 'utf8')
+    const rule = (selector: string): string => {
+      const at = css.indexOf(selector + ' {')
+      expect(at, `${selector} is not in control.css`).toBeGreaterThan(-1)
+      return css.slice(at, css.indexOf('}', at))
+    }
+
+    const row = rule('.gigs-picker-row')
+    // Full width and its own height: neither dimension is a number this screen chose.
+    expect(row).toMatch(/width:\s*100%/)
+    expect(row).not.toMatch(/height:\s*\d/)
+    expect(row).toMatch(/text-align:\s*left/)
+    // One line, so the date and the venue are read together.
+    expect(row).toMatch(/white-space:\s*nowrap/)
+    expect(row).not.toMatch(/line-clamp/)
+
+    // Stacked from the top, not centred tiles in an auto-fit grid.
+    const bodyRule = rule('.songs-screen.gigs-picker-screen .songs-body.gigs-picker-body')
+    expect(bodyRule).toMatch(/display:\s*flex/)
+    expect(bodyRule).toMatch(/flex-direction:\s*column/)
+    expect(bodyRule).toMatch(/align-items:\s*stretch/)
   })
 
   it('chooses through openGigFolder and lands back on Standby', async () => {
