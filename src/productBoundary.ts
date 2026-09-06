@@ -113,7 +113,7 @@ export const PLAYER: readonly string[] = [
   'videoTransport.ts',
   'navigationState.ts',
   'beatScheduler.ts',
-  'screenSizeState.ts',
+  'videoRunsBroadcast.ts',
   'appVersion.ts',
 ]
 
@@ -182,6 +182,7 @@ export const SHARED: readonly string[] = [
   'gigFolderList.ts',
   'gigLabels.ts',
   'gigFolderStore.ts',
+  'projectionStatus.ts',
   'setlistStore.ts',
   'songState.ts',
   'songs.ts',
