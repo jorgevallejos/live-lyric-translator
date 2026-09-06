@@ -11,16 +11,14 @@
  * route around.
  */
 import { describe, it, expect } from 'vitest'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import {
   PLAYER,
   SHELL,
   SHARED,
   UNSPLIT,
-  HOST_SEAM,
   KNOWN_CROSSINGS,
-  PLAYER_MAY_READ_FROM_CATALOGUE,
 } from './productBoundary'
 
 const SRC = resolve(__dirname)
@@ -89,7 +87,9 @@ describe('every module is on one side of the line', () => {
   it('classifies every source module, exactly once', () => {
     // **A new file forces a decision.** That is most of this test's value: the crossing that
     // matters is the one nobody thought about, and an unclassified module is that shape.
-    const declared = [...PLAYER, ...SHELL, ...SHARED, ...UNSPLIT]
+    // **`PLAYER` is no longer among them**: those files live in Pregonero's repository now,
+    // and what this asserts is that every file still HERE is the shell's or shared.
+    const declared = [...SHELL, ...SHARED, ...UNSPLIT]
     expect([...new Set(declared)]).toHaveLength(declared.length)
     expect([...declared].sort()).toEqual(MODULES)
   })
@@ -104,28 +104,20 @@ describe('every module is on one side of the line', () => {
   })
 })
 
-describe('the player does not reach into the shell', () => {
-  it('imports nothing the shell owns', () => {
-    // **The claim the design asked for.** The player receives a gig and never reaches into
-    // Backstage, Preferences or the catalogue.
-    expect(edges(PLAYER, SHELL)).toEqual([])
+describe('the player is not in this repository', () => {
+  it('has none of the files that went to Pregonero', () => {
+    // **The split of 2026-09-06.** These names are kept, rather than deleted with the files, so
+    // that a player module reappearing here turns this red. **A copy is how a vendored product
+    // stops being vendored** — it starts as one file someone needed in a hurry and ends as a fork
+    // nobody declared. The player is consumed as a built page: `vendorPregonero.test.ts` pins it.
+    const present = PLAYER.filter((name) => existsSync(join(SRC, name)))
+    expect(present).toEqual([])
   })
 
-  it('imports neither the router nor the entry point', () => {
-    expect(edges(PLAYER, UNSPLIT)).toEqual([])
-  })
-})
-
-describe('the shell does not reach into the player either', () => {
-  it('reaches into the player exactly once, through the host seam', () => {
-    // **`App.tsx` mounts `PlayerApp`, and that is the whole of it.** Today it is a component;
-    // **when the player becomes a framed page it becomes a URL**, and that is the line that
-    // changes. Pinned so a second edge — the shell reaching past the seam into a player screen or
-    // a player module — turns this red.
-    //
-    // Everything else the shell needs from the player's side it reads through `SHARED`: the same
-    // `gig.json`, the same catalogue, the same song. That is the contract, not a leak.
-    expect(edges(SHELL, PLAYER)).toEqual(HOST_SEAM)
+  it('still knows what left, so the guard above is not vacuous', () => {
+    expect(PLAYER.length).toBeGreaterThan(30)
+    expect(PLAYER).toContain('ControlView.tsx')
+    expect(PLAYER).toContain('ProjectionView.tsx')
   })
 })
 
@@ -145,27 +137,5 @@ describe('what is shared belongs to neither product', () => {
 
   it('reaches into the router not at all', () => {
     expect(edges(SHARED, UNSPLIT)).toEqual([])
-  })
-})
-
-describe('the player reads the catalogue and never writes it', () => {
-  it('takes only the declared read symbols from `setlistStore`', () => {
-    // **The one place the design's line can be broken without any import crossing.**
-    // `setlistStore.ts` is `SHARED` because it holds a read half the player needs and a management
-    // half that is the shell's — so the symbols are pinned rather than the module. A write
-    // reaching the player turns this red.
-    const taken = new Set<string>()
-    for (const module of PLAYER) {
-      const src = readFileSync(join(SRC, module), 'utf8')
-      const re = /import\s+\{([^}]*)\}\s+from\s+'\.\/setlistStore'/g
-      let m: RegExpExecArray | null
-      while ((m = re.exec(src)) !== null) {
-        for (const raw of m[1]!.split(',')) {
-          const name = raw.trim().replace(/^type\s+/, '')
-          if (name) taken.add(name)
-        }
-      }
-    }
-    expect([...taken].sort()).toEqual([...PLAYER_MAY_READ_FROM_CATALOGUE].sort())
   })
 })
