@@ -17,6 +17,7 @@ function readiness(
     gigId: 'g',
     date: null,
     venue: null,
+  messageHome: null,
     gate: 'on',
     steps: [1, 2, 3, 4].map((n) => step(n, statuses[n] ?? 'not-yet', missing[n] ?? [])),
     songs: [],

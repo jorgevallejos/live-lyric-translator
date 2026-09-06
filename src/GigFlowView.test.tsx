@@ -153,14 +153,18 @@ function sayWhatTheNightIs(date = '2026-05-16', venue = 'BOM Festival', city = '
  * as the same kind of thing, so the handoff to Muralista at step 3 stops feeling like a departure.
  */
 describe('the step bar', () => {
-  it('names four steps, in order', async () => {
+  it('names five steps, in order', async () => {
+    // **`Cards` arrived on 2026-09-06**, between the visuals and the sign-off: what the wall shows
+    // when no song is running is **content rather than geometry**, which is what argued for its own
+    // step rather than a panel inside the visuals.
     await renderFlow()
     await waitFor(() => expect(screen.getByTestId('gig-flow-steps')).toBeTruthy(), WAIT)
     const bar = screen.getByTestId('gig-flow-steps').textContent ?? ''
     expect(bar).toMatch(/1\s*Gig/)
     expect(bar).toMatch(/2\s*Setlist/)
     expect(bar).toMatch(/3\s*Visuals/)
-    expect(bar).toMatch(/4\s*Sign-off/)
+    expect(bar).toMatch(/4\s*Cards/)
+    expect(bar).toMatch(/5\s*Sign-off/)
   })
 
   /**
@@ -216,7 +220,8 @@ describe('the step bar', () => {
     await waitFor(() => expect(screen.getByTestId('gig-flow-step-3')).toBeTruthy(), WAIT)
     for (const [step, label] of [
       [3, 'Visuals'],
-      [4, 'Sign-off'],
+      [4, 'Cards'],
+      [5, 'Sign-off'],
     ] as const) {
       const text = screen.getByTestId(`gig-flow-step-${step}`).textContent ?? ''
       expect(text).not.toMatch(/later/i)
@@ -774,9 +779,9 @@ describe('the way forward', () => {
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
     await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
-    await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-5')).toBeTruthy(), WAIT)
     await act(async () => {
-      fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+      fireEvent.click(screen.getByTestId('gig-flow-step-5'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
     await act(async () => {
@@ -796,7 +801,7 @@ describe('the way forward', () => {
    * which of its own cells is showing; `GigFlowVisuals.test.tsx` covers that in full, and this
    * covers the step it lands on.
    */
-  it('goes on from the visuals to the sign-off', async () => {
+  it('goes on from the visuals to the cards, and from there to the sign-off', async () => {
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
     await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
@@ -810,9 +815,13 @@ describe('the way forward', () => {
     // inner flow to be inside: the way onward is there, because a step with none is a dead end.
     // The hosted rule — only on Muralista's `2 OUTPUT` — is covered in `GigFlowVisuals.test.tsx`.
     await waitFor(() => expect(screen.getByTestId('gig-flow-forward')).toBeTruthy(), WAIT)
-    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the sign-off →')
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the cards →')
     await act(async () => {
       fireEvent.click(screen.getByTestId('gig-flow-forward'))
+    })
+    await waitFor(() => expect(screen.getByTestId('gig-flow-screen-cards')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-cards-forward'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
   })
@@ -822,14 +831,14 @@ describe('the way forward', () => {
    * `Check`, `Confirm`, `Validate` and `Complete` all went on 2026-09-04 — two near-synonyms on one
    * screen is what made it unreadable.
    */
-  it('names step 4’s action with the one word, as a verb', async () => {
+  it('names the sign-off’s action with the one word, as a verb', async () => {
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(folderRead({ gigPresent: true, gigText: gigJson(['duelo']) }))
     await installCatalogue([song('duelo', 'Duelo')], ['duelo.json'], [])
     await renderFlow()
-    await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
+    await waitFor(() => expect(screen.getByTestId('gig-flow-step-5')).toBeTruthy(), WAIT)
     await act(async () => {
-      fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+      fireEvent.click(screen.getByTestId('gig-flow-step-5'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-confirm')).toBeTruthy(), WAIT)
     expect(screen.getByTestId('gig-flow-confirm').textContent).toBe('Sign off the gig')

@@ -5,6 +5,7 @@ import {
   refreshGigReadiness,
   publishSetlistToGig,
   saveGigIdentity,
+  saveMessageHome,
 } from './gigSession'
 import { useGigReadiness } from './useGigReadiness'
 import { gigIdentityIsAnswered, gigLabelFrom } from './gigFile'
@@ -16,6 +17,13 @@ import { canHostTools, serveTool } from './platform'
 import type { GigReadiness, StepStatus } from './gigReadiness'
 import { MURALISTA_KEY, MURALISTA_PAGE } from './MuralistaDoor'
 import { GatedAction } from './GatedAction'
+import {
+  ScreenCards,
+  initialCardFields,
+  toMessageHome,
+  rememberMessageHome,
+  type CardFields,
+} from './GigFlowCards'
 import {
   addSongToSetlist,
   getActiveSetlistId,
@@ -59,21 +67,34 @@ import {
  * report it as somebody else's mess.
  */
 
-/** The bar's four segments, in order. The words are the screens' own. */
+/**
+ * The bar's segments, in order. The words are the screens' own.
+ *
+ * **`Cards` arrived on 2026-09-06** and it is the fifth thing, placed fourth. *Where it sits in the
+ * flow is not settled* was the design's own words; **it is content rather than geometry, which
+ * argues for its own step after the visuals rather than a panel inside them** — so that is where it
+ * is. **The label is this build's choice and not a ruling**: the step covers both cards, and
+ * `Message` would have named only half of it.
+ */
 const STEPS: readonly { step: number; label: string }[] = [
   { step: 1, label: 'Gig' },
   { step: 2, label: 'Setlist' },
   { step: 3, label: 'Visuals' },
-  { step: 4, label: 'Sign-off' },
+  { step: 4, label: 'Cards' },
+  { step: 5, label: 'Sign-off' },
 ]
 
 /**
- * **All four exist since 2026-09-03.** The later-step branch below is therefore unreachable today,
+ * **All five exist since 2026-09-06.** The later-step branch below is therefore unreachable today,
  * and it is kept rather than deleted: it carries Jorge's ruling of 03/09 about how a step that has
  * not arrived is drawn — dimmed and inert, never struck through — and that ruling outlives the
- * moment there happens to be nothing after step 4.
+ * moment there happens to be nothing after the last step.
  */
-const BUILT = 4
+const BUILT = 5
+
+/** The sign-off, which moved from 4 to 5 when the cards step went in front of it. */
+const SIGN_OFF = 5
+const CARDS = 4
 
 /**
  * **The step bar, pinned.** In an embedded subflow the bar is fixed and everything else scrolls —
@@ -582,7 +603,8 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
   /**
    * **WHICH OF MURALISTA'S OWN SCREENS IS SHOWING**, and it is the only thing that crosses.
    *
-   * **`To the sign-off →` belongs on `2 OUTPUT` and nowhere else** (Jorge, 2026-09-04). While you are
+   * **The forward control belongs on `2 OUTPUT` and nowhere else** (Jorge, 2026-09-04) — it reads
+   * `To the cards →` since 2026-09-06, when the cards step went in between. While you are
    * on `THE DEAL` or `1 SHAPES` it is a second forward control on a screen that already has one —
    * the nesting problem this step spent a round removing, one layer down.
    *
@@ -780,7 +802,7 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
               win.postMessage({ muralista: 'save' }, '*')
             }}
           >
-            {saving ? 'Saving the room…' : 'To the sign-off →'}
+            {saving ? 'Saving the room…' : 'To the cards →'}
           </button>
           {saveProblem !== null && (
             <p className="setup-song-problem" data-testid="gig-flow-save-problem">
@@ -1204,7 +1226,10 @@ export function GigFlowView() {
    * bar, and coming back to a gig later.
    */
   useEffect(() => {
-    if (here !== 4) return
+    // **Both steps after the visuals, and for one reason.** The staleness is created by Muralista
+    // writing `visuals.json` in a frame this renderer never re-read; the cards step needs the same
+    // fresh read, because it prefills from the gig's own `messageHome`.
+    if (here !== CARDS && here !== SIGN_OFF) return
     void refreshGigReadiness()
   }, [here])
 
@@ -1264,6 +1289,46 @@ export function GigFlowView() {
    * **It moves on only if the write happened.** Navigating away from a failed write would report
    * success by arriving somewhere, which is the defect `Confirm setup` was fixed for.
    */
+  /**
+   * **The four fields of the cards step**, prefilled from this machine's remembered answers on the
+   * way in and from the gig once it has any. **Artist-level, asked at first need**: the step is
+   * where they are first given, Preferences is where they are changed, and later gigs arrive
+   * already filled.
+   */
+  const [cardFields, setCardFields] = useState<CardFields>(initialCardFields)
+  const cardsPrefilledFrom = useRef<string | null>(null)
+  useEffect(() => {
+    const folder = readiness.folderPath
+    if (folder === null || cardsPrefilledFrom.current === folder) return
+    cardsPrefilledFrom.current = folder
+    // **The gig wins over the remembered answers when it has any.** A gig folder is a record of a
+    // night, so what was on the wall is what the step re-opens on.
+    const stored = readiness.messageHome
+    if (stored === null) return
+    setCardFields({
+      logo: stored.logo ?? '',
+      url: stored.url ?? '',
+      handle: stored.handle ?? '',
+      message: stored.message ?? '',
+    })
+  }, [readiness.folderPath, readiness.messageHome])
+
+  /**
+   * **One press writes both**: the block into `gig.json`, so the player can read it, and the four
+   * values into Preferences, so the next gig arrives prefilled. **It moves on only if the write
+   * happened**, which is the rule every forward control in this flow is under.
+   */
+  const saveCardsAndForward = () => {
+    setBusy(true)
+    void (async () => {
+      const fields = toMessageHome(cardFields)
+      await saveMessageHome(fields)
+      rememberMessageHome(fields)
+      setBusy(false)
+      setHere(SIGN_OFF)
+    })()
+  }
+
   const commit = () => {
     setBusy(true)
     setProblem(null)
@@ -1356,8 +1421,17 @@ export function GigFlowView() {
     : 'New gig'
 
   const body = (() => {
-    if (here === 4)
+    if (here === SIGN_OFF)
       return <ScreenCheck readiness={readiness} busy={busy} onConfirm={confirmAndLeave} />
+    if (here === CARDS)
+      return (
+        <ScreenCards
+          fields={cardFields}
+          busy={busy}
+          onField={(field, value) => setCardFields((prev) => ({ ...prev, [field]: value }))}
+          onForward={saveCardsAndForward}
+        />
+      )
     if (here === 2)
       return (
         <ScreenSetlist
@@ -1424,7 +1498,7 @@ export function GigFlowView() {
           </h1>
         </header>
         <main className="songs-body gig-visuals-body">
-          <ScreenVisuals folderPath={readiness.folderPath} onForward={() => setHere(4)} />
+          <ScreenVisuals folderPath={readiness.folderPath} onForward={() => setHere(CARDS)} />
         </main>
       </div>
     )

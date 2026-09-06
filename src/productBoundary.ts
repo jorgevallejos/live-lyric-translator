@@ -87,9 +87,7 @@ export const PLAYER: readonly string[] = [
   'GigsView.tsx',
   'VideoPerformancePanel.tsx',
   'VideoControlPanel.tsx',
-  'ShapeContact.tsx',
   'ShapeFill.tsx',
-  'ShapeIntro.tsx',
   'ShapeRegion.tsx',
   'ShapeStatic.tsx',
   'ShapeText.tsx',
@@ -110,7 +108,6 @@ export const PLAYER: readonly string[] = [
   'concertSessionState.ts',
   'gigContactState.ts',
   'gigPhase.ts',
-  'shapeTextLayout.ts',
   'videoCueLookup.ts',
   'videoTransport.ts',
   'navigationState.ts',
@@ -125,6 +122,7 @@ export const SHELL: readonly string[] = [
   'main.tsx',
   'SetupHomeView.tsx',
   'GigFlowView.tsx',
+  'GigFlowCards.tsx',
   'GigView.tsx',
   'SongFlowView.tsx',
   'SongDoors.tsx',
@@ -166,8 +164,17 @@ export const SHARED: readonly string[] = [
   'fileLayout.ts',
   'pickerMemory.ts',
   'fingerprint.ts',
+  // **The two locked cards, and the layout they are drawn with.** The player paints them on the
+  // wall; the shell previews them on the gig flow's cards step, which is the reason that step
+  // exists at all. **A preview that is a second implementation is a preview that can disagree with
+  // the wall** — the failure the whole shape vocabulary exists to prevent — so the templates belong
+  // to neither product and are drawn from one place.
+  'ShapeIntro.tsx',
+  'ShapeContact.tsx',
+  'shapeTextLayout.ts',
   // The files both products read: the shell writes them, the player performs them.
   'gigFile.ts',
+  'messageHomePrefs.ts',
   'gigSession.ts',
   'gigReadiness.ts',
   'useGigReadiness.ts',
