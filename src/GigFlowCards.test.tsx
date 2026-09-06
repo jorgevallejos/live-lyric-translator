@@ -170,7 +170,16 @@ describe('the screen', () => {
    * `ResizeObserver`**, so the component falls back to a nominal width there and the shape is
    * asserted in the stylesheet, the same device the gig picker's rows use.
    */
-  it('stacks the two previews, each at the full width, and picks no width of its own', async () => {
+  /**
+   * **STACKED, AND MODEST** (Jorge, 2026-09-06). Stacking was right and stays; *don't make the
+   * cards too big* is the correction. Full-bleed on a real screen made a preview taller than the
+   * window, so reading the step meant scrolling past two of them to reach the fields.
+   *
+   * **The cap is on the preview, not on the block**, so the label and the note beneath still read
+   * as part of a column rather than being trapped in a narrow gutter — which is what the `20em`
+   * cap on the block did before it came off.
+   */
+  it('stacks the two previews, keeps them modest, and picks no width of its own', async () => {
     await renderStep()
 
     const preview = screen.getByTestId('gig-cards-message-preview')
@@ -189,12 +198,18 @@ describe('the screen', () => {
     expect(row).not.toMatch(/flex-wrap/)
 
     const block = rule('.gig-cards-preview-block')
-    // The 20em cap was half of what made it cramped.
+    // The 20em cap was half of what made the step cramped when they were side by side.
     expect(block).not.toMatch(/max-width/)
 
     const box = rule('.gig-cards-preview')
+    // Still fluid, so a narrow window shrinks it rather than clipping it…
     expect(box).toMatch(/width:\s*100%/)
     expect(box).toMatch(/aspect-ratio:\s*1\s*\/\s*1/)
+    // …and still square, because the unit box the compositor draws into is square.
+    // **But capped**: a preview is for reading the card, not for filling the window.
+    const cap = /max-width:\s*([\d.]+)em/.exec(box)
+    expect(cap, `.gig-cards-preview has no max-width: ${box}`).toBeTruthy()
+    expect(parseFloat(cap![1]!)).toBeLessThanOrEqual(34)
   })
 })
 
