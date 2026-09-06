@@ -507,15 +507,6 @@ function ControlView() {
     sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
   }
 
-  // R2: Manual Start-step Restart — return to the pre-Start state so the button flips back to
-  // "Start": index -1, beat clock idle (not a fresh count-in), Next/Previous disabled again.
-  const handleManualStartRestart = () => {
-    goRestart()
-    resetBeatClock()
-    setManualOverrideTaken(false)
-    sendCommandWithState('setIndex', -1, { currentIndex: -1, blank: true })
-  }
-
   // ── T2 Auto transport (non-video, Auto mode): mirrors the Video panel's Play/Pause/Restart,
   // but the clock is the beat clock and the audience is black (no video) until a cue is due. ──
   const handleAutoPlay = () => {
@@ -746,7 +737,6 @@ function ControlView() {
       : ''
 
   const restartHold = useHoldToConfirm(handleRestart)
-  const manualStartRestartHold = useHoldToConfirm(handleManualStartRestart)
   const unarmHold = useHoldToConfirm(handleUnarm)
 
   const showSetupPanel = controlState === 'SETUP' || controlState === 'READY_TO_ARM'
@@ -780,6 +770,17 @@ function ControlView() {
   // **And the question of which reset clears it stops existing**, which is what the ruling was
   // reaching for — see `journey-performance.md`.
 
+  // T2: Auto lyric-advance behaves like Video mode but driven by the beat clock. When the
+  // song is armed non-video in Auto, the performer gets Play/Pause/Restart transport (not
+  // Next/Previous), and the audience is black during the count-in and before the first cue
+  // (see handleAutoPlay / autoBlackout / the projection blackout listener).
+  //
+  // **This is `clock`, the drive mode.** Drive mode is not a concept in this code — it is
+  // assembled from the two axes that are — and *non-video, Auto, has a timeline* is what
+  // `clock` names.
+  const isAutoArmed =
+    showArmedShell && !showVideoPerformance && effectiveAdvanceMode === 'auto' && hasTimeline
+
   const {
     phase: beatPhase,
     songElapsedMs,
@@ -791,18 +792,16 @@ function ControlView() {
     reset: resetBeatClock,
   } = useBeatClock(
     songTempo,
-    showArmedShell && !showVideoPerformance,
+    // **The clock runs in `clock` and nowhere else** (Jorge, 2026-09-06). It used to run in
+    // `manual` too, invisibly since 05/09 and pointlessly: nothing in `manual` reads
+    // `songElapsedMs`, nothing draws the phase, and **nothing beat-related exists in `manual`
+    // at all** now that the count-in has gone with the pulse. Video keeps its own clock inside
+    // `VideoPerformancePanel`.
+    isAutoArmed,
     // **The loaded song. A change to it is a load, and a load starts the beat** — one rule
     // covering both of Jorge's triggers, arming and `next`. See `useBeatClock`.
     currentSongId
   )
-
-  // T2: Auto lyric-advance behaves like Video mode but driven by the beat clock. When the
-  // song is armed non-video in Auto, the performer gets Play/Pause/Restart transport (not
-  // Next/Previous), and the audience is black during the count-in and before the first cue
-  // (see handleAutoPlay / autoBlackout / the projection blackout listener).
-  const isAutoArmed =
-    showArmedShell && !showVideoPerformance && effectiveAdvanceMode === 'auto' && hasTimeline
   // P1 (start-on-cue): a v2-timeline, no-video Auto song skips Play/count-in entirely — the
   // performer's first pedal press/Next is the start cue itself (see handleNext, startAtCue in
   // useBeatClock.ts). Keyed on primitives only (timelineVersion, isVideoMode — a boolean
@@ -829,15 +828,20 @@ function ControlView() {
     setManualOverrideTaken(false)
   }, [armed])
 
-  // R2: Manual mode gets an explicit Start step so the count-in runs a full bar BEFORE the
-  // first lyric — the performer can catch the tempo before singing, instead of the beat
-  // starting on the same Next press that reveals line 1. This only applies when there is a
-  // count-in to pre-run: the song has a tempo. Otherwise Next reveals line 1 immediately
-  // (today's behaviour, no Start step).
-  const isManualArmed = showArmedShell && !showVideoPerformance && !isAutoArmed
-  const manualStartStep = isManualArmed && !!songTempo
-  // Before Start the beat clock is idle; Start begins the count-in (count-in → playing).
-  const manualPreStart = manualStartStep && beatPlayState === 'idle'
+  // **NOTHING BEAT-RELATED EXISTS IN `manual` AT ALL** (Jorge, 2026-09-06).
+  //
+  // **R2's Manual Start step is gone.** It ran a count-in a full bar before the first lyric so the
+  // performer could catch the tempo before singing — and **the indicator was its only observable
+  // effect**, which the 05/09 ruling had just removed from `manual`. **A step that does nothing
+  // you can see is worse than no step**, so the step goes rather than the display coming back.
+  //
+  // **The pulse and the count-in are different things**, and separating them is what made the
+  // question answerable: the pulse is continuous and keeps Jorge with something playing itself,
+  // the count-in is finite and tells him when to come in. **`manual` has neither now**, because in
+  // `manual` he is the clock.
+  //
+  // **What manual becomes is simpler: the first press reveals the first phrase**, which is what
+  // moment 7 describes and what the app did before R2.
 
   // Auto lyric-advance drive (non-video performer view only): once the beat clock's song
   // has begun (songElapsedMs ticking, i.e. the first Next has started the clock and the
@@ -1317,18 +1321,15 @@ function ControlView() {
                   and the next song is being offered. It starts again on `next`, because that
                   loads a song.
 
-                  **ONE PLACE THIS WAS INTERPRETED RATHER THAN EXECUTED, AND IT IS FLAGGED.**
-                  The ruling reads *not in `manual`, at the cue or during the song*, and **R2's
-                  Manual Start step is a count-in that only exists to be watched** — a manual
-                  song with a tempo gets an explicit `Start` so the performer can catch the tempo
-                  before singing. Hiding the indicator there leaves a control with no observable
-                  effect, which is a shape this app forbids elsewhere. **And the ruling's own
-                  reason does not reach it:** during a count-in something IS running on its own,
-                  which is the whole of why the count-in was built.
-                  **So the count-in stays visible in `manual` and the running pulse does not.**
-                  If Jorge meant the count-in too, the fix is to delete R2's Start step with it
-                  rather than to leave it silent — which is his call, not this run's. */}
-              {songTempo && !isEndOfSong && (isAutoArmed || beatPlayState === 'count-in') && (
+                  **THE COUNT-IN WENT TOO, AND SO DID THE STEP THAT RAN IT** (Jorge,
+                  2026-09-06). The 05/09 ruling read *not in `manual`, at the cue or during the
+                  song*; the running pulse was unambiguous and the count-in was not, so it was
+                  left standing and put back as a question. **Answered: nothing beat-related
+                  exists in `manual` at all.** R2's Manual Start step is deleted with it, because
+                  the indicator was its only observable effect and **a step that does nothing you
+                  can see is worse than no step.** So `clock` is the whole of the condition here,
+                  and there is no second clause. */}
+              {isAutoArmed && songTempo && !isEndOfSong && (
                 <div
                   className="control-beat-clock-wrap"
                   style={{
@@ -1377,9 +1378,7 @@ function ControlView() {
                         ? 'Press Next when ready to start the song'
                         : isAutoArmed
                           ? 'Press Play to start'
-                          : manualPreStart
-                            ? 'Press Start to begin the count-in'
-                            : 'Press Next to reveal the first line'}
+                          : 'Press Next to reveal the first line'}
                     </p>
                   )}
                 </div>
@@ -1555,46 +1554,23 @@ function ControlView() {
                   type="button"
                   className="ctrl-btn ctrl-next"
                   onClick={handleNext}
-                  disabled={nextDisabled || manualPreStart}
+                  disabled={nextDisabled}
                 >
                   Next
                 </button>
-                {manualPreStart ? (
-                  /* R2: before the count-in, the third button is Start (relabelled Restart).
-                     Pressing it runs the count-in a bar before the first lyric; Next stays
-                     disabled until it does. Plain click — it's a forward, safe action. */
-                  <button
-                    type="button"
-                    className="ctrl-btn ctrl-restart"
-                    onClick={startBeatClock}
-                    aria-label="Start"
-                  >
-                    Start
-                  </button>
-                ) : manualStartStep ? (
-                  /* After Start, the same button becomes Restart, returning to the pre-Start
-                     state (beat idle, index -1, button back to Start). Hold-to-confirm guards
-                     against an accidental mid-song reset. */
-                  <button
-                    type="button"
-                    className="ctrl-btn ctrl-restart"
-                    onPointerDown={manualStartRestartHold.onPointerDown}
-                    onPointerUp={manualStartRestartHold.onPointerUp}
-                    onPointerLeave={manualStartRestartHold.onPointerLeave}
-                  >
-                    {manualStartRestartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="ctrl-btn ctrl-restart"
-                    onPointerDown={restartHold.onPointerDown}
-                    onPointerUp={restartHold.onPointerUp}
-                    onPointerLeave={restartHold.onPointerLeave}
-                  >
-                    {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
-                  </button>
-                )}
+                {/* **One Restart, because there is no Start step to return to** (Jorge,
+                    2026-09-06). R2 put a `Start` here for a manual song with a tempo, and a
+                    second `Restart` behind it that went back to the pre-Start state. Both were
+                    the count-in's, and the count-in has left `manual`. */}
+                <button
+                  type="button"
+                  className="ctrl-btn ctrl-restart"
+                  onPointerDown={restartHold.onPointerDown}
+                  onPointerUp={restartHold.onPointerUp}
+                  onPointerLeave={restartHold.onPointerLeave}
+                >
+                  {restartHold.isHolding ? 'Hold to confirm…' : 'Restart'}
+                </button>
               </>
             )}
             <button
