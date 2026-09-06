@@ -27,6 +27,7 @@ const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
 const serveTool = vi.fn()
 const canHostTools = vi.fn()
+const closeProjection = vi.fn()
 
 vi.mock('./platform', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -81,6 +82,14 @@ beforeAll(() => {
   vi.stubGlobal('WebSocket', vi.fn().mockImplementation(function () {
     return { readyState: 1, send: vi.fn(), close: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn() }
   }))
+  // The projection window's own bridge. Only the close is exercised here; the rest is the
+  // control screen's, and this screen must not be reaching for any of it.
+  ;(window as unknown as { electronAPI: Record<string, unknown> }).electronAPI = {
+    closeProjection: (...a: unknown[]) => closeProjection(...a),
+    isProjectionOpen: () => Promise.resolve(false),
+    onProjectionOpened: () => () => undefined,
+    onProjectionClosed: () => () => undefined,
+  }
 })
 
 beforeEach(() => {
@@ -216,6 +225,38 @@ describe('the visuals step', () => {
    * plumbing, which is what this project has deleted from every screen it has appeared on. What
    * they said is true and now lives in the comment on `ScreenVisuals`.
    */
+  /**
+   * **THE PROJECTOR HAS ONE CANVAS, AND ON THIS STEP IT IS MURALISTA'S** (Jorge, 2026-09-06).
+   *
+   * **What was seen:** in `1 SHAPES` and `2 OUTPUT` the message-home card painted where the
+   * lyrics stand-in should be, on a lyrics song and a video song alike, and switching Muralista's
+   * own `PREVIEWING` dropdown changed nothing.
+   *
+   * **Established before changing anything, and the kickoff's own reading is right: the conditions
+   * are working exactly as written.** But the surface is not the one the finding names.
+   * **Muralista cannot paint a message home** — `gig-contact` stopped being a shape type on
+   * 2026-09-04 and `.layer-contact` went out of `mapper.css` and `mapper.js` with it; every
+   * remaining mention in both files is a comment saying so. What paints it is **Pregonero's own
+   * Projection window**, which is fullscreen on the projector, lights the message home whenever it
+   * is open and not armed, and had nothing telling it to get out of the way. That also explains
+   * the dropdown doing nothing: it was changing a different window.
+   *
+   * **So the setup preview already exists and already shows the stand-in.** The vault records it:
+   * the stand-in came off Muralista's canvas on 2026-09-05 and **still reaches the output window,
+   * which is where `maxSize` and `aspect` are tuned**. Pregonero drawing a second stand-in preview
+   * would be a second implementation of the exact thing the shape vocabulary exists to prevent —
+   * *a preview that is a second implementation can disagree with the wall.*
+   *
+   * **The fix is therefore the room, not the drawing.** Entering this step takes Pregonero's
+   * Projection window off the projector, which is the mirror of Muralista's own rule that leaving
+   * this step takes the output window with it. Re-opening it is the control screen's `Open`, which
+   * is the only place it is ever opened.
+   */
+  it('takes Pregonero\u2019s own projection window off the projector on arrival', async () => {
+    await goToVisuals()
+    await waitFor(() => expect(closeProjection).toHaveBeenCalled(), WAIT)
+  })
+
   it('says nothing about the plumbing on the screen', async () => {
     await goToVisuals()
     await waitFor(() => expect(screen.getByTestId('gig-flow-visuals-frame')).toBeTruthy(), WAIT)

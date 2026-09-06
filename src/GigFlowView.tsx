@@ -697,6 +697,31 @@ function ScreenVisuals({ folderPath, onForward }: { folderPath: string | null; o
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
+  /**
+   * **THE PROJECTOR HAS ONE CANVAS, AND ON THIS STEP IT IS MURALISTA'S** (Jorge, 2026-09-06).
+   *
+   * On the wall, `1 SHAPES` and `2 OUTPUT` showed the message-home card where the lyrics stand-in
+   * belongs, and Muralista's own `PREVIEWING` dropdown changed nothing. **Muralista cannot paint a
+   * message home** — `gig-contact` stopped being a shape type on 2026-09-04 and `.layer-contact`
+   * left `mapper.css` and `mapper.js` with it. **It was Pregonero's own Projection window**,
+   * fullscreen on the projector, lighting the message home because it is open and not armed, with
+   * nothing telling it to get out of the way. The dropdown did nothing because it was addressing a
+   * different window.
+   *
+   * **The setup preview already exists and already shows the stand-in**: the stand-in came off
+   * Muralista's canvas on 2026-09-05 and still reaches its output window, *which is where `maxSize`
+   * and `aspect` are tuned*. **Pregonero drawing a second one would be a second implementation of
+   * the wall**, which is the thing the shape vocabulary exists to prevent.
+   *
+   * **So the fix is the room and not the drawing**, and it is the mirror of Muralista's own rule
+   * that leaving this step takes its output window with it. Re-opening is the control screen's
+   * `Open`, which is the only place the Projection window is ever opened — so this takes nothing
+   * away that is not one press to get back.
+   */
+  useEffect(() => {
+    window.electronAPI?.closeProjection?.()
+  }, [])
+
   useEffect(() => {
     if (!hosted) return
     let alive = true
