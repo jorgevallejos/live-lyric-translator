@@ -173,6 +173,9 @@ export const SHARED: readonly string[] = [
   'ShapeIntro.tsx',
   'ShapeContact.tsx',
   'shapeTextLayout.ts',
+  // The two locked cards' design box. Shared for the same reason they are: the gig flow's cards
+  // step previews the wall, and a preview that is a second implementation can disagree with it.
+  'cardBox.ts',
   // The files both products read: the shell writes them, the player performs them.
   'gigFile.ts',
   'messageHomePrefs.ts',
