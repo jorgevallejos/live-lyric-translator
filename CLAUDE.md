@@ -53,6 +53,7 @@ State is split into pure-function modules with tests, each backed by `localStora
 | `concertSessionState.ts` | sessionStorage | Concert timer (elapsed, pause/resume/reset) |
 | `playedSongsState.ts` | sessionStorage | **The played log**: one entry per performance, in order, duplicates preserved, with times. It marks played songs on the setlist screen and derives `isSetlistComplete`, which lights the contact panel |
 | `videoCueLookup.ts` | — | Pure half-open `[start, end)` cue lookup by time (Video mode) |
+| `driveMode.ts` | — | **`clock`, `video`, `manual`, as one control.** What a song can be driven by (video iff the room gives it one, clock iff it has a timeline, manual always), the default (**the most capable available**), and what an unavailable mode says when pressed. **Always three buttons**; one that cannot act refuses in a popup rather than sitting dead |
 | `beatScheduler.ts` | — | Pure `getBeatPhase(tempo, elapsed)` for the count-in/metronome |
 | `gigFolderStore.ts` | localStorage | Which gig folder is open. Its own module so the Projection window can ask without pulling in the reader |
 | `gigFolderList.ts` | — | **Which gigs there are**: `<gigs>/setup/` read on arrival, exactly as the songs list reads its folder. Nothing is stored, so nothing can disagree with the disk. A folder with no `gig.json` is silently not a gig; one whose `gig.json` will not parse is announced once and is never a row |
