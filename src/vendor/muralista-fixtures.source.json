@@ -2,11 +2,11 @@
   "module": "mapper.js",
   "owner": "muralista",
   "path": "mapper/mapper.js",
-  "tag": "v1.23.0",
-  "sha256": "f1f1576ebca1f67e74e11f5ac5cb761b9c7fa63fb049f8befc18fe9bdb4a242e",
+  "tag": "v1.24.0",
+  "sha256": "30e985bc10705b88125904d1ea1cca15bce730322f206c3cc771cc8376c10dc8",
   "fixtures": [
     "LYRICS_PREVIEW_TEXT"
   ],
   "vendoredOn": "2026-09-06",
-  "note": "Re-vendored at v1.23.0, a naming round: visuals.json is named the RP JSON — Room Performance — and the pointers to the retired gig-file.md follow docs/formats.md. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture."
+  "note": "Re-vendored at v1.24.0, the visualsVersion bump: VISUALS_VERSION is 2. LYRICS_PREVIEW_TEXT is untouched and is still the only fixture."
 }

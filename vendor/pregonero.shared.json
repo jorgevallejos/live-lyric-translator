@@ -1,6 +1,6 @@
 {
   "owner": "pregonero",
-  "tag": "v1.0.1",
+  "tag": "v1.1.0",
   "note": "Modules that exist in both repositories. The digest is Pregonero's copy at that tag.",
   "files": {
     "SetupValue.tsx": "5da06efa7c00a4f91f24bf765238fe615d2220e4eecfcacc84c6f7fd63de2d5c",
@@ -33,6 +33,6 @@
     "useHoldToConfirm.ts": "ceb4b7392d1f7553efbfb8417692dee91bf241f1d179af6d354cedca2a7ce18c",
     "useSongLibraryGate.ts": "987ae829ac2c7164ffabd6d9630a5b37f768f8b68da925f2da99912f56fd8578",
     "visualsBroadcast.ts": "020f580191795b5350f5e81648de4f32b5a1294f4cfa3a0479959e63afffea8f",
-    "visualsFile.ts": "f31661a863fe540f4d44bd1250fc1c47c37486ec87d2f26430ed063f8c353f30"
+    "visualsFile.ts": "840e1def088d08451c16e9a9267ab66d2bbd1dc22942fa072cbd90d5897378b2"
   }
 }

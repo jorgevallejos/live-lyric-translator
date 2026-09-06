@@ -21,6 +21,7 @@ import { render, screen, act, waitFor, cleanup, fireEvent } from '@testing-libra
 import { installRequiredFolders } from './testSupport/folders'
 import { installLibrary } from './testSupport/library'
 import { dropLibraryCache, setLibraryEntries, type LibrarySong } from './setlistStore'
+import { VISUALS_VERSION } from './visualsFile'
 
 const readGigFolder = vi.fn()
 const writeGigFile = vi.fn()
@@ -91,7 +92,7 @@ function song(id: string, title: string): LibrarySong {
 /** A room with a lyrics shape, which is what makes a lyrics-only song performable. */
 function visualsJson(gigId = GIG_ID) {
   return JSON.stringify({
-    visualsVersion: 1,
+    visualsVersion: VISUALS_VERSION,
     gigId,
     shapes: [
       {
@@ -108,7 +109,7 @@ function visualsJson(gigId = GIG_ID) {
 /** A room that also carries a video shape, so the media half of the content check actually runs. */
 function visualsWithVideo(gigId = GIG_ID) {
   return JSON.stringify({
-    visualsVersion: 1,
+    visualsVersion: VISUALS_VERSION,
     gigId,
     shapes: [
       {
@@ -137,7 +138,7 @@ function visualsWithVideo(gigId = GIG_ID) {
 /** The designed default at Muralista `v1.19.0`: a video frame in no mode, one lyrics shape each. */
 function visualsWithModes(gigId = GIG_ID) {
   return JSON.stringify({
-    visualsVersion: 1,
+    visualsVersion: VISUALS_VERSION,
     gigId,
     modes: [
       { id: 'm-plain', name: 'Song with lyrics', when: { shape: 'frame', is: 'empty' } },
