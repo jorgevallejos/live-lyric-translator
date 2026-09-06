@@ -36,6 +36,10 @@ import {
   TEXT_INSET_Y,
   textLayoutBoxWidth,
   textLayoutInsetX,
+  TEXT_FONT_FAMILY,
+  TEXT_FONT_WEIGHT,
+  TEXT_LINE_HEIGHT,
+  TEXT_OVERFLOW_WRAP,
 } from './shapeTextLayout'
 import type { Point } from './visualsFile'
 
@@ -51,6 +55,18 @@ const MURALISTA = {
   DEFAULT_MAX_SIZE: 0.2,
   DEFAULT_ASPECT: 1,
   UNIT_SIZE: 1000,
+}
+
+/**
+ * **`.layer-text-inner`, from `projects/muralista/mapper/mapper.css` at `v1.21.0`** — the element
+ * Muralista fits its stand-in in, and therefore the rendering every `maxSize` on the wall was
+ * measured against.
+ */
+const MURALISTA_FACE = {
+  fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+  fontWeight: 700,
+  lineHeight: 1.15,
+  overflowWrap: 'normal',
 }
 
 /** Muralista's own arithmetic, written out, so the comparison is against the rule and not the code. */
@@ -186,5 +202,39 @@ describe('the quad-stretch correction, over known quads', () => {
     const collapsed: Point[] = [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]
     expect(quadStretch(collapsed, 1920, 1080)).toBe(1)
     expect(textLayoutBoxWidth(null, 1, 1920, 1080)).toBe(UNIT_SIZE)
+  })
+})
+
+/**
+ * **A third thing that must agree, and it was not agreeing** (found on the wall, 2026-09-06).
+ *
+ * *On the wall the lyrics are in the wrong face.* Pregonero set no face on the lyric at all, so it
+ * inherited `.projection-screen`'s `'EB Garamond', Georgia, serif` at weight 600 from
+ * `control.css` — **a serif at a lighter weight, rendering inside a boundary Muralista measured
+ * for a bold sans.**
+ *
+ * **It belongs in this file rather than beside the other two by accident.** A boundary is a promise
+ * about how much room a string needs, and two faces do not need the same room: a `maxSize` tuned at
+ * the wall means something else on the night, and `worstCase.ts` measures the catalogue against the
+ * stand-in on the same assumption. It is exactly the class of thing this contract exists for.
+ *
+ * **`overflow-wrap` is in here for a harder reason: it changes behaviour.** Muralista wraps on word
+ * boundaries and lets the auto-fit shrink a word that cannot wrap. Pregonero had `break-word`,
+ * which breaks the word — so `scrollWidth` never exceeded the box, the fit never shrank, and the
+ * single long word `fitInBox` documents as *the case wrapping cannot help* was silently broken
+ * across two lines instead.
+ */
+describe('the face the boundary was tuned in', () => {
+  it('is the face Muralista fits in, not whatever the projection window inherits', () => {
+    expect(TEXT_FONT_FAMILY).toBe(MURALISTA_FACE.fontFamily)
+    expect(TEXT_FONT_WEIGHT).toBe(MURALISTA_FACE.fontWeight)
+  })
+
+  it('sets the line height the fit counts lines at', () => {
+    expect(TEXT_LINE_HEIGHT).toBe(MURALISTA_FACE.lineHeight)
+  })
+
+  it('wraps on word boundaries, so a word that cannot wrap shrinks the line instead of breaking', () => {
+    expect(TEXT_OVERFLOW_WRAP).toBe(MURALISTA_FACE.overflowWrap)
   })
 })
