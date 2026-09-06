@@ -130,12 +130,13 @@ describe('the shell does not reach into the player either', () => {
 })
 
 describe('what is shared belongs to neither product', () => {
-  it('reaches into the player exactly once, and that crossing is named', () => {
-    // **`mediaSources.ts` imports `isStaticType` from `ShapeStatic.tsx`** — a pure predicate that
-    // happens to live in a component file, so a shared reader reaches into a player renderer.
-    // Moving it is a one-line change and was **deliberately not made**: the round that drew this
-    // line moved no code to make a test pass. Pinned here so a second one turns this red.
+  it('reaches into the player not at all, since v0.107.0', () => {
+    // There was one crossing — `mediaSources.ts` importing `isStaticType` from `ShapeStatic.tsx` —
+    // named rather than fixed, because that round moved no code to make a test pass. The repo
+    // split paid it: the predicate is a fact about the file format and now lives in
+    // `visualsFile.ts`. **Empty is the assertion now**, not a list with one entry on it.
     expect(edges(SHARED, PLAYER)).toEqual(KNOWN_CROSSINGS)
+    expect(KNOWN_CROSSINGS).toEqual([])
   })
 
   it('reaches into the shell not at all', () => {
