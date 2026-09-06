@@ -437,6 +437,26 @@ standing in for the world is the shape of this failure**, and it is not fixed by
 **Two tests for a new list before it ships.** Can it disagree with the disk? And if it did, would
 anything say so? If the answers are *yes* and *no*, it is this failure waiting to happen.
 
+### A column shows a state, never a message — and a test holds it
+
+**Ruled 2026-09-03, restated 2026-09-05, broken again by 2026-09-06.** A paragraph in `GIG`, bullets
+in `ARM`, two placement notes in `PROJECTION`. **Three times is not a wording problem, it is a
+missing guard**, so there is one: `ControlView.test.tsx`, *a column shows a state, never a message*.
+
+**A column may contain its label, its value, and its controls** — a control's group label and its
+buttons. **Anything else fails**, whatever it is called and however good the reason is. The test
+checks the shape as well as the text: no `<p>`, no `<ul>`, no `<li>`, no note class inside a
+`.control-setup-section`.
+
+**Where a message goes instead.** A fact about the column is its **value** — `Open, on this screen`
+is how *the projection window stayed on the laptop* survived. **Anything that has gone wrong is a
+popup**, because this panel is read across a stage in the dark where a band of text at a control is
+invisible.
+
+**And a control that cannot act says why when pressed** rather than sitting dead — `Arm` and the
+drive-mode buttons both. `aria-disabled` carries what `disabled` used to; taking the press away
+takes the explanation with it, which is how the walk of `v0.80.0` ended at moment 5.
+
 ### An action with an unmet precondition is disabled, never absent
 
 `GatedAction.tsx`, and **a test counts the sites**, because counting them is the only way this rule

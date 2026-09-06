@@ -293,7 +293,10 @@ describe('the hard gate at arm time', () => {
     expect(screen.queryByTestId('arm-blocked-reasons')).toBeNull()
   })
 
-  it('refuses to arm a song the gig carries nowhere, and says why', async () => {
+  it('refuses to arm a song the gig carries nowhere, and says why when pressed', async () => {
+    // **The reasons moved out of the column and into a popup** (2026-09-06): a column shows a
+    // state, never a message, and this panel is read across a stage in the dark. **`Arm` stays
+    // pressable and says why it cannot act**, which is the same behaviour a drive-mode button has.
     armableControlSetup()
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(
@@ -305,18 +308,26 @@ describe('the hard gate at arm time', () => {
       })
     )
     await renderAt('#/')
-    await waitFor(
-      () => expect(screen.getByTestId('arm-blocked-reasons').textContent).toMatch(
-        /no shape carries this song/
-      ),
-      { timeout: WAIT_TIMEOUT }
-    )
+    await waitFor(() => expect(standbyState()).toBe('SETUP'), { timeout: WAIT_TIMEOUT })
+
+    // Nothing is said until it is asked for.
+    expect(screen.queryByTestId('arm-refusal')).toBeNull()
+
     const main = screen.getByRole('main')
-    expect(within(main).getByRole('button', { name: 'Arm' }).hasAttribute('disabled')).toBe(true)
+    const arm = within(main).getByRole('button', { name: 'Arm' })
+    expect(arm.getAttribute('aria-disabled')).toBe('true')
+    await act(async () => {
+      fireEvent.click(arm)
+    })
+
+    expect(screen.getByTestId('arm-refusal-reasons').textContent).toMatch(
+      /no shape carries this song/
+    )
+    // Still not armed: a refusal is a refusal.
     expect(standbyState()).toBe('SETUP')
   })
 
-  it('says the escape hatch out loud', async () => {
+  it('says the escape hatch out loud, in the popup', async () => {
     armableControlSetup()
     rememberGigFolder(FOLDER)
     readGigFolder.mockResolvedValue(
@@ -328,10 +339,11 @@ describe('the hard gate at arm time', () => {
       })
     )
     await renderAt('#/')
-    await waitFor(
-      () => expect(screen.getByTestId('arm-blocked-reasons').textContent).toMatch(/Muralista/),
-      { timeout: WAIT_TIMEOUT }
-    )
+    await waitFor(() => expect(standbyState()).toBe('SETUP'), { timeout: WAIT_TIMEOUT })
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Arm' }))
+    })
+    expect(screen.getByTestId('arm-refusal-reasons').textContent).toMatch(/Muralista/)
   })
 
   it('arms a song the gig-level lyrics shape carries, with no per-song setup at all', async () => {
@@ -372,10 +384,12 @@ describe('the hard gate at arm time', () => {
       { timeout: WAIT_TIMEOUT }
     )
     expect(screen.getByTestId('control-gig-value').textContent).not.toContain(GIG_ID)
-    // The confirmation is a milestone, not a lock: an unconfirmed gig says so and arms anyway.
-    expect(screen.getByTestId('control-gig-summary').textContent).toMatch(
-      /Every song can be armed\. Setup is not confirmed\./
-    )
+    // **The summary paragraph is gone from this column** (2026-09-06). It said *Setup is not
+    // confirmed* beside the gig's name, and **a column shows a state, never a message.** The
+    // confirmation is still a milestone rather than a lock — the gig arms anyway — and the screen
+    // that says so line by line is the gig flow's sign-off, one press away through `Setup`.
+    expect(screen.queryByTestId('control-gig-summary')).toBeNull()
+    expect(standbyState()).toBe('READY_TO_ARM')
   })
 })
 

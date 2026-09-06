@@ -111,20 +111,32 @@ afterEach(() => {
   delete (window as unknown as { electronAPI?: unknown }).electronAPI
 })
 
+/**
+ * **The two placement notes came off the column on 2026-09-06** — *a column shows a state, never a
+ * message* — and **the one that mattered is in the value instead.**
+ *
+ * The good case needs no words: `Open` is the state, and the window is where it should be. **The
+ * fallback does**, because a projection window that quietly stayed on the laptop is otherwise
+ * discovered by looking at a blank wall — so the value says `Open, on this screen`, which is a
+ * state and is readable at the distance this panel is read at.
+ */
 describe('where the projection window went', () => {
-  it('says it went to the second display', async () => {
+  function projectionValue(): string {
+    const column = [...document.querySelectorAll('.control-setup-section')].find((s) =>
+      s.textContent?.startsWith('Projection')
+    )
+    return column?.querySelector('.control-setup-value')?.textContent ?? ''
+  }
+
+  it('says only that it is open when it went to the projector', async () => {
     projectionPlacement.mockResolvedValue({ placed: true, reason: null, display: '1920x1080' })
     await act(async () => {
       render(<App initialHash="#/" />)
     })
-    await waitFor(() =>
-      expect(screen.getByTestId('projection-placement').textContent).toMatch(
-        /On the second display, 1920x1080\./
-      )
-    )
+    await waitFor(() => expect(projectionValue()).toBe('Open'))
   })
 
-  it('says out loud when there is only one display, rather than quietly staying put', async () => {
+  it('says out loud when it stayed on this screen, rather than quietly staying put', async () => {
     projectionPlacement.mockResolvedValue({
       placed: false,
       reason: 'Only one display, so the projection window opens where it always did.',
@@ -133,14 +145,10 @@ describe('where the projection window went', () => {
     await act(async () => {
       render(<App initialHash="#/" />)
     })
-    await waitFor(() =>
-      expect(screen.getByTestId('projection-placement-fallback').textContent).toMatch(
-        /Only one display.*Drag it across yourself\./s
-      )
-    )
+    await waitFor(() => expect(projectionValue()).toBe('Open, on this screen'))
   })
 
-  it('says nothing at all when there is nothing to say — outside Electron', async () => {
+  it('carries no note beside the value, whatever the placement was', async () => {
     projectionPlacement.mockResolvedValue({ placed: false, reason: null, display: null })
     await act(async () => {
       render(<App initialHash="#/" />)
