@@ -4,7 +4,7 @@
  * `gigSession.refreshGigReadiness` is the *opening* path, and it writes: a folder with no
  * `gig.json` gets one, and a `gig.json` that has not reached a running order gets the app's
  * written in. Both are right for the gig you are opening — the file accreting, which
- * `docs/gig-file.md` calls its normal way of growing — and both are wrong for a gig you are merely
+ * `docs/formats.md` calls its normal way of growing — and both are wrong for a gig you are merely
  * **looking at**.
  *
  * Setup home draws one row per remembered gig, each row showing that gig's delta. A list built on
