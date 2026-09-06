@@ -21,12 +21,25 @@ const { emittedSongIn } = require('./emittedSong.cjs')
 const { replaceSongFile } = require('./replaceSongFile.cjs')
 const { startBombistaServe } = require('./bombistaServe.cjs')
 const { chooseProjectorDisplay } = require('./projectorDisplay.cjs')
+const {
+  APP_PRIVILEGES,
+  APP_SCHEME,
+  appUrl,
+  resolveAppRequest,
+} = require('./appScheme.cjs')
 
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'media',
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
   },
+  /**
+   * **THE SHELL HAS AN ORIGIN OF ITS OWN**, and it is the one thing framing the player needs —
+   * `file://` was the blocker, not the frame. **Registered rather than served on a port**: a port
+   * is part of the origin, so an ephemeral one loses every stored answer each launch and a fixed
+   * one adds a way for the app to fail to start. Nothing listens on a scheme. See `appScheme.cjs`.
+   */
+  { scheme: APP_SCHEME, privileges: APP_PRIVILEGES },
 ])
 
 const WS_PORT = 8765
@@ -76,17 +89,14 @@ function getProjectionUrl() {
   return null
 }
 
-function getDistIndexPath() {
-  return path.join(app.getAppPath(), 'dist', 'index.html')
+/** The built page, served over the app's own scheme. Dev is still the Vite server. */
+function getDistRoot() {
+  return path.join(app.getAppPath(), 'dist')
 }
 
 function loadProjectionUrl(win) {
   const devUrl = getProjectionUrl()
-  if (devUrl) {
-    win.loadURL(devUrl)
-  } else {
-    win.loadFile(getDistIndexPath(), { hash: '#/projection' })
-  }
+  win.loadURL(devUrl || appUrl('#/projection'))
 }
 
 function notifyProjectionOpened() {
@@ -389,11 +399,7 @@ function createWindow() {
 
   mainWindow = win
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL)
-  } else {
-    win.loadFile(getDistIndexPath())
-  }
+  win.loadURL(process.env.VITE_DEV_SERVER_URL || appUrl())
 
   win.on('closed', () => {
     mainWindow = null
@@ -723,6 +729,18 @@ ipcMain.handle('fs:getFileStats', (_event, filePath) => {
 })
 
 app.whenReady().then(() => {
+  /**
+   * **The shell's own pages, and nothing else.** The root is the packaged `dist/`; a request that
+   * would leave it is refused rather than followed, which is the rule `localhostServer.cjs`
+   * already runs under. See `appScheme.resolveAppRequest`.
+   */
+  protocol.handle(APP_SCHEME, (request) => {
+    const target = resolveAppRequest(getDistRoot(), request.url)
+    if (target === null) return new Response('Not found', { status: 404 })
+    return net.fetch(require('node:url').pathToFileURL(target).toString(), {
+      headers: request.headers,
+    })
+  })
   protocol.handle('media', (request) => {
     // media://local/Users/... — host is the fixed sentinel "local"; pathname is the
     // absolute filesystem path. decodeURIComponent restores percent-encoded segments.
