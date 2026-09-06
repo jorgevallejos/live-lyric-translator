@@ -191,6 +191,11 @@ export const SHARED: readonly string[] = [
   'songs.ts',
   'visualsFile.ts',
   'visualsBroadcast.ts',
+  // **The card channel, and it is not the player's** (2026-09-06). It lived inside
+  // `gigContactState.ts` until the gig flow's Cards step put a card on the wall and this test went
+  // red on a second shell → player edge. **The condition is the player's; the wire between two
+  // windows is neither product's** — the same reason `visualsBroadcast.ts` is here.
+  'cardBroadcast.ts',
   'mediaPathStore.ts',
   'mediaSources.ts',
 ]
