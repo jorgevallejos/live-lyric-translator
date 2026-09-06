@@ -246,7 +246,7 @@ describe('the visuals step', () => {
     expect(screen.queryByTestId('gig-flow-forward')).toBeNull()
 
     await act(async () => announceMuralistaStep('output'))
-    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the sign-off →')
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the cards →')
 
     // And it goes away again if Muralista goes back — the control follows the screen, it does not
     // latch on the first time the output is seen.
@@ -313,7 +313,7 @@ describe('the visuals step', () => {
     })
     expect(screen.getByTestId('gig-flow-save-problem').textContent).toBe('HTTP 500')
     expect(screen.getByTestId('gig-flow-visuals')).toBeTruthy()
-    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the sign-off →')
+    expect(screen.getByTestId('gig-flow-forward').textContent).toBe('To the cards →')
   })
 
   /**
@@ -348,6 +348,13 @@ describe('the visuals step', () => {
           source: source as unknown as Window,
         })
       )
+    })
+    // **The visuals lead to the cards step since 2026-09-06**, and the sign-off is one press
+    // further. The re-read fires on arriving at either: the staleness is created here, and the
+    // cards step prefills from the gig's own `messageHome`.
+    await waitFor(() => expect(screen.getByTestId('gig-flow-screen-cards')).toBeTruthy(), WAIT)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('gig-cards-forward'))
     })
     await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
     // The folder was looked at again. Before the fix this count never moved after mount.

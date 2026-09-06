@@ -254,9 +254,9 @@ async function goToCheck() {
   await act(async () => {
     render(<App initialHash="#/gig" />)
   })
-  await waitFor(() => expect(screen.getByTestId('gig-flow-step-4')).toBeTruthy(), WAIT)
+  await waitFor(() => expect(screen.getByTestId('gig-flow-step-5')).toBeTruthy(), WAIT)
   await act(async () => {
-    fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+    fireEvent.click(screen.getByTestId('gig-flow-step-5'))
   })
   await waitFor(() => expect(screen.getByTestId('gig-flow-check')).toBeTruthy(), WAIT)
 }
@@ -588,7 +588,7 @@ describe('confirming setup', () => {
       fireEvent.click(screen.getByTestId('gig-flow-step-2'))
     })
     await act(async () => {
-      fireEvent.click(screen.getByTestId('gig-flow-step-4'))
+      fireEvent.click(screen.getByTestId('gig-flow-step-5'))
     })
     await waitFor(() => expect(readGigFolder.mock.calls.length).toBeGreaterThan(after), WAIT)
   })
